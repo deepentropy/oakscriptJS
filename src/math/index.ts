@@ -565,14 +565,15 @@ export function todegrees(radians: float): float {
  *
  * @param min - Optional minimum value (inclusive)
  * @param max - Optional maximum value (exclusive)
- * @param seed - Optional seed for deterministic random (not implemented in this version)
+ * @param seed - Optional seed for deterministic random
  * @returns A random number in the specified range, or [0, 1) if no range specified
  *
  * @remarks
  * - Without arguments: returns value in [0, 1)
  * - With min and max: returns value in [min, max)
- * - Note: This implementation does not support deterministic seeding
- * - Each call generates a new random value
+ * - **WARNING**: The seed parameter is accepted for API compatibility but NOT currently implemented
+ * - This implementation always generates non-deterministic random values
+ * - PineScript's version supports deterministic seeding for repeatable sequences
  *
  * @example
  * ```typescript
@@ -584,8 +585,8 @@ export function todegrees(radians: float): float {
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.random | PineScript math.random}
  */
 export function random(min?: float, max?: float, seed?: int): float {
-  // Note: Pine's random has deterministic seed support
-  // This is a simplified version
+  // TODO: Implement deterministic seeding to match PineScript behavior
+  // Currently seed parameter is ignored
   const rand = Math.random();
   if (min !== undefined && max !== undefined) {
     return min + rand * (max - min);
@@ -620,7 +621,7 @@ export function sign(value: float): int {
 }
 
 // Constants
-export const PI = Math.PI;
-export const E = Math.E;
-export const PHI = 1.618033988749895; // Golden ratio
-export const RPHI = 0.618033988749895; // Reciprocal of golden ratio
+export const pi = Math.PI;
+export const e = Math.E;
+export const phi = 1.618033988749895; // Golden ratio
+export const rphi = 0.618033988749895; // Reciprocal of golden ratio
