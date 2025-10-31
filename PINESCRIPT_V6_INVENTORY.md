@@ -397,8 +397,9 @@ All documented string functions are implemented:
 - ✅ startswith, endswith, charAt, trim, trimLeft, trimRight, match
 
 **Issues:**
-- ⚠️ All have minimal documentation
+- ✅ Comprehensive JSDoc documentation with examples and remarks
 - ✅ Comprehensive tests added (127 test cases)
+- ✅ Links to official PineScript v6 documentation
 
 **Tests:** ✅ tests/str/conversion.test.ts, tests/str/manipulation.test.ts, tests/str/search.test.ts, tests/str/formatting.test.ts, tests/str/predicates.test.ts, tests/str/whitespace.test.ts
 
@@ -414,8 +415,10 @@ All documented color functions are implemented:
 - ✅ Predefined color constants (aqua, black, blue, fuchsia, gray, green, lime, maroon, navy, olive, orange, purple, red, silver, teal, white, yellow)
 
 **Issues:**
-- ⚠️ All have minimal documentation
+- ✅ Comprehensive JSDoc documentation with examples and remarks
 - ✅ Comprehensive tests added (73 test cases)
+- ✅ Links to official PineScript v6 documentation
+- ✅ All 17 color constants documented
 - ⚠️ Need to verify `from_hex` matches v6 API (might be `color.rgb` with hex param)
 
 **Tests:** ✅ tests/color/creation.test.ts, tests/color/manipulation.test.ts, tests/color/components.test.ts, tests/color/constants.test.ts
@@ -573,10 +576,13 @@ Not implemented:
 
 ### 2. Missing Documentation
 
-- **All implementations** lack proper PineScript v6 compliant documentation
-- No examples from official docs
-- No remarks about behavior (e.g., na handling)
-- No "See also" references
+- **Most implementations** lack proper PineScript v6 compliant documentation
+- ✅ **str namespace** (18/18 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ✅ **color namespace** (8/8 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ❌ **Other namespaces** (ta, array, math, etc.) still need proper documentation:
+  - No examples from official docs
+  - No remarks about behavior (e.g., na handling)
+  - No "See also" references
 
 ### 3. Missing Tests
 
