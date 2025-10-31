@@ -1,17 +1,36 @@
 /**
  * Technical Analysis (ta) namespace
- * Mirrors PineScript's ta.* functions
+ * Mirrors PineScript's ta.* functions for technical analysis indicators and calculations.
+ *
+ * @remarks
+ * All technical analysis functions in this namespace follow PineScript v6 API specifications.
+ *
+ * @version 6
  */
 
-import { series_float, series_bool, int, float, Source, simple_int, simple_float, simple_string } from '../types';
+import { series_float, series_bool, series_int, int, float, Source, simple_int, simple_float, simple_bool } from '../types';
 
 /**
- * Simple Moving Average
- * @param source - Source series
+ * Simple Moving Average - returns the moving average (sum of last y values divided by y).
+ *
+ * @param source - Series of values to process
  * @param length - Number of bars (length)
- * @returns Moving average series
+ * @returns Simple moving average of source for length bars back
+ *
+ * @remarks
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * @example
+ * ```typescript
+ * const closePrices = [10, 11, 12, 13, 14];
+ * const sma5 = ta.sma(closePrices, 5); // Returns: [NaN, NaN, NaN, NaN, 12]
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma | PineScript ta.sma}
  */
-export function sma(source: Source, length: simple_int): series_float {
+export function sma(source: Source, length: series_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -30,10 +49,26 @@ export function sma(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Exponential Moving Average
- * @param source - Source series
+ * Exponential Moving Average - returns the exponentially weighted moving average.
+ *
+ * @param source - Series of values to process
  * @param length - Number of bars (length)
- * @returns Exponential moving average series
+ * @returns Exponential moving average of source with alpha = 2 / (length + 1)
+ *
+ * @remarks
+ * - In EMA, weighting factors decrease exponentially
+ * - Formula: `EMA = alpha * source + (1 - alpha) * EMA[1]`, where `alpha = 2 / (length + 1)`
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ * - May cause indicator repainting
+ *
+ * @example
+ * ```typescript
+ * const closePrices = [10, 11, 12, 13, 14];
+ * const ema5 = ta.ema(closePrices, 5);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.ema | PineScript ta.ema}
  */
 export function ema(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -60,10 +95,25 @@ export function ema(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Relative Strength Index
- * @param source - Source series
+ * Relative Strength Index - momentum oscillator measuring speed and magnitude of price changes.
+ *
+ * @param source - Series of values to process
  * @param length - Number of bars (length)
- * @returns RSI series
+ * @returns RSI series (values range from 0 to 100)
+ *
+ * @remarks
+ * - RSI values above 70 typically indicate overbought conditions
+ * - RSI values below 30 typically indicate oversold conditions
+ * - **ALGORITHM ISSUE**: Current implementation uses SMA instead of RMA (Relative Moving Average)
+ * - PineScript v6 uses `ta.rma()` for smoothing, this uses `ta.sma()` - values may differ
+ * - Formula: RSI = 100 - (100 / (1 + RS)), where RS = Average Gain / Average Loss
+ *
+ * @example
+ * ```typescript
+ * const rsi14 = ta.rsi(closePrices, 14);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rsi | PineScript ta.rsi}
  */
 export function rsi(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -97,12 +147,27 @@ export function rsi(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Moving Average Convergence Divergence
- * @param source - Source series
- * @param fastLength - Fast length
- * @param slowLength - Slow length
- * @param signalLength - Signal length
- * @returns [macd, signal, histogram]
+ * Moving Average Convergence Divergence - trend-following momentum indicator showing relationship
+ * between two moving averages.
+ *
+ * @param source - Series of values to process
+ * @param fastLength - Fast EMA length (typically 12)
+ * @param slowLength - Slow EMA length (typically 26)
+ * @param signalLength - Signal line EMA length (typically 9)
+ * @returns Tuple of [macdLine, signalLine, histogram]
+ *
+ * @remarks
+ * - MACD Line = Fast EMA - Slow EMA
+ * - Signal Line = EMA of MACD Line
+ * - Histogram = MACD Line - Signal Line
+ * - Crossovers between MACD and signal line indicate potential buy/sell signals
+ *
+ * @example
+ * ```typescript
+ * const [macdLine, signal, histogram] = ta.macd(closePrices, 12, 26, 9);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.macd | PineScript ta.macd}
  */
 export function macd(
   source: Source,
@@ -129,24 +194,39 @@ export function macd(
 }
 
 /**
- * Bollinger Bands
- * @param source - Source series
+ * Bollinger Bands - a technical analysis tool defined by lines plotted two standard deviations
+ * away from a simple moving average.
+ *
+ * @param series - Series of values to process
  * @param length - Number of bars (length)
- * @param mult - Standard deviation multiplier
- * @returns [middle, upper, lower]
+ * @param mult - Standard deviation factor
+ * @returns Tuple of [middle, upper, lower] bands
+ *
+ * @remarks
+ * - Middle band is the SMA of the source
+ * - Upper band = middle + (mult * standard deviation)
+ * - Lower band = middle - (mult * standard deviation)
+ * - `na` values in the source series are ignored
+ *
+ * @example
+ * ```typescript
+ * const [middle, upper, lower] = ta.bb(closePrices, 20, 2);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.bb | PineScript ta.bb}
  */
 export function bb(
-  source: Source,
-  length: simple_int,
+  series: Source,
+  length: series_int,
   mult: simple_float
 ): [series_float, series_float, series_float] {
-  const basis = sma(source, length);
-  const dev = stdev(source, length);
+  const basis = sma(series, length);
+  const dev = stdev(series, length);
 
   const upper: series_float = [];
   const lower: series_float = [];
 
-  for (let i = 0; i < source.length; i++) {
+  for (let i = 0; i < series.length; i++) {
     upper.push(basis[i] + mult * dev[i]);
     lower.push(basis[i] - mult * dev[i]);
   }
@@ -155,12 +235,25 @@ export function bb(
 }
 
 /**
- * Standard Deviation
- * @param source - Source series
+ * Standard Deviation - measures the amount of variation or dispersion of values.
+ *
+ * @param source - Series of values to process
  * @param length - Number of bars (length)
  * @returns Standard deviation series
+ *
+ * @remarks
+ * - Calculates the population standard deviation (not sample)
+ * - Returns NaN for the first (length - 1) values
+ * - `na` values in the source series are ignored
+ *
+ * @example
+ * ```typescript
+ * const stdev20 = ta.stdev(closePrices, 20);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.stdev | PineScript ta.stdev}
  */
-export function stdev(source: Source, length: simple_int): series_float {
+export function stdev(source: Source, length: series_int): series_float {
   const result: series_float = [];
   const avg = sma(source, length);
 
@@ -181,10 +274,23 @@ export function stdev(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Crossover - true when series1 crosses over series2
+ * Crossover - returns true when series1 crosses over series2 (moves from below to above).
+ *
  * @param series1 - First series
  * @param series2 - Second series
- * @returns Boolean series
+ * @returns Boolean series (true at crossover points)
+ *
+ * @remarks
+ * - True when: series1[i] > series2[i] AND series1[i-1] <= series2[i-1]
+ * - First value is always false (no previous value to compare)
+ * - Useful for detecting bullish signals (e.g., fast MA crossing over slow MA)
+ *
+ * @example
+ * ```typescript
+ * const crossUp = ta.crossover(fastMA, slowMA);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.crossover | PineScript ta.crossover}
  */
 export function crossover(series1: Source, series2: Source): series_bool {
   const result: series_bool = [];
@@ -201,10 +307,23 @@ export function crossover(series1: Source, series2: Source): series_bool {
 }
 
 /**
- * Crossunder - true when series1 crosses under series2
+ * Crossunder - returns true when series1 crosses under series2 (moves from above to below).
+ *
  * @param series1 - First series
  * @param series2 - Second series
- * @returns Boolean series
+ * @returns Boolean series (true at crossunder points)
+ *
+ * @remarks
+ * - True when: series1[i] < series2[i] AND series1[i-1] >= series2[i-1]
+ * - First value is always false (no previous value to compare)
+ * - Useful for detecting bearish signals (e.g., fast MA crossing under slow MA)
+ *
+ * @example
+ * ```typescript
+ * const crossDown = ta.crossunder(fastMA, slowMA);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.crossunder | PineScript ta.crossunder}
  */
 export function crossunder(series1: Source, series2: Source): series_bool {
   const result: series_bool = [];
@@ -221,12 +340,26 @@ export function crossunder(series1: Source, series2: Source): series_bool {
 }
 
 /**
- * Change - difference between current and previous value
- * @param source - Source series
- * @param length - Number of bars back
- * @returns Change series
+ * Change - calculates the difference between the current value and its value length bars ago.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars back (default: 1)
+ * @returns Change series (source[i] - source[i - length])
+ *
+ * @remarks
+ * - Returns NaN for the first `length` values
+ * - Default length is 1 (difference from previous bar)
+ * - Positive values indicate increase, negative values indicate decrease
+ *
+ * @example
+ * ```typescript
+ * const change1 = ta.change(closePrices); // Daily change
+ * const change5 = ta.change(closePrices, 5); // 5-day change
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.change | PineScript ta.change}
  */
-export function change(source: Source, length: simple_int = 1): series_float {
+export function change(source: Source, length: series_int = 1): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -241,11 +374,25 @@ export function change(source: Source, length: simple_int = 1): series_float {
 }
 
 /**
- * True Range
- * @param high - High series
- * @param low - Low series
- * @param close - Close series
+ * True Range - measures market volatility by calculating the greatest of three price ranges.
+ *
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
  * @returns True range series
+ *
+ * @remarks
+ * - True Range = max(high - low, abs(high - close[1]), abs(low - close[1]))
+ * - For the first value: TR = high - low (no previous close available)
+ * - Used as a component in ATR calculations
+ * - Accounts for gaps by comparing to previous close
+ *
+ * @example
+ * ```typescript
+ * const trueRange = ta.tr(high, low, close);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.tr | PineScript ta.tr}
  */
 export function tr(high: Source, low: Source, close: Source): series_float {
   const result: series_float = [];
@@ -267,12 +414,27 @@ export function tr(high: Source, low: Source, close: Source): series_float {
 }
 
 /**
- * Average True Range
- * @param length - Number of bars (length)
- * @param high - High series
- * @param low - Low series
- * @param close - Close series
- * @returns ATR series
+ * Average True Range - returns the RMA (Relative Moving Average) of true range.
+ *
+ * @param length - Number of bars for averaging
+ * @param high - High price series (required in JavaScript, implicit in PineScript)
+ * @param low - Low price series (required in JavaScript, implicit in PineScript)
+ * @param close - Close price series (required in JavaScript, implicit in PineScript)
+ * @returns Average true range series
+ *
+ * @remarks
+ * - **API DEVIATION**: PineScript v6's `ta.atr(length)` uses implicit chart data
+ * - This implementation requires explicit high, low, close parameters
+ * - **ALGORITHM ISSUE**: Uses SMA instead of RMA for averaging (should use ta.rma)
+ * - ATR is a measure of volatility, higher values indicate greater volatility
+ * - `na` values in the source series are ignored
+ *
+ * @example
+ * ```typescript
+ * const atr14 = ta.atr(14, high, low, close);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.atr | PineScript ta.atr}
  */
 export function atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float {
   // Note: In actual implementation, high, low, close would come from chart data if not provided
@@ -281,23 +443,40 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
   }
 
   const trueRange = tr(high, low, close);
+  // TODO: Should use ta.rma() instead of sma() to match PineScript v6
   return sma(trueRange, length);
 }
 
 /**
- * SuperTrend Indicator - Calculates the values of the SuperTrend indicator with the ability
- * to take candle wicks into account, rather than only the closing price.
- * @param factor - Multiplier for the ATR value
- * @param atrLength - Length for the ATR smoothing parameter calculation
- * @param high - High price series
- * @param low - Low price series
- * @param close - Close price series
- * @param wicks - Condition to determine whether to take candle wicks into account when reversing trend, or to use the close price. Default is false.
- * @returns [superTrend, direction] - A tuple of the superTrend value and trend direction (1 for uptrend, -1 for downtrend)
+ * SuperTrend Indicator - a trend-following indicator that helps identify trend direction.
+ *
+ * @param factor - The multiplier by which the ATR will get multiplied
+ * @param atrPeriod - Length of ATR
+ * @param high - High price series (required in JavaScript, implicit in PineScript)
+ * @param low - Low price series (required in JavaScript, implicit in PineScript)
+ * @param close - Close price series (required in JavaScript, implicit in PineScript)
+ * @param wicks - Whether to use wicks or close for trend reversal (NOT in PineScript v6 API)
+ * @returns Tuple of [supertrend, direction] where direction is 1 (down) or -1 (up)
+ *
+ * @remarks
+ * - **API DEVIATION**: PineScript v6's `ta.supertrend(factor, atrPeriod)` uses implicit chart data
+ * - This implementation requires explicit high, low, close parameters (no chart context in JavaScript)
+ * - The `wicks` parameter is NOT part of the official PineScript v6 API
+ * - Direction: 1 = downtrend (red), -1 = uptrend (green)
+ * - Uses hl2 (average of high and low) as the source
+ *
+ * @example
+ * ```typescript
+ * const [supertrend, direction] = ta.supertrend(3, 10, high, low, close);
+ * // Plot uptrend when direction < 0
+ * // Plot downtrend when direction > 0
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.supertrend | PineScript ta.supertrend}
  */
 export function supertrend(
   factor: simple_float,
-  atrLength: simple_int,
+  atrPeriod: simple_int,
   high: Source,
   low: Source,
   close: Source,
@@ -313,7 +492,7 @@ export function supertrend(
   }
 
   // Calculate ATR
-  const atrValues = atr(atrLength, high, low, close);
+  const atrValues = atr(atrPeriod, high, low, close);
 
   // Track previous values across iterations
   let prevLowerBand = NaN;
