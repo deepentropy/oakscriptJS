@@ -18,7 +18,7 @@
 | array     | 55        | 29          | 53%      | 0/29  |
 | math      | 24        | 17          | 71%      | 1/17  |
 | str       | 18        | 18          | 100%     | 18/18 |
-| color     | 8         | 8           | 100%     | 0/8   |
+| color     | 8         | 8           | 100%     | 8/8   |
 | matrix    | 51        | 1           | 2%       | 0/1   |
 | time      | 13        | 2           | 15%      | 0/2   |
 | input     | 15        | 4           | 27%      | 0/4   |
@@ -411,11 +411,14 @@ All documented string functions are implemented:
 All documented color functions are implemented:
 - ✅ rgb, from_hex (note: v6 uses `color.from_gradienthex` differently)
 - ✅ new_color, r, g, b, t
+- ✅ Predefined color constants (aqua, black, blue, fuchsia, gray, green, lime, maroon, navy, olive, orange, purple, red, silver, teal, white, yellow)
 
 **Issues:**
 - ⚠️ All have minimal documentation
-- ❌ No tests
+- ✅ Comprehensive tests added (73 test cases)
 - ⚠️ Need to verify `from_hex` matches v6 API (might be `color.rgb` with hex param)
+
+**Tests:** ✅ tests/color/creation.test.ts, tests/color/manipulation.test.ts, tests/color/components.test.ts, tests/color/constants.test.ts
 
 ---
 
@@ -581,13 +584,17 @@ Not implemented:
   - tests/ta/sma.test.ts ✅
   - tests/ta/supertrend.test.ts ✅
   - tests/math/basic.test.ts ✅
-  - tests/str/conversion.test.ts ✅ (NEW)
-  - tests/str/manipulation.test.ts ✅ (NEW)
-  - tests/str/search.test.ts ✅ (NEW)
-  - tests/str/formatting.test.ts ✅ (NEW)
-  - tests/str/predicates.test.ts ✅ (NEW)
-  - tests/str/whitespace.test.ts ✅ (NEW)
-- 67 other implemented functions still have NO tests (18 string functions now tested)
+  - tests/str/conversion.test.ts ✅
+  - tests/str/manipulation.test.ts ✅
+  - tests/str/search.test.ts ✅
+  - tests/str/formatting.test.ts ✅
+  - tests/str/predicates.test.ts ✅
+  - tests/str/whitespace.test.ts ✅
+  - tests/color/creation.test.ts ✅ (NEW)
+  - tests/color/manipulation.test.ts ✅ (NEW)
+  - tests/color/components.test.ts ✅ (NEW)
+  - tests/color/constants.test.ts ✅ (NEW)
+- 59 other implemented functions still have NO tests (26 str+color functions now tested)
 
 ### 4. Major Gaps
 
