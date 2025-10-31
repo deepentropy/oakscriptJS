@@ -25,10 +25,10 @@
 | plot      | 19        | 1           | 5%       | 0/1   |
 | strategy  | 31        | 3           | 10%      | 0/3   |
 | request   | 9         | 1           | 11%      | 0/1   |
-| table     | ~20       | 0           | 0%       | 0/0   |
-| box       | ~15       | 0           | 0%       | 0/0   |
-| line      | ~15       | 0           | 0%       | 0/0   |
-| label     | ~20       | 0           | 0%       | 0/0   |
+| table     | 22        | 0           | 0%       | 0/0   |
+| box       | 29        | 0           | 0%       | 0/0   |
+| line      | 21        | 0           | 0%       | 0/0   |
+| label     | 21        | 0           | 0%       | 0/0   |
 
 ---
 
@@ -554,10 +554,10 @@ Not implemented:
 ## 12-15. Drawing Objects (table, box, line, label) - 0% Coverage
 
 **Not implemented at all:**
-- All table.* functions (~20 functions)
-- All box.* functions (~15 functions)
-- All line.* functions (~15 functions)
-- All label.* functions (~20 functions)
+- All table.* functions (22 functions)
+- All box.* functions (29 functions)
+- All line.* functions (21 functions)
+- All label.* functions (21 functions)
 
 ---
 
@@ -616,7 +616,7 @@ Not implemented:
 ### 4. Major Gaps
 
 - **Matrix operations**: 2% implemented (1/51)
-- **Drawing objects**: 0% implemented (0/~70)
+- **Drawing objects**: 0% implemented (0/93)
 - **Strategy backtesting**: 10% implemented (3/31)
 - **Request/External data**: 11% implemented (1/9)
 
