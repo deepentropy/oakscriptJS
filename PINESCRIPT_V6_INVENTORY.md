@@ -6,9 +6,9 @@
 ## Executive Summary
 
 - **Total Documented Functions:** 457
-- **Total Implemented Functions:** ~88
-- **Implementation Coverage:** ~19%
-- **Namespaces with Tests:** ta (partial), math (partial)
+- **Total Implemented Functions:** ~94
+- **Implementation Coverage:** ~21%
+- **Namespaces with Tests:** ta (partial), math (partial), str (complete), color (complete)
 
 ## Overview by Namespace
 
@@ -16,7 +16,7 @@
 |-----------|-----------|-------------|----------|-------|
 | ta        | 59        | 15          | 25%      | 2/15  |
 | array     | 55        | 29          | 53%      | 0/29  |
-| math      | 24        | 17          | 71%      | 1/17  |
+| math      | 24        | 23          | 96%      | 7/23  |
 | str       | 18        | 18          | 100%     | 18/18 |
 | color     | 8         | 8           | 100%     | 8/8   |
 | matrix    | 51        | 1           | 2%       | 0/1   |
@@ -365,25 +365,30 @@ Not implemented:
 
 ---
 
-## 3. Math Functions - 71% Coverage
+## 3. Math Functions - 96% Coverage
 
-### Implemented Functions (17/24)
+### Implemented Functions (23/24)
 
 All basic math functions are implemented:
 - ✅ abs, ceil, floor, round, max, min, avg, sum
 - ✅ sqrt, pow, exp, log, log10
-- ✅ sin, cos, tan, asin, acos, atan
+- ✅ sin, cos, tan, asin, acos, atan, **atan2** (NEW)
 - ✅ toradians, todegrees, random, sign
+- ✅ **fact, hypot, nextafter, combinations, permutations** (NEW)
 
-**Common Issues:**
-- ⚠️ All have minimal documentation
-- ❌ No tests for most functions
+**Status:**
+- ✅ 6 new functions implemented with comprehensive JSDoc documentation
+- ✅ Comprehensive tests added (39 new test cases in tests/math/advanced.test.ts)
+- ✅ Links to official PineScript v6 documentation
+- ⚠️ Basic functions (abs, ceil, floor, etc.) still have minimal documentation
 - ✅ Tests exist for basic operations (tests/math/basic.test.ts)
 
-### Missing Math Functions (7/24)
+**Tests:** ✅ tests/math/basic.test.ts, ✅ tests/math/advanced.test.ts (NEW)
+
+### Missing Math Functions (1/24)
 
 Not implemented:
-- math.atan2, math.combinations, math.fact, math.hypot, math.nextafter, math.permutations, math.todeg (alias check)
+- **Note:** `todegrees` is implemented. PineScript v6 uses `todegrees`, not `todeg`. No alias needed.
 
 ---
 
@@ -579,7 +584,8 @@ Not implemented:
 - **Most implementations** lack proper PineScript v6 compliant documentation
 - ✅ **str namespace** (18/18 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
 - ✅ **color namespace** (8/8 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
-- ❌ **Other namespaces** (ta, array, math, etc.) still need proper documentation:
+- ✅ **math namespace** (6/23 functions) - newly implemented functions have comprehensive JSDoc documentation
+- ❌ **Other namespaces** (ta, array, basic math functions, etc.) still need proper documentation:
   - No examples from official docs
   - No remarks about behavior (e.g., na handling)
   - No "See also" references
@@ -590,17 +596,18 @@ Not implemented:
   - tests/ta/sma.test.ts ✅
   - tests/ta/supertrend.test.ts ✅
   - tests/math/basic.test.ts ✅
+  - tests/math/advanced.test.ts ✅ (NEW)
   - tests/str/conversion.test.ts ✅
   - tests/str/manipulation.test.ts ✅
   - tests/str/search.test.ts ✅
   - tests/str/formatting.test.ts ✅
   - tests/str/predicates.test.ts ✅
   - tests/str/whitespace.test.ts ✅
-  - tests/color/creation.test.ts ✅ (NEW)
-  - tests/color/manipulation.test.ts ✅ (NEW)
-  - tests/color/components.test.ts ✅ (NEW)
-  - tests/color/constants.test.ts ✅ (NEW)
-- 59 other implemented functions still have NO tests (26 str+color functions now tested)
+  - tests/color/creation.test.ts ✅
+  - tests/color/manipulation.test.ts ✅
+  - tests/color/components.test.ts ✅
+  - tests/color/constants.test.ts ✅
+- 53 other implemented functions still have NO tests (32 str+color+math functions now tested)
 
 ### 4. Major Gaps
 
