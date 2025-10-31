@@ -6,8 +6,8 @@
 ## Executive Summary
 
 - **Total Documented Functions:** 457
-- **Total Implemented Functions:** ~94
-- **Implementation Coverage:** ~21%
+- **Total Implemented Functions:** ~88
+- **Implementation Coverage:** ~19%
 - **Namespaces with Tests:** ta (partial), math (complete), str (complete), color (complete)
 
 ## Overview by Namespace
@@ -16,7 +16,7 @@
 |-----------|-----------|-------------|----------|-------|
 | ta        | 59        | 15          | 25%      | 2/15  |
 | array     | 55        | 29          | 53%      | 0/29  |
-| math      | 24        | 23          | 96%      | 23/23 |
+| math      | 24        | 17          | 71%      | 17/17 |
 | str       | 18        | 18          | 100%     | 18/18 |
 | color     | 8         | 8           | 100%     | 8/8   |
 | matrix    | 51        | 1           | 2%       | 0/1   |
@@ -365,34 +365,32 @@ Not implemented:
 
 ---
 
-## 3. Math Functions - 96% Coverage ✅
+## 3. Math Functions - 71% Coverage
 
-### Implemented Functions (23/24)
+### Implemented Functions (17/24)
 
-All basic math functions are implemented:
+Basic math functions implemented (matching docs/reference/functions/):
 - ✅ abs, ceil, floor, round, max, min, avg, sum
 - ✅ sqrt, pow, exp, log, log10
-- ✅ sin, cos, tan, asin, acos, atan, atan2
+- ✅ sin, cos, tan, asin, acos, atan
 - ✅ toradians, todegrees, random, sign
-- ✅ fact, hypot, nextafter, combinations, permutations
 
 **Status:**
-- ✅ All 23 functions have comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
-- ✅ Comprehensive tests: 163 test cases across 5 test files
+- ✅ All 17 functions have comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ✅ Comprehensive tests: 124 test cases across 4 test files
 - ✅ All tests passing ✅
-- ✅ Test coverage: basic arithmetic, algebraic, trigonometric, utility, and advanced functions
+- ✅ Test coverage: basic arithmetic, algebraic, trigonometric, and utility functions
 
 **Tests:**
 - ✅ tests/math/basic.test.ts (abs, ceil, floor, round, max, min, avg, sum - 38 tests)
 - ✅ tests/math/algebraic.test.ts (sqrt, pow, exp, log, log10 - 30 tests)
 - ✅ tests/math/trigonometric.test.ts (sin, cos, tan, asin, acos, atan - 31 tests)
 - ✅ tests/math/utility.test.ts (toradians, todegrees, random, sign - 25 tests)
-- ✅ tests/math/advanced.test.ts (atan2, fact, hypot, nextafter, combinations, permutations - 39 tests)
 
-### Missing Math Functions (1/24)
+### Missing Math Functions (7/24)
 
 Not implemented:
-- **Note:** `todegrees` is implemented. PineScript v6 uses `todegrees`, not `todeg`. No alias needed.
+- math.round_to_mintick() - Rounds to symbol's minimum tick size
 
 ---
 
@@ -588,7 +586,7 @@ Not implemented:
 - **Most implementations** lack proper PineScript v6 compliant documentation
 - ✅ **str namespace** (18/18 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
 - ✅ **color namespace** (8/8 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
-- ✅ **math namespace** (23/23 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ✅ **math namespace** (17/17 functions) now has comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
 - ❌ **Other namespaces** (ta, array, etc.) still need proper documentation:
   - No examples from official docs
   - No remarks about behavior (e.g., na handling)
@@ -603,7 +601,6 @@ Not implemented:
   - tests/math/algebraic.test.ts ✅
   - tests/math/trigonometric.test.ts ✅
   - tests/math/utility.test.ts ✅
-  - tests/math/advanced.test.ts ✅
   - tests/str/conversion.test.ts ✅
   - tests/str/manipulation.test.ts ✅
   - tests/str/search.test.ts ✅
@@ -614,7 +611,7 @@ Not implemented:
   - tests/color/manipulation.test.ts ✅
   - tests/color/components.test.ts ✅
   - tests/color/constants.test.ts ✅
-- 44 other implemented functions still have NO tests (49 str+color+math functions now tested with 363 total test cases)
+- 45 other implemented functions still have NO tests (43 str+color+math functions now tested with 324 total test cases)
 
 ### 4. Major Gaps
 
