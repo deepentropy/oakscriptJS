@@ -283,3 +283,93 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
   const trueRange = tr(high, low, close);
   return sma(trueRange, length);
 }
+
+/**
+ * SuperTrend Indicator - Calculates the values of the SuperTrend indicator with the ability
+ * to take candle wicks into account, rather than only the closing price.
+ * @param factor - Multiplier for the ATR value
+ * @param atrLength - Length for the ATR smoothing parameter calculation
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
+ * @param wicks - Condition to determine whether to take candle wicks into account when reversing trend, or to use the close price. Default is false.
+ * @returns [superTrend, direction] - A tuple of the superTrend value and trend direction (1 for uptrend, -1 for downtrend)
+ */
+export function supertrend(
+  factor: simple_float,
+  atrLength: simple_int,
+  high: Source,
+  low: Source,
+  close: Source,
+  wicks: simple_bool = false
+): [series_float, series_int] {
+  const supertrendValues: series_float = [];
+  const directions: series_int = [];
+
+  // Calculate hl2 (average of high and low)
+  const source: series_float = [];
+  for (let i = 0; i < high.length; i++) {
+    source.push((high[i] + low[i]) / 2);
+  }
+
+  // Calculate ATR
+  const atrValues = atr(atrLength, high, low, close);
+
+  // Track previous values across iterations
+  let prevLowerBand = NaN;
+  let prevUpperBand = NaN;
+  let prevSuperTrend = NaN;
+
+  for (let i = 0; i < source.length; i++) {
+    const atrValue = atrValues[i] * factor;
+
+    // Skip calculation if ATR is not available yet
+    if (isNaN(atrValue)) {
+      supertrendValues.push(NaN);
+      directions.push(1);
+      continue;
+    }
+
+    // Calculate initial bands
+    let upperBand = source[i] + atrValue;
+    let lowerBand = source[i] - atrValue;
+
+    // Determine which price to use for comparison
+    const highPrice = wicks ? high[i] : close[i];
+    const lowPrice = wicks ? low[i] : close[i];
+    const prevLowPrice = i > 0 ? (wicks ? low[i - 1] : close[i - 1]) : 0;
+    const prevHighPrice = i > 0 ? (wicks ? high[i - 1] : close[i - 1]) : 0;
+
+    // Update bands conditionally (trailing behavior) - only if previous bands are valid
+    if (i > 0 && !isNaN(prevLowerBand) && !isNaN(prevUpperBand)) {
+      lowerBand = (lowerBand > prevLowerBand || prevLowPrice < prevLowerBand) ? lowerBand : prevLowerBand;
+      upperBand = (upperBand < prevUpperBand || prevHighPrice > prevUpperBand) ? upperBand : prevUpperBand;
+    }
+
+    // Determine trend direction
+    let currentDirection: int;
+    if (isNaN(prevSuperTrend)) {
+      // Initial direction when we don't have previous supertrend
+      currentDirection = 1;
+    } else if (prevSuperTrend === prevUpperBand) {
+      // Was in downtrend (following upper band)
+      currentDirection = highPrice > upperBand ? -1 : 1;
+    } else {
+      // Was in uptrend (following lower band)
+      currentDirection = lowPrice < lowerBand ? 1 : -1;
+    }
+
+    // Calculate supertrend value based on direction
+    const superTrendValue = currentDirection === -1 ? lowerBand : upperBand;
+
+    supertrendValues.push(superTrendValue);
+    directions.push(currentDirection);
+
+    // Update previous values for next iteration
+    prevLowerBand = lowerBand;
+    prevUpperBand = upperBand;
+    prevSuperTrend = superTrendValue;
+  }
+
+  return [supertrendValues, directions];
+}
