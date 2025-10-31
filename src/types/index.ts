@@ -7,7 +7,7 @@
 export type int = number;
 export type float = number;
 export type bool = boolean;
-export type string = string;
+//export type string = string;
 export type color = string | number;
 
 // Series types - In PineScript, series are time-series arrays
