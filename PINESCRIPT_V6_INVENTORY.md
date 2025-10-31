@@ -17,7 +17,7 @@
 | ta        | 59        | 15          | 25%      | 2/15  |
 | array     | 55        | 29          | 53%      | 0/29  |
 | math      | 24        | 17          | 71%      | 1/17  |
-| str       | 18        | 18          | 100%     | 0/18  |
+| str       | 18        | 18          | 100%     | 18/18 |
 | color     | 8         | 8           | 100%     | 0/8   |
 | matrix    | 51        | 1           | 2%       | 0/1   |
 | time      | 13        | 2           | 15%      | 0/2   |
@@ -398,7 +398,9 @@ All documented string functions are implemented:
 
 **Issues:**
 - ⚠️ All have minimal documentation
-- ❌ No tests
+- ✅ Comprehensive tests added (127 test cases)
+
+**Tests:** ✅ tests/str/conversion.test.ts, tests/str/manipulation.test.ts, tests/str/search.test.ts, tests/str/formatting.test.ts, tests/str/predicates.test.ts, tests/str/whitespace.test.ts
 
 ---
 
@@ -575,11 +577,17 @@ Not implemented:
 
 ### 3. Missing Tests
 
-- Only 3 test files exist:
+- Test files exist for:
   - tests/ta/sma.test.ts ✅
   - tests/ta/supertrend.test.ts ✅
   - tests/math/basic.test.ts ✅
-- 85 other implemented functions have NO tests
+  - tests/str/conversion.test.ts ✅ (NEW)
+  - tests/str/manipulation.test.ts ✅ (NEW)
+  - tests/str/search.test.ts ✅ (NEW)
+  - tests/str/formatting.test.ts ✅ (NEW)
+  - tests/str/predicates.test.ts ✅ (NEW)
+  - tests/str/whitespace.test.ts ✅ (NEW)
+- 67 other implemented functions still have NO tests (18 string functions now tested)
 
 ### 4. Major Gaps
 
