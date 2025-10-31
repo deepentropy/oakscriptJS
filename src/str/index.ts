@@ -98,7 +98,7 @@ export function concat(...strings: simple_string[]): string {
 export function format(formatStr: simple_string, ...args: any[]): string {
   let result = formatStr;
   args.forEach((arg, index) => {
-    result = result.replace(`{${index}}`, String(arg));
+    result = result.replaceAll(`{${index}}`, String(arg));
   });
   return result;
 }
