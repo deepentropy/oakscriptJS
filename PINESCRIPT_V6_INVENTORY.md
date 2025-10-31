@@ -38,110 +38,87 @@
 
 ### Implemented Functions (15/59)
 
+**Status Update:**
+- ✅ All 15 functions now have comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ✅ Fixed signature mismatches: `length` parameters changed from `simple_int` to `series_int` where required
+- ✅ Documented API deviations for functions requiring explicit price data (supertrend, atr)
+- ⚠️ Algorithm issues documented (RSI uses SMA instead of RMA, ATR uses SMA instead of RMA)
+
 #### ✅ ta.sma()
-- **Documentation:** `ta.sma(source, length) → series float`
-  - `source` (series int/float)
-  - `length` (series int)
-- **Implementation:** `sma(source: Source, length: simple_int): series_float`
-- **Issues:**
-  - ❌ Signature mismatch: `length` should be `series int`, not `simple_int`
-  - ⚠️ Documentation incomplete (basic JSDoc only)
+- **Signature:** `sma(source: Source, length: series_int): series_float`
+- **Status:** ✅ Fixed - length now `series_int` (was `simple_int`)
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ✅ tests/ta/sma.test.ts
 
 #### ✅ ta.ema()
-- **Documentation:** `ta.ema(source, length) → series float`
-  - `source` (series int/float)
-  - `length` (simple int)
-- **Implementation:** `ema(source: Source, length: simple_int): series_float`
-- **Issues:**
-  - ✅ Signature matches
-  - ⚠️ Documentation incomplete
+- **Signature:** `ema(source: Source, length: simple_int): series_float`
+- **Status:** ✅ Signature correct (`simple int` per v6 spec)
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.rsi()
-- **Documentation:** Not checked yet (need to verify)
-- **Implementation:** `rsi(source: Source, length: simple_int): series_float`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `rsi(source: Source, length: simple_int): series_float`
+- **Status:** ⚠️ **ALGORITHM ISSUE**: Uses SMA instead of RMA (documented)
+- **Docs:** ✅ Comprehensive JSDoc with algorithm warning
 - **Tests:** ❌ No tests
 
 #### ✅ ta.macd()
-- **Documentation:** Need to check signature
-- **Implementation:** `macd(source: Source, fastLength: simple_int, slowLength: simple_int, signalLength: simple_int): [series_float, series_float, series_float]`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `macd(source: Source, fastLength: simple_int, slowLength: simple_int, signalLength: simple_int): [series_float, series_float, series_float]`
+- **Status:** ✅ Signature correct
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.bb()
-- **Documentation:** Need to check signature
-- **Implementation:** `bb(source: Source, length: simple_int, mult: simple_float): [series_float, series_float, series_float]`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `bb(series: Source, length: series_int, mult: simple_float): [series_float, series_float, series_float]`
+- **Status:** ✅ Fixed - length now `series_int` (was `simple_int`)
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.stdev()
-- **Documentation:** Need to check signature
-- **Implementation:** `stdev(source: Source, length: simple_int): series_float`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `stdev(source: Source, length: series_int): series_float`
+- **Status:** ✅ Fixed - length now `series_int` (was `simple_int`)
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.crossover()
-- **Documentation:** Need to check signature
-- **Implementation:** `crossover(series1: Source, series2: Source): series_bool`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `crossover(series1: Source, series2: Source): series_bool`
+- **Status:** ✅ Signature correct
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.crossunder()
-- **Documentation:** Need to check signature
-- **Implementation:** `crossunder(series1: Source, series2: Source): series_bool`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `crossunder(series1: Source, series2: Source): series_bool`
+- **Status:** ✅ Signature correct
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.change()
-- **Documentation:** Need to check signature
-- **Implementation:** `change(source: Source, length: simple_int = 1): series_float`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `change(source: Source, length: series_int = 1): series_float`
+- **Status:** ✅ Fixed - length now `series_int` (was `simple_int`)
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
 #### ✅ ta.tr()
-- **Documentation:** Need to check signature
-- **Implementation:** `tr(high: Source, low: Source, close: Source): series_float`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+- **Signature:** `tr(high: Source, low: Source, close: Source): series_float`
+- **Status:** ✅ Signature correct
+- **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ❌ No tests
 
-#### ✅ ta.atr()
-- **Documentation:** Need to check signature
-- **Implementation:** `atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float`
-- **Issues:**
-  - ⚠️ Need to verify against official docs
-  - ⚠️ Documentation incomplete
+#### ⚠️ ta.atr()
+- **Signature:** `atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float`
+- **Status:** ⚠️ **API DEVIATION**: Requires explicit high/low/close (documented)
+- **Issue:** ⚠️ **ALGORITHM**: Uses SMA instead of RMA (documented with TODO)
+- **Docs:** ✅ Comprehensive JSDoc with API deviation warning
 - **Tests:** ❌ No tests
 
 #### ⚠️ ta.supertrend()
-- **Documentation:** `ta.supertrend(factor, atrPeriod) → [series float, series float]`
-  - `factor` (series int/float) - ATR multiplier
-  - `atrPeriod` (simple int) - Length of ATR
-  - Returns: [supertrend, direction] where direction is 1 (down) or -1 (up)
-- **Implementation:** `supertrend(factor: simple_float, atrLength: simple_int, high: Source, low: Source, close: Source, wicks: simple_bool = false): [series_float, series_int]`
-- **Issues:**
-  - ❌ **MAJOR SIGNATURE MISMATCH**: Implementation has 6 parameters, docs show 2
-  - ❌ Official v6 API uses implicit price data (close, high, low from context)
-  - ❌ `wicks` parameter not in v6 API
-  - ❌ Parameter names differ: `atrPeriod` vs `atrLength`
-  - ⚠️ Documentation incomplete
+- **Signature:** `supertrend(factor: simple_float, atrPeriod: simple_int, high: Source, low: Source, close: Source, wicks: simple_bool = false): [series_float, series_int]`
+- **Status:** ⚠️ **API DEVIATION**: Requires explicit high/low/close + wicks parameter (documented)
+- **Docs:** ✅ Comprehensive JSDoc with API deviation warning
+- **Remarks:**
+  - PineScript v6: `ta.supertrend(factor, atrPeriod)` uses implicit chart data
+  - JavaScript: Needs explicit price data (no chart context)
+  - `wicks` parameter NOT in official v6 API (documented)
 - **Tests:** ✅ tests/ta/supertrend.test.ts
 
 ### Missing ta Functions (44/59)
