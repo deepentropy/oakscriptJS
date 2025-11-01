@@ -376,37 +376,69 @@ export function change(source: Source, length: series_int = 1): series_float {
 /**
  * True Range - measures market volatility by calculating the greatest of three price ranges.
  *
- * @param high - High price series
- * @param low - Low price series
- * @param close - Close price series
+ * @param handle_na - Defines how the function calculates when previous close is na (default: false)
+ * @param high - High price series (required when not using context API)
+ * @param low - Low price series (required when not using context API)
+ * @param close - Close price series (required when not using context API)
  * @returns True range series
  *
  * @remarks
+ * - **PineScript v6 signature**: `ta.tr(handle_na?)` - uses implicit chart data
+ * - **JavaScript signature**: Requires explicit `high`, `low`, `close` OR use `createContext()`
  * - True Range = max(high - low, abs(high - close[1]), abs(low - close[1]))
- * - For the first value: TR = high - low (no previous close available)
+ * - When `handle_na` is true: returns `high - low` if previous close is na
+ * - When `handle_na` is false: returns na if previous close is na
  * - Used as a component in ATR calculations
- * - Accounts for gaps by comparing to previous close
  *
  * @example
  * ```typescript
- * const trueRange = ta.tr(high, low, close);
+ * // Direct call with explicit data
+ * const trueRange = ta.tr(false, high, low, close);
+ *
+ * // Or use context API for cleaner syntax
+ * const { ta } = createContext({ chart: { high, low, close } });
+ * const trueRange = ta.tr(); // Matches PineScript!
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.tr | PineScript ta.tr}
  */
-export function tr(high: Source, low: Source, close: Source): series_float {
+export function tr(
+  handle_na: simple_bool = false,
+  high?: Source,
+  low?: Source,
+  close?: Source
+): series_float {
+  if (!high || !low || !close) {
+    throw new Error(
+      'ta.tr() requires high, low, and close series. ' +
+      'Either pass them explicitly or use createContext({ chart: { high, low, close } }) for implicit data.'
+    );
+  }
+
   const result: series_float = [];
 
   for (let i = 0; i < high.length; i++) {
     if (i === 0) {
+      // First bar: no previous close, so just use high - low
       result.push(high[i] - low[i]);
     } else {
-      const tr = Math.max(
-        high[i] - low[i],
-        Math.abs(high[i] - close[i - 1]),
-        Math.abs(low[i] - close[i - 1])
-      );
-      result.push(tr);
+      const prevClose = close[i - 1];
+
+      // Handle na previous close based on handle_na parameter
+      if (isNaN(prevClose)) {
+        if (handle_na) {
+          result.push(high[i] - low[i]);
+        } else {
+          result.push(NaN);
+        }
+      } else {
+        const tr = Math.max(
+          high[i] - low[i],
+          Math.abs(high[i] - prevClose),
+          Math.abs(low[i] - prevClose)
+        );
+        result.push(tr);
+      }
     }
   }
 
@@ -416,33 +448,42 @@ export function tr(high: Source, low: Source, close: Source): series_float {
 /**
  * Average True Range - returns the RMA (Relative Moving Average) of true range.
  *
- * @param length - Number of bars for averaging
- * @param high - High price series (required in JavaScript, implicit in PineScript)
- * @param low - Low price series (required in JavaScript, implicit in PineScript)
- * @param close - Close price series (required in JavaScript, implicit in PineScript)
+ * @param length - Number of bars (length)
+ * @param high - High price series (required when not using context API)
+ * @param low - Low price series (required when not using context API)
+ * @param close - Close price series (required when not using context API)
  * @returns Average true range series
  *
  * @remarks
- * - **API DEVIATION**: PineScript v6's `ta.atr(length)` uses implicit chart data
- * - This implementation requires explicit high, low, close parameters
+ * - **PineScript v6 signature**: `ta.atr(length)` - uses implicit chart data
+ * - **JavaScript signature**: Requires explicit `high`, `low`, `close` OR use `createContext()`
  * - **ALGORITHM ISSUE**: Uses SMA instead of RMA for averaging (should use ta.rma)
+ * - True range is max(high - low, abs(high - close[1]), abs(low - close[1]))
  * - ATR is a measure of volatility, higher values indicate greater volatility
  * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
  *
  * @example
  * ```typescript
+ * // Direct call with explicit data
  * const atr14 = ta.atr(14, high, low, close);
+ *
+ * // Or use context API for cleaner syntax
+ * const { ta } = createContext({ chart: { high, low, close } });
+ * const atr14 = ta.atr(14); // Matches PineScript!
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.atr | PineScript ta.atr}
  */
 export function atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float {
-  // Note: In actual implementation, high, low, close would come from chart data if not provided
   if (!high || !low || !close) {
-    throw new Error('ATR requires high, low, and close series');
+    throw new Error(
+      'ta.atr() requires high, low, and close series. ' +
+      'Either pass them explicitly or use createContext({ chart: { high, low, close } }) for implicit data.'
+    );
   }
 
-  const trueRange = tr(high, low, close);
+  const trueRange = tr(false, high, low, close);
   // TODO: Should use ta.rma() instead of sma() to match PineScript v6
   return sma(trueRange, length);
 }
@@ -450,26 +491,32 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
 /**
  * SuperTrend Indicator - a trend-following indicator that helps identify trend direction.
  *
- * @param factor - The multiplier by which the ATR will get multiplied
- * @param atrPeriod - Length of ATR
- * @param high - High price series (required in JavaScript, implicit in PineScript)
- * @param low - Low price series (required in JavaScript, implicit in PineScript)
- * @param close - Close price series (required in JavaScript, implicit in PineScript)
- * @param wicks - Whether to use wicks or close for trend reversal (NOT in PineScript v6 API)
- * @returns Tuple of [supertrend, direction] where direction is 1 (down) or -1 (up)
+ * @param factor - The multiplier by which the ATR will get multiplied (series int/float)
+ * @param atrPeriod - Length of ATR (simple int)
+ * @param high - High price series (required when not using context API)
+ * @param low - Low price series (required when not using context API)
+ * @param close - Close price series (required when not using context API)
+ * @param wicks - Whether to use wicks for trend reversal (NOT in PineScript v6 API, default: false)
+ * @returns Tuple of [supertrend, direction] where direction is 1 (downtrend) or -1 (uptrend)
  *
  * @remarks
- * - **API DEVIATION**: PineScript v6's `ta.supertrend(factor, atrPeriod)` uses implicit chart data
- * - This implementation requires explicit high, low, close parameters (no chart context in JavaScript)
+ * - **PineScript v6 signature**: `ta.supertrend(factor, atrPeriod)` - uses implicit chart data
+ * - **JavaScript signature**: Requires explicit `high`, `low`, `close` OR use `createContext()`
  * - The `wicks` parameter is NOT part of the official PineScript v6 API
  * - Direction: 1 = downtrend (red), -1 = uptrend (green)
  * - Uses hl2 (average of high and low) as the source
+ * - SuperTrend helps identify the current market trend and potential reversal points
  *
  * @example
  * ```typescript
+ * // Direct call with explicit data
  * const [supertrend, direction] = ta.supertrend(3, 10, high, low, close);
  * // Plot uptrend when direction < 0
  * // Plot downtrend when direction > 0
+ *
+ * // Or use context API for cleaner syntax
+ * const { ta } = createContext({ chart: { high, low, close } });
+ * const [supertrend, direction] = ta.supertrend(3, 10); // Matches PineScript!
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.supertrend | PineScript ta.supertrend}
@@ -477,11 +524,17 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
 export function supertrend(
   factor: simple_float,
   atrPeriod: simple_int,
-  high: Source,
-  low: Source,
-  close: Source,
+  high?: Source,
+  low?: Source,
+  close?: Source,
   wicks: simple_bool = false
 ): [series_float, series_int] {
+  if (!high || !low || !close) {
+    throw new Error(
+      'ta.supertrend() requires high, low, and close series. ' +
+      'Either pass them explicitly or use createContext({ chart: { high, low, close } }) for implicit data.'
+    );
+  }
   const supertrendValues: series_float = [];
   const directions: series_int = [];
 

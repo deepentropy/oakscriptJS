@@ -172,6 +172,7 @@ export function createContext(config: ContextConfig = {}) {
       /**
        * True Range - now uses implicit chart data from context.
        *
+       * @param handle_na - Defines how the function calculates when previous close is na (default: false)
        * @returns True range series
        *
        * @remarks
@@ -181,16 +182,17 @@ export function createContext(config: ContextConfig = {}) {
        * ```typescript
        * const { ta } = createContext({ chart: { high, low, close } });
        * const trueRange = ta.tr();
+       * const trueRangeHandleNa = ta.tr(true);
        * ```
        */
-      tr: (): series_float => {
+      tr: (handle_na: simple_bool = false): series_float => {
         if (!chart) {
           throw new Error(
             'Chart context required for ta.tr(). ' +
             'Call createContext({ chart: { high, low, close } }) first.'
           );
         }
-        return taFunctions.tr(chart.high, chart.low, chart.close);
+        return taFunctions.tr(handle_na, chart.high, chart.low, chart.close);
       },
 
       // ===== PASS-THROUGH FUNCTIONS (already have explicit parameters) =====
