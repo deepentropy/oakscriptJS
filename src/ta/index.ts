@@ -1173,3 +1173,318 @@ export function median(source: Source, length: series_int): series_float {
 
   return result;
 }
+
+/**
+ * Symmetrically Weighted Moving Average (SWMA) - fixed length 4 with symmetric weights.
+ *
+ * @param source - Series of values to process
+ * @returns SWMA series
+ *
+ * @remarks
+ * - Fixed length of 4 bars
+ * - Weights: [1/6, 2/6, 2/6, 1/6] (symmetric)
+ * - Formula: `source[3] * 1/6 + source[2] * 2/6 + source[1] * 2/6 + source[0] * 1/6`
+ * - More weight given to middle values
+ * - `na` values in the source series are included in calculations and will produce an `na` result
+ * - Returns NaN for the first 3 bars
+ *
+ * @example
+ * ```typescript
+ * const swma = ta.swma(closePrices);
+ * // Smoothed price with symmetric weighting
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.swma | PineScript ta.swma}
+ */
+export function swma(source: Source): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < 3) {
+      result.push(NaN);
+    } else {
+      // Check for any NaN values in the window
+      if (isNaN(source[i]) || isNaN(source[i - 1]) || isNaN(source[i - 2]) || isNaN(source[i - 3])) {
+        result.push(NaN);
+      } else {
+        const value = 
+          source[i - 3] * (1 / 6) +
+          source[i - 2] * (2 / 6) +
+          source[i - 1] * (2 / 6) +
+          source[i] * (1 / 6);
+        result.push(value);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Volume Weighted Moving Average (VWMA) - moving average weighted by volume.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @param volume - Volume series (required when not using context API)
+ * @returns VWMA series
+ *
+ * @remarks
+ * - **PineScript v6 signature**: `ta.vwma(source, length)` - uses implicit volume data
+ * - **JavaScript signature**: Requires explicit `volume` OR use `createContext()`
+ * - Formula: `sma(source * volume, length) / sma(volume, length)`
+ * - Gives more weight to bars with higher volume
+ * - `na` values in the source series are ignored
+ * - Useful for price analysis considering volume significance
+ *
+ * @example
+ * ```typescript
+ * // Direct call with explicit volume
+ * const vwma20 = ta.vwma(closePrices, 20, volumeData);
+ *
+ * // Or use context API for cleaner syntax
+ * const { ta } = createContext({ chart: { high, low, close, volume } });
+ * const vwma20 = ta.vwma(close, 20); // Matches PineScript!
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.vwma | PineScript ta.vwma}
+ */
+export function vwma(source: Source, length: series_int, volume?: Source): series_float {
+  if (!volume) {
+    throw new Error(
+      'ta.vwma() requires volume series. ' +
+      'Either pass it explicitly or use createContext({ chart: { ..., volume } }) for implicit data.'
+    );
+  }
+
+  // Calculate source * volume
+  const sourceTimesVolume: series_float = [];
+  for (let i = 0; i < source.length; i++) {
+    sourceTimesVolume.push(source[i] * volume[i]);
+  }
+
+  const numerator = sma(sourceTimesVolume, length);
+  const denominator = sma(volume, length);
+
+  const result: series_float = [];
+  for (let i = 0; i < source.length; i++) {
+    if (denominator[i] === 0 || isNaN(denominator[i])) {
+      result.push(NaN);
+    } else {
+      result.push(numerator[i] / denominator[i]);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Linear Regression - line that best fits prices using least squares method.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @param offset - Offset (default: 0)
+ * @returns Linear regression value
+ *
+ * @remarks
+ * - Calculates line of best fit using least squares method
+ * - Formula: `linreg = intercept + slope * (length - 1 - offset)`
+ * - offset=0 gives current fitted value, offset<0 gives future projection
+ * - `na` values in the source series are included in calculations and will produce an `na` result
+ * - Useful for trend detection and prediction
+ *
+ * @example
+ * ```typescript
+ * const linreg20 = ta.linreg(closePrices, 20, 0);
+ * const linregFuture = ta.linreg(closePrices, 20, -5); // Project 5 bars ahead
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.linreg | PineScript ta.linreg}
+ */
+export function linreg(source: Source, length: series_int, offset: simple_int = 0): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      // Check for NaN values in window
+      let hasNaN = false;
+      for (let j = 0; j < length; j++) {
+        if (isNaN(source[i - j])) {
+          hasNaN = true;
+          break;
+        }
+      }
+
+      if (hasNaN) {
+        result.push(NaN);
+      } else {
+        // Calculate least squares regression
+        let sumX = 0;
+        let sumY = 0;
+        let sumXY = 0;
+        let sumX2 = 0;
+
+        for (let j = 0; j < length; j++) {
+          const x = j;
+          const y = source[i - (length - 1 - j)];
+          sumX += x;
+          sumY += y;
+          sumXY += x * y;
+          sumX2 += x * x;
+        }
+
+        const slope = (length * sumXY - sumX * sumY) / (length * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / length;
+
+        // Calculate linreg value at offset
+        const x = length - 1 - offset;
+        result.push(intercept + slope * x);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Correlation Coefficient - measures degree to which two series deviate from their means together.
+ *
+ * @param source1 - First series
+ * @param source2 - Second series  
+ * @param length - Number of bars (length)
+ * @returns Correlation coefficient (-1 to +1)
+ *
+ * @remarks
+ * - Returns value between -1 and +1
+ * - +1 = perfect positive correlation
+ * - -1 = perfect negative correlation
+ * - 0 = no correlation
+ * - Measures linear relationship between two series
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ *
+ * @example
+ * ```typescript
+ * const corr = ta.correlation(series1, series2, 20);
+ * // Values close to +1 or -1 indicate strong relationship
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.correlation | PineScript ta.correlation}
+ */
+export function correlation(source1: Source, source2: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source1.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      // Collect non-NaN pairs
+      const pairs: Array<[number, number]> = [];
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source1[i - j]) && !isNaN(source2[i - j])) {
+          pairs.push([source1[i - j], source2[i - j]]);
+        }
+      }
+
+      if (pairs.length === 0) {
+        result.push(NaN);
+      } else {
+        // Calculate means
+        let sum1 = 0;
+        let sum2 = 0;
+        for (const [v1, v2] of pairs) {
+          sum1 += v1;
+          sum2 += v2;
+        }
+        const mean1 = sum1 / pairs.length;
+        const mean2 = sum2 / pairs.length;
+
+        // Calculate correlation components
+        let numerator = 0;
+        let sum1Sq = 0;
+        let sum2Sq = 0;
+
+        for (const [v1, v2] of pairs) {
+          const dev1 = v1 - mean1;
+          const dev2 = v2 - mean2;
+          numerator += dev1 * dev2;
+          sum1Sq += dev1 * dev1;
+          sum2Sq += dev2 * dev2;
+        }
+
+        const denominator = Math.sqrt(sum1Sq * sum2Sq);
+        if (denominator === 0) {
+          result.push(NaN);
+        } else {
+          result.push(numerator / denominator);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Percent Rank - percentage of how many previous values were less than or equal to current value.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Percent rank (0 to 100)
+ *
+ * @remarks
+ * - Returns value between 0 and 100
+ * - 0 = current value is lowest in the period
+ * - 100 = current value is highest in the period
+ * - 50 = current value is at median
+ * - Useful for identifying relative strength within a period
+ * - `na` values in the source series are included in calculations and will produce an `na` result
+ *
+ * @example
+ * ```typescript
+ * const pctrank = ta.percentrank(closePrices, 100);
+ * // Values near 100 indicate recent strength
+ * // Values near 0 indicate recent weakness
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.percentrank | PineScript ta.percentrank}
+ */
+export function percentrank(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      // Check for NaN values
+      let hasNaN = false;
+      for (let j = 0; j < length; j++) {
+        if (isNaN(source[i - j])) {
+          hasNaN = true;
+          break;
+        }
+      }
+
+      if (hasNaN) {
+        result.push(NaN);
+      } else {
+        const currentValue = source[i];
+        let countLessOrEqual = 0;
+
+        // Count how many values are less than or equal to current
+        for (let j = 0; j < length; j++) {
+          if (source[i - j] <= currentValue) {
+            countLessOrEqual++;
+          }
+        }
+
+        // Calculate percent rank
+        const percentRank = ((countLessOrEqual - 1) / (length - 1)) * 100;
+        result.push(percentRank);
+      }
+    }
+  }
+
+  return result;
+}
