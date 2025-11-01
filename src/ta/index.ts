@@ -104,13 +104,17 @@ export function ema(source: Source, length: simple_int): series_float {
  * @remarks
  * - RSI values above 70 typically indicate overbought conditions
  * - RSI values below 30 typically indicate oversold conditions
- * - **ALGORITHM ISSUE**: Current implementation uses SMA instead of RMA (Relative Moving Average)
- * - PineScript v6 uses `ta.rma()` for smoothing, this uses `ta.sma()` - values may differ
+ * - Uses `ta.rma()` (Relative Moving Average) for smoothing, matching PineScript v6
  * - Formula: RSI = 100 - (100 / (1 + RS)), where RS = Average Gain / Average Loss
+ * - Average Gain and Average Loss are calculated using RMA (alpha = 1 / length)
+ * - `na` values in the source series are ignored
  *
  * @example
  * ```typescript
  * const rsi14 = ta.rsi(closePrices, 14);
+ * // Identify overbought/oversold conditions
+ * const overbought = rsi14.map(v => v > 70);
+ * const oversold = rsi14.map(v => v < 30);
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rsi | PineScript ta.rsi}
@@ -128,9 +132,9 @@ export function rsi(source: Source, length: simple_int): series_float {
   const gains: number[] = changes.map(c => c > 0 ? c : 0);
   const losses: number[] = changes.map(c => c < 0 ? -c : 0);
 
-  // Calculate average gains and losses
-  const avgGains = sma(gains, length);
-  const avgLosses = sma(losses, length);
+  // Calculate average gains and losses using RMA (not SMA)
+  const avgGains = rma(gains, length);
+  const avgLosses = rma(losses, length);
 
   result.push(NaN); // First value is NaN
 
@@ -457,7 +461,7 @@ export function tr(
  * @remarks
  * - **PineScript v6 signature**: `ta.atr(length)` - uses implicit chart data
  * - **JavaScript signature**: Requires explicit `high`, `low`, `close` OR use `createContext()`
- * - **ALGORITHM ISSUE**: Uses SMA instead of RMA for averaging (should use ta.rma)
+ * - Uses `ta.rma()` (Relative Moving Average) for smoothing, matching PineScript v6
  * - True range is max(high - low, abs(high - close[1]), abs(low - close[1]))
  * - ATR is a measure of volatility, higher values indicate greater volatility
  * - `na` values in the source series are ignored
@@ -484,8 +488,7 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
   }
 
   const trueRange = tr(false, high, low, close);
-  // TODO: Should use ta.rma() instead of sma() to match PineScript v6
-  return sma(trueRange, length);
+  return rma(trueRange, length);
 }
 
 /**
@@ -604,4 +607,333 @@ export function supertrend(
   }
 
   return [supertrendValues, directions];
+}
+/**
+ * Relative Moving Average (RMA) - exponentially weighted moving average with alpha = 1 / length.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns RMA of source for length bars back
+ *
+ * @remarks
+ * - Moving average used in RSI calculation
+ * - Alpha = 1 / length (different from EMA which uses alpha = 2 / (length + 1))
+ * - First value is initialized with SMA, then uses exponential smoothing
+ * - Formula: `RMA = alpha * source + (1 - alpha) * RMA[1]`
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ *
+ * @example
+ * ```typescript
+ * const rma14 = ta.rma(closePrices, 14);
+ * // Used internally by RSI:
+ * // avgGain = ta.rma(gains, 14);
+ * // avgLoss = ta.rma(losses, 14);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rma | PineScript ta.rma}
+ */
+export function rma(source: Source, length: simple_int): series_float {
+  const result: series_float = [];
+  const alpha = 1 / length;
+
+  // Initialize with SMA for the first value
+  let rmaValue = 0;
+  for (let i = 0; i < Math.min(length, source.length); i++) {
+    rmaValue += source[i];
+  }
+  rmaValue = rmaValue / Math.min(length, source.length);
+
+  for (let i = 0; i < source.length; i++) {
+    if (i === 0) {
+      result.push(rmaValue);
+    } else {
+      // RMA formula: alpha * source + (1 - alpha) * RMA[1]
+      rmaValue = alpha * source[i] + (1 - alpha) * rmaValue;
+      result.push(rmaValue);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Weighted Moving Average (WMA) - moving average with linearly decreasing weights.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns WMA of source for length bars back
+ *
+ * @remarks
+ * - Weighting factors decrease in arithmetical progression
+ * - Most recent value has weight `length`, previous has `length-1`, etc.
+ * - Formula: `sum(source[i] * (length - i)) / sum(length - i)` for i = 0 to length-1
+ * - `na` values in the source series are ignored
+ * - More responsive to recent price changes than SMA
+ *
+ * @example
+ * ```typescript
+ * const wma20 = ta.wma(closePrices, 20);
+ * // WMA gives more weight to recent prices
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.wma | PineScript ta.wma}
+ */
+export function wma(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      let sum = 0;
+      let weightSum = 0;
+
+      for (let j = 0; j < length; j++) {
+        const weight = length - j;
+        sum += source[i - j] * weight;
+        weightSum += weight;
+      }
+
+      result.push(sum / weightSum);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Highest Value - returns the highest value over a specified number of bars.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Series containing the highest value for each bar
+ *
+ * @remarks
+ * - Returns the maximum value in the lookback window
+ * - `na` values in the source series are ignored
+ * - Returns NaN for the first (length - 1) bars where there's insufficient data
+ *
+ * @example
+ * ```typescript
+ * const highest20 = ta.highest(closePrices, 20);
+ * // Find resistance level
+ * const resistance = ta.highest(high, 50);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highest | PineScript ta.highest}
+ */
+export function highest(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      let max = -Infinity;
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source[i - j])) {
+          max = Math.max(max, source[i - j]);
+        }
+      }
+      result.push(max === -Infinity ? NaN : max);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Lowest Value - returns the lowest value over a specified number of bars.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Series containing the lowest value for each bar
+ *
+ * @remarks
+ * - Returns the minimum value in the lookback window
+ * - `na` values in the source series are ignored
+ * - Returns NaN for the first (length - 1) bars where there's insufficient data
+ *
+ * @example
+ * ```typescript
+ * const lowest20 = ta.lowest(closePrices, 20);
+ * // Find support level
+ * const support = ta.lowest(low, 50);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.lowest | PineScript ta.lowest}
+ */
+export function lowest(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      let min = Infinity;
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source[i - j])) {
+          min = Math.min(min, source[i - j]);
+        }
+      }
+      result.push(min === Infinity ? NaN : min);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Cumulative Sum - returns the total sum of all elements from the beginning.
+ *
+ * @param source - Series of values to process
+ * @returns Series containing the cumulative sum at each bar
+ *
+ * @remarks
+ * - Returns the running total of all values from index 0 to current index
+ * - Each value is the sum of all previous values plus the current value
+ * - Useful for calculating total volume, total trades, etc.
+ *
+ * @example
+ * ```typescript
+ * const cumulativeVolume = ta.cum(volume);
+ * const totalGains = ta.cum(gains);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cum | PineScript ta.cum}
+ */
+export function cum(source: Source): series_float {
+  const result: series_float = [];
+  let sum = 0;
+
+  for (let i = 0; i < source.length; i++) {
+    sum += source[i];
+    result.push(sum);
+  }
+
+  return result;
+}
+
+/**
+ * Cross - returns true when two series cross each other (either direction).
+ *
+ * @param source1 - First series
+ * @param source2 - Second series
+ * @returns Boolean series (true at cross points)
+ *
+ * @remarks
+ * - True when: (source1[i] > source2[i] AND source1[i-1] <= source2[i-1]) OR
+ *              (source1[i] < source2[i] AND source1[i-1] >= source2[i-1])
+ * - First value is always false (no previous value to compare)
+ * - Detects any crossing (either over or under)
+ * - Use `ta.crossover()` or `ta.crossunder()` for directional crosses
+ *
+ * @example
+ * ```typescript
+ * const crossed = ta.cross(fastMA, slowMA);
+ * // Detect any MA crossover
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cross | PineScript ta.cross}
+ */
+export function cross(source1: Source, source2: Source): series_bool {
+  const result: series_bool = [];
+
+  for (let i = 0; i < source1.length; i++) {
+    if (i === 0) {
+      result.push(false);
+    } else {
+      const crossedUp = source1[i] > source2[i] && source1[i - 1] <= source2[i - 1];
+      const crossedDown = source1[i] < source2[i] && source1[i - 1] >= source2[i - 1];
+      result.push(crossedUp || crossedDown);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Rising - returns true if source is rising for length bars.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Boolean series (true when rising)
+ *
+ * @remarks
+ * - True if current source is greater than any previous source for length bars back
+ * - Checks if value is consistently rising over the period
+ * - `na` values in the source series are ignored
+ * - Returns false for the first (length - 1) bars
+ *
+ * @example
+ * ```typescript
+ * const isRising = ta.rising(close, 3);
+ * // Detect upward momentum
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rising | PineScript ta.rising}
+ */
+export function rising(source: Source, length: series_int): series_bool {
+  const result: series_bool = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(false);
+    } else {
+      let isRising = true;
+      for (let j = 1; j <= length; j++) {
+        if (source[i - j + 1] <= source[i - j]) {
+          isRising = false;
+          break;
+        }
+      }
+      result.push(isRising);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Falling - returns true if source is falling for length bars.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Boolean series (true when falling)
+ *
+ * @remarks
+ * - True if current source is less than any previous source for length bars back
+ * - Checks if value is consistently falling over the period
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ * - Returns false for the first (length - 1) bars
+ *
+ * @example
+ * ```typescript
+ * const isFalling = ta.falling(close, 3);
+ * // Detect downward momentum
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.falling | PineScript ta.falling}
+ */
+export function falling(source: Source, length: series_int): series_bool {
+  const result: series_bool = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(false);
+    } else {
+      let isFalling = true;
+      for (let j = 1; j <= length; j++) {
+        if (source[i - j + 1] >= source[i - j]) {
+          isFalling = false;
+          break;
+        }
+      }
+      result.push(isFalling);
+    }
+  }
+
+  return result;
 }
