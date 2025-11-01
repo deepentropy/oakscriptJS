@@ -14,7 +14,7 @@
 
 | Namespace | Documented | Implemented | Coverage | Tests |
 |-----------|-----------|-------------|----------|-------|
-| ta        | 59        | 20          | 34%      | 27/20 |
+| ta        | 59        | 25          | 42%      | 52/25 |
 | array     | 55        | 29          | 53%      | 0/29  |
 | math      | 24        | 17          | 71%      | 17/17 |
 | str       | 18        | 18          | 100%     | 18/18 |
@@ -34,17 +34,19 @@
 
 ## Detailed Analysis by Namespace
 
-## 1. Technical Analysis (ta) - 34% Coverage
+## 1. Technical Analysis (ta) - 42% Coverage
 
-### Implemented Functions (20/59)
+### Implemented Functions (25/59)
 
 **Status Update:**
-- ✅ All 20 functions now have comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
+- ✅ All 25 functions now have comprehensive JSDoc documentation with examples, remarks, and PineScript v6 links
 - ✅ Fixed signature mismatches: `length` parameters changed from `simple_int` to `series_int` where required
 - ✅ Documented API deviations for functions requiring explicit price data (supertrend, atr, tr)
 - ✅ **FIXED**: RSI and ATR now use RMA instead of SMA - algorithms are correct!
-- ✅ Added 8 new functions: rma, wma, highest, lowest, cum, cross, rising, falling
-- ✅ Comprehensive tests: 27 test cases for new functions (all passing)
+- ✅ Added 13 new functions in total:
+  - Batch 1 (8 functions): rma, wma, highest, lowest, cum, cross, rising, falling
+  - Batch 2 (5 functions): roc, mom, dev, variance, median
+- ✅ Comprehensive tests: 52 test cases total (all passing)
 
 #### ✅ ta.sma()
 - **Signature:** `sma(source: Source, length: series_int): series_float`
@@ -172,16 +174,51 @@
 - **Docs:** ✅ Comprehensive JSDoc with examples
 - **Tests:** ✅ tests/ta/new_functions.test.ts (3 tests)
 
-### Missing ta Functions (39/59)
+#### ✅ ta.roc()
+- **Signature:** `roc(source: Source, length: series_int): series_float`
+- **Status:** ✅ Signature matches PineScript v6
+- **Docs:** ✅ Comprehensive JSDoc with examples and formula
+- **Tests:** ✅ tests/ta/new_functions2.test.ts (5 tests)
+- **Remarks:** Rate of Change as percentage: `100 * (source - source[length]) / source[length]`
+
+#### ✅ ta.mom()
+- **Signature:** `mom(source: Source, length: series_int): series_float`
+- **Status:** ✅ Signature matches PineScript v6
+- **Docs:** ✅ Comprehensive JSDoc with examples
+- **Tests:** ✅ tests/ta/new_functions2.test.ts (5 tests)
+- **Remarks:** Momentum (equivalent to ta.change): `source - source[length]`
+
+#### ✅ ta.dev()
+- **Signature:** `dev(source: Source, length: series_int): series_float`
+- **Status:** ✅ Signature matches PineScript v6
+- **Docs:** ✅ Comprehensive JSDoc with examples
+- **Tests:** ✅ tests/ta/new_functions2.test.ts (4 tests)
+- **Remarks:** Mean Absolute Deviation - less sensitive to outliers than standard deviation
+
+#### ✅ ta.variance()
+- **Signature:** `variance(source: Source, length: series_int, biased: series_bool = true): series_float`
+- **Status:** ✅ Signature matches PineScript v6
+- **Docs:** ✅ Comprehensive JSDoc with biased/unbiased explanation
+- **Tests:** ✅ tests/ta/new_functions2.test.ts (5 tests)
+- **Remarks:** Squared deviation from mean - related to stdev by `stdev = sqrt(variance)`
+
+#### ✅ ta.median()
+- **Signature:** `median(source: Source, length: series_int): series_float`
+- **Status:** ✅ Signature matches PineScript v6
+- **Docs:** ✅ Comprehensive JSDoc with examples
+- **Tests:** ✅ tests/ta/new_functions2.test.ts (6 tests)
+- **Remarks:** More robust to outliers than SMA - returns middle value when sorted
+
+### Missing ta Functions (34/59)
 
 Not implemented:
 - ta.alma, ta.barssince, ta.bbw, ta.cci, ta.cmo, ta.cog, ta.correlation
-- ta.dev, ta.dmi, ta.highestbars, ta.hma, ta.kc, ta.kcw
-- ta.linreg, ta.lowestbars, ta.max, ta.median, ta.mfi, ta.min
-- ta.mode, ta.mom, ta.percentile_linear_interpolation, ta.percentile_nearest_rank
-- ta.percentrank, ta.pivothigh, ta.pivotlow, ta.pivot_point_levels, ta.range
-- ta.roc, ta.sar, ta.stoch, ta.sum, ta.swma, ta.tsi
-- ta.variance, ta.vwap, ta.vwma, ta.wpr
+- ta.dmi, ta.highestbars, ta.hma, ta.kc, ta.kcw, ta.linreg
+- ta.lowestbars, ta.max, ta.mfi, ta.min, ta.mode
+- ta.percentile_linear_interpolation, ta.percentile_nearest_rank, ta.percentrank
+- ta.pivothigh, ta.pivotlow, ta.pivot_point_levels, ta.range
+- ta.sar, ta.stoch, ta.sum, ta.swma, ta.tsi
+- ta.vwap, ta.vwma, ta.wpr
 
 ---
 
@@ -794,6 +831,7 @@ These match the official v6 specification:
 ---
 
 **Last Updated:** 2025-11-01
-**Recently Implemented:** ta.rma, ta.wma, ta.highest, ta.lowest, ta.cum, ta.cross, ta.rising, ta.falling
-**Verified Functions:** ta.sma, ta.ema, ta.rsi, ta.macd, ta.bb, ta.change, ta.supertrend, ta.tr, ta.atr, ta.rma, ta.wma, ta.highest, ta.lowest, ta.cum, ta.cross, ta.rising, ta.falling
+**Recently Implemented (Batch 2):** ta.roc, ta.mom, ta.dev, ta.variance, ta.median
+**Previously Implemented (Batch 1):** ta.rma, ta.wma, ta.highest, ta.lowest, ta.cum, ta.cross, ta.rising, ta.falling
+**All Verified Functions (25):** ta.sma, ta.ema, ta.rsi, ta.macd, ta.bb, ta.change, ta.supertrend, ta.tr, ta.atr, ta.stdev, ta.crossover, ta.crossunder, ta.rma, ta.wma, ta.highest, ta.lowest, ta.cum, ta.cross, ta.rising, ta.falling, ta.roc, ta.mom, ta.dev, ta.variance, ta.median
 

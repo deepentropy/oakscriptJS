@@ -937,3 +937,239 @@ export function falling(source: Source, length: series_int): series_bool {
 
   return result;
 }
+
+/**
+ * Rate of Change (ROC) - percentage change between current value and value length bars ago.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns ROC series as percentage
+ *
+ * @remarks
+ * - Formula: `100 * change(source, length) / source[length]`
+ * - Equivalent to: `100 * (source - source[length]) / source[length]`
+ * - Returns percentage change, e.g., 5.0 means 5% increase
+ * - `na` values in the source series are included in calculations and will produce an `na` result
+ * - Useful for momentum analysis and trend strength measurement
+ *
+ * @example
+ * ```typescript
+ * const roc10 = ta.roc(closePrices, 10);
+ * // Positive ROC indicates upward momentum
+ * // Negative ROC indicates downward momentum
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.roc | PineScript ta.roc}
+ */
+export function roc(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(NaN);
+    } else {
+      const oldValue = source[i - length];
+      if (oldValue === 0 || isNaN(oldValue) || isNaN(source[i])) {
+        result.push(NaN);
+      } else {
+        const changeValue = source[i] - oldValue;
+        result.push((100 * changeValue) / oldValue);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Momentum (MOM) - difference between current value and value length bars ago.
+ *
+ * @param source - Series of values to process
+ * @param length - Offset from current bar to previous bar
+ * @returns Momentum series
+ *
+ * @remarks
+ * - Formula: `source - source[length]`
+ * - Equivalent to `ta.change(source, length)`
+ * - Positive momentum indicates upward movement
+ * - Negative momentum indicates downward movement
+ * - `na` values in the source series are included in calculations and will produce an `na` result
+ *
+ * @example
+ * ```typescript
+ * const mom10 = ta.mom(closePrices, 10);
+ * // Measures raw price momentum over 10 bars
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.mom | PineScript ta.mom}
+ */
+export function mom(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(NaN);
+    } else {
+      if (isNaN(source[i]) || isNaN(source[i - length])) {
+        result.push(NaN);
+      } else {
+        result.push(source[i] - source[i - length]);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Mean Absolute Deviation - measure of difference between series and its SMA.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Mean absolute deviation series
+ *
+ * @remarks
+ * - Measures average absolute distance from the mean
+ * - Formula: `sum(abs(source[i] - sma)) / length` for i in 0 to length-1
+ * - Less sensitive to outliers than standard deviation
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ *
+ * @example
+ * ```typescript
+ * const dev10 = ta.dev(closePrices, 10);
+ * // Measures volatility using mean absolute deviation
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.dev | PineScript ta.dev}
+ */
+export function dev(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+  const meanValues = sma(source, length);
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1 || isNaN(meanValues[i])) {
+      result.push(NaN);
+    } else {
+      let sum = 0;
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source[i - j])) {
+          sum += Math.abs(source[i - j] - meanValues[i]);
+        }
+      }
+      result.push(sum / length);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Variance - expectation of squared deviation from mean.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @param biased - Use biased (true) or unbiased (false) estimate (default: true)
+ * @returns Variance series
+ *
+ * @remarks
+ * - Measures how far values are spread out from their mean
+ * - If `biased` is true: divides by `length` (population variance)
+ * - If `biased` is false: divides by `length - 1` (sample variance)
+ * - Formula (biased): `sum((source[i] - mean)^2) / length`
+ * - Formula (unbiased): `sum((source[i] - mean)^2) / (length - 1)`
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ * - Relationship: `stdev = sqrt(variance)`
+ *
+ * @example
+ * ```typescript
+ * const variance20 = ta.variance(closePrices, 20);
+ * const sampleVariance = ta.variance(closePrices, 20, false);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.variance | PineScript ta.variance}
+ */
+export function variance(source: Source, length: series_int, biased: series_bool = true): series_float {
+  const result: series_float = [];
+  const meanValues = sma(source, length);
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1 || isNaN(meanValues[i])) {
+      result.push(NaN);
+    } else {
+      let sumSquares = 0;
+      let count = 0;
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source[i - j])) {
+          const diff = source[i - j] - meanValues[i];
+          sumSquares += diff * diff;
+          count++;
+        }
+      }
+      const divisor = biased ? count : count - 1;
+      result.push(divisor > 0 ? sumSquares / divisor : NaN);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Median - returns the median (middle value) of the series.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Median series
+ *
+ * @remarks
+ * - Returns the middle value when values are sorted
+ * - For even-length series, returns average of two middle values
+ * - `na` values in the source series are ignored
+ * - The function calculates on the `length` quantity of non-`na` values
+ * - More robust to outliers than mean (SMA)
+ *
+ * @example
+ * ```typescript
+ * const median20 = ta.median(closePrices, 20);
+ * // Median is less affected by extreme values than SMA
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.median | PineScript ta.median}
+ */
+export function median(source: Source, length: series_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+    } else {
+      // Collect non-NaN values
+      const values: number[] = [];
+      for (let j = 0; j < length; j++) {
+        if (!isNaN(source[i - j])) {
+          values.push(source[i - j]);
+        }
+      }
+
+      if (values.length === 0) {
+        result.push(NaN);
+      } else {
+        // Sort values
+        values.sort((a, b) => a - b);
+        
+        // Calculate median
+        const mid = Math.floor(values.length / 2);
+        if (values.length % 2 === 0) {
+          // Even number of values - average of two middle values
+          result.push((values[mid - 1] + values[mid]) / 2);
+        } else {
+          // Odd number of values - middle value
+          result.push(values[mid]);
+        }
+      }
+    }
+  }
+
+  return result;
+}
