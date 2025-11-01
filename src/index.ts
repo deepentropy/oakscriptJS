@@ -20,6 +20,10 @@ import * as color from './color';
 
 export { ta, math, array, str, color };
 
+// Export context API
+export { createContext } from './context';
+export type { ChartData, SymbolInfo, ContextConfig, OakContext } from './context';
+
 // Re-export commonly used functions for convenience
 export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr } from './ta';
 export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
