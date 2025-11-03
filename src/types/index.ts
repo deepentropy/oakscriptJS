@@ -47,77 +47,8 @@ export interface PineMatrix<T> {
   data: T[][];
 }
 
-// Line type
-export interface Line {
-  id: string;
-  x1: int;
-  y1: float;
-  x2: int;
-  y2: float;
-  color?: color;
-  width?: int;
-  style?: string;
-}
-
-// Label type
-export interface Label {
-  id: string;
-  x: int;
-  y: float;
-  text: string;
-  color?: color;
-  textcolor?: color;
-  size?: string;
-  style?: string;
-}
-
-// Box type
-export interface Box {
-  id: string;
-  left: int;
-  top: float;
-  right: int;
-  bottom: float;
-  bgcolor?: color;
-  border_color?: color;
-  border_width?: int;
-  border_style?: string;
-}
-
-// Table type
-export interface Table {
-  id: string;
-  columns: int;
-  rows: int;
-  position?: string;
-  bgcolor?: color;
-  frame_color?: color;
-  frame_width?: int;
-  border_color?: color;
-  border_width?: int;
-}
-
-// Strategy types
-export interface StrategyEntry {
-  id: string;
-  direction: 'long' | 'short';
-  qty?: float;
-  limit?: float;
-  stop?: float;
-  comment?: string;
-}
-
-export interface StrategyExit {
-  id: string;
-  from_entry?: string;
-  qty?: float;
-  qty_percent?: float;
-  profit?: float;
-  loss?: float;
-  trail_price?: float;
-  trail_offset?: float;
-  comment?: string;
-}
+// Excluded types (Line, Label, Box, Table) - not used in calculation-only library
+// Excluded types (StrategyEntry, StrategyExit) - not used in calculation-only library
 
 // Bar data
 export interface Bar {
