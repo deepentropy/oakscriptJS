@@ -247,3 +247,98 @@ export function fill<T>(id: PineArray<T>, value: T, index_from: simple_int = 0, 
 export function from<T>(id: PineArray<T>): PineArray<T> {
   return copy(id);
 }
+
+/**
+ * Returns the first element of the array
+ *
+ * @param id - The array
+ * @returns The first element, or undefined if array is empty
+ *
+ * @remarks
+ * - Equivalent to `array.get(id, 0)`
+ * - Returns undefined for empty arrays
+ *
+ * @example
+ * ```typescript
+ * const arr = [1, 2, 3, 4, 5];
+ * const firstElement = array.first(arr); // Returns: 1
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.first | PineScript array.first}
+ */
+export function first<T>(id: PineArray<T>): T {
+  return id[0];
+}
+
+/**
+ * Returns the last element of the array
+ *
+ * @param id - The array
+ * @returns The last element, or undefined if array is empty
+ *
+ * @remarks
+ * - Equivalent to `array.get(id, array.size(id) - 1)`
+ * - Returns undefined for empty arrays
+ *
+ * @example
+ * ```typescript
+ * const arr = [1, 2, 3, 4, 5];
+ * const lastElement = array.last(arr); // Returns: 5
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.last | PineScript array.last}
+ */
+export function last<T>(id: PineArray<T>): T {
+  return id[id.length - 1];
+}
+
+/**
+ * Tests whether at least one element in the array passes the test implemented by the provided function
+ *
+ * @param id - The array
+ * @param predicate - Function to test for each element
+ * @returns true if at least one element passes the test, false otherwise
+ *
+ * @remarks
+ * - Similar to JavaScript's Array.prototype.some()
+ * - Stops iterating once a matching element is found
+ * - Returns false for empty arrays
+ *
+ * @example
+ * ```typescript
+ * const arr = [1, 2, 3, 4, 5];
+ * const hasEven = array.some(arr, x => x % 2 === 0); // Returns: true
+ * const hasNegative = array.some(arr, x => x < 0); // Returns: false
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.some | PineScript array.some}
+ */
+export function some<T>(id: PineArray<T>, predicate: (value: T) => bool): bool {
+  return id.some(predicate);
+}
+
+/**
+ * Tests whether all elements in the array pass the test implemented by the provided function
+ *
+ * @param id - The array
+ * @param predicate - Function to test for each element
+ * @returns true if all elements pass the test, false otherwise
+ *
+ * @remarks
+ * - Similar to JavaScript's Array.prototype.every()
+ * - Stops iterating once a failing element is found
+ * - Returns true for empty arrays
+ *
+ * @example
+ * ```typescript
+ * const arr = [2, 4, 6, 8];
+ * const allEven = array.every(arr, x => x % 2 === 0); // Returns: true
+ * const allPositive = array.every(arr, x => x > 0); // Returns: true
+ * const allLarge = array.every(arr, x => x > 5); // Returns: false
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.every | PineScript array.every}
+ */
+export function every<T>(id: PineArray<T>, predicate: (value: T) => bool): bool {
+  return id.every(predicate);
+}

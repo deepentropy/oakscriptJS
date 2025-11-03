@@ -620,6 +620,53 @@ export function sign(value: float): int {
   return value > 0 ? 1 : value < 0 ? -1 : 0;
 }
 
+/**
+ * Rounds a value to the nearest mintick.
+ *
+ * @param number - The number to round
+ * @param mintick - Optional mintick value (defaults to requiring syminfo context)
+ * @returns The number rounded to tick precision
+ *
+ * @remarks
+ * - **PineScript v6 signature**: `math.round_to_mintick(number)` - uses implicit syminfo.mintick
+ * - **JavaScript signature**: Requires explicit `mintick` OR use `createContext()` with syminfo
+ * - Rounds to the nearest value divisible by mintick
+ * - Returns NaN for NaN input
+ * - Ties round up (0.5 -> 1)
+ *
+ * @example
+ * ```typescript
+ * // Direct call with explicit mintick
+ * const rounded = math.round_to_mintick(1.2345, 0.01); // Returns: 1.23
+ * const rounded2 = math.round_to_mintick(1.2367, 0.01); // Returns: 1.24
+ *
+ * // Or use context API for cleaner syntax
+ * const { math } = createContext({ syminfo: { mintick: 0.01 } });
+ * const rounded = math.round_to_mintick(1.2345); // Returns: 1.23
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.round_to_mintick | PineScript math.round_to_mintick}
+ */
+export function round_to_mintick(number: float, mintick?: float): float {
+  if (isNaN(number)) {
+    return NaN;
+  }
+
+  if (mintick === undefined) {
+    throw new Error(
+      'math.round_to_mintick() requires mintick value. ' +
+      'Either pass it explicitly or use createContext({ syminfo: { mintick } }) for implicit data.'
+    );
+  }
+
+  if (mintick === 0) {
+    return number;
+  }
+
+  // Round to nearest tick
+  return Math.round(number / mintick) * mintick;
+}
+
 // Constants
 export const pi = Math.PI;
 export const e = Math.E;

@@ -1,15 +1,39 @@
 # OakScriptJS
 
-**JavaScript mirror of the PineScript API with exact same signatures**
+**JavaScript mirror of the PineScript API - Calculation & Indicator Functions**
 
-OakScriptJS is a TypeScript/JavaScript library that provides a complete implementation of the PineScript API, maintaining exact function signatures and behavior. This allows you to write trading indicators and strategies in JavaScript/TypeScript using the familiar PineScript syntax.
+OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's calculation and indicator API, maintaining exact function signatures and behavior. This library focuses on the computational core of PineScript - technical analysis, mathematics, and data manipulation - making it perfect for building custom trading engines, backtesting systems, or analysis tools in JavaScript/TypeScript.
+
+## Scope
+
+**This library includes:**
+- ✅ Technical Analysis (`ta.*`) - All indicators and calculations
+- ✅ Mathematics (`math.*`) - All mathematical operations
+- ✅ Arrays (`array.*`) - Array manipulation and operations
+- ✅ Matrices (`matrix.*`) - Matrix operations
+- ✅ Strings (`str.*`) - String manipulation
+- ✅ Time (`time.*`) - Time calculations and conversions
+- ✅ Color (`color.*`) - Color data structures and manipulation
+
+**This library does NOT include:**
+- ❌ Rendering functions (`plot.*`, `line.*`, `label.*`, `box.*`, `table.*`)
+- ❌ UI/Input functions (`input.*`)
+- ❌ Strategy execution (`strategy.*`)
+- ❌ Data fetching (`request.*`)
+- ❌ Alert systems (`alert.*`, `alertcondition.*`)
+
+## Why These Limitations?
+
+These excluded namespaces require external infrastructure (rendering engines, UI frameworks, data feeds, backtesting systems) that are specific to TradingView's platform. OakScriptJS focuses on what can be accurately replicated in pure JavaScript: calculations and data transformations.
+
+**📖 For detailed information about scope and limitations, see [SCOPE.md](SCOPE.md)**
 
 ## Features
 
 - **Exact API Match**: Function signatures match PineScript exactly
 - **Type Safety**: Full TypeScript support with type definitions
 - **Performance Optimized**: Efficient implementations for technical analysis
-- **Comprehensive**: Covers all major PineScript namespaces
+- **Calculation-Focused**: All computational functions from PineScript
 - **Well Tested**: Extensive test coverage ensuring accuracy
 - **Zero Dependencies**: Lightweight with no external runtime dependencies
 
@@ -51,39 +75,58 @@ const max = math.max(10, 20, 30); // 30
 const avg = math.avg(10, 20, 30); // 20
 ```
 
+## Use Cases
+
+OakScriptJS is perfect for:
+- **Custom Trading Engines** - Build your own backtesting or execution system
+- **Analysis Tools** - Create technical analysis applications
+- **Data Processing** - Calculate indicators on market data
+- **Algorithm Development** - Develop and test trading algorithms
+- **Educational Projects** - Learn about technical indicators
+
 ## Supported Namespaces
 
-### Technical Analysis (`ta`)
+### Technical Analysis (`ta`) ✅
 
 Complete implementation of PineScript's technical analysis functions:
 
-- **Moving Averages**: `sma()`, `ema()`, `wma()`, `vwma()`, etc.
-- **Oscillators**: `rsi()`, `stoch()`, `cci()`, `macd()`, etc.
-- **Volatility**: `bb()`, `atr()`, `stdev()`, etc.
+- **Moving Averages**: `sma()`, `ema()`, `wma()`, `vwma()`, `swma()`, etc.
+- **Oscillators**: `rsi()`, `stoch()`, `cci()`, `macd()`, `mfi()`, etc.
+- **Volatility**: `bb()`, `atr()`, `stdev()`, `variance()`, etc.
+- **Momentum**: `mom()`, `roc()`, `percentrank()`, etc.
+- **Regression**: `linreg()`, `correlation()`, etc.
 - **Crossovers**: `crossover()`, `crossunder()`, `cross()`
-- **Other**: `change()`, `tr()`, and many more
+- **Other**: `change()`, `tr()`, `supertrend()`, and many more
 
-### Math (`math`)
+### Math (`math`) ✅
 
 Mathematical functions and operations:
 
 - **Basic**: `abs()`, `ceil()`, `floor()`, `round()`
 - **Min/Max**: `min()`, `max()`, `avg()`
-- **Powers**: `sqrt()`, `pow()`, `exp()`, `log()`
-- **Trigonometry**: `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`
-- **Utilities**: `sum()`, `sign()`, `random()`
+- **Powers**: `sqrt()`, `pow()`, `exp()`, `log()`, `log10()`
+- **Trigonometry**: `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2()`
+- **Utilities**: `sum()`, `sign()`, `random()`, `todegrees()`, `toradians()`
 
-### Array (`array`)
+### Array (`array`) ✅
 
 Array manipulation functions:
 
 - **Creation**: `new_array()`, `from()`
 - **Access**: `get()`, `set()`, `size()`
 - **Modification**: `push()`, `pop()`, `shift()`, `unshift()`, `insert()`, `remove()`
-- **Analysis**: `sum()`, `avg()`, `min()`, `max()`, `median()`, `stdev()`
-- **Operations**: `sort()`, `reverse()`, `slice()`, `concat()`
+- **Analysis**: `sum()`, `avg()`, `min()`, `max()`, `median()`, `stdev()`, `variance()`
+- **Operations**: `sort()`, `reverse()`, `slice()`, `concat()`, `includes()`, `indexof()`
 
-### String (`str`)
+### Matrix (`matrix`) ✅
+
+Matrix operations for advanced calculations:
+
+- **Creation**: `new()`, `copy()`
+- **Operations**: `mult()`, `add()`, `transpose()`
+- **Access**: `get()`, `set()`, `row()`, `col()`
+
+### String (`str`) ✅
 
 String manipulation functions:
 
@@ -93,7 +136,14 @@ String manipulation functions:
 - **Search**: `contains()`, `pos()`, `startswith()`, `endswith()`
 - **Formatting**: `format()`, `trim()`
 
-### Color (`color`)
+### Time (`time`) ✅
+
+Time calculations and conversions:
+
+- **Conversions**: Convert between timestamps and time components
+- **Calculations**: Work with timeframes and time-based logic
+
+### Color (`color`) ✅
 
 Color creation and manipulation:
 
@@ -239,16 +289,27 @@ oakscriptjs/
 
 ## Roadmap
 
-- [ ] Complete `matrix` namespace
-- [ ] Complete `table` namespace
-- [ ] Complete `time` namespace
-- [ ] Complete `request` namespace
-- [ ] Complete `plot` namespace
-- [ ] Complete `input` namespace
-- [ ] Complete `strategy` namespace
-- [ ] Add chart data structures
+**Included Namespaces:**
+- [ ] Complete `matrix` namespace implementation
+- [ ] Complete `time` namespace implementation
+- [x] `ta` namespace - Core indicators implemented
+- [x] `math` namespace - Complete
+- [x] `array` namespace - Complete
+- [x] `str` namespace - Complete
+- [x] `color` namespace - Complete
+
+**Improvements:**
 - [ ] Performance benchmarks
 - [ ] Comprehensive documentation site
+- [ ] Additional technical indicators
+- [ ] More test coverage
+
+**Explicitly Excluded** (require external infrastructure):
+- ❌ `plot`, `line`, `label`, `box`, `table` - Rendering functions
+- ❌ `input` - UI controls
+- ❌ `strategy` - Strategy execution engine
+- ❌ `request` - Data fetching
+- ❌ `alert`, `alertcondition` - Alert system
 
 ## Contributing
 

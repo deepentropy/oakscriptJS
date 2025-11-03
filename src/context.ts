@@ -28,7 +28,7 @@
  * @version 6
  */
 
-import { Source, simple_float, simple_int, simple_bool, series_float, series_int } from './types';
+import { Source, simple_float, simple_int, simple_bool, series_float, series_int, float } from './types';
 import * as taFunctions from './ta';
 import * as mathFunctions from './math';
 import * as strFunctions from './str';
@@ -101,7 +101,7 @@ export interface ContextConfig {
  * ```
  */
 export function createContext(config: ContextConfig = {}) {
-  const { chart } = config;
+  const { chart, syminfo } = config;
 
   return {
     /**
@@ -195,6 +195,133 @@ export function createContext(config: ContextConfig = {}) {
         return taFunctions.tr(handle_na, chart.high, chart.low, chart.close);
       },
 
+      /**
+       * Parabolic SAR - now uses implicit chart data from context.
+       *
+       * @param start - Acceleration factor start
+       * @param inc - Acceleration factor increment
+       * @param max - Maximum acceleration factor
+       * @returns SAR series
+       */
+      sar: (start: simple_float, inc: simple_float, max: simple_float): series_float => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.sar(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.sar(start, inc, max, chart.high, chart.low, chart.close);
+      },
+
+      /**
+       * Money Flow Index - now uses implicit volume data from context.
+       *
+       * @param source - Source series
+       * @param length - Number of bars
+       * @returns MFI series
+       */
+      mfi: (source: Source, length: simple_int): series_float => {
+        if (!chart || !chart.volume) {
+          throw new Error(
+            'Chart context with volume required for ta.mfi(). ' +
+            'Call createContext({ chart: { ..., volume } }) first.'
+          );
+        }
+        return taFunctions.mfi(source, length, chart.volume);
+      },
+
+      /**
+       * Stochastic Oscillator - now uses implicit high/low data from context.
+       *
+       * @param source - Source series (typically close)
+       * @param length - Number of bars
+       * @returns Stochastic %K series
+       */
+      stoch: (source: Source, length: simple_int): series_float => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.stoch(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.stoch(source, chart.high, chart.low, length);
+      },
+
+      /**
+       * Pivot High - now uses implicit high data from context.
+       *
+       * @param leftbars - Left bars
+       * @param rightbars - Right bars
+       * @returns Pivot high series
+       */
+      pivothigh: (leftbars: simple_int, rightbars: simple_int): series_float => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.pivothigh(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.pivothigh(leftbars, rightbars, undefined, chart.high);
+      },
+
+      /**
+       * Pivot Low - now uses implicit low data from context.
+       *
+       * @param leftbars - Left bars
+       * @param rightbars - Right bars
+       * @returns Pivot low series
+       */
+      pivotlow: (leftbars: simple_int, rightbars: simple_int): series_float => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.pivotlow(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.pivotlow(leftbars, rightbars, undefined, chart.low);
+      },
+
+      /**
+       * Directional Movement Index - now uses implicit chart data from context.
+       *
+       * @param diLength - DI averaging length
+       * @param adxSmoothing - ADX smoothing length
+       * @returns Tuple of [plusDI, minusDI, ADX]
+       */
+      dmi: (diLength: simple_int, adxSmoothing: simple_int): [series_float, series_float, series_float] => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.dmi(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.dmi(diLength, adxSmoothing, chart.high, chart.low, chart.close);
+      },
+
+      /**
+       * Keltner Channels - now uses implicit chart data from context.
+       *
+       * @param source - Source series
+       * @param length - Number of bars
+       * @param mult - Multiplier
+       * @param useTrueRange - Use True Range (default: true)
+       * @returns Tuple of [middle, upper, lower]
+       */
+      kc: (
+        source: Source,
+        length: simple_int,
+        mult: simple_float,
+        useTrueRange: simple_bool = true
+      ): [series_float, series_float, series_float] => {
+        if (!chart) {
+          throw new Error(
+            'Chart context required for ta.kc(). ' +
+            'Call createContext({ chart: { high, low, close } }) first.'
+          );
+        }
+        return taFunctions.kc(source, length, mult, useTrueRange, chart.high, chart.low, chart.close);
+      },
+
       // ===== PASS-THROUGH FUNCTIONS (already have explicit parameters) =====
       // These functions don't need wrapping - they already require explicit source data
 
@@ -203,20 +330,52 @@ export function createContext(config: ContextConfig = {}) {
       rsi: taFunctions.rsi,
       macd: taFunctions.macd,
       bb: taFunctions.bb,
+      bbw: taFunctions.bbw,
       stdev: taFunctions.stdev,
       crossover: taFunctions.crossover,
       crossunder: taFunctions.crossunder,
       change: taFunctions.change,
+      cci: taFunctions.cci,
+      cmo: taFunctions.cmo,
+      hma: taFunctions.hma,
+      tsi: taFunctions.tsi,
+      barssince: taFunctions.barssince,
+      valuewhen: taFunctions.valuewhen,
     },
 
     /**
-     * Math namespace - all functions passed through.
+     * Math namespace with context-aware functions.
      *
      * @remarks
-     * Future: Could add round_to_mintick() that uses syminfo.mintick from context.
+     * round_to_mintick() uses syminfo.mintick from context when available.
      */
     math: {
       ...mathFunctions,
+
+      /**
+       * Rounds a value to the nearest mintick - now uses implicit syminfo from context.
+       *
+       * @param number - The number to round
+       * @returns The number rounded to tick precision
+       *
+       * @remarks
+       * This wrapped version uses syminfo.mintick from context, matching PineScript's API.
+       *
+       * @example
+       * ```typescript
+       * const { math } = createContext({ syminfo: { mintick: 0.01 } });
+       * const rounded = math.round_to_mintick(1.2345); // Returns: 1.23
+       * ```
+       */
+      round_to_mintick: (number: float): float => {
+        if (!syminfo || syminfo.mintick === undefined) {
+          throw new Error(
+            'Syminfo context with mintick required for math.round_to_mintick(). ' +
+            'Call createContext({ syminfo: { mintick: 0.01 } }) first.'
+          );
+        }
+        return mathFunctions.round_to_mintick(number, syminfo.mintick);
+      },
     },
 
     /**

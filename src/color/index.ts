@@ -315,3 +315,95 @@ export const white = '#FFFFFF';
  * @constant {string} #FFFF00 - RGB(255, 255, 0)
  */
 export const yellow = '#FFFF00';
+
+/**
+ * Creates a color from a gradient based on value position.
+ *
+ * @param value - Value to calculate position-dependent color
+ * @param bottom_value - Bottom position value corresponding to bottom_color
+ * @param top_value - Top position value corresponding to top_color
+ * @param bottom_color - Bottom position color
+ * @param top_color - Top position color
+ * @returns Color calculated from linear gradient
+ *
+ * @remarks
+ * - Interpolates between bottom_color and top_color based on value's position
+ * - If value <= bottom_value, returns bottom_color
+ * - If value >= top_value, returns top_color
+ * - Otherwise, returns linearly interpolated color
+ * - Works with rgb(), rgba(), and hex color formats
+ *
+ * @example
+ * ```typescript
+ * // Value at middle of range gets middle color
+ * const midColor = color.from_gradient(50, 0, 100,
+ *   color.rgb(255, 0, 0),    // Red at bottom
+ *   color.rgb(0, 255, 0)      // Green at top
+ * ); // Returns color between red and green
+ *
+ * // Value at extremes
+ * const lowColor = color.from_gradient(-10, 0, 100, red, green); // Returns red
+ * const highColor = color.from_gradient(150, 0, 100, red, green); // Returns green
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_color.from_gradient | PineScript color.from_gradient}
+ */
+export function from_gradient(
+  value: float,
+  bottom_value: float,
+  top_value: float,
+  bottom_color: color,
+  top_color: color
+): color {
+  // Parse colors to RGB
+  const parseColor = (col: color): [number, number, number, number] => {
+    if (typeof col === 'string') {
+      // Handle hex colors
+      if (col.startsWith('#')) {
+        const hex = col.slice(1);
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return [r, g, b, 1];
+      }
+
+      // Handle rgb/rgba colors
+      const match = col.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      if (match) {
+        return [
+          parseInt(match[1]),
+          parseInt(match[2]),
+          parseInt(match[3]),
+          match[4] ? parseFloat(match[4]) : 1
+        ];
+      }
+    }
+
+    // Default to black if parsing fails
+    return [0, 0, 0, 1];
+  };
+
+  const [r1, g1, b1, a1] = parseColor(bottom_color);
+  const [r2, g2, b2, a2] = parseColor(top_color);
+
+  // Calculate interpolation factor
+  let t: number;
+  if (value <= bottom_value) {
+    t = 0;
+  } else if (value >= top_value) {
+    t = 1;
+  } else {
+    t = (value - bottom_value) / (top_value - bottom_value);
+  }
+
+  // Interpolate RGB and alpha
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  const a = a1 + (a2 - a1) * t;
+
+  if (a === 1) {
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}

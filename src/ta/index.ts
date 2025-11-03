@@ -1488,3 +1488,887 @@ export function percentrank(source: Source, length: simple_int): series_float {
 
   return result;
 }
+
+/**
+ * Commodity Channel Index (CCI) - measures deviation from average price.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns CCI series
+ *
+ * @remarks
+ * - CCI = (Typical Price - SMA of TP) / (0.015 * Mean Deviation)
+ * - Typical Price = (High + Low + Close) / 3
+ * - Mean Deviation = Average of absolute differences from mean
+ * - Scaled by 0.015 to provide more readable numbers
+ * - Values above +100 indicate overbought conditions
+ * - Values below -100 indicate oversold conditions
+ * - \`na\` values in the source series are ignored
+ *
+ * @example
+ * \`\`\`typescript
+ * const cci20 = ta.cci(typicalPrice, 20);
+ * // Overbought when cci > 100
+ * // Oversold when cci < -100
+ * \`\`\`
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cci | PineScript ta.cci}
+ */
+export function cci(source: Source, length: simple_int): series_float {
+  const result: series_float = [];
+  const smaValues = sma(source, length);
+  const devValues = dev(source, length);
+
+  for (let i = 0; i < source.length; i++) {
+    if (isNaN(smaValues[i]) || isNaN(devValues[i]) || devValues[i] === 0) {
+      result.push(NaN);
+    } else {
+      const cci = (source[i] - smaValues[i]) / (0.015 * devValues[i]);
+      result.push(cci);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Stochastic Oscillator - momentum indicator comparing closing price to price range.
+ *
+ * @param source - Source series (typically close)
+ * @param high - High price series
+ * @param low - Low price series
+ * @param length - Number of bars (length)
+ * @returns Stochastic %K series (values range from 0 to 100)
+ *
+ * @remarks
+ * - Formula: 100 * (close - lowest(low, length)) / (highest(high, length) - lowest(low, length))
+ * - Measures where close is relative to the high-low range
+ * - Values above 80 typically indicate overbought
+ * - Values below 20 typically indicate oversold
+ * - Returns NaN when range is zero (high equals low)
+ * - \`na\` values in the source series are ignored
+ *
+ * @example
+ * \`\`\`typescript
+ * const stochK = ta.stoch(close, high, low, 14);
+ * // Smooth with SMA for %D line:
+ * const stochD = ta.sma(stochK, 3);
+ * \`\`\`
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.stoch | PineScript ta.stoch}
+ */
+export function stoch(source: Source, high: Source, low: Source, length: simple_int): series_float {
+  const result: series_float = [];
+  const lowestValues = lowest(low, length);
+  const highestValues = highest(high, length);
+
+  for (let i = 0; i < source.length; i++) {
+    if (isNaN(lowestValues[i]) || isNaN(highestValues[i])) {
+      result.push(NaN);
+    } else {
+      const range = highestValues[i] - lowestValues[i];
+      if (range === 0) {
+        result.push(NaN);
+      } else {
+        const stochValue = 100 * (source[i] - lowestValues[i]) / range;
+        result.push(stochValue);
+      }
+    }
+  }
+
+  return result;
+}
+
+
+/**
+ * Money Flow Index (MFI) - volume-weighted RSI measuring buying and selling pressure.
+ *
+ * @param source - Source series (typically hlc3 or close)
+ * @param length - Number of bars (length)
+ * @param volume - Volume series (required when not using context API)
+ * @returns MFI series (values range from 0 to 100)
+ *
+ * @remarks
+ * - **PineScript v6 signature**: `ta.mfi(source, length)` - uses implicit volume data
+ * - **JavaScript signature**: Requires explicit `volume` OR use `createContext()`
+ * - Combines price and volume to identify overbought/oversold conditions
+ * - Formula: 100 - (100 / (1 + Positive Money Flow / Negative Money Flow))
+ * - Values above 80 indicate overbought
+ * - Values below 20 indicate oversold
+ * - `na` values in the source series are ignored
+ *
+ * @example
+ * ```typescript
+ * // Direct call with explicit volume
+ * const mfi14 = ta.mfi(hlc3, 14, volume);
+ *
+ * // Or use context API for cleaner syntax
+ * const { ta } = createContext({ chart: { high, low, close, volume } });
+ * const mfi14 = ta.mfi(hlc3, 14); // Matches PineScript!
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.mfi | PineScript ta.mfi}
+ */
+export function mfi(source: Source, length: simple_int, volume?: Source): series_float {
+  if (!volume) {
+    throw new Error(
+      'ta.mfi() requires volume series. ' +
+      'Either pass it explicitly or use createContext({ chart: { ..., volume } }) for implicit data.'
+    );
+  }
+
+  const result: series_float = [];
+
+  const changes: number[] = [NaN];
+  for (let i = 1; i < source.length; i++) {
+    changes.push(source[i] - source[i - 1]);
+  }
+
+  const positiveFlow: number[] = [];
+  const negativeFlow: number[] = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i === 0 || isNaN(changes[i])) {
+      positiveFlow.push(0);
+      negativeFlow.push(0);
+    } else if (changes[i] > 0) {
+      positiveFlow.push(volume[i] * source[i]);
+      negativeFlow.push(0);
+    } else if (changes[i] < 0) {
+      positiveFlow.push(0);
+      negativeFlow.push(volume[i] * source[i]);
+    } else {
+      positiveFlow.push(0);
+      negativeFlow.push(0);
+    }
+  }
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(NaN);
+    } else {
+      let posSum = 0;
+      let negSum = 0;
+
+      for (let j = 0; j < length; j++) {
+        posSum += positiveFlow[i - j];
+        negSum += negativeFlow[i - j];
+      }
+
+      if (negSum === 0) {
+        result.push(100);
+      } else {
+        const moneyRatio = posSum / negSum;
+        const mfiValue = 100 - (100 / (1 + moneyRatio));
+        result.push(mfiValue);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Hull Moving Average (HMA) - improved moving average with reduced lag.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars (length)
+ * @returns Hull moving average series
+ *
+ * @remarks
+ * - Formula: WMA(2 * WMA(src, len/2) - WMA(src, len), sqrt(len))
+ * - Significantly reduces lag compared to traditional moving averages
+ * - Smoother than WMA while being more responsive
+ * - Created by Alan Hull
+ * - `na` values in the source series are ignored
+ *
+ * @example
+ * ```typescript
+ * const hma20 = ta.hma(closePrices, 20);
+ * // Faster response to price changes than SMA or EMA
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.hma | PineScript ta.hma}
+ */
+export function hma(source: Source, length: simple_int): series_float {
+  const halfLength = Math.floor(length / 2);
+  const sqrtLength = Math.floor(Math.sqrt(length));
+
+  const wmaHalf = wma(source, halfLength);
+  const wmaFull = wma(source, length);
+
+  const diff: series_float = [];
+  for (let i = 0; i < source.length; i++) {
+    diff.push(2 * wmaHalf[i] - wmaFull[i]);
+  }
+
+  return wma(diff, sqrtLength);
+}
+
+/**
+ * Parabolic SAR (Stop and Reverse) - trend-following indicator.
+ *
+ * @param start - Acceleration factor start value (typically 0.02)
+ * @param inc - Acceleration factor increment (typically 0.02)
+ * @param max - Maximum acceleration factor (typically 0.2)
+ * @param high - High price series (required when not using context API)
+ * @param low - Low price series (required when not using context API)
+ * @param close - Close price series (required when not using context API)
+ * @returns SAR series
+ *
+ * @remarks
+ * - **PineScript v6 signature**: `ta.sar(start, inc, max)` - uses implicit chart data
+ * - **JavaScript signature**: Requires explicit `high`, `low`, `close` OR use `createContext()`
+ * - SAR below price indicates uptrend, above price indicates downtrend
+ * - Created by J. Welles Wilder Jr.
+ *
+ * @example
+ * ```typescript
+ * const sar = ta.sar(0.02, 0.02, 0.2, high, low, close);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sar | PineScript ta.sar}
+ */
+export function sar(
+  start: simple_float,
+  inc: simple_float,
+  max: simple_float,
+  high?: Source,
+  low?: Source,
+  close?: Source
+): series_float {
+  if (!high || !low || !close) {
+    throw new Error(
+      'ta.sar() requires high, low, and close series. ' +
+      'Either pass them explicitly or use createContext({ chart: { high, low, close } }) for implicit data.'
+    );
+  }
+
+  const result: series_float = [];
+  let sarValue = NaN;
+  let extremePoint = NaN;
+  let acceleration = start;
+  let isUpTrend = false;
+  let isFirstTrendBar = false;
+
+  for (let i = 0; i < close.length; i++) {
+    if (i === 0) {
+      result.push(NaN);
+      continue;
+    }
+
+    if (i === 1) {
+      if (close[i] > close[i - 1]) {
+        isUpTrend = true;
+        extremePoint = high[i];
+        sarValue = low[i - 1];
+      } else {
+        isUpTrend = false;
+        extremePoint = low[i];
+        sarValue = high[i - 1];
+      }
+      isFirstTrendBar = true;
+      acceleration = start;
+    }
+
+    sarValue = sarValue + acceleration * (extremePoint - sarValue);
+
+    if (isUpTrend) {
+      if (sarValue > low[i]) {
+        isFirstTrendBar = true;
+        isUpTrend = false;
+        sarValue = Math.max(high[i], extremePoint);
+        extremePoint = low[i];
+        acceleration = start;
+      }
+    } else {
+      if (sarValue < high[i]) {
+        isFirstTrendBar = true;
+        isUpTrend = true;
+        sarValue = Math.min(low[i], extremePoint);
+        extremePoint = high[i];
+        acceleration = start;
+      }
+    }
+
+    if (!isFirstTrendBar) {
+      if (isUpTrend) {
+        if (high[i] > extremePoint) {
+          extremePoint = high[i];
+          acceleration = Math.min(acceleration + inc, max);
+        }
+      } else {
+        if (low[i] < extremePoint) {
+          extremePoint = low[i];
+          acceleration = Math.min(acceleration + inc, max);
+        }
+      }
+    }
+
+    if (isUpTrend) {
+      sarValue = Math.min(sarValue, low[i - 1]);
+      if (i > 1) {
+        sarValue = Math.min(sarValue, low[i - 2]);
+      }
+    } else {
+      sarValue = Math.max(sarValue, high[i - 1]);
+      if (i > 1) {
+        sarValue = Math.max(sarValue, high[i - 2]);
+      }
+    }
+
+    result.push(sarValue);
+    isFirstTrendBar = false;
+  }
+
+  return result;
+}
+
+/**
+ * Pivot High - detects pivot high points in the price series.
+ *
+ * @param sourceOrLeftbars - Source series or leftbars (overloaded)
+ * @param leftbarsOrRightbars - Leftbars or rightbars (overloaded)
+ * @param rightbars - Number of bars to the right (optional)
+ * @param high - High price series (used in 2-param version)
+ * @returns Series with pivot high values (NaN when no pivot detected)
+ *
+ * @remarks
+ * - Detects local maximum points
+ * - Returns NaN when no pivot is detected
+ * - Useful for identifying resistance levels
+ *
+ * @example
+ * ```typescript
+ * const pivotHighs = ta.pivothigh(high, 2, 2);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.pivothigh | PineScript ta.pivothigh}
+ */
+export function pivothigh(
+  sourceOrLeftbars: Source | simple_int,
+  leftbarsOrRightbars: simple_int,
+  rightbars?: simple_int,
+  high?: Source
+): series_float {
+  let source: Source;
+  let leftbars: simple_int;
+  let right: simple_int;
+
+  if (rightbars === undefined) {
+    if (!high) {
+      throw new Error('ta.pivothigh() requires high series when using two-parameter version.');
+    }
+    source = high;
+    leftbars = sourceOrLeftbars as simple_int;
+    right = leftbarsOrRightbars;
+  } else {
+    source = sourceOrLeftbars as Source;
+    leftbars = leftbarsOrRightbars;
+    right = rightbars;
+  }
+
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < leftbars || i + right >= source.length) {
+      result.push(NaN);
+      continue;
+    }
+
+    const centerValue = source[i];
+    let isPivot = true;
+
+    for (let j = 1; j <= leftbars; j++) {
+      if (source[i - j] >= centerValue) {
+        isPivot = false;
+        break;
+      }
+    }
+
+    if (isPivot) {
+      for (let j = 1; j <= right; j++) {
+        if (source[i + j] >= centerValue) {
+          isPivot = false;
+          break;
+        }
+      }
+    }
+
+    result.push(isPivot ? centerValue : NaN);
+  }
+
+  return result;
+}
+
+/**
+ * Pivot Low - detects pivot low points in the price series.
+ *
+ * @param sourceOrLeftbars - Source series or leftbars (overloaded)
+ * @param leftbarsOrRightbars - Leftbars or rightbars (overloaded)
+ * @param rightbars - Number of bars to the right (optional)
+ * @param low - Low price series (used in 2-param version)
+ * @returns Series with pivot low values (NaN when no pivot detected)
+ *
+ * @remarks
+ * - Detects local minimum points
+ * - Returns NaN when no pivot is detected
+ * - Useful for identifying support levels
+ *
+ * @example
+ * ```typescript
+ * const pivotLows = ta.pivotlow(low, 2, 2);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.pivotlow | PineScript ta.pivotlow}
+ */
+export function pivotlow(
+  sourceOrLeftbars: Source | simple_int,
+  leftbarsOrRightbars: simple_int,
+  rightbars?: simple_int,
+  low?: Source
+): series_float {
+  let source: Source;
+  let leftbars: simple_int;
+  let right: simple_int;
+
+  if (rightbars === undefined) {
+    if (!low) {
+      throw new Error('ta.pivotlow() requires low series when using two-parameter version.');
+    }
+    source = low;
+    leftbars = sourceOrLeftbars as simple_int;
+    right = leftbarsOrRightbars;
+  } else {
+    source = sourceOrLeftbars as Source;
+    leftbars = leftbarsOrRightbars;
+    right = rightbars;
+  }
+
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < leftbars || i + right >= source.length) {
+      result.push(NaN);
+      continue;
+    }
+
+    const centerValue = source[i];
+    let isPivot = true;
+
+    for (let j = 1; j <= leftbars; j++) {
+      if (source[i - j] <= centerValue) {
+        isPivot = false;
+        break;
+      }
+    }
+
+    if (isPivot) {
+      for (let j = 1; j <= right; j++) {
+        if (source[i + j] <= centerValue) {
+          isPivot = false;
+          break;
+        }
+      }
+    }
+
+    result.push(isPivot ? centerValue : NaN);
+  }
+
+  return result;
+}
+
+/**
+ * Bars Since - returns number of bars since condition was true.
+ *
+ * @param condition - Boolean series condition
+ * @returns Series with number of bars since condition was last true
+ *
+ * @remarks
+ * - Returns 0 when condition is currently true
+ * - Increments by 1 for each bar condition remains false
+ * - Returns NaN if condition has never been true
+ *
+ * @example
+ * ```typescript
+ * const crossovers = ta.crossover(fastMA, slowMA);
+ * const barsSinceCross = ta.barssince(crossovers);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.barssince | PineScript ta.barssince}
+ */
+export function barssince(condition: series_bool): series_float {
+  const result: series_float = [];
+  let barsSinceTrue = NaN;
+
+  for (let i = 0; i < condition.length; i++) {
+    if (condition[i]) {
+      barsSinceTrue = 0;
+    } else if (!isNaN(barsSinceTrue)) {
+      barsSinceTrue++;
+    }
+    result.push(barsSinceTrue);
+  }
+
+  return result;
+}
+
+/**
+ * Value When - returns the value when condition was true.
+ *
+ * @param condition - Boolean series condition
+ * @param source - Source series to get value from
+ * @param occurrence - Which occurrence to get (0 = most recent)
+ * @returns Series with values from when condition was true
+ *
+ * @remarks
+ * - occurrence=0 returns value from most recent true condition
+ * - occurrence=1 returns value from second most recent, etc.
+ * - Returns NaN if condition hasn't been true occurrence+1 times yet
+ *
+ * @example
+ * ```typescript
+ * const crossovers = ta.crossover(fastMA, slowMA);
+ * const lastCrossPrice = ta.valuewhen(crossovers, close, 0);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.valuewhen | PineScript ta.valuewhen}
+ */
+export function valuewhen(condition: series_bool, source: Source, occurrence: simple_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < condition.length; i++) {
+    let occurrenceCount = 0;
+    let foundValue = NaN;
+
+    for (let j = i; j >= 0; j--) {
+      if (condition[j]) {
+        if (occurrenceCount === occurrence) {
+          foundValue = source[j];
+          break;
+        }
+        occurrenceCount++;
+      }
+    }
+
+    result.push(foundValue);
+  }
+
+  return result;
+}
+
+/**
+ * Directional Movement Index - returns Directional Movement indicators.
+ *
+ * @param diLength - DI averaging length
+ * @param adxSmoothing - ADX smoothing length
+ * @returns Tuple of [plusDI, minusDI, ADX]
+ *
+ * @remarks
+ * - +DI and -DI measure directional movement
+ * - ADX measures trend strength (0-100)
+ * - ADX above 25 typically indicates strong trend
+ * - Requires high, low, and close data from context
+ *
+ * @example
+ * ```typescript
+ * const [plusDI, minusDI, adx] = ta.dmi(14, 14);
+ * // When +DI > -DI and ADX > 25, strong uptrend
+ * // When -DI > +DI and ADX > 25, strong downtrend
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.dmi | PineScript ta.dmi}
+ */
+export function dmi(
+  diLength: simple_int,
+  adxSmoothing: simple_int,
+  high: Source,
+  low: Source,
+  close: Source
+): [series_float, series_float, series_float] {
+  const len = Math.max(high.length, low.length, close.length);
+  const plusDM: series_float = [];
+  const minusDM: series_float = [];
+  const trueRangeValues = tr(false, high, low, close);
+
+  // Calculate +DM and -DM
+  for (let i = 0; i < len; i++) {
+    if (i === 0) {
+      plusDM.push(0);
+      minusDM.push(0);
+    } else {
+      const upMove = high[i] - high[i - 1];
+      const downMove = low[i - 1] - low[i];
+
+      let plusDMVal = 0;
+      let minusDMVal = 0;
+
+      if (upMove > downMove && upMove > 0) {
+        plusDMVal = upMove;
+      }
+      if (downMove > upMove && downMove > 0) {
+        minusDMVal = downMove;
+      }
+
+      plusDM.push(plusDMVal);
+      minusDM.push(minusDMVal);
+    }
+  }
+
+  // Smooth +DM, -DM, and TR using RMA
+  const smoothedPlusDM = rma(plusDM, diLength);
+  const smoothedMinusDM = rma(minusDM, diLength);
+  const smoothedTR = rma(trueRangeValues, diLength);
+
+  // Calculate +DI and -DI
+  const plusDI: series_float = [];
+  const minusDI: series_float = [];
+
+  for (let i = 0; i < len; i++) {
+    if (smoothedTR[i] === 0) {
+      plusDI.push(0);
+      minusDI.push(0);
+    } else {
+      plusDI.push((smoothedPlusDM[i] / smoothedTR[i]) * 100);
+      minusDI.push((smoothedMinusDM[i] / smoothedTR[i]) * 100);
+    }
+  }
+
+  // Calculate DX
+  const dx: series_float = [];
+  for (let i = 0; i < len; i++) {
+    const sum = plusDI[i] + minusDI[i];
+    if (sum === 0) {
+      dx.push(0);
+    } else {
+      dx.push((Math.abs(plusDI[i] - minusDI[i]) / sum) * 100);
+    }
+  }
+
+  // Calculate ADX (smoothed DX)
+  const adx = rma(dx, adxSmoothing);
+
+  return [plusDI, minusDI, adx];
+}
+
+/**
+ * True Strength Index - momentum oscillator based on double smoothed momentum.
+ *
+ * @param source - Series of values to process
+ * @param shortLength - Short smoothing length
+ * @param longLength - Long smoothing length
+ * @returns TSI series
+ *
+ * @remarks
+ * - TSI oscillates between +100 and -100
+ * - Positive values indicate bullish momentum
+ * - Negative values indicate bearish momentum
+ * - Crossovers of zero line can signal trend changes
+ * - Less sensitive to short-term price fluctuations than RSI
+ *
+ * @example
+ * ```typescript
+ * const tsi = ta.tsi(close, 13, 25);
+ * // TSI > 0: bullish momentum
+ * // TSI < 0: bearish momentum
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.tsi | PineScript ta.tsi}
+ */
+export function tsi(source: Source, shortLength: simple_int, longLength: simple_int): series_float {
+  const momentum: series_float = [];
+
+  // Calculate momentum (price change)
+  for (let i = 0; i < source.length; i++) {
+    if (i === 0) {
+      momentum.push(0);
+    } else {
+      momentum.push(source[i] - source[i - 1]);
+    }
+  }
+
+  // Double smooth momentum
+  const smoothedMomentum = ema(ema(momentum, longLength), shortLength);
+
+  // Double smooth absolute momentum
+  const absMomentum = momentum.map(Math.abs);
+  const smoothedAbsMomentum = ema(ema(absMomentum, longLength), shortLength);
+
+  // Calculate TSI
+  const result: series_float = [];
+  for (let i = 0; i < source.length; i++) {
+    if (smoothedAbsMomentum[i] === 0) {
+      result.push(0);
+    } else {
+      result.push((smoothedMomentum[i] / smoothedAbsMomentum[i]) * 100);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Chande Momentum Oscillator - momentum indicator similar to RSI.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars
+ * @returns CMO series
+ *
+ * @remarks
+ * - CMO oscillates between +100 and -100
+ * - CMO > +50: overbought conditions
+ * - CMO < -50: oversold conditions
+ * - Unlike RSI, CMO uses sum of gains/losses instead of averages
+ * - More volatile than RSI
+ *
+ * @example
+ * ```typescript
+ * const cmo = ta.cmo(close, 14);
+ * // CMO > 50: overbought
+ * // CMO < -50: oversold
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cmo | PineScript ta.cmo}
+ */
+export function cmo(source: Source, length: simple_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length) {
+      result.push(NaN);
+      continue;
+    }
+
+    let sumGains = 0;
+    let sumLosses = 0;
+
+    for (let j = 0; j < length; j++) {
+      const change = source[i - j] - source[i - j - 1];
+      if (change > 0) {
+        sumGains += change;
+      } else {
+        sumLosses += Math.abs(change);
+      }
+    }
+
+    const totalMovement = sumGains + sumLosses;
+    if (totalMovement === 0) {
+      result.push(0);
+    } else {
+      const cmoValue = ((sumGains - sumLosses) / totalMovement) * 100;
+      result.push(cmoValue);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Keltner Channels - volatility-based envelope indicator.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars for EMA
+ * @param mult - Multiplier for the range
+ * @param useTrueRange - Use True Range (default: true) or high-low
+ * @returns Tuple of [middle, upper, lower]
+ *
+ * @remarks
+ * - Middle band is EMA of source
+ * - Upper/lower bands are middle ± (range EMA × multiplier)
+ * - When useTrueRange=true, uses ATR for volatility
+ * - When useTrueRange=false, uses high-low range
+ * - Price breaking out of bands may signal trend continuation
+ * - Requires high, low, close data from context when useTrueRange=true
+ *
+ * @example
+ * ```typescript
+ * const [middle, upper, lower] = ta.kc(close, 20, 2, true);
+ * // Price above upper: potential uptrend
+ * // Price below lower: potential downtrend
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.kc | PineScript ta.kc}
+ */
+export function kc(
+  source: Source,
+  length: simple_int,
+  mult: simple_float,
+  useTrueRange: simple_bool = true,
+  high?: Source,
+  low?: Source,
+  close?: Source
+): [series_float, series_float, series_float] {
+  // Calculate middle band (EMA of source)
+  const middle = ema(source, length);
+
+  // Calculate range
+  let range: series_float;
+  if (useTrueRange) {
+    if (!high || !low || !close) {
+      throw new Error('ta.kc() with useTrueRange=true requires high, low, and close data');
+    }
+    range = tr(false, high, low, close);
+  } else {
+    if (!high || !low) {
+      throw new Error('ta.kc() requires high and low data');
+    }
+    range = [];
+    for (let i = 0; i < high.length; i++) {
+      range.push(high[i] - low[i]);
+    }
+  }
+
+  // Smooth the range with EMA
+  const rangeEma = ema(range, length);
+
+  // Calculate upper and lower bands
+  const upper: series_float = [];
+  const lower: series_float = [];
+
+  for (let i = 0; i < middle.length; i++) {
+    upper.push(middle[i] + rangeEma[i] * mult);
+    lower.push(middle[i] - rangeEma[i] * mult);
+  }
+
+  return [middle, upper, lower];
+}
+
+/**
+ * Bollinger Bands Width - measures the width of Bollinger Bands.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars
+ * @param mult - Standard deviation multiplier
+ * @returns BBW series (percentage)
+ *
+ * @remarks
+ * - BBW = ((upper band - lower band) / middle band) × 100
+ * - Low BBW values indicate low volatility (potential breakout setup)
+ * - High BBW values indicate high volatility
+ * - BBW squeeze (narrowing bands) often precedes strong moves
+ * - Works with existing bb() function
+ *
+ * @example
+ * ```typescript
+ * const bbw = ta.bbw(close, 20, 2);
+ * // Low BBW: potential breakout coming
+ * // High BBW: high volatility period
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.bbw | PineScript ta.bbw}
+ */
+export function bbw(source: Source, length: simple_int, mult: simple_float): series_float {
+  const [basis, upper, lower] = bb(source, length, mult);
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (basis[i] === 0) {
+      result.push(NaN);
+    } else {
+      const width = ((upper[i] - lower[i]) / basis[i]) * 100;
+      result.push(width);
+    }
+  }
+
+  return result;
+}
