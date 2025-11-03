@@ -5,7 +5,7 @@
  * TODO: Implement time and date functions
  */
 
-import { int, simple_int, simple_string } from '../types';
+import { int, simple_int } from '../types';
 
 /**
  * Returns the current time in milliseconds

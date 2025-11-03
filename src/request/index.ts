@@ -15,9 +15,9 @@ import { series_float, simple_string } from '../types';
  * @param expression - Expression to evaluate
  */
 export function security(
-  symbol: simple_string,
-  timeframe: simple_string,
-  expression: any
+  _symbol: simple_string,
+  _timeframe: simple_string,
+  _expression: any
 ): series_float {
   // TODO: Implement security function
   // This requires integration with a data provider

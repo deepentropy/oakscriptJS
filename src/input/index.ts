@@ -16,9 +16,9 @@ import { input_int, input_float, input_bool, input_string, simple_string } from 
  */
 export function int(
   defval: input_int,
-  title?: simple_string,
-  minval?: input_int,
-  maxval?: input_int
+  _title?: simple_string,
+  _minval?: input_int,
+  _maxval?: input_int
 ): input_int {
   // In actual usage, this would be configurable
   // For now, just return the default value
@@ -30,9 +30,9 @@ export function int(
  */
 export function float(
   defval: input_float,
-  title?: simple_string,
-  minval?: input_float,
-  maxval?: input_float
+  _title?: simple_string,
+  _minval?: input_float,
+  _maxval?: input_float
 ): input_float {
   return defval;
 }
@@ -40,14 +40,14 @@ export function float(
 /**
  * Boolean input
  */
-export function bool(defval: input_bool, title?: simple_string): input_bool {
+export function bool(defval: input_bool, _title?: simple_string): input_bool {
   return defval;
 }
 
 /**
  * String input
  */
-export function string(defval: input_string, title?: simple_string): input_string {
+export function string(defval: input_string, _title?: simple_string): input_string {
   return defval;
 }
 

@@ -5,7 +5,7 @@
  * TODO: Implement matrix operations
  */
 
-import { PineMatrix, int, float, simple_int } from '../types';
+import { PineMatrix, simple_int } from '../types';
 
 /**
  * Creates a new matrix

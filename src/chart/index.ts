@@ -5,7 +5,7 @@
  * TODO: Implement chart data management
  */
 
-import { Bar, OHLC, series_float, int } from '../types';
+import { Bar, OHLC, series_float } from '../types';
 
 /**
  * Chart data structure

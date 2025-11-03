@@ -8,7 +8,7 @@
  * @version 6
  */
 
-import { series_float, series_bool, series_int, int, float, Source, simple_int, simple_float, simple_bool } from '../types';
+import { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -30,7 +30,7 @@ import { series_float, series_bool, series_int, int, float, Source, simple_int, 
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma | PineScript ta.sma}
  */
-export function sma(source: Source, length: series_int): series_float {
+export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -221,7 +221,7 @@ export function macd(
  */
 export function bb(
   series: Source,
-  length: series_int,
+  length: simple_int,
   mult: simple_float
 ): [series_float, series_float, series_float] {
   const basis = sma(series, length);
@@ -257,7 +257,7 @@ export function bb(
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.stdev | PineScript ta.stdev}
  */
-export function stdev(source: Source, length: series_int): series_float {
+export function stdev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   const avg = sma(source, length);
 
@@ -363,7 +363,7 @@ export function crossunder(series1: Source, series2: Source): series_bool {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.change | PineScript ta.change}
  */
-export function change(source: Source, length: series_int = 1): series_float {
+export function change(source: Source, length: simple_int = 1): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -679,7 +679,7 @@ export function rma(source: Source, length: simple_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.wma | PineScript ta.wma}
  */
-export function wma(source: Source, length: series_int): series_float {
+export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -723,7 +723,7 @@ export function wma(source: Source, length: series_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highest | PineScript ta.highest}
  */
-export function highest(source: Source, length: series_int): series_float {
+export function highest(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -764,7 +764,7 @@ export function highest(source: Source, length: series_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.lowest | PineScript ta.lowest}
  */
-export function lowest(source: Source, length: series_int): series_float {
+export function lowest(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -874,7 +874,7 @@ export function cross(source1: Source, source2: Source): series_bool {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rising | PineScript ta.rising}
  */
-export function rising(source: Source, length: series_int): series_bool {
+export function rising(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -917,7 +917,7 @@ export function rising(source: Source, length: series_int): series_bool {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.falling | PineScript ta.falling}
  */
-export function falling(source: Source, length: series_int): series_bool {
+export function falling(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -961,7 +961,7 @@ export function falling(source: Source, length: series_int): series_bool {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.roc | PineScript ta.roc}
  */
-export function roc(source: Source, length: series_int): series_float {
+export function roc(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1003,7 +1003,7 @@ export function roc(source: Source, length: series_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.mom | PineScript ta.mom}
  */
-export function mom(source: Source, length: series_int): series_float {
+export function mom(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1043,7 +1043,7 @@ export function mom(source: Source, length: series_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.dev | PineScript ta.dev}
  */
-export function dev(source: Source, length: series_int): series_float {
+export function dev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   const meanValues = sma(source, length);
 
@@ -1090,7 +1090,7 @@ export function dev(source: Source, length: series_int): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.variance | PineScript ta.variance}
  */
-export function variance(source: Source, length: series_int, biased: series_bool = true): series_float {
+export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const result: series_float = [];
   const meanValues = sma(source, length);
 
@@ -1137,7 +1137,7 @@ export function variance(source: Source, length: series_int, biased: series_bool
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.median | PineScript ta.median}
  */
-export function median(source: Source, length: series_int): series_float {
+export function median(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1248,7 +1248,7 @@ export function swma(source: Source): series_float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.vwma | PineScript ta.vwma}
  */
-export function vwma(source: Source, length: series_int, volume?: Source): series_float {
+export function vwma(source: Source, length: simple_int, volume?: Source): series_float {
   if (!volume) {
     throw new Error(
       'ta.vwma() requires volume series. ' +
@@ -1300,7 +1300,7 @@ export function vwma(source: Source, length: series_int, volume?: Source): serie
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.linreg | PineScript ta.linreg}
  */
-export function linreg(source: Source, length: series_int, offset: simple_int = 0): series_float {
+export function linreg(source: Source, length: simple_int, offset: simple_int = 0): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1372,7 +1372,7 @@ export function linreg(source: Source, length: series_int, offset: simple_int = 
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.correlation | PineScript ta.correlation}
  */
-export function correlation(source1: Source, source2: Source, length: series_int): series_float {
+export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source1.length; i++) {
@@ -1450,7 +1450,7 @@ export function correlation(source1: Source, source2: Source, length: series_int
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.percentrank | PineScript ta.percentrank}
  */
-export function percentrank(source: Source, length: series_int): series_float {
+export function percentrank(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {

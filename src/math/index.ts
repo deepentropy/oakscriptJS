@@ -9,7 +9,7 @@
  * @version 6
  */
 
-import { float, int, simple_float, simple_int, series_float } from '../types';
+import { float, int, simple_int, series_float } from '../types';
 
 /**
  * Returns the absolute value of a number.
@@ -584,9 +584,9 @@ export function todegrees(radians: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.random | PineScript math.random}
  */
-export function random(min?: float, max?: float, seed?: int): float {
+export function random(min?: float, max?: float, _seed?: int): float {
   // TODO: Implement deterministic seeding to match PineScript behavior
-  // Currently seed parameter is ignored
+  // Currently _seed parameter is ignored
   const rand = Math.random();
   if (min !== undefined && max !== undefined) {
     return min + rand * (max - min);

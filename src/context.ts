@@ -101,7 +101,7 @@ export interface ContextConfig {
  * ```
  */
 export function createContext(config: ContextConfig = {}) {
-  const { chart, syminfo } = config;
+  const { chart } = config;
 
   return {
     /**
