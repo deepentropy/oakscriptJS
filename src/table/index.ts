@@ -5,7 +5,7 @@
  * TODO: Implement table rendering and manipulation
  */
 
-import { Table, simple_int, simple_string, color } from '../types';
+import { Table, simple_int, simple_string } from '../types';
 
 /**
  * Creates a new table

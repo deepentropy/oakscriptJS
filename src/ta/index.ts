@@ -8,7 +8,7 @@
  * @version 6
  */
 
-import { series_float, series_bool, series_int, int, float, Source, simple_int, simple_float, simple_bool } from '../types';
+import { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -29,7 +29,7 @@ import { series_float, series_bool, series_int, int, float, Source, simple_int, 
  * ```
  *
  */
-export function sma(source: Source, length: series_int): series_float {
+export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -216,7 +216,7 @@ export function macd(
  */
 export function bb(
   series: Source,
-  length: series_int,
+  length: simple_int,
   mult: simple_float
 ): [series_float, series_float, series_float] {
   const basis = sma(series, length);
@@ -251,7 +251,7 @@ export function bb(
  * ```
  *
  */
-export function stdev(source: Source, length: series_int): series_float {
+export function stdev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   const avg = sma(source, length);
 
@@ -354,7 +354,7 @@ export function crossunder(series1: Source, series2: Source): series_bool {
  * ```
  *
  */
-export function change(source: Source, length: series_int = 1): series_float {
+export function change(source: Source, length: simple_int = 1): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -665,7 +665,7 @@ export function rma(source: Source, length: simple_int): series_float {
  * ```
  *
  */
-export function wma(source: Source, length: series_int): series_float {
+export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -708,7 +708,7 @@ export function wma(source: Source, length: series_int): series_float {
  * ```
  *
  */
-export function highest(source: Source, length: series_int): series_float {
+export function highest(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -748,7 +748,7 @@ export function highest(source: Source, length: series_int): series_float {
  * ```
  *
  */
-export function lowest(source: Source, length: series_int): series_float {
+export function lowest(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -855,7 +855,7 @@ export function cross(source1: Source, source2: Source): series_bool {
  * ```
  *
  */
-export function rising(source: Source, length: series_int): series_bool {
+export function rising(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -897,7 +897,7 @@ export function rising(source: Source, length: series_int): series_bool {
  * ```
  *
  */
-export function falling(source: Source, length: series_int): series_bool {
+export function falling(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -940,7 +940,7 @@ export function falling(source: Source, length: series_int): series_bool {
  * ```
  *
  */
-export function roc(source: Source, length: series_int): series_float {
+export function roc(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -981,7 +981,7 @@ export function roc(source: Source, length: series_int): series_float {
  * ```
  *
  */
-export function mom(source: Source, length: series_int): series_float {
+export function mom(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1020,7 +1020,7 @@ export function mom(source: Source, length: series_int): series_float {
  * ```
  *
  */
-export function dev(source: Source, length: series_int): series_float {
+export function dev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   const meanValues = sma(source, length);
 
@@ -1066,7 +1066,7 @@ export function dev(source: Source, length: series_int): series_float {
  * ```
  *
  */
-export function variance(source: Source, length: series_int, biased: series_bool = true): series_float {
+export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const result: series_float = [];
   const meanValues = sma(source, length);
 
@@ -1112,7 +1112,7 @@ export function variance(source: Source, length: series_int, biased: series_bool
  * ```
  *
  */
-export function median(source: Source, length: series_int): series_float {
+export function median(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1221,7 +1221,7 @@ export function swma(source: Source): series_float {
  * ```
  *
  */
-export function vwma(source: Source, length: series_int, volume?: Source): series_float {
+export function vwma(source: Source, length: simple_int, volume?: Source): series_float {
   if (!volume) {
     throw new Error(
       'ta.vwma() requires volume series. ' +
@@ -1272,7 +1272,7 @@ export function vwma(source: Source, length: series_int, volume?: Source): serie
  * ```
  *
  */
-export function linreg(source: Source, length: series_int, offset: simple_int = 0): series_float {
+export function linreg(source: Source, length: simple_int, offset: simple_int = 0): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1343,7 +1343,7 @@ export function linreg(source: Source, length: series_int, offset: simple_int = 
  * ```
  *
  */
-export function correlation(source1: Source, source2: Source, length: series_int): series_float {
+export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source1.length; i++) {
@@ -1420,7 +1420,7 @@ export function correlation(source1: Source, source2: Source, length: series_int
  * ```
  *
  */
-export function percentrank(source: Source, length: series_int): series_float {
+export function percentrank(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
