@@ -2840,3 +2840,539 @@ export function cog(source: Source, length: simple_int = 10): series_float {
 
   return result;
 }
+
+/**
+ * Mode (Most Frequent Value)
+ *
+ * Returns the mode of the series - the most frequently occurring value.
+ * If there are several values with the same frequency, it returns the smallest value.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars to look back
+ * @returns The most frequently occurring value
+ *
+ * @example
+ * ```typescript
+ * const values = [1, 2, 2, 3, 3, 3, 4, 4];
+ * const modeValue = ta.mode(values, 8); // Returns 3 (most frequent)
+ * ```
+ *
+ * @remarks
+ * - `na` values in the source series are ignored
+ * - If no mode exists, returns the smallest value
+ * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.mode | PineScript ta.mode}
+ */
+export function mode(source: Source, length: simple_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Collect non-NaN values in the window
+    const values: number[] = [];
+    for (let j = 0; j < length; j++) {
+      const value = source[i - j];
+      if (!isNaN(value)) {
+        values.push(value);
+      }
+    }
+
+    if (values.length === 0) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Count frequency of each value
+    const frequencyMap = new Map<number, number>();
+    for (const value of values) {
+      frequencyMap.set(value, (frequencyMap.get(value) || 0) + 1);
+    }
+
+    // Find the maximum frequency
+    let maxFrequency = 0;
+    frequencyMap.forEach((freq) => {
+      if (freq > maxFrequency) {
+        maxFrequency = freq;
+      }
+    });
+
+    // Find all values with max frequency, then return the smallest
+    const modesWithMaxFreq: number[] = [];
+    frequencyMap.forEach((freq, value) => {
+      if (freq === maxFrequency) {
+        modesWithMaxFreq.push(value);
+      }
+    });
+
+    result.push(Math.min(...modesWithMaxFreq));
+  }
+
+  return result;
+}
+
+/**
+ * Percentile (Linear Interpolation Method)
+ *
+ * Calculates the percentile using the method of linear interpolation between
+ * the two nearest ranks. This method may return values that are not members
+ * of the input data set.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars to look back
+ * @param percentage - Percentile to calculate (0-100)
+ * @returns The calculated percentile value
+ *
+ * @example
+ * ```typescript
+ * const p50 = ta.percentile_linear_interpolation(close, 20, 50); // Median
+ * const p75 = ta.percentile_linear_interpolation(close, 20, 75); // 75th percentile
+ * ```
+ *
+ * @remarks
+ * - `na` values in the source series are included and will produce an `na` result
+ * - The result will NOT always be a member of the input data set
+ * - Uses linear interpolation between adjacent values when needed
+ * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.percentile_linear_interpolation | PineScript ta.percentile_linear_interpolation}
+ */
+export function percentile_linear_interpolation(
+  source: Source,
+  length: simple_int,
+  percentage: number
+): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Collect values in the window (including NaN)
+    const values: number[] = [];
+    for (let j = 0; j < length; j++) {
+      const value = source[i - j];
+      values.push(value);
+    }
+
+    // If any value is NaN, the result is NaN
+    if (values.some(v => isNaN(v))) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Sort values
+    const sorted = [...values].sort((a, b) => a - b);
+
+    // Calculate position using linear interpolation formula
+    const position = (percentage / 100) * (sorted.length - 1);
+    const lowerIndex = Math.floor(position);
+    const upperIndex = Math.ceil(position);
+
+    if (lowerIndex === upperIndex) {
+      // Exact position
+      result.push(sorted[lowerIndex]);
+    } else {
+      // Linear interpolation between two values
+      const fraction = position - lowerIndex;
+      const interpolated = sorted[lowerIndex] + fraction * (sorted[upperIndex] - sorted[lowerIndex]);
+      result.push(interpolated);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Percentile (Nearest Rank Method)
+ *
+ * Calculates the percentile using the Nearest Rank method. This method
+ * always returns a value that is a member of the input data set.
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars to look back
+ * @param percentage - Percentile to calculate (0-100)
+ * @returns The calculated percentile value
+ *
+ * @example
+ * ```typescript
+ * const p50 = ta.percentile_nearest_rank(close, 20, 50); // Median
+ * const p90 = ta.percentile_nearest_rank(close, 20, 90); // 90th percentile
+ * ```
+ *
+ * @remarks
+ * - `na` values in the source series are ignored
+ * - The result will ALWAYS be a member of the input data set
+ * - The 100th percentile is defined as the largest value
+ * - Using this method on lengths < 100 may result in the same value for multiple percentiles
+ * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.percentile_nearest_rank | PineScript ta.percentile_nearest_rank}
+ */
+export function percentile_nearest_rank(
+  source: Source,
+  length: simple_int,
+  percentage: number
+): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Collect non-NaN values in the window
+    const values: number[] = [];
+    for (let j = 0; j < length; j++) {
+      const value = source[i - j];
+      if (!isNaN(value)) {
+        values.push(value);
+      }
+    }
+
+    if (values.length === 0) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Sort values
+    const sorted = [...values].sort((a, b) => a - b);
+
+    // Special case: 100th percentile is the largest value
+    if (percentage >= 100) {
+      result.push(sorted[sorted.length - 1]);
+      continue;
+    }
+
+    // Calculate rank using nearest rank method
+    // Formula: ceil(P/100 * N) where P is percentile and N is count
+    const rank = Math.ceil((percentage / 100) * sorted.length);
+
+    // Ranks are 1-indexed, so subtract 1 for 0-indexed array
+    const index = Math.max(0, rank - 1);
+
+    result.push(sorted[index]);
+  }
+
+  return result;
+}
+
+/**
+ * Rank Correlation Index (RCI)
+ *
+ * Calculates the Rank Correlation Index using Spearman's rank correlation coefficient.
+ * RCI measures the directional consistency of price movements, indicating whether
+ * the source consistently increased (positive values) or decreased (negative values).
+ *
+ * @param source - Series of values to process
+ * @param length - Number of bars to look back
+ * @returns RCI value scaled to range -100 to 100
+ *
+ * @example
+ * ```typescript
+ * const rci9 = ta.rci(close, 9);
+ * // RCI near +100: strong upward consistency
+ * // RCI near -100: strong downward consistency
+ * // RCI near 0: no clear trend
+ * ```
+ *
+ * @remarks
+ * - Result is scaled to -100 to 100 range
+ * - +100 indicates source consistently increased over the period
+ * - -100 indicates source consistently decreased over the period
+ * - 0 indicates no directional consistency
+ * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.rci | PineScript ta.rci}
+ */
+export function rci(source: Source, length: simple_int): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Collect values in the window
+    const values: number[] = [];
+    for (let j = 0; j < length; j++) {
+      values.push(source[i - length + 1 + j]);
+    }
+
+    // Check for NaN values
+    if (values.some(v => isNaN(v))) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Create array of indices with their values for ranking
+    const indexed = values.map((value, index) => ({ value, index }));
+
+    // Sort by value to get ranks
+    const sorted = [...indexed].sort((a, b) => a.value - b.value);
+
+    // Assign ranks (handling ties by averaging ranks)
+    const ranks = new Array(length).fill(0);
+    let currentRank = 1;
+    for (let j = 0; j < sorted.length; j++) {
+      // Count ties
+      let tieCount = 1;
+      while (j + tieCount < sorted.length && sorted[j].value === sorted[j + tieCount].value) {
+        tieCount++;
+      }
+
+      // Average rank for ties
+      const avgRank = (currentRank + (currentRank + tieCount - 1)) / 2;
+
+      // Assign average rank to all tied values
+      for (let k = 0; k < tieCount; k++) {
+        ranks[sorted[j + k].index] = avgRank;
+      }
+
+      j += tieCount - 1;
+      currentRank += tieCount;
+    }
+
+    // Calculate Spearman's rank correlation
+    // Formula: 1 - (6 * sum(d^2)) / (n * (n^2 - 1))
+    // where d is the difference between time rank and value rank
+    let sumSquaredDiff = 0;
+    for (let j = 0; j < length; j++) {
+      const timeRank = j + 1; // Time rank: 1, 2, 3, ..., length
+      const valueRank = ranks[j];
+      const diff = timeRank - valueRank;
+      sumSquaredDiff += diff * diff;
+    }
+
+    const n = length;
+    const rho = 1 - (6 * sumSquaredDiff) / (n * (n * n - 1));
+
+    // Scale to -100 to 100
+    result.push(rho * 100);
+  }
+
+  return result;
+}
+
+/**
+ * Pivot Point Levels
+ *
+ * Calculates pivot point levels using various calculation methods.
+ * Returns an array containing: [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
+ *
+ * @param type - Calculation type: "Traditional", "Fibonacci", "Woodie", "Classic", "DM", "Camarilla"
+ * @param anchor - Condition that triggers reset of calculations
+ * @param developing - If true, pivots recalculate continuously; if false, use last anchor values
+ * @param high - High price series (optional, uses context if not provided)
+ * @param low - Low price series (optional, uses context if not provided)
+ * @param close - Close price series (optional, uses context if not provided)
+ * @param open - Open price series (optional, uses context if not provided)
+ * @returns Array of 11 pivot levels
+ *
+ * @example
+ * ```typescript
+ * const weekChange = [false, false, false, false, true, false, ...]; // Weekly anchor
+ * const pivots = ta.pivot_point_levels("Traditional", weekChange, false, high, low, close);
+ * // pivots[i] = [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
+ * ```
+ *
+ * @remarks
+ * - Woodie type cannot use developing=true (will error in PineScript)
+ * - DM type only calculates P, R1, S1 (other levels are NaN)
+ * - All calculations follow PineScript v6 specifications
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.pivot_point_levels | PineScript ta.pivot_point_levels}
+ */
+export function pivot_point_levels(
+  type: series_float | string,
+  anchor: series_bool,
+  developing: series_bool | boolean = false,
+  high?: Source,
+  low?: Source,
+  close?: Source,
+  open?: Source
+): series_float[] {
+  // For simplicity, we need to handle the case where type is a string array
+  // But according to the docs, type is "series string", meaning it can change per bar
+  // For this implementation, we'll support constant type strings
+
+  const typeStr = typeof type === 'string' ? type : String(type[0]);
+  const isDeveloping = typeof developing === 'boolean' ? developing : developing[0];
+
+  // Woodie cannot be developing
+  if (typeStr === 'Woodie' && isDeveloping) {
+    throw new Error('ta.pivot_point_levels: Woodie type cannot use developing=true');
+  }
+
+  // Ensure all series have the same length
+  const length = anchor.length;
+  if (high && high.length !== length) throw new Error('High series length mismatch');
+  if (low && low.length !== length) throw new Error('Low series length mismatch');
+  if (close && close.length !== length) throw new Error('Close series length mismatch');
+  if (open && open.length !== length) throw new Error('Open series length mismatch');
+
+  // Initialize result arrays for all 11 levels
+  const results: series_float[] = Array.from({ length: 11 }, () => []);
+
+  // Track the last anchor point data
+  let lastH = NaN, lastL = NaN, lastC = NaN, lastO = NaN;
+  let lastAnchorIndex = -1;
+
+  for (let i = 0; i < length; i++) {
+    // Check if anchor triggered
+    if (anchor[i]) {
+      lastAnchorIndex = i;
+      // Store OHLC at anchor point (these will be used for calculations)
+      lastH = high ? high[i] : NaN;
+      lastL = low ? low[i] : NaN;
+      lastC = close ? close[i] : NaN;
+      lastO = open ? open[i] : NaN;
+    }
+
+    // Calculate data to use
+    let h: number, l: number, c: number, o: number;
+
+    if (isDeveloping && lastAnchorIndex >= 0) {
+      // Developing: use max/min/last since anchor
+      h = high ? Math.max(...high.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
+      l = low ? Math.min(...low.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
+      c = close ? close[i] : NaN;
+      o = open && lastAnchorIndex >= 0 ? open[lastAnchorIndex] : NaN;
+    } else {
+      // Not developing: use last anchor values
+      h = lastH;
+      l = lastL;
+      c = lastC;
+      o = lastO;
+    }
+
+    // Calculate pivot levels based on type
+    const levels = calculatePivotLevels(typeStr, h, l, c, o);
+
+    // Push to results
+    for (let j = 0; j < 11; j++) {
+      results[j].push(levels[j]);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Helper function to calculate pivot levels
+ */
+function calculatePivotLevels(
+  type: string,
+  h: number,
+  l: number,
+  c: number,
+  o: number
+): number[] {
+  // Return NaN array if data is insufficient
+  if (isNaN(h) || isNaN(l) || isNaN(c)) {
+    return Array(11).fill(NaN);
+  }
+
+  const levels: number[] = Array(11).fill(NaN);
+
+  // Calculate pivot point (P)
+  let P: number;
+
+  switch (type) {
+    case 'Traditional':
+    case 'Fibonacci':
+    case 'Classic':
+      P = (h + l + c) / 3;
+      break;
+    case 'Woodie':
+      P = (h + l + 2 * c) / 4;
+      break;
+    case 'DM':
+      P = (h + l + c) / 3;
+      break;
+    case 'Camarilla':
+      P = (h + l + c) / 3;
+      break;
+    default:
+      P = (h + l + c) / 3;
+  }
+
+  levels[0] = P; // P is at index 0
+
+  // Calculate resistance and support levels based on type
+  switch (type) {
+    case 'Traditional':
+    case 'Classic':
+      levels[1] = 2 * P - l;  // R1
+      levels[2] = 2 * P - h;  // S1
+      levels[3] = P + (h - l);  // R2
+      levels[4] = P - (h - l);  // S2
+      levels[5] = h + 2 * (P - l);  // R3
+      levels[6] = l - 2 * (h - P);  // S3
+      levels[7] = levels[5] + (h - l);  // R4
+      levels[8] = levels[6] - (h - l);  // S4
+      levels[9] = levels[7] + (h - l);  // R5
+      levels[10] = levels[8] - (h - l);  // S5
+      break;
+
+    case 'Fibonacci':
+      levels[1] = P + 0.382 * (h - l);  // R1
+      levels[2] = P - 0.382 * (h - l);  // S1
+      levels[3] = P + 0.618 * (h - l);  // R2
+      levels[4] = P - 0.618 * (h - l);  // S2
+      levels[5] = P + (h - l);  // R3
+      levels[6] = P - (h - l);  // S3
+      levels[7] = levels[5] + 0.618 * (h - l);  // R4
+      levels[8] = levels[6] - 0.618 * (h - l);  // S4
+      levels[9] = levels[7] + 0.382 * (h - l);  // R5
+      levels[10] = levels[8] - 0.382 * (h - l);  // S5
+      break;
+
+    case 'Woodie':
+      levels[1] = 2 * P - l;  // R1
+      levels[2] = 2 * P - h;  // S1
+      levels[3] = P + (h - l);  // R2
+      levels[4] = P - (h - l);  // S2
+      levels[5] = h + 2 * (P - l);  // R3
+      levels[6] = l - 2 * (h - P);  // S3
+      levels[7] = levels[5] + (h - l);  // R4
+      levels[8] = levels[6] - (h - l);  // S4
+      levels[9] = levels[7] + (h - l);  // R5
+      levels[10] = levels[8] - (h - l);  // S5
+      break;
+
+    case 'DM':
+      // DM (Demark) only calculates P, R1, S1
+      const x = h + l + (c * 2) + (isNaN(o) ? c : o);
+      const newP = x / (isNaN(o) ? 4 : 5);
+      levels[0] = newP;
+      levels[1] = x / 2 - l;  // R1
+      levels[2] = x / 2 - h;  // S1
+      // R2-S5 remain NaN
+      break;
+
+    case 'Camarilla':
+      const range = h - l;
+      levels[1] = c + range * 1.1 / 12;  // R1
+      levels[2] = c - range * 1.1 / 12;  // S1
+      levels[3] = c + range * 1.1 / 6;   // R2
+      levels[4] = c - range * 1.1 / 6;   // S2
+      levels[5] = c + range * 1.1 / 4;   // R3
+      levels[6] = c - range * 1.1 / 4;   // S3
+      levels[7] = c + range * 1.1 / 2;   // R4
+      levels[8] = c - range * 1.1 / 2;   // S4
+      levels[9] = h;  // R5 (high)
+      levels[10] = l; // S5 (low)
+      break;
+  }
+
+  return levels;
+}
