@@ -26,8 +26,6 @@ OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's calcula
 
 These excluded namespaces require external infrastructure (rendering engines, UI frameworks, data feeds, backtesting systems) that are specific to TradingView's platform. OakScriptJS focuses on what can be accurately replicated in pure JavaScript: calculations and data transformations.
 
-**📖 For detailed information about scope and limitations, see [SCOPE.md](SCOPE.md)**
-
 ## Features
 
 - **Exact API Match**: Function signatures match PineScript exactly
