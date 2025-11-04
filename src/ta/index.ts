@@ -2372,3 +2372,471 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
 
   return result;
 }
+
+/**
+ * Williams %R (Williams Percent Range)
+ *
+ * Williams %R is a momentum indicator that measures overbought/oversold levels.
+ * It compares the closing price to the high-low range over a specified period.
+ *
+ * Values range from -100 (oversold) to 0 (overbought):
+ * - Above -20: Overbought
+ * - Below -80: Oversold
+ *
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
+ * @param length - Lookback period (default: 14)
+ * @returns Williams %R series
+ *
+ * @example
+ * ```typescript
+ * const wpr = ta.wpr(high, low, close, 14);
+ * // wpr < -80: oversold
+ * // wpr > -20: overbought
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.wpr | PineScript ta.wpr}
+ */
+export function wpr(high: Source, low: Source, close: Source, length: simple_int = 14): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < close.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Find highest high and lowest low in the period
+    let highestHigh = high[i - length + 1];
+    let lowestLow = low[i - length + 1];
+
+    for (let j = i - length + 2; j <= i; j++) {
+      if (high[j] > highestHigh) highestHigh = high[j];
+      if (low[j] < lowestLow) lowestLow = low[j];
+    }
+
+    const range = highestHigh - lowestLow;
+    if (range === 0) {
+      result.push(NaN);
+    } else {
+      // Formula: (Highest High - Close) / (Highest High - Lowest Low) * -100
+      const wprValue = ((highestHigh - close[i]) / range) * -100;
+      result.push(wprValue);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Volume Weighted Average Price (VWAP)
+ *
+ * VWAP is the average price weighted by volume, typically calculated from market open.
+ * It's widely used by institutional traders to assess execution quality.
+ *
+ * This implementation calculates cumulative VWAP from the beginning of the series.
+ * For intraday VWAP (reset at session start), additional session logic is needed.
+ *
+ * @param source - Price series (typically hlc3 or close)
+ * @param volume - Volume series
+ * @returns VWAP series
+ *
+ * @example
+ * ```typescript
+ * const hlc3 = high.map((h, i) => (h + low[i] + close[i]) / 3);
+ * const vwapValue = ta.vwap(hlc3, volume);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.vwap | PineScript ta.vwap}
+ */
+export function vwap(source: Source, volume: Source): series_float {
+  if (source.length !== volume.length) {
+    throw new Error('ta.vwap: source and volume must have the same length');
+  }
+
+  const result: series_float = [];
+  let cumulativePV = 0; // Cumulative price * volume
+  let cumulativeVolume = 0; // Cumulative volume
+
+  for (let i = 0; i < source.length; i++) {
+    if (isNaN(source[i]) || isNaN(volume[i])) {
+      result.push(NaN);
+      continue;
+    }
+
+    cumulativePV += source[i] * volume[i];
+    cumulativeVolume += volume[i];
+
+    if (cumulativeVolume === 0) {
+      result.push(NaN);
+    } else {
+      result.push(cumulativePV / cumulativeVolume);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Arnaud Legoux Moving Average (ALMA)
+ *
+ * ALMA uses a Gaussian distribution for weighting, reducing lag while maintaining smoothness.
+ * It's particularly good at tracking price action with minimal lag.
+ *
+ * @param source - Source series
+ * @param length - Window size (default: 9)
+ * @param offset - Controls the center of the Gaussian curve. 0.85 = focus on recent prices (default: 0.85)
+ * @param sigma - Standard deviation of the Gaussian. Controls smoothness (default: 6)
+ * @returns ALMA series
+ *
+ * @example
+ * ```typescript
+ * const alma = ta.alma(close, 9, 0.85, 6);
+ * // offset closer to 1: more responsive
+ * // offset closer to 0: smoother
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.alma | PineScript ta.alma}
+ */
+export function alma(
+  source: Source,
+  length: simple_int = 9,
+  offset: simple_float = 0.85,
+  sigma: simple_float = 6
+): series_float {
+  const result: series_float = [];
+  const m = Math.floor(offset * (length - 1));
+  const s = length / sigma;
+
+  // Pre-calculate weights
+  const weights: number[] = [];
+  let weightSum = 0;
+
+  for (let i = 0; i < length; i++) {
+    const weight = Math.exp(-1 * Math.pow(i - m, 2) / (2 * Math.pow(s, 2)));
+    weights.push(weight);
+    weightSum += weight;
+  }
+
+  // Normalize weights
+  for (let i = 0; i < length; i++) {
+    weights[i] /= weightSum;
+  }
+
+  // Calculate ALMA
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    let almaValue = 0;
+    for (let j = 0; j < length; j++) {
+      almaValue += source[i - length + 1 + j] * weights[j];
+    }
+
+    result.push(almaValue);
+  }
+
+  return result;
+}
+
+/**
+ * Keltner Channels Width (KCW)
+ *
+ * Measures the width of Keltner Channels as a percentage of the middle line.
+ * Similar to BBW but uses ATR instead of standard deviation.
+ *
+ * Low KCW suggests consolidation/low volatility.
+ * High KCW suggests expansion/high volatility.
+ *
+ * @param source - Source series
+ * @param length - Number of bars for EMA and ATR (default: 20)
+ * @param mult - ATR multiplier (default: 2)
+ * @param useTrueRange - Use True Range instead of high-low (default: true)
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
+ * @returns KCW series
+ *
+ * @example
+ * ```typescript
+ * const kcw = ta.kcw(close, 20, 2, true, high, low, close);
+ * // Low KCW: potential breakout coming
+ * // High KCW: high volatility period
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.kcw | PineScript ta.kcw}
+ */
+export function kcw(
+  source: Source,
+  length: simple_int = 20,
+  mult: simple_float = 2,
+  useTrueRange: simple_bool = true,
+  high?: Source,
+  low?: Source,
+  close?: Source
+): series_float {
+  const [basis, upper, lower] = kc(source, length, mult, useTrueRange, high, low, close);
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (isNaN(basis[i]) || basis[i] === 0) {
+      result.push(NaN);
+    } else {
+      const width = ((upper[i] - lower[i]) / basis[i]) * 100;
+      result.push(width);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Range (High - Low)
+ *
+ * Simple difference between high and low prices for each bar.
+ * Represents the price range of each bar.
+ *
+ * @param high - High price series
+ * @param low - Low price series
+ * @returns Range series
+ *
+ * @example
+ * ```typescript
+ * const barRange = ta.range(high, low);
+ * const avgRange = ta.sma(barRange, 20);
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.range | PineScript ta.range}
+ */
+export function range(high: Source, low: Source): series_float {
+  if (high.length !== low.length) {
+    throw new Error('ta.range: high and low must have the same length');
+  }
+
+  const result: series_float = [];
+
+  for (let i = 0; i < high.length; i++) {
+    if (isNaN(high[i]) || isNaN(low[i])) {
+      result.push(NaN);
+    } else {
+      result.push(high[i] - low[i]);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Highest Bars
+ *
+ * Returns the offset (number of bars back) to the highest value over a given period.
+ * Returns 0 if the current bar is the highest, 1 if the previous bar, etc.
+ *
+ * @param source - Source series
+ * @param length - Number of bars to look back
+ * @returns Series with offset to highest value (0 = current bar, 1 = previous bar, etc.)
+ *
+ * @example
+ * ```typescript
+ * const offset = ta.highestbars(close, 10);
+ * // If offset[i] = 3, the highest value in last 10 bars was 3 bars ago
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highestbars | PineScript ta.highestbars}
+ */
+export function highestbars(source: Source, length: simple_int): series_int {
+  const result: series_int = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    let highestValue = source[i - length + 1];
+    let highestOffset = length - 1;
+
+    for (let j = i - length + 2; j <= i; j++) {
+      if (source[j] > highestValue) {
+        highestValue = source[j];
+        highestOffset = i - j;
+      }
+    }
+
+    result.push(highestOffset);
+  }
+
+  return result;
+}
+
+/**
+ * Lowest Bars
+ *
+ * Returns the offset (number of bars back) to the lowest value over a given period.
+ * Returns 0 if the current bar is the lowest, 1 if the previous bar, etc.
+ *
+ * @param source - Source series
+ * @param length - Number of bars to look back
+ * @returns Series with offset to lowest value (0 = current bar, 1 = previous bar, etc.)
+ *
+ * @example
+ * ```typescript
+ * const offset = ta.lowestbars(close, 10);
+ * // If offset[i] = 5, the lowest value in last 10 bars was 5 bars ago
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.lowestbars | PineScript ta.lowestbars}
+ */
+export function lowestbars(source: Source, length: simple_int): series_int {
+  const result: series_int = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    let lowestValue = source[i - length + 1];
+    let lowestOffset = length - 1;
+
+    for (let j = i - length + 2; j <= i; j++) {
+      if (source[j] < lowestValue) {
+        lowestValue = source[j];
+        lowestOffset = i - j;
+      }
+    }
+
+    result.push(lowestOffset);
+  }
+
+  return result;
+}
+
+/**
+ * Maximum of Two Values
+ *
+ * Returns the greater of two values. Different from `highest()` which finds
+ * the maximum over a series of bars.
+ *
+ * @param source1 - First source series
+ * @param source2 - Second source series
+ * @returns Series with maximum of the two values at each bar
+ *
+ * @example
+ * ```typescript
+ * const maxValue = ta.max(close, open);
+ * // Returns the higher of close or open at each bar
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.max | PineScript ta.max}
+ */
+export function max(source1: Source, source2: Source): series_float {
+  if (source1.length !== source2.length) {
+    throw new Error('ta.max: source1 and source2 must have the same length');
+  }
+
+  const result: series_float = [];
+
+  for (let i = 0; i < source1.length; i++) {
+    if (isNaN(source1[i]) || isNaN(source2[i])) {
+      result.push(NaN);
+    } else {
+      result.push(Math.max(source1[i], source2[i]));
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Minimum of Two Values
+ *
+ * Returns the lesser of two values. Different from `lowest()` which finds
+ * the minimum over a series of bars.
+ *
+ * @param source1 - First source series
+ * @param source2 - Second source series
+ * @returns Series with minimum of the two values at each bar
+ *
+ * @example
+ * ```typescript
+ * const minValue = ta.min(close, open);
+ * // Returns the lower of close or open at each bar
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.min | PineScript ta.min}
+ */
+export function min(source1: Source, source2: Source): series_float {
+  if (source1.length !== source2.length) {
+    throw new Error('ta.min: source1 and source2 must have the same length');
+  }
+
+  const result: series_float = [];
+
+  for (let i = 0; i < source1.length; i++) {
+    if (isNaN(source1[i]) || isNaN(source2[i])) {
+      result.push(NaN);
+    } else {
+      result.push(Math.min(source1[i], source2[i]));
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Center of Gravity (COG)
+ *
+ * The Center of Gravity indicator is an oscillator developed by John Ehlers.
+ * It identifies turning points with minimal lag and provides clear signals.
+ *
+ * The COG calculates a weighted average where more recent prices have higher weights,
+ * similar to a moving average but with a focus on momentum shifts.
+ *
+ * @param source - Source series (typically close)
+ * @param length - Lookback period (default: 10)
+ * @returns COG series
+ *
+ * @example
+ * ```typescript
+ * const cogValue = ta.cog(close, 10);
+ * // Use COG crossovers as signals:
+ * // - COG crossing above 0: potential buy signal
+ * // - COG crossing below 0: potential sell signal
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.cog | PineScript ta.cog}
+ */
+export function cog(source: Source, length: simple_int = 10): series_float {
+  const result: series_float = [];
+
+  for (let i = 0; i < source.length; i++) {
+    if (i < length - 1) {
+      result.push(NaN);
+      continue;
+    }
+
+    let numerator = 0;
+    let denominator = 0;
+
+    for (let j = 0; j < length; j++) {
+      const weight = j + 1;
+      const price = source[i - length + 1 + j];
+      numerator += weight * price;
+      denominator += price;
+    }
+
+    if (denominator === 0) {
+      result.push(NaN);
+    } else {
+      // COG formula: -1 * (sum of (weight * price) / sum of prices) + (length + 1) / 2
+      const cog = -1 * (numerator / denominator) + (length + 1) / 2;
+      result.push(cog);
+    }
+  }
+
+  return result;
+}

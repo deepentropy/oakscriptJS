@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>OakScriptJS - Moving Average Example</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+				background: #1e222d;
+				color: #d1d4dc;
+				padding: 20px;
+			}
+
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+			}
+
+			h1 {
+				font-size: 24px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.description {
+				margin-bottom: 20px;
+				color: #b2b5be;
+				font-size: 14px;
+			}
+
+			.controls {
+				background: #2a2e39;
+				padding: 20px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+			}
+
+			.control-group {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 15px;
+			}
+
+			.control-item {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+
+			.control-item label {
+				font-size: 12px;
+				font-weight: 500;
+				color: #b2b5be;
+			}
+
+			.control-item select,
+			.control-item input {
+				padding: 8px;
+				background: #1e222d;
+				border: 1px solid #363a45;
+				border-radius: 4px;
+				color: #d1d4dc;
+				font-size: 13px;
+			}
+
+			.control-item select:focus,
+			.control-item input:focus {
+				outline: none;
+				border-color: #2962ff;
+			}
+
+			#chart {
+				height: 500px;
+				background: #ffffff;
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			.info {
+				margin-top: 20px;
+				padding: 15px;
+				background: #2a2e39;
+				border-radius: 8px;
+				font-size: 13px;
+				line-height: 1.6;
+			}
+
+			.info h3 {
+				font-size: 14px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.info code {
+				background: #1e222d;
+				padding: 2px 6px;
+				border-radius: 3px;
+				font-family: 'Courier New', monospace;
+				color: #2962ff;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>OakScriptJS - Moving Average Indicator</h1>
+			<p class="description">
+				Interactive example showing how to use OakScriptJS with Lightweight Charts v5.
+				Adjust the parameters below to see real-time updates.
+			</p>
+
+			<div class="controls">
+				<div class="control-group">
+					<div class="control-item">
+						<label for="maType">MA Type</label>
+						<select id="maType">
+							<option value="SMA">SMA - Simple Moving Average</option>
+							<option value="EMA" selected>EMA - Exponential Moving Average</option>
+							<option value="WMA">WMA - Weighted Moving Average</option>
+						</select>
+					</div>
+
+					<div class="control-item">
+						<label for="length">Length</label>
+						<input type="number" id="length" value="20" min="1" max="200" />
+					</div>
+
+					<div class="control-item">
+						<label for="source">Source</label>
+						<select id="source">
+							<option value="close" selected>Close</option>
+							<option value="open">Open</option>
+							<option value="high">High</option>
+							<option value="low">Low</option>
+							<option value="hl2">HL2 (High+Low)/2</option>
+							<option value="hlc3">HLC3 (High+Low+Close)/3</option>
+							<option value="ohlc4">OHLC4 (Open+High+Low+Close)/4</option>
+						</select>
+					</div>
+
+					<div class="control-item">
+						<label for="offset">Offset</label>
+						<input type="number" id="offset" value="0" min="-50" max="50" />
+					</div>
+
+					<div class="control-item">
+						<label for="smoothingType">Smoothing Type</label>
+						<select id="smoothingType">
+							<option value="">None</option>
+							<option value="SMA">SMA</option>
+							<option value="EMA">EMA</option>
+							<option value="WMA">WMA</option>
+							<option value="RMA">RMA</option>
+						</select>
+					</div>
+
+					<div class="control-item">
+						<label for="smoothingLength">Smoothing Length</label>
+						<input type="number" id="smoothingLength" value="5" min="1" max="50" />
+					</div>
+				</div>
+			</div>
+
+			<div id="chart"></div>
+
+			<div class="info">
+				<h3>How it works:</h3>
+				<p>
+					This example demonstrates the OakScriptJS library calculating moving averages
+					directly from chart data. The calculation happens in the browser using the
+					<code>calculateMovingAverage()</code> function from <code>examples/indicators/moving-average/index.ts</code>.
+				</p>
+				<p style="margin-top: 10px;">
+					Key features:
+				</p>
+				<ul style="margin-left: 20px; margin-top: 5px;">
+					<li>Real-time updates when changing parameters</li>
+					<li>Support for multiple MA types (SMA, EMA, WMA)</li>
+					<li>Configurable source data (close, open, high, low, etc.)</li>
+					<li>Optional offset and smoothing</li>
+					<li>Only 49 lines of indicator code vs 355 lines in official TradingView implementation</li>
+				</ul>
+			</div>
+		</div>
+
+		<script type="module" src="./chart-example.ts"></script>
+	</body>
+</html>

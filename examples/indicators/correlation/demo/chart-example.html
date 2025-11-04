@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>OakScriptJS - Correlation Example</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+				background: #1e222d;
+				color: #d1d4dc;
+				padding: 20px;
+			}
+
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+			}
+
+			h1 {
+				font-size: 24px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.description {
+				margin-bottom: 20px;
+				color: #b2b5be;
+				font-size: 14px;
+			}
+
+			.controls {
+				background: #2a2e39;
+				padding: 20px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+			}
+
+			.control-group {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 15px;
+			}
+
+			.control-item {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+
+			.control-item label {
+				font-size: 12px;
+				font-weight: 500;
+				color: #b2b5be;
+			}
+
+			.control-item select,
+			.control-item input {
+				padding: 8px;
+				background: #1e222d;
+				border: 1px solid #363a45;
+				border-radius: 4px;
+				color: #d1d4dc;
+				font-size: 13px;
+			}
+
+			.control-item select:focus,
+			.control-item input:focus {
+				outline: none;
+				border-color: #2962ff;
+			}
+
+			.charts {
+				display: grid;
+				grid-template-rows: 1fr auto 1fr;
+				gap: 10px;
+			}
+
+			#chart1, #chart2 {
+				height: 300px;
+				background: #ffffff;
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			#correlationChart {
+				height: 200px;
+				background: #ffffff;
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			.chart-label {
+				font-size: 12px;
+				font-weight: 600;
+				color: #ffffff;
+				padding: 8px;
+				background: #2a2e39;
+				border-radius: 4px;
+				text-align: center;
+			}
+
+			.info {
+				margin-top: 20px;
+				padding: 15px;
+				background: #2a2e39;
+				border-radius: 8px;
+				font-size: 13px;
+				line-height: 1.6;
+			}
+
+			.info h3 {
+				font-size: 14px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.info code {
+				background: #1e222d;
+				padding: 2px 6px;
+				border-radius: 3px;
+				font-family: 'Courier New', monospace;
+				color: #2962ff;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>OakScriptJS - Correlation Indicator</h1>
+			<p class="description">
+				Correlation calculates the Pearson correlation coefficient between two data series.
+				Values range from -1 (perfect negative correlation) to +1 (perfect positive correlation).
+			</p>
+
+			<div class="controls">
+				<div class="control-group">
+					<div class="control-item">
+						<label for="length">Length</label>
+						<input type="number" id="length" value="20" min="2" max="100" />
+					</div>
+
+					<div class="control-item">
+						<label for="primarySource">Primary Source</label>
+						<select id="primarySource">
+							<option value="close" selected>Close</option>
+							<option value="open">Open</option>
+							<option value="high">High</option>
+							<option value="low">Low</option>
+							<option value="hl2">HL2</option>
+							<option value="hlc3">HLC3</option>
+							<option value="ohlc4">OHLC4</option>
+						</select>
+					</div>
+
+					<div class="control-item">
+						<label for="secondarySource">Secondary Source</label>
+						<select id="secondarySource">
+							<option value="close" selected>Close</option>
+							<option value="open">Open</option>
+							<option value="high">High</option>
+							<option value="low">Low</option>
+							<option value="hl2">HL2</option>
+							<option value="hlc3">HLC3</option>
+							<option value="ohlc4">OHLC4</option>
+						</select>
+					</div>
+				</div>
+			</div>
+
+			<div class="charts">
+				<div>
+					<div class="chart-label">Primary Series</div>
+					<div id="chart1"></div>
+				</div>
+				<div>
+					<div class="chart-label">Correlation Coefficient</div>
+					<div id="correlationChart"></div>
+				</div>
+				<div>
+					<div class="chart-label">Secondary Series</div>
+					<div id="chart2"></div>
+				</div>
+			</div>
+
+			<div class="info">
+				<h3>How it works:</h3>
+				<p>
+					The correlation indicator measures how two price series move together:
+				</p>
+				<ul style="margin-left: 20px; margin-top: 5px;">
+					<li><strong>+1</strong>: Perfect positive correlation (move together)</li>
+					<li><strong>0</strong>: No correlation (independent movement)</li>
+					<li><strong>-1</strong>: Perfect negative correlation (move oppositely)</li>
+				</ul>
+				<p style="margin-top: 10px;">
+					Official TradingView implementation: 192 lines (2 files)<br>
+					OakScriptJS implementation: Only 54 lines (1 file) - 72% reduction
+				</p>
+			</div>
+		</div>
+
+		<script type="module" src="./chart-example.ts"></script>
+	</body>
+</html>

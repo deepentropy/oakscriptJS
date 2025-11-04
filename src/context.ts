@@ -28,12 +28,13 @@
  * @version 6
  */
 
-import { Source, simple_float, simple_int, simple_bool, series_float, series_int, float } from './types';
+import { Source, simple_float, simple_int, simple_bool, series_float, series_int, float, Bar } from './types';
 import * as taFunctions from './ta';
 import * as mathFunctions from './math';
 import * as strFunctions from './str';
 import * as colorFunctions from './color';
 import * as arrayFunctions from './array';
+import { getSource as utilGetSource, formatOutput, ohlcFromBars } from './utils';
 
 /**
  * Chart data required for technical analysis functions.
@@ -65,12 +66,15 @@ export interface SymbolInfo {
 
 /**
  * Configuration for creating a context with implicit data.
+ * Can accept either explicit ChartData or an array of Bars.
  */
 export interface ContextConfig {
   /** Chart data (OHLCV) for technical analysis functions */
   chart?: ChartData;
   /** Symbol information for price-related functions */
   syminfo?: SymbolInfo;
+  /** Optional: Raw bar data (alternative to chart) */
+  data?: Bar[];
 }
 
 /**
@@ -101,7 +105,19 @@ export interface ContextConfig {
  * ```
  */
 export function createContext(config: ContextConfig = {}) {
-  const { chart, syminfo } = config;
+  let { chart, syminfo, data } = config;
+
+  // If data array is provided, convert to chart format
+  if (data && !chart) {
+    const ohlc = ohlcFromBars(data);
+    chart = {
+      open: ohlc.open,
+      high: ohlc.high,
+      low: ohlc.low,
+      close: ohlc.close,
+      volume: data[0]?.volume !== undefined ? data.map(b => b.volume || 0) : undefined
+    };
+  }
 
   return {
     /**
@@ -111,7 +127,11 @@ export function createContext(config: ContextConfig = {}) {
      * All other functions are passed through unchanged.
      */
     ta: {
-      // ===== WRAPPED FUNCTIONS (need implicit chart data) =====
+      // ===== PASS-THROUGH ALL FUNCTIONS FIRST =====
+      // Spread all ta functions to make them available
+      ...taFunctions,
+
+      // ===== THEN OVERRIDE WITH WRAPPED FUNCTIONS (need implicit chart data) =====
 
       /**
        * SuperTrend indicator - now uses implicit chart data from context.
@@ -322,25 +342,6 @@ export function createContext(config: ContextConfig = {}) {
         return taFunctions.kc(source, length, mult, useTrueRange, chart.high, chart.low, chart.close);
       },
 
-      // ===== PASS-THROUGH FUNCTIONS (already have explicit parameters) =====
-      // These functions don't need wrapping - they already require explicit source data
-
-      sma: taFunctions.sma,
-      ema: taFunctions.ema,
-      rsi: taFunctions.rsi,
-      macd: taFunctions.macd,
-      bb: taFunctions.bb,
-      bbw: taFunctions.bbw,
-      stdev: taFunctions.stdev,
-      crossover: taFunctions.crossover,
-      crossunder: taFunctions.crossunder,
-      change: taFunctions.change,
-      cci: taFunctions.cci,
-      cmo: taFunctions.cmo,
-      hma: taFunctions.hma,
-      tsi: taFunctions.tsi,
-      barssince: taFunctions.barssince,
-      valuewhen: taFunctions.valuewhen,
     },
 
     /**
@@ -397,6 +398,58 @@ export function createContext(config: ContextConfig = {}) {
      */
     array: {
       ...arrayFunctions,
+    },
+
+    // ===== UTILITY FUNCTIONS =====
+
+    /**
+     * Get a specific source from the context's chart data
+     *
+     * @param source - Source type: 'close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'
+     * @returns Series of the requested source
+     *
+     * @example
+     * ```typescript
+     * const { getSource, ta } = createContext({ data: bars });
+     * const closes = getSource('close');
+     * const hl2 = getSource('hl2');
+     * const sma = ta.sma(getSource('close'), 20);
+     * ```
+     */
+    getSource: (source: 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4' = 'close'): series_float => {
+      if (!chart) {
+        throw new Error('Chart context required for getSource(). Call createContext({ data: bars }) first.');
+      }
+      // Convert ChartData to OHLC format for utilGetSource
+      const ohlc = {
+        open: chart.open || [],
+        high: chart.high,
+        low: chart.low,
+        close: chart.close
+      };
+      return utilGetSource(ohlc, source);
+    },
+
+    /**
+     * Format series values with timestamps for output
+     *
+     * @param values - Series of values to format
+     * @param timestamps - Optional array of timestamps (uses data timestamps if available)
+     * @returns Array of objects with time and value properties
+     *
+     * @example
+     * ```typescript
+     * const { ta, format } = createContext({ data: bars });
+     * const smaValues = ta.sma(getSource('close'), 20);
+     * const output = format(smaValues);
+     * ```
+     */
+    format: (values: series_float, timestamps?: number[]): Array<{ time: number; value: number | null }> => {
+      // If timestamps not provided and we have bar data, use those timestamps
+      if (!timestamps && data) {
+        timestamps = data.map(b => b.time);
+      }
+      return formatOutput(values, timestamps);
     },
   };
 }

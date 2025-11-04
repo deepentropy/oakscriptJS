@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>OakScriptJS - Average Price Example</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+				background: #1e222d;
+				color: #d1d4dc;
+				padding: 20px;
+			}
+
+			.container {
+				max-width: 1400px;
+				margin: 0 auto;
+			}
+
+			h1 {
+				font-size: 24px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.description {
+				margin-bottom: 20px;
+				color: #b2b5be;
+				font-size: 14px;
+			}
+
+			.controls {
+				background: #2a2e39;
+				padding: 20px;
+				border-radius: 8px;
+				margin-bottom: 20px;
+			}
+
+			.control-group {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 15px;
+			}
+
+			.control-item {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+
+			.control-item label {
+				font-size: 12px;
+				font-weight: 500;
+				color: #b2b5be;
+			}
+
+			.control-item input {
+				padding: 8px;
+				background: #1e222d;
+				border: 1px solid #363a45;
+				border-radius: 4px;
+				color: #d1d4dc;
+				font-size: 13px;
+			}
+
+			.control-item input:focus {
+				outline: none;
+				border-color: #2962ff;
+			}
+
+			#chart {
+				height: 500px;
+				background: #ffffff;
+				border-radius: 8px;
+				overflow: hidden;
+			}
+
+			.info {
+				margin-top: 20px;
+				padding: 15px;
+				background: #2a2e39;
+				border-radius: 8px;
+				font-size: 13px;
+				line-height: 1.6;
+			}
+
+			.info h3 {
+				font-size: 14px;
+				margin-bottom: 10px;
+				color: #ffffff;
+			}
+
+			.info code {
+				background: #1e222d;
+				padding: 2px 6px;
+				border-radius: 3px;
+				font-family: 'Courier New', monospace;
+				color: #2962ff;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>OakScriptJS - Average Price Indicator</h1>
+			<p class="description">
+				Average Price calculates (Open + High + Low + Close) / 4 for each bar.
+				Adjust the offset to shift the line forward or backward.
+			</p>
+
+			<div class="controls">
+				<div class="control-group">
+					<div class="control-item">
+						<label for="offset">Offset</label>
+						<input type="number" id="offset" value="0" min="-50" max="50" />
+					</div>
+				</div>
+			</div>
+
+			<div id="chart"></div>
+
+			<div class="info">
+				<h3>How it works:</h3>
+				<p>
+					This example demonstrates the Average Price indicator using OakScriptJS.
+					The calculation is simply: <code>(O + H + L + C) / 4</code>
+				</p>
+				<p style="margin-top: 10px;">
+					Official TradingView implementation: 104 lines across 2 files<br>
+					OakScriptJS implementation: Only 37 lines in 1 file (64% reduction)
+				</p>
+			</div>
+		</div>
+
+		<script type="module" src="./chart-example.ts"></script>
+	</body>
+</html>
