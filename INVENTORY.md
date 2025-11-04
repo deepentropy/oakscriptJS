@@ -2,26 +2,26 @@
 
 This document tracks the implementation status of all PineScript v6 functions for included namespaces.
 
-**Last Updated:** 2025-01-03
+**Last Updated:** 2025-01-04
 
 ## Summary
 
 | Namespace | Total Functions | Implemented | Not Implemented | Completion % |
 |-----------|----------------|-------------|-----------------|--------------|
-| **ta** | 58 | 43 | 15 | 74% |
+| **ta** | 58 | 53 | 5 | 91% |
 | **math** | 24 | 24 | 0 | 100% |
 | **array** | 57 | 34 | 23 | 60% |
 | **matrix** | 49 | 1 | 48 | 2% |
 | **str** | 18 | 18 | 0 | 100% |
 | **time** | 1 | 1 | 0 | 100% |
 | **color** | 8 | 8 | 0 | 100% |
-| **TOTAL** | **215** | **129** | **86** | **60%** |
+| **TOTAL** | **215** | **139** | **76** | **65%** |
 
 ---
 
 ## ta (Technical Analysis)
 
-### ✅ Implemented (43 functions)
+### ✅ Implemented (53 functions)
 
 1. `atr()` - Average True Range
 2. `barssince()` - Number of bars since condition was true ✨ NEW
@@ -65,26 +65,26 @@ This document tracks the implementation status of all PineScript v6 functions fo
 40. `tsi()` - True Strength Index ✨ NEW
 41. `valuewhen()` - Returns value when condition was true ✨ NEW
 42. `variance()` - Variance
-43. `vwma()` - Volume Weighted Moving Average
-44. `wma()` - Weighted Moving Average
+43. `vwap()` - Volume Weighted Average Price ✨ NEW
+44. `vwma()` - Volume Weighted Moving Average
+45. `wma()` - Weighted Moving Average
+46. `wpr()` - Williams %R ✨ NEW
+47. `alma()` - Arnaud Legoux Moving Average ✨ NEW
+48. `kcw()` - Keltner Channels Width ✨ NEW
+49. `range()` - High-Low Range ✨ NEW
+50. `highestbars()` - Offset to the highest value ✨ NEW
+51. `lowestbars()` - Offset to the lowest value ✨ NEW
+52. `max()` - Maximum of two values ✨ NEW
+53. `min()` - Minimum of two values ✨ NEW
+54. `cog()` - Center of Gravity ✨ NEW
 
-### ❌ Not Implemented (15 functions)
+### ❌ Not Implemented (5 functions)
 
-1. `alma()` - Arnaud Legoux Moving Average
-2. `cog()` - Center of Gravity
-3. `highestbars()` - Offset to the highest value
-4. `kcw()` - Keltner Channels Width
-5. `lowestbars()` - Offset to the lowest value
-6. `max()` - Maximum value (different from highest - works with two values)
-7. `min()` - Minimum value (different from lowest - works with two values)
-8. `mode()` - Mode (most frequently occurring value)
-9. `percentile_linear_interpolation()` - Percentile using linear interpolation
-10. `percentile_nearest_rank()` - Percentile using nearest rank
-11. `pivot_point_levels()` - Pivot point levels
-12. `range()` - Difference between highest and lowest values
-13. `rci()` - Rank Correlation Index
-14. `vwap()` - Volume Weighted Average Price
-15. `wpr()` - Williams %R
+1. `mode()` - Mode (most frequently occurring value)
+2. `percentile_linear_interpolation()` - Percentile using linear interpolation
+3. `percentile_nearest_rank()` - Percentile using nearest rank
+4. `pivot_point_levels()` - Pivot point levels
+5. `rci()` - Rank Correlation Index
 
 ---
 
@@ -339,7 +339,7 @@ Based on the inventory, here are recommended priorities for implementation:
 3. ~~`mfi()` - Money Flow Index - volume-based indicator~~ ✅ IMPLEMENTED
 4. ~~`sar()` - Parabolic SAR - popular trend indicator~~ ✅ IMPLEMENTED
 5. ~~`hma()` - Hull Moving Average - modern MA variant~~ ✅ IMPLEMENTED
-6. `vwap()` - Volume Weighted Average Price - institutional favorite
+6. ~~`vwap()` - Volume Weighted Average Price - institutional favorite~~ ✅ IMPLEMENTED
 7. ~~`pivothigh()` / `pivotlow()` - Pivot detection - very useful for trading~~ ✅ IMPLEMENTED
 8. ~~`barssince()` - Bar counting - useful for many strategies~~ ✅ IMPLEMENTED
 9. ~~`valuewhen()` - Historical value lookup - very useful utility~~ ✅ IMPLEMENTED
@@ -362,8 +362,11 @@ Based on the inventory, here are recommended priorities for implementation:
 1. ~~`dmi()` - Directional Movement Index~~ ✅ IMPLEMENTED
 2. ~~`tsi()` - True Strength Index~~ ✅ IMPLEMENTED
 3. ~~`cmo()` - Chande Momentum Oscillator~~ ✅ IMPLEMENTED
-4. ~~`kc()` - Keltner Channels~~ ✅ IMPLEMENTED / `kcw()` - Keltner Channels Width
+4. ~~`kc()` - Keltner Channels~~ ✅ IMPLEMENTED / ~~`kcw()` - Keltner Channels Width~~ ✅ IMPLEMENTED
 5. ~~`bbw()` - Bollinger Bands Width~~ ✅ IMPLEMENTED
+6. ~~`wpr()` - Williams %R~~ ✅ IMPLEMENTED
+7. ~~`alma()` - Arnaud Legoux Moving Average~~ ✅ IMPLEMENTED
+8. ~~`range()` - High-Low Range~~ ✅ IMPLEMENTED
 
 **array namespace:**
 6. `covariance()` - Statistical analysis
@@ -376,10 +379,9 @@ Based on the inventory, here are recommended priorities for implementation:
 ### Low Priority (Specialized)
 
 **ta namespace:**
-1. `alma()` - Arnaud Legoux MA - less common
-2. `cog()` - Center of Gravity - niche
-3. `rci()` - Rank Correlation Index - niche
-4. `pivot_point_levels()` - Can be calculated manually
+1. `cog()` - Center of Gravity - niche
+2. `rci()` - Rank Correlation Index - niche
+3. `pivot_point_levels()` - Can be calculated manually
 
 **matrix namespace:**
 - Most advanced matrix operations (eigenvalues, inverse, etc.) - specialized use cases
