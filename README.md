@@ -47,31 +47,31 @@ These excluded namespaces require external infrastructure (rendering engines, UI
 
 ```bash
 # npm
-npx jsr add @houseofai/oakscriptjs
+npx jsr add @deepentropy/oakscriptjs
 
 # pnpm (10.9+)
-pnpm add jsr:@houseofai/oakscriptjs
+pnpm add jsr:@deepentropy/oakscriptjs
 
 # yarn (4.9+)
-yarn add jsr:@houseofai/oakscriptjs
+yarn add jsr:@deepentropy/oakscriptjs
 
 # Deno
-deno add jsr:@houseofai/oakscriptjs
+deno add jsr:@deepentropy/oakscriptjs
 
 # Bun
-bunx jsr add @houseofai/oakscriptjs
+bunx jsr add @deepentropy/oakscriptjs
 ```
 
 ### npm (Coming Soon)
 
 ```bash
-npm install @houseofai/oakscriptjs
+npm install @deepentropy/oakscriptjs
 ```
 
 ## Quick Start
 
 ```typescript
-import { ta, math } from '@houseofai/oakscriptjs';
+import { ta, math } from '@deepentropy/oakscriptjs';
 
 // Calculate Simple Moving Average
 const prices = [10, 12, 11, 13, 15, 14, 16, 18, 17, 19];

@@ -1,0 +1,17 @@
+{
+  "name": "@deepentropy/oakscriptjs",
+  "version": "0.1.0",
+  "exports": "./src/index.ts",
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE",
+      "INVENTORY.md"
+    ],
+    "exclude": [
+      "**/*.test.ts",
+      "src/**/__tests__/**"
+    ]
+  }
+}
