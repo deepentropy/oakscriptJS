@@ -43,20 +43,35 @@ These excluded namespaces require external infrastructure (rendering engines, UI
 
 ## Installation
 
+### JSR (Recommended)
+
 ```bash
-npm install oakscriptjs
+# npm
+npx jsr add @houseofai/oakscriptjs
+
+# pnpm (10.9+)
+pnpm add jsr:@houseofai/oakscriptjs
+
+# yarn (4.9+)
+yarn add jsr:@houseofai/oakscriptjs
+
+# Deno
+deno add jsr:@houseofai/oakscriptjs
+
+# Bun
+bunx jsr add @houseofai/oakscriptjs
 ```
 
-or
+### npm (Coming Soon)
 
 ```bash
-yarn add oakscriptjs
+npm install @houseofai/oakscriptjs
 ```
 
 ## Quick Start
 
 ```typescript
-import { ta, math } from 'oakscriptjs';
+import { ta, math } from '@houseofai/oakscriptjs';
 
 // Calculate Simple Moving Average
 const prices = [10, 12, 11, 13, 15, 14, 16, 18, 17, 19];
