@@ -1,6 +1,7 @@
 {
-  "name": "oakscriptjs",
+  "name": "@houseofai/oakscriptjs",
   "version": "0.1.0",
+  "type": "module",
   "description": "JavaScript mirror of the PineScript API with exact same signatures",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

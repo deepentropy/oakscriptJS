@@ -104,7 +104,7 @@ export interface ContextConfig {
  * const sma20 = ta.sma(close, 20);
  * ```
  */
-export function createContext(config: ContextConfig = {}) {
+export function createContext(config: ContextConfig = {}): OakContext {
   let { chart, syminfo, data } = config;
 
   // If data array is provided, convert to chart format
@@ -455,7 +455,7 @@ export function createContext(config: ContextConfig = {}) {
 }
 
 /**
- * Type helper to extract the return type of createContext.
+ * Type representing the return value of createContext.
  * Useful for TypeScript users who want to type their context variables.
  *
  * @example
@@ -463,4 +463,22 @@ export function createContext(config: ContextConfig = {}) {
  * const ctx: OakContext = createContext({ chart });
  * ```
  */
-export type OakContext = ReturnType<typeof createContext>;
+export interface OakContext {
+  ta: typeof taFunctions & {
+    supertrend: (factor: simple_float, atrPeriod: simple_int, wicks?: simple_bool) => [series_float, series_int];
+    atr: (length: simple_int) => series_float;
+    tr: (handle_na?: simple_bool) => series_float;
+    sar: (start: simple_float, inc: simple_float, max: simple_float) => series_float;
+    mfi: (source: Source, length: simple_int) => series_float;
+    stoch: (source: Source, length: simple_int) => series_float;
+    pivothigh: (leftbars: simple_int, rightbars: simple_int) => series_float;
+    pivotlow: (leftbars: simple_int, rightbars: simple_int) => series_float;
+    dmi: (diLength: simple_int, adxSmoothing: simple_int) => [series_float, series_float, series_float];
+    vwma: (source: Source, length: simple_int) => series_float;
+  };
+  math: typeof mathFunctions;
+  str: typeof strFunctions;
+  color: typeof colorFunctions;
+  getSource: (source?: 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4') => series_float;
+  format: (values: series_float, timestamps?: number[]) => Array<{ time: number; value: number | null }>;
+}
