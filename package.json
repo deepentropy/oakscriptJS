@@ -32,6 +32,9 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
+    "version:patch": "node scripts/bump-version.cjs patch",
+    "version:minor": "node scripts/bump-version.cjs minor",
+    "version:major": "node scripts/bump-version.cjs major",
     "prepublishOnly": "npm run test && npm run build"
   },
   "keywords": [

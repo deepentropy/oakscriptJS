@@ -39,7 +39,7 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
 // Version
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 
 /**
  * Library information

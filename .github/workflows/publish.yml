@@ -17,6 +17,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          # Get the tag name (e.g., v0.1.1 or 0.1.1)
+          TAG=${GITHUB_REF#refs/tags/}
+          # Remove 'v' prefix if present
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # Update package.json version using Node.js
+          node -e "const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync('package.json')); pkg.version='$VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+          echo "Updated package.json to version $VERSION"
+
+      - name: Update version in jsr.json
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # Update jsr.json version using Node.js
+          node -e "const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync('jsr.json')); pkg.version='$VERSION'; fs.writeFileSync('jsr.json', JSON.stringify(pkg, null, 2) + '\n');"
+          echo "Updated jsr.json to version $VERSION"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
