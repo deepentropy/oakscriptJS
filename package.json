@@ -1,5 +1,5 @@
 {
-  "name": "@houseofai/oakscriptjs",
+  "name": "@deepentropy/oakscriptjs",
   "version": "0.1.0",
   "type": "module",
   "description": "JavaScript mirror of the PineScript API with exact same signatures",
@@ -50,12 +50,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/houseofai/oakscriptJS.git"
+    "url": "git+https://github.com/deepentropy/oakscriptJS.git"
   },
   "bugs": {
-    "url": "https://github.com/houseofai/oakscriptJS/issues"
+    "url": "https://github.com/deepentropy/oakscriptJS/issues"
   },
-  "homepage": "https://github.com/houseofai/oakscriptJS#readme",
+  "homepage": "https://github.com/deepentropy/oakscriptJS#readme",
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
