@@ -2,7 +2,8 @@ name: Publish to JSR
 
 on:
   release:
-    types: [created]
+    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
