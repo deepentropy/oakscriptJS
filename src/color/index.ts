@@ -399,3 +399,23 @@ export function from_gradient(
   }
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
+
+/**
+ * Alias for new_color function.
+ * Creates a new color with specified transparency from an existing color.
+ *
+ * @param baseColor - The base color
+ * @param transp - Transparency value (0-100). 0 = fully opaque, 100 = fully transparent
+ * @returns New color with applied transparency
+ *
+ * @remarks
+ * This is an alias for `new_color()` to match PineScript's `color.new()` syntax.
+ *
+ * @example
+ * ```typescript
+ * const redColor = color.rgb(255, 0, 0);
+ * const transparentRed = color.new(redColor, 50); // 50% transparent red
+ * ```
+ *
+ */
+export { new_color as new };

@@ -296,37 +296,34 @@ describe('Array Final Functions', () => {
     });
   });
 
-  describe('Rendering functions exclusion', () => {
-    it('should document that rendering functions are not available', () => {
-      // This test documents the intentional exclusion of rendering functions
-      // The array module should not have these functions:
-      // - new_box()
-      // - new_label()
-      // - new_line()
-      // - new_linefill()
-      // - new_table()
+  describe('Drawing object array functions', () => {
+    it('should include drawing object type constructors', () => {
+      // After implementing drawing objects (Phase 4-5), these are now available
+      // These were previously excluded as "rendering functions" but now implemented
+      // with computational focus (no actual rendering)
 
-      expect(array).not.toHaveProperty('new_box');
-      expect(array).not.toHaveProperty('new_label');
-      expect(array).not.toHaveProperty('new_line');
-      expect(array).not.toHaveProperty('new_linefill');
+      expect(typeof array.new_line).toBe('function');
+      expect(typeof array.new_box).toBe('function');
+      expect(typeof array.new_label).toBe('function');
+      expect(typeof array.new_linefill).toBe('function');
+
+      // new_table() remains excluded (no computational value)
       expect(array).not.toHaveProperty('new_table');
     });
 
-    it('should confirm design constraint focus on calculations', () => {
+    it('should confirm all calculation functions remain available', () => {
       // This library focuses on calculation functions
-      // Rendering requires a rendering engine which is out of scope
+      // All statistical and calculation functions should be available
 
-      // All calculation functions should be available
       expect(typeof array.avg).toBe('function');
       expect(typeof array.stdev).toBe('function');
       expect(typeof array.standardize).toBe('function');
       expect(typeof array.covariance).toBe('function');
       expect(typeof array.percentile_linear_interpolation).toBe('function');
 
-      // But rendering functions are not
-      expect(array).not.toHaveProperty('new_box');
-      expect(array).not.toHaveProperty('new_label');
+      // Drawing object arrays are now available too
+      expect(typeof array.new_line).toBe('function');
+      expect(typeof array.new_box).toBe('function');
     });
   });
 });
