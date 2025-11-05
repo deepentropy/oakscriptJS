@@ -3,7 +3,7 @@
  * Mirrors PineScript's array.* functions
  */
 
-import { PineArray, int, float, bool, simple_int, color } from '../types';
+import { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill } from '../types';
 import * as ta from '../ta';
 
 /**
@@ -447,6 +447,148 @@ export function new_string(size: simple_int = 0, initial_value?: string): PineAr
  */
 export function new_color(size: simple_int = 0, initial_value?: color): PineArray<color> {
   return new_array<color>(size, initial_value);
+}
+
+/**
+ * Create new line array
+ *
+ * Creates a new array object of line type elements.
+ *
+ * @param size - Initial size of array (default: 0)
+ * @param initial_value - Initial value for all elements (default: undefined)
+ * @returns New line array
+ *
+ * @example
+ * ```typescript
+ * import { array, line } from 'oakscriptjs';
+ *
+ * // Create array to store last 15 lines
+ * const lines = array.new_line();
+ * const trendLine = line.new(0, 100, 50, 150);
+ * array.push(lines, trendLine);
+ *
+ * // Manage line count
+ * if (array.size(lines) > 15) {
+ *   const oldLine = array.shift(lines);
+ * }
+ * ```
+ *
+ * @remarks
+ * Useful for managing collections of trend lines, support/resistance levels, or channel lines.
+ * In PineScript, this is typically used with line.delete() to manage chart object limits.
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.new_line | PineScript array.new_line}
+ */
+export function new_line(size: simple_int = 0, initial_value?: Line): PineArray<Line> {
+  return new_array<Line>(size, initial_value);
+}
+
+/**
+ * Create new box array
+ *
+ * Creates a new array object of box type elements.
+ *
+ * @param size - Initial size of array (default: 0)
+ * @param initial_value - Initial value for all elements (default: undefined)
+ * @returns New box array
+ *
+ * @example
+ * ```typescript
+ * import { array, box } from 'oakscriptjs';
+ *
+ * // Create array to store gap boxes
+ * const gaps = array.new_box();
+ * const gapBox = box.new(10, 120, 15, 110);
+ * array.push(gaps, gapBox);
+ *
+ * // Track multiple gaps
+ * for (let i = 0; i < array.size(gaps); i++) {
+ *   const gap = array.get(gaps, i);
+ *   const gapTop = box.get_top(gap);
+ *   const gapBottom = box.get_bottom(gap);
+ *   // Check if gap filled...
+ * }
+ * ```
+ *
+ * @remarks
+ * Useful for tracking ranges, gaps, consolidation zones, or rectangle patterns.
+ * Enables systematic analysis of multiple box objects.
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.new_box | PineScript array.new_box}
+ */
+export function new_box(size: simple_int = 0, initial_value?: Box): PineArray<Box> {
+  return new_array<Box>(size, initial_value);
+}
+
+/**
+ * Create new label array
+ *
+ * Creates a new array object of label type elements.
+ *
+ * @param size - Initial size of array (default: 0)
+ * @param initial_value - Initial value for all elements (default: undefined)
+ * @returns New label array
+ *
+ * @example
+ * ```typescript
+ * import { array, label } from 'oakscriptjs';
+ *
+ * // Create array to store pivot labels
+ * const pivotLabels = array.new_label();
+ *
+ * // Add labels for pivot highs
+ * const pivotLabel = label.new(50, 155.5, 'PH', 'bar_index', 'abovebar');
+ * array.push(pivotLabels, pivotLabel);
+ *
+ * // Limit number of labels shown
+ * const maxLabels = 50;
+ * if (array.size(pivotLabels) > maxLabels) {
+ *   array.shift(pivotLabels);
+ * }
+ * ```
+ *
+ * @remarks
+ * Useful for managing collections of annotations, pivot markers, or signal labels.
+ * Helps limit the number of labels displayed by removing old ones.
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.new_label | PineScript array.new_label}
+ */
+export function new_label(size: simple_int = 0, initial_value?: Label): PineArray<Label> {
+  return new_array<Label>(size, initial_value);
+}
+
+/**
+ * Create new linefill array
+ *
+ * Creates a new array object of linefill type elements.
+ *
+ * @param size - Initial size of array (default: 0)
+ * @param initial_value - Initial value for all elements (default: undefined)
+ * @returns New linefill array
+ *
+ * @example
+ * ```typescript
+ * import { array, line, linefill } from 'oakscriptjs';
+ *
+ * // Create array to store channel fills
+ * const channels = array.new_linefill();
+ *
+ * // Create channel
+ * const upperLine = line.new(0, 120, 50, 130);
+ * const lowerLine = line.new(0, 100, 50, 110);
+ * const channelFill = linefill.new(upperLine, lowerLine, '#0000FF15');
+ *
+ * array.push(channels, channelFill);
+ * ```
+ *
+ * @remarks
+ * Useful for managing collections of channel fills, Bollinger Band fills, or regression channel fills.
+ * Enables dynamic color changes across multiple channels.
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_array.new_linefill | PineScript array.new_linefill}
+ */
+export function new_linefill(size: simple_int = 0, initial_value?: Linefill): PineArray<Linefill> {
+  return new_array<Linefill>(size, initial_value);
 }
 
 /**

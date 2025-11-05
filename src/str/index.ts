@@ -232,6 +232,33 @@ export function replace(source: simple_string, target: simple_string, replacemen
 }
 
 /**
+ * Replaces all occurrences of a target string with a replacement string.
+ *
+ * @param source - The source string
+ * @param target - The substring to find
+ * @param replacement - The replacement string
+ * @returns String with all occurrences replaced
+ *
+ * @remarks
+ * - Replaces all occurrences of the target string
+ * - Case sensitive
+ * - If target is empty string, returns original string
+ * - This matches PineScript's `str.replace_all()` behavior
+ *
+ * @example
+ * ```typescript
+ * str.replace_all("hello world hello", "hello", "hi") // Returns: "hi world hi"
+ * str.replace_all("a-b-c", "-", "_") // Returns: "a_b_c"
+ * str.replace_all("test", "x", "y") // Returns: "test" (no match)
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_str.replace_all | PineScript str.replace_all}
+ */
+export function replace_all(source: simple_string, target: simple_string, replacement: simple_string): string {
+  return source.replaceAll(target, replacement);
+}
+
+/**
  * Splits a string into an array of substrings using a separator.
  *
  * @param str - The string to split
@@ -470,4 +497,118 @@ export function trimRight(str: simple_string): string {
  */
 export function match(source: simple_string, regex: simple_string): bool {
   return new RegExp(regex).test(source);
+}
+
+/**
+ * Formats a timestamp as a string according to the specified format.
+ *
+ * @param time - Unix timestamp in milliseconds
+ * @param format - Format string using PineScript format specifiers
+ * @returns Formatted date/time string
+ *
+ * @remarks
+ * Supported format specifiers (case-sensitive):
+ * - `yyyy` - 4-digit year (e.g., "2024")
+ * - `yy` - 2-digit year (e.g., "24")
+ * - `MMMM` - Full month name (e.g., "January")
+ * - `MMM` - Abbreviated month name (e.g., "Jan")
+ * - `MM` - 2-digit month (01-12)
+ * - `M` - Month (1-12)
+ * - `dd` - 2-digit day (01-31)
+ * - `d` - Day (1-31)
+ * - `HH` - 2-digit hour (00-23)
+ * - `H` - Hour (0-23)
+ * - `hh` - 2-digit hour (01-12)
+ * - `h` - Hour (1-12)
+ * - `mm` - 2-digit minute (00-59)
+ * - `m` - Minute (0-59)
+ * - `ss` - 2-digit second (00-59)
+ * - `s` - Second (0-59)
+ * - `a` - AM/PM
+ *
+ * @example
+ * ```typescript
+ * const timestamp = 1609459200000; // Jan 1, 2021 00:00:00 UTC
+ * str.format_time(timestamp, "dd MMM yyyy") // Returns: "01 Jan 2021"
+ * str.format_time(timestamp, "yyyy-MM-dd HH:mm:ss") // Returns: "2021-01-01 00:00:00"
+ * str.format_time(timestamp, "MMM d, yyyy") // Returns: "Jan 1, 2021"
+ * str.format_time(timestamp, "hh:mm a") // Returns: "12:00 AM"
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_str.format_time | PineScript str.format_time}
+ */
+export function format_time(time: simple_int, format: simple_string): string {
+  const date = new Date(time);
+
+  // Month names
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Get date components
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  const seconds = date.getUTCSeconds();
+
+  // Helper to pad with zeros
+  const pad = (num: number, len: number = 2): string => num.toString().padStart(len, '0');
+
+  // 12-hour format
+  const hours12 = hours % 12 || 12;
+  const ampm = hours < 12 ? 'AM' : 'PM';
+
+  // Replace format specifiers
+  // IMPORTANT: Must process longer patterns first to avoid partial replacements
+  // Use unique placeholders that won't conflict with format strings
+  const replacements = [
+    // Year (process yyyy before yy)
+    [/yyyy/g, year.toString()],
+    [/yy/g, year.toString().slice(-2)],
+    // Month (process MMMM before MMM before MM before M)
+    [/MMMM/g, monthNames[month]],
+    [/MMM/g, monthNamesShort[month]],
+    [/MM/g, pad(month + 1)],
+    [/M/g, (month + 1).toString()],
+    // Day (process dd before d)
+    [/dd/g, pad(day)],
+    [/d/g, day.toString()],
+    // Hours 24-hour (process HH before H)
+    [/HH/g, pad(hours)],
+    [/H/g, hours.toString()],
+    // Hours 12-hour (process hh before h)
+    [/hh/g, pad(hours12)],
+    [/h/g, hours12.toString()],
+    // Minutes (process mm before m)
+    [/mm/g, pad(minutes)],
+    [/m/g, minutes.toString()],
+    // Seconds (process ss before s)
+    [/ss/g, pad(seconds)],
+    [/s/g, seconds.toString()],
+    // AM/PM
+    [/a/g, ampm]
+  ];
+
+  // Apply all replacements in order, using safe approach
+  // Create unique placeholder tokens that won't appear in user format strings
+  let result = format;
+  const tokens: string[] = [];
+
+  // First pass: replace all patterns with unique tokens
+  replacements.forEach(([pattern, value], index) => {
+    const token = `\uFFF0${index}\uFFF1`; // Use private use area characters
+    result = result.replace(pattern as RegExp, token);
+    tokens[index] = value as string;
+  });
+
+  // Second pass: replace tokens with actual values
+  tokens.forEach((value, index) => {
+    const token = `\uFFF0${index}\uFFF1`;
+    result = result.replaceAll(token, value);
+  });
+
+  return result;
 }

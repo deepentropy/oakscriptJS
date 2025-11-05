@@ -5,9 +5,15 @@
  * allowing you to write indicator and strategy logic in JavaScript/TypeScript
  * that matches PineScript syntax and behavior.
  *
- * Focus: Calculation and indicator functions only.
- * This library does NOT include rendering (plot, line, label, box, table),
- * UI (input), strategy execution, or data fetching (request) functions.
+ * Focus: Calculation and indicator functions.
+ *
+ * **NEW**: Drawing objects (line, box, label, linefill) are now supported!
+ * While primarily visual in TradingView, these objects have computational value:
+ * - line.get_price() for trend line breakout detection
+ * - box getters for gap detection and range analysis
+ *
+ * This library does NOT include rendering (plot), UI (input), strategy execution,
+ * or data fetching (request) functions.
  *
  * @packageDocumentation
  */
@@ -23,8 +29,12 @@ import * as str from './str';
 import * as color from './color';
 import * as time from './time';
 import * as matrix from './matrix';
+import * as line from './line';
+import * as box from './box';
+import * as label from './label';
+import * as linefill from './linefill';
 
-export { ta, math, array, str, color, time, matrix };
+export { ta, math, array, str, color, time, matrix, line, box, label, linefill };
 
 // Export context API
 export { createContext } from './context';
@@ -48,6 +58,10 @@ export const info = {
   name: 'OakScriptJS',
   version: VERSION,
   description: 'JavaScript mirror of the PineScript API (calculation/indicator functions only)',
-  namespaces: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
-  excludedNamespaces: ['plot', 'line', 'label', 'box', 'table', 'input', 'strategy', 'request', 'alert'],
+  namespaces: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix', 'line', 'box', 'label', 'linefill'],
+  excludedNamespaces: ['plot', 'table', 'input', 'strategy', 'request', 'alert'],
+  drawingObjects: {
+    highValue: ['line', 'box'], // High computational value
+    lowValue: ['label', 'linefill'], // Low computational value, mainly for annotations
+  }
 };

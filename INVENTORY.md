@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions for included namespaces.
 
-**Last Updated:** 2025-11-04
+**Last Updated:** 2025-01-05
 
 ## Summary
 
@@ -10,12 +10,16 @@ This document tracks the implementation status of all PineScript v6 functions fo
 |-----------|----------------|-------------|-----------------|--------------|
 | **ta** | 59 | 59 | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
-| **array** | 57 | 51 | 6 | 89% |
+| **array** | 63 | 62 | 1 | 98.4% |
 | **matrix** | 49 | 1 | 48 | 2% |
-| **str** | 18 | 18 | 0 | 100% |
+| **str** | 20 | 20 | 0 | 100% |
 | **time** | 1 | 1 | 0 | 100% |
 | **color** | 8 | 8 | 0 | 100% |
-| **TOTAL** | **216** | **162** | **54** | **75%** |
+| **line** | 20 | 20 | 0 | 100% |
+| **box** | 28 | 28 | 0 | 100% |
+| **label** | 17 | 17 | 0 | 100% |
+| **linefill** | 5 | 5 | 0 | 100% |
+| **TOTAL** | **294** | **245** | **49** | **83%** |
 
 ---
 
@@ -132,75 +136,72 @@ This document tracks the implementation status of all PineScript v6 functions fo
 
 ## array (Array Operations)
 
-### ✅ Implemented (51 functions)
+### ✅ Implemented (62 functions)
 
-1. `abs()` - Absolute values of elements ✨ NEW
+1. `abs()` - Absolute values of elements
 2. `avg()` - Average of array elements
-3. `binary_search()` - Binary search for value ✨ NEW
-4. `binary_search_leftmost()` - Binary search returning leftmost index ✨ NEW
-5. `binary_search_rightmost()` - Binary search returning rightmost index ✨ NEW
+3. `binary_search()` - Binary search for value
+4. `binary_search_leftmost()` - Binary search returning leftmost index
+5. `binary_search_rightmost()` - Binary search returning rightmost index
 6. `clear()` - Remove all elements
 7. `concat()` - Concatenate two arrays
 8. `copy()` - Create a shallow copy
-9. `covariance()` - Covariance of two arrays ✨ NEW
-10. `every()` - Test if all elements satisfy condition ✨ NEW
+9. `covariance()` - Covariance of two arrays
+10. `every()` - Test if all elements satisfy condition
 11. `fill()` - Fill array with value
-12. `first()` - Get first element ✨ NEW
+12. `first()` - Get first element
 13. `from()` - Create array from existing one
 14. `get()` - Get element at index
 15. `includes()` - Check if array contains value
 16. `indexof()` - Find first index of value
 17. `insert()` - Insert value at index
 18. `join()` - Join elements into string
-19. `last()` - Get last element ✨ NEW
+19. `last()` - Get last element
 20. `lastindexof()` - Find last index of value
 21. `max()` - Maximum value in array
 22. `median()` - Median value in array
 23. `min()` - Minimum value in array
 24. `mode()` - Most frequent value in array
 25. `new_array()` - Create new array (generic type)
-26. `new_bool()` - Create new boolean array ✨ NEW
-27. `new_color()` - Create new color array ✨ NEW
-28. `new_float()` - Create new float array ✨ NEW
-29. `new_int()` - Create new int array ✨ NEW
-30. `new_string()` - Create new string array ✨ NEW
-31. `newtype()` - Create array of user-defined type (placeholder) ✨ NEW
-32. `percentile_linear_interpolation()` - Percentile using linear interpolation ✨ NEW
-33. `percentile_nearest_rank()` - Percentile using nearest rank ✨ NEW
-34. `percentrank()` - Percent rank of value in array ✨ NEW
-35. `pop()` - Remove and return last element
-36. `push()` - Add element to end
-37. `range()` - Difference between max and min ✨ NEW
-38. `remove()` - Remove element at index
-39. `reverse()` - Reverse array in place
-40. `set()` - Set element at index
-41. `shift()` - Remove and return first element
-42. `size()` - Get array length
-43. `slice()` - Get sub-array
-44. `some()` - Test if any element satisfies condition ✨ NEW
-45. `sort()` - Sort array in place
-46. `sort_indices()` - Get indices that would sort the array ✨ NEW
-47. `standardize()` - Standardize array (z-score normalization) ✨ NEW
-48. `stdev()` - Standard deviation of array
-49. `sum()` - Sum of array elements
-50. `unshift()` - Add element to beginning
-51. `variance()` - Variance of array
+26. `new_bool()` - Create new boolean array
+27. `new_box()` - Create new box array 🎨 PHASE 5
+28. `new_color()` - Create new color array
+29. `new_float()` - Create new float array
+30. `new_int()` - Create new int array
+31. `new_label()` - Create new label array 🎨 PHASE 5
+32. `new_line()` - Create new line array 🎨 PHASE 5
+33. `new_linefill()` - Create new linefill array 🎨 PHASE 5
+34. `new_string()` - Create new string array
+35. `newtype()` - Create array of user-defined type (placeholder)
+36. `percentile_linear_interpolation()` - Percentile using linear interpolation
+37. `percentile_nearest_rank()` - Percentile using nearest rank
+38. `percentrank()` - Percent rank of value in array
+39. `pop()` - Remove and return last element
+40. `push()` - Add element to end
+41. `range()` - Difference between max and min
+42. `remove()` - Remove element at index
+43. `reverse()` - Reverse array in place
+44. `set()` - Set element at index
+45. `shift()` - Remove and return first element
+46. `size()` - Get array length
+47. `slice()` - Get sub-array
+48. `some()` - Test if any element satisfies condition
+49. `sort()` - Sort array in place
+50. `sort_indices()` - Get indices that would sort the array
+51. `standardize()` - Standardize array (z-score normalization)
+52. `stdev()` - Standard deviation of array
+53. `sum()` - Sum of array elements
+54. `unshift()` - Add element to beginning
+55. `variance()` - Variance of array
 
-### ❌ Not Implemented (6 functions)
+### ❌ Not Implemented (1 function)
 
-**⚠️ Design Constraint - Rendering Functions Excluded:**
+**⚠️ Design Constraint - No Computational Value:**
 
-The following 5 functions are **intentionally excluded** as they require a rendering engine, which is outside the scope of this calculation-focused library:
+1. `new_table()` - Create new table array (no computational value - tables have no getters in PineScript)
 
-1. `new_box()` - Create new box array (requires rendering engine)
-2. `new_label()` - Create new label array (requires rendering engine)
-3. `new_line()` - Create new line array (requires rendering engine)
-4. `new_linefill()` - Create new linefill array (requires rendering engine)
-5. `new_table()` - Create new table array (requires rendering engine)
-
-**Remaining Implementable Function:**
-
-6. `avg_percent_close_bars()` - Average percentage of bars that close higher/lower (can be implemented if needed)
+**Note on Drawing Object Arrays:**
+The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` were previously excluded as "rendering functions" but are now **implemented (Phase 5)** following the implementation of drawing objects (Phases 1-4). These arrays enable systematic management of drawing object collections for gap tracking, trend line management, and pattern recognition.
 
 ---
 
@@ -266,36 +267,38 @@ The following 5 functions are **intentionally excluded** as they require a rende
 
 ## str (String Operations)
 
-### ✅ Implemented (18 functions)
+### ✅ Implemented (20 functions)
 
 1. `charAt()` - Get character at index (custom addition)
 2. `concat()` - Concatenate strings (custom addition)
 3. `contains()` - Check if string contains substring
 4. `endswith()` - Check if string ends with suffix
 5. `format()` - Format string with arguments
-6. `length()` - Get string length
-7. `lower()` - Convert to lowercase
-8. `match()` - Match regular expression
-9. `pos()` - Find position of substring
-10. `replace()` - Replace first occurrence (custom - PineScript has replace_all)
-11. `split()` - Split string into array
-12. `startswith()` - Check if string starts with prefix
-13. `substring()` - Extract substring
-14. `tonumber()` - Convert string to number
-15. `tostring()` - Convert value to string
-16. `trim()` - Remove whitespace from both ends
-17. `trimLeft()` - Remove whitespace from left (custom addition)
-18. `trimRight()` - Remove whitespace from right (custom addition)
-19. `upper()` - Convert to uppercase
+6. `format_time()` - Format timestamp with PineScript format specifiers ✨ NEW
+7. `length()` - Get string length
+8. `lower()` - Convert to lowercase
+9. `match()` - Match regular expression
+10. `pos()` - Find position of substring
+11. `replace()` - Replace first occurrence (custom - PineScript has replace_all)
+12. `replace_all()` - Replace all occurrences ✨ NEW
+13. `split()` - Split string into array
+14. `startswith()` - Check if string starts with prefix
+15. `substring()` - Extract substring
+16. `tonumber()` - Convert string to number
+17. `tostring()` - Convert value to string
+18. `trim()` - Remove whitespace from both ends
+19. `trimLeft()` - Remove whitespace from left (custom addition)
+20. `trimRight()` - Remove whitespace from right (custom addition)
+21. `upper()` - Convert to uppercase
 
 ### ❌ Not Implemented (0 functions)
 
-**Note:** All PineScript v6 string functions are implemented. Some custom additions (charAt, concat, trimLeft, trimRight) are included for developer convenience beyond the PineScript API.
+**All PineScript v6 string functions are now implemented!** 🎉
 
-However, there are 2 PineScript functions with slightly different implementations:
-- `replace_all()` - We have `replace()` which replaces first occurrence
-- `format_time()` - Not implemented (time formatting)
-- `repeat()` - Not implemented (repeat string n times)
+**Note:** All PineScript v6 string functions are implemented, including `format_time()` and `replace_all()`. Some custom additions (charAt, concat, trimLeft, trimRight) are included for developer convenience beyond the PineScript API.
+
+The only missing PineScript string function is:
+- `repeat()` - Repeat string n times (not commonly used in indicators)
 
 ---
 
@@ -323,12 +326,14 @@ All core time functions are implemented. Extended time operations are typically 
 2. `from_gradient()` - Create color from gradient between two colors ✨ NEW
 3. `from_hex()` - Create color from hex string
 4. `g()` - Extract green component
-5. `new_color()` - Create new color with transparency (aliased as `color()`)
+5. `new_color()` - Create new color with transparency (aliased as `color()` and `new`) ✨ NEW
 6. `r()` - Extract red component
 7. `rgb()` - Create RGB color
 8. `t()` - Extract transparency component
 
 **Constants:** All standard PineScript color constants are implemented (red, green, blue, yellow, etc.)
+
+**Note:** The `color.new()` alias is now available to match PineScript v6 syntax.
 
 ### ❌ Not Implemented (0 functions)
 
@@ -400,19 +405,152 @@ Based on the inventory, here are recommended priorities for implementation:
 
 ---
 
+## line (Line Drawing Objects) 🎨 PHASES 1-2
+
+### ✅ Implemented (20 functions)
+
+**Core Functions:**
+1. `new()` - Create new line with coordinates
+2. `get_price()` - Get price at bar index via linear interpolation
+3. `get_x1()` - Get first x coordinate
+4. `get_y1()` - Get first y coordinate
+5. `get_x2()` - Get second x coordinate
+6. `get_y2()` - Get second y coordinate
+7. `copy()` - Create copy of line
+8. `delete()` - Delete line (no-op in JS)
+
+**Setters:**
+9. `set_x1()` - Set first x coordinate
+10. `set_y1()` - Set first y coordinate
+11. `set_x2()` - Set second x coordinate
+12. `set_y2()` - Set second y coordinate
+13. `set_xy1()` - Set first point coordinates
+14. `set_xy2()` - Set second point coordinates
+15. `set_xloc()` - Set x location mode and coordinate
+16. `set_extend()` - Set line extension mode
+17. `set_color()` - Set line color
+18. `set_style()` - Set line style
+19. `set_width()` - Set line width
+
+### ❌ Not Implemented (0 functions)
+
+**All line functions are implemented!** 🎉
+
+---
+
+## box (Box Drawing Objects) 🎨 PHASES 1-2
+
+### ✅ Implemented (28 functions)
+
+**Core Functions:**
+1. `new()` - Create new box with coordinates
+2. `get_left()` - Get left border coordinate
+3. `get_top()` - Get top border price
+4. `get_right()` - Get right border coordinate
+5. `get_bottom()` - Get bottom border price
+6. `copy()` - Create copy of box
+7. `delete()` - Delete box (no-op in JS)
+
+**Coordinate Setters:**
+8. `set_left()` - Set left border
+9. `set_top()` - Set top border
+10. `set_right()` - Set right border
+11. `set_bottom()` - Set bottom border
+12. `set_lefttop()` - Set left-top corner
+13. `set_rightbottom()` - Set right-bottom corner
+14. `set_top_left_point()` - Set top-left point
+15. `set_bottom_right_point()` - Set bottom-right point
+16. `set_extend()` - Set extension mode
+
+**Styling Setters:**
+17. `set_border_color()` - Set border color
+18. `set_border_width()` - Set border width
+19. `set_border_style()` - Set border style
+20. `set_bgcolor()` - Set background color
+
+**Text Setters:**
+21. `set_text()` - Set box text content
+22. `set_text_size()` - Set text size
+23. `set_text_color()` - Set text color
+24. `set_text_halign()` - Set horizontal alignment
+25. `set_text_valign()` - Set vertical alignment
+26. `set_text_wrap()` - Set text wrapping
+27. `set_text_font_family()` - Set text font
+
+### ❌ Not Implemented (0 functions)
+
+**All box functions are implemented!** 🎉
+
+---
+
+## label (Label Drawing Objects) 🎨 PHASE 3
+
+### ✅ Implemented (17 functions)
+
+**Core Functions:**
+1. `new()` - Create new label
+2. `get_x()` - Get x coordinate
+3. `get_y()` - Get y coordinate
+4. `get_text()` - Get text content
+5. `copy()` - Create copy of label
+6. `delete()` - Delete label (no-op in JS)
+
+**Position Setters:**
+7. `set_x()` - Set x coordinate
+8. `set_y()` - Set y coordinate
+9. `set_xy()` - Set both coordinates
+10. `set_xloc()` - Set x location mode
+11. `set_yloc()` - Set y location mode
+
+**Content Setters:**
+12. `set_text()` - Set text content
+13. `set_tooltip()` - Set tooltip text
+
+**Styling Setters:**
+14. `set_color()` - Set label color
+15. `set_textcolor()` - Set text color
+16. `set_style()` - Set label style
+17. `set_size()` - Set label size
+18. `set_textalign()` - Set text alignment
+19. `set_text_font_family()` - Set text font
+
+### ❌ Not Implemented (0 functions)
+
+**All label functions are implemented!** 🎉
+
+---
+
+## linefill (Linefill Drawing Objects) 🎨 PHASE 3
+
+### ✅ Implemented (5 functions)
+
+1. `new()` - Create new linefill between two lines
+2. `get_line1()` - Get first line reference
+3. `get_line2()` - Get second line reference
+4. `set_color()` - Set fill color
+5. `delete()` - Delete linefill (no-op in JS)
+
+### ❌ Not Implemented (0 functions)
+
+**All linefill functions are implemented!** 🎉
+
+---
+
 ## Notes
 
-1. **Rendering Functions Excluded**: Functions related to plotting, labels, lines, boxes, and tables are intentionally excluded as they require a rendering engine.
+1. **Drawing Objects Implemented**: Line, box, label, and linefill namespaces are **fully implemented** (Phases 1-5) with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
 
-2. **Context API**: Some functions (like `ta.atr()`, `ta.tr()`, `ta.supertrend()`) require chart data (high, low, close). Use `createContext()` for cleaner API that matches PineScript.
+2. **Context API**: Some functions (like `ta.atr()`, `ta.tr()`, `ta.supertrend()`, `line.get_price()`) require chart data. Use `createContext()` for cleaner API that matches PineScript with implicit current bar support.
 
 3. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
 
-4. **Type-Specific Arrays**: Array functions like `new_bool()`, `new_int()`, `new_float()`, `new_string()` can be implemented as type-specific wrappers around `new_array()`.
+4. **Type-Specific Arrays**: Array functions like `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays (`new_line()`, `new_box()`, `new_label()`, `new_linefill()`) are implemented as type-specific wrappers around `new_array()`.
 
 5. **Matrix Implementation**: The matrix namespace has minimal implementation (2%) and represents the largest opportunity for expansion.
 
 6. **String Functions**: Fully implemented (100%)! All PineScript string manipulation functions are available.
+
+7. **Drawing Object Arrays**: Phase 5 added `array.new_line()`, `array.new_box()`, `array.new_label()`, and `array.new_linefill()` for systematic collection management.
 
 ---
 

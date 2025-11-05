@@ -14,17 +14,28 @@ OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's calcula
 - ✅ Strings (`str.*`) - String manipulation
 - ✅ Time (`time.*`) - Time calculations and conversions
 - ✅ Color (`color.*`) - Color data structures and manipulation
+- ✅ **Drawing Objects** (`line.*`, `box.*`, `label.*`, `linefill.*`) - Computational features only
 
 **This library does NOT include:**
-- ❌ Rendering functions (`plot.*`, `line.*`, `label.*`, `box.*`, `table.*`)
+- ❌ Rendering functions (`plot.*`, `table.*`)
 - ❌ UI/Input functions (`input.*`)
 - ❌ Strategy execution (`strategy.*`)
 - ❌ Data fetching (`request.*`)
 - ❌ Alert systems (`alert.*`, `alertcondition.*`)
 
+## Why Include Drawing Objects?
+
+While drawing objects (`line`, `box`, `label`, `linefill`) are primarily visual in TradingView, they have **genuine computational value**:
+
+- **`line.get_price()`** - Calculate trend line prices using linear interpolation for breakout detection
+- **`box` getters** - Detect gap fills, range breakouts, and pattern recognition
+- **`label` & `linefill`** - Primarily annotations, but useful for algorithmic context
+
+These objects are implemented **without rendering** - focusing purely on their computational aspects.
+
 ## Why These Limitations?
 
-These excluded namespaces require external infrastructure (rendering engines, UI frameworks, data feeds, backtesting systems) that are specific to TradingView's platform. OakScriptJS focuses on what can be accurately replicated in pure JavaScript: calculations and data transformations.
+The excluded namespaces require external infrastructure (rendering engines, UI frameworks, data feeds, backtesting systems) that are specific to TradingView's platform. OakScriptJS focuses on what can be accurately replicated in pure JavaScript: calculations and data transformations.
 
 ## Features
 
@@ -71,7 +82,7 @@ npm install @deepentropy/oakscriptjs
 ## Quick Start
 
 ```typescript
-import { ta, math } from '@deepentropy/oakscriptjs';
+import { ta, math, line, box, createContext } from '@deepentropy/oakscriptjs';
 
 // Calculate Simple Moving Average
 const prices = [10, 12, 11, 13, 15, 14, 16, 18, 17, 19];
@@ -86,6 +97,16 @@ const [macdLine, signalLine, histogram] = ta.macd(prices, 12, 26, 9);
 // Use math functions
 const max = math.max(10, 20, 30); // 30
 const avg = math.avg(10, 20, 30); // 20
+
+// NEW: Use drawing objects for computational analysis
+const trendLine = line.new(0, 100, 50, 150);
+const priceAt25 = line.get_price(trendLine, 25); // 125 (linear interpolation)
+
+// Detect gap with box
+const gapBox = box.new(10, 120, 15, 110);
+const gapTop = box.get_top(gapBox);
+const gapBottom = box.get_bottom(gapBox);
+const gapFilled = prices[20] > gapBottom && prices[20] < gapTop;
 ```
 
 ## Use Cases
@@ -163,6 +184,39 @@ Color creation and manipulation:
 - **Creation**: `rgb()`, `from_hex()`, `new_color()`
 - **Components**: `r()`, `g()`, `b()`, `t()`
 - **Predefined Colors**: `red`, `green`, `blue`, `yellow`, etc.
+
+### Drawing Objects ✅
+
+**NEW**: Drawing objects with computational features (no rendering):
+
+#### Line (`line`) - High Computational Value
+
+- **Creation**: `new()` - Create trend lines with coordinates
+- **Computation**: `get_price()` - Linear interpolation for breakout detection
+- **Getters**: `get_x1()`, `get_y1()`, `get_x2()`, `get_y2()`
+- **Setters**: `set_x1()`, `set_y1()`, `set_xy1()`, `set_color()`, `set_style()`, etc.
+- **Operations**: `copy()`, `delete()`
+
+#### Box (`box`) - High Computational Value
+
+- **Creation**: `new()` - Create rectangles for ranges
+- **Computation**: `get_top()`, `get_bottom()`, `get_left()`, `get_right()` - Gap detection & range analysis
+- **Setters**: `set_top()`, `set_bottom()`, `set_bgcolor()`, `set_border_color()`, etc.
+- **Operations**: `copy()`, `delete()`
+
+#### Label (`label`) - Annotation
+
+- **Creation**: `new()` - Create labels at coordinates
+- **Getters**: `get_x()`, `get_y()`, `get_text()`
+- **Setters**: `set_xy()`, `set_text()`, `set_color()`, `set_style()`, etc.
+- **Operations**: `copy()`, `delete()`
+
+#### Linefill (`linefill`) - Annotation
+
+- **Creation**: `new()` - Fill between two lines
+- **Getters**: `get_line1()`, `get_line2()`
+- **Setters**: `set_color()`
+- **Operations**: `delete()`
 
 ## API Documentation
 
@@ -310,6 +364,7 @@ oakscriptjs/
 - [x] `array` namespace - Complete
 - [x] `str` namespace - Complete
 - [x] `color` namespace - Complete
+- [x] **`line`, `box`, `label`, `linefill`** - Drawing objects (computational features only)
 
 **Improvements:**
 - [ ] Performance benchmarks
@@ -318,7 +373,7 @@ oakscriptjs/
 - [ ] More test coverage
 
 **Explicitly Excluded** (require external infrastructure):
-- ❌ `plot`, `line`, `label`, `box`, `table` - Rendering functions
+- ❌ `plot`, `table` - Rendering functions
 - ❌ `input` - UI controls
 - ❌ `strategy` - Strategy execution engine
 - ❌ `request` - Data fetching

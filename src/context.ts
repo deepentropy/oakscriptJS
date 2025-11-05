@@ -5,7 +5,7 @@
  * @example
  * ```typescript
  * // Setup context once with your chart data
- * const { ta, math, str } = createContext({
+ * const { ta, math, str, line, box } = createContext({
  *   chart: { high, low, close, open, volume }
  * });
  *
@@ -14,6 +14,10 @@
  * const atr14 = ta.atr(14);
  * const trueRange = ta.tr();
  *
+ * // Drawing objects with implicit current bar
+ * const trendLine = line.new(0, 100, 50, 150);
+ * const currentPrice = line.get_price(trendLine); // Uses current bar implicitly
+ *
  * // Other namespaces work as normal
  * const sma20 = ta.sma(close, 20);
  * const rounded = math.round(value, 2);
@@ -21,6 +25,7 @@
  *
  * @remarks
  * - Only functions requiring implicit chart data are wrapped
+ * - line.get_price() can use implicit current bar index
  * - Functions with explicit parameters work unchanged
  * - Multiple contexts can coexist (no global state)
  * - TypeScript provides full type safety
@@ -28,12 +33,16 @@
  * @version 6
  */
 
-import { Source, simple_float, simple_int, simple_bool, series_float, series_int, float, Bar } from './types';
+import { Source, simple_float, simple_int, simple_bool, series_float, series_int, float, Bar, Line, Box as _Box, Label as _Label, Linefill as _Linefill, color as _color } from './types';
 import * as taFunctions from './ta';
 import * as mathFunctions from './math';
 import * as strFunctions from './str';
 import * as colorFunctions from './color';
 import * as arrayFunctions from './array';
+import * as lineFunctions from './line';
+import * as boxFunctions from './box';
+import * as labelFunctions from './label';
+import * as linefillFunctions from './linefill';
 import { getSource as utilGetSource, formatOutput, ohlcFromBars } from './utils';
 
 /**
@@ -400,6 +409,80 @@ export function createContext(config: ContextConfig = {}): OakContext {
       ...arrayFunctions,
     },
 
+    /**
+     * Line namespace with context-aware functions.
+     *
+     * @remarks
+     * line.get_price() can use implicit current bar index when not provided.
+     */
+    line: {
+      ...lineFunctions,
+
+      /**
+       * Gets the price level of the line at a given bar index.
+       * Now uses implicit current bar from context when x is not provided.
+       *
+       * @param id - Line object
+       * @param x - Bar index (optional, defaults to current bar from context)
+       * @returns Price value at that bar index, or NaN if outside line bounds
+       *
+       * @example
+       * ```typescript
+       * const { line } = createContext({ data: bars });
+       * const trendLine = line.new(0, 100, 50, 150);
+       *
+       * // Get price at current bar (implicit)
+       * const currentPrice = line.get_price(trendLine);
+       *
+       * // Get price at specific bar
+       * const priceAt25 = line.get_price(trendLine, 25);
+       * ```
+       */
+      get_price: (id: Line, x?: number): number => {
+        // If x not provided and we have chart data, use current bar index
+        if (x === undefined) {
+          if (!chart) {
+            throw new Error(
+              'Chart context required for implicit bar index in line.get_price(). ' +
+              'Either provide x parameter or call createContext({ chart }) first.'
+            );
+          }
+          x = chart.close.length - 1;
+        }
+        return lineFunctions.get_price(id, x);
+      }
+    },
+
+    /**
+     * Box namespace - all functions passed through.
+     *
+     * @remarks
+     * Box functions work with explicit coordinates and don't need context wrappers.
+     */
+    box: {
+      ...boxFunctions,
+    },
+
+    /**
+     * Label namespace - all functions passed through.
+     *
+     * @remarks
+     * Label functions work with explicit coordinates and don't need context wrappers.
+     */
+    label: {
+      ...labelFunctions,
+    },
+
+    /**
+     * Linefill namespace - all functions passed through.
+     *
+     * @remarks
+     * Linefill functions work with line references and don't need context wrappers.
+     */
+    linefill: {
+      ...linefillFunctions,
+    },
+
     // ===== UTILITY FUNCTIONS =====
 
     /**
@@ -479,6 +562,13 @@ export interface OakContext {
   math: typeof mathFunctions;
   str: typeof strFunctions;
   color: typeof colorFunctions;
+  array: typeof arrayFunctions;
+  line: typeof lineFunctions & {
+    get_price: (id: Line, x?: number) => number;
+  };
+  box: typeof boxFunctions;
+  label: typeof labelFunctions;
+  linefill: typeof linefillFunctions;
   getSource: (source?: 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4') => series_float;
   format: (values: series_float, timestamps?: number[]) => Array<{ time: number; value: number | null }>;
 }
