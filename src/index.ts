@@ -36,6 +36,56 @@ import * as linefill from './linefill';
 
 export { ta, math, array, str, color, time, matrix, line, box, label, linefill };
 
+// Export indicator controller (internal - used by DSL compile())
+// Note: These are low-level APIs. Users should use the DSL instead.
+export {
+  IndicatorController,
+  createIndicator,
+  type PlotMetadata,
+  type IndicatorMetadata,
+  type IndicatorControllerInterface,
+  type IChartApi,
+  type ISeriesApi
+} from './indicator';
+
+// Export PineScript DSL (high-level API)
+export {
+  // DSL functions
+  indicator,
+  plot,
+  hline,
+  compile,
+  // Built-in series (note: 'time' is renamed to avoid conflict with time namespace)
+  close,
+  open,
+  high,
+  low,
+  volume,
+  hl2,
+  hlc3,
+  ohlc4,
+  hlcc4,
+  bar_index,
+  // Runtime
+  Series,
+  getContext as getDSLContext,
+  resetContext as resetDSLContext,
+  // Types
+  type IndicatorOptions,
+  type PlotOptions,
+  type HLineOptions,
+  type CompiledIndicator,
+  type Color,
+} from './dsl';
+
+// Export time series separately to avoid name conflict
+export { time as timeSeriesDSL } from './runtime/builtins';
+
+// Re-export DSL modules for namespace access
+import * as dslTa from './dsl/ta';
+import * as dslColor from './dsl/color';
+export { dslTa as taDSL, dslColor as colorDSL };
+
 // Export context API
 export { createContext } from './context';
 export type { ChartData, SymbolInfo, ContextConfig, OakContext } from './context';
@@ -49,7 +99,7 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
 // Version
-export const VERSION = '0.1.1';
+export const VERSION = '0.1.2';
 
 /**
  * Library information
@@ -63,5 +113,8 @@ export const info = {
   drawingObjects: {
     highValue: ['line', 'box'], // High computational value
     lowValue: ['label', 'linefill'], // Low computational value, mainly for annotations
+  },
+  features: {
+    indicatorController: 'Standardized controller for Lightweight Charts integration'
   }
 };
