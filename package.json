@@ -15,6 +15,7 @@
   },
   "files": [
     "dist",
+    "babel-plugin",
     "README.md",
     "LICENSE"
   ],

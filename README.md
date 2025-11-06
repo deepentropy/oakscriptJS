@@ -1,8 +1,16 @@
 # OakScriptJS
 
-**JavaScript mirror of the PineScript API - Calculation & Indicator Functions**
+**JavaScript mirror of the PineScript API - with 100% PineScript-like Syntax**
 
-OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's calculation and indicator API, maintaining exact function signatures and behavior. This library focuses on the computational core of PineScript - technical analysis, mathematics, and data manipulation - making it perfect for building custom trading engines, backtesting systems, or analysis tools in JavaScript/TypeScript.
+OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's API, enabling you to write indicators that look exactly like PineScript. Perfect for building trading engines, backtesting systems, or transpiling PineScript with **OakScriptEngine**.
+
+📚 **[Read the Complete Guide →](./GUIDE.md)**
+
+## Three Levels of API
+
+1. **Computational Core**: Pure calculation functions
+2. **PineScript DSL**: Declarative indicator syntax
+3. **Native Operators**: 100% PineScript-like with `close - open`
 
 ## Scope
 
@@ -45,6 +53,7 @@ The excluded namespaces require external infrastructure (rendering engines, UI f
 - **Calculation-Focused**: All computational functions from PineScript
 - **Well Tested**: Extensive test coverage ensuring accuracy
 - **Zero Dependencies**: Lightweight with no external runtime dependencies
+- **PineScript DSL**: NEW! Write indicators that look exactly like PineScript
 
 ## Priorities
 
@@ -81,42 +90,71 @@ npm install @deepentropy/oakscriptjs
 
 ## Quick Start
 
+### Option 1: Basic Calculations
+
 ```typescript
-import { ta, math, line, box, createContext } from '@deepentropy/oakscriptjs';
+import { ta } from '@deepentropy/oakscriptjs';
 
-// Calculate Simple Moving Average
-const prices = [10, 12, 11, 13, 15, 14, 16, 18, 17, 19];
-const sma20 = ta.sma(prices, 5);
-
-// Calculate RSI
-const rsi = ta.rsi(prices, 14);
-
-// Calculate MACD
-const [macdLine, signalLine, histogram] = ta.macd(prices, 12, 26, 9);
-
-// Use math functions
-const max = math.max(10, 20, 30); // 30
-const avg = math.avg(10, 20, 30); // 20
-
-// NEW: Use drawing objects for computational analysis
-const trendLine = line.new(0, 100, 50, 150);
-const priceAt25 = line.get_price(trendLine, 25); // 125 (linear interpolation)
-
-// Detect gap with box
-const gapBox = box.new(10, 120, 15, 110);
-const gapTop = box.get_top(gapBox);
-const gapBottom = box.get_bottom(gapBox);
-const gapFilled = prices[20] > gapBottom && prices[20] < gapTop;
+const closes = [100, 102, 101, 103, 105];
+const sma = ta.sma(closes, 3);
+const rsi = ta.rsi(closes, 14);
 ```
+
+### Option 2: PineScript-Style Indicators
+
+```typescript
+import { indicator, plot, close, ta, color, compile } from '@deepentropy/oakscriptjs';
+
+indicator("My RSI");
+const rsi = ta.rsi(close, 14);
+plot(rsi, {color: color.purple});
+
+export default compile();
+```
+
+### Option 3: Native Operators (100% PineScript-like!)
+
+```typescript
+import { indicator, plot, close, open, high, low, compile } from '@deepentropy/oakscriptjs';
+
+indicator("Balance of Power");
+const bop = (close - open) / (high - low);  // Native operators!
+plot(bop);
+
+export default compile();
+```
+
+📚 **[See Complete Examples in the Guide →](./GUIDE.md#examples)**
 
 ## Use Cases
 
-OakScriptJS is perfect for:
-- **Custom Trading Engines** - Build your own backtesting or execution system
-- **Analysis Tools** - Create technical analysis applications
-- **Data Processing** - Calculate indicators on market data
-- **Algorithm Development** - Develop and test trading algorithms
-- **Educational Projects** - Learn about technical indicators
+- 🎯 **OakScriptEngine Integration** - Transpile PineScript to JavaScript
+- 📊 **Custom Trading Engines** - Build backtesting or execution systems
+- 📈 **Analysis Tools** - Create technical analysis applications
+- 🤖 **Algorithm Development** - Develop trading algorithms
+- 📚 **Educational Projects** - Learn technical indicators
+
+## For OakScriptEngine Developers
+
+OakScriptJS is designed to make PineScript transpilation straightforward:
+
+```typescript
+// PineScript
+indicator("My Indicator")
+bop = (close - open) / (high - low)
+plot(bop)
+
+// Transpiles to (with Babel plugin)
+import { indicator, plot, close, open, high, low, compile } from '@deepentropy/oakscriptjs';
+indicator("My Indicator");
+const bop = (close - open) / (high - low);
+plot(bop);
+export default compile();
+```
+
+**95-100% similarity to PineScript!**
+
+📚 **[Complete Transpilation Guide →](./GUIDE.md#for-oakscriptengine-developers)**
 
 ## Supported Namespaces
 
@@ -391,6 +429,13 @@ Contributions are welcome! Please ensure:
 ## License
 
 MIT
+
+## Documentation
+
+- 📚 **[Complete Guide](./GUIDE.md)** - User guide + OakScriptEngine transpilation guide
+- 🔌 **[Babel Plugin Guide](./docs/BABEL_PLUGIN_GUIDE.md)** - Native operators setup
+- 📊 **[Examples](./examples/indicators/)** - Working indicator examples
+- 🎯 **[API Reference](./GUIDE.md#api-reference)** - Complete API documentation
 
 ## Acknowledgments
 
