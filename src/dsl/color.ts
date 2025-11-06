@@ -25,7 +25,29 @@ function createColor(hex: string): string {
  * Pine color constants
  * Exported as simple strings for compatibility with IndicatorController
  */
-export const color = {
+export const color: {
+  readonly red: string;
+  readonly green: string;
+  readonly blue: string;
+  readonly yellow: string;
+  readonly orange: string;
+  readonly purple: string;
+  readonly white: string;
+  readonly black: string;
+  readonly gray: string;
+  readonly grey: string;
+  readonly aqua: string;
+  readonly lime: string;
+  readonly maroon: string;
+  readonly navy: string;
+  readonly olive: string;
+  readonly teal: string;
+  readonly fuchsia: string;
+  readonly silver: string;
+  new(col: string, transp: number): string;
+  rgb(r: number, g: number, b: number, transp?: number): string;
+  from_hex(hex: string): string;
+} = {
   // Basic colors
   red: 'red',
   green: 'green',
