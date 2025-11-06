@@ -99,7 +99,7 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
 // Version
-export const VERSION = '0.1.2';
+export const VERSION = '0.1.3';
 
 /**
  * Library information
@@ -115,6 +115,8 @@ export const info = {
     lowValue: ['label', 'linefill'], // Low computational value, mainly for annotations
   },
   features: {
-    indicatorController: 'Standardized controller for Lightweight Charts integration'
+    dsl: 'PineScript DSL with indicator(), plot(), compile()',
+    nativeOperators: 'Native operators with Babel plugin (close - open)',
+    lightweightCharts: 'Integrated with Lightweight Charts v5'
   }
 };

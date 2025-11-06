@@ -47,13 +47,13 @@ The excluded namespaces require external infrastructure (rendering engines, UI f
 
 ## Features
 
+- **100% PineScript Syntax**: Native operators with Babel plugin - write `(close - open) / (high - low)`
 - **Exact API Match**: Function signatures match PineScript exactly
 - **Type Safety**: Full TypeScript support with type definitions
+- **PineScript DSL**: Declarative indicator syntax with `indicator()`, `plot()`, `compile()`
 - **Performance Optimized**: Efficient implementations for technical analysis
-- **Calculation-Focused**: All computational functions from PineScript
-- **Well Tested**: Extensive test coverage ensuring accuracy
 - **Zero Dependencies**: Lightweight with no external runtime dependencies
-- **PineScript DSL**: NEW! Write indicators that look exactly like PineScript
+- **Well Tested**: Extensive test coverage ensuring accuracy
 
 ## Priorities
 
@@ -152,9 +152,16 @@ plot(bop);
 export default compile();
 ```
 
-**95-100% similarity to PineScript!**
+**100% PineScript syntax with Babel plugin!**
 
 📚 **[Complete Transpilation Guide →](./GUIDE.md#for-oakscriptengine-developers)**
+
+## What's New in v0.1.3
+
+- ✅ **Streamlined Documentation**: Single approach using native operators with Babel
+- ✅ **Cleaner Examples**: All examples updated to use DSL with native operators
+- ✅ **Better Organization**: Removed outdated examples, kept only PineScript DSL patterns
+- ✅ **Internal Refactoring**: IndicatorController is now internal implementation detail
 
 ## Supported Namespaces
 
@@ -319,11 +326,11 @@ ta.bb(
 
 ## Examples
 
-See the `/examples` directory for complete examples:
+See the `/examples/indicators` directory for complete examples:
 
-- `basic-indicators.ts` - Basic indicator calculations
-- `strategy-example.ts` - Trading strategy implementation
-- `custom-indicator.ts` - Building custom indicators
+- `balance-of-power.ts` - Balance of Power indicator with native operators
+- `rsi.ts` - RSI with native operators and horizontal lines
+- `macd.ts` - MACD with native operators and histogram
 
 ## Type System
 

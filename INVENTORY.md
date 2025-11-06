@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions for included namespaces.
 
-**Last Updated:** 2025-01-05
+**Last Updated:** 2025-01-06 (v0.1.3)
 
 ## Summary
 
