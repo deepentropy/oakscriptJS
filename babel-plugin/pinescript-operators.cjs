@@ -72,6 +72,24 @@ module.exports = function ({ types: t }) {
       return isSeries(node.object, scope);
     }
 
+    // Check if it's a binary expression - if any operand is a Series, the result is a Series
+    // This handles cases like: (close - open) / (high - low)
+    if (t.isBinaryExpression(node)) {
+      return isSeries(node.left, scope) || isSeries(node.right, scope);
+    }
+
+    // Check if it's a logical expression - if any operand is a Series, the result is a Series
+    // This handles cases like: condition1 && condition2
+    if (t.isLogicalExpression(node)) {
+      return isSeries(node.left, scope) || isSeries(node.right, scope);
+    }
+
+    // Check if it's a unary expression - if the argument is a Series, the result is a Series
+    // This handles cases like: -close or !condition
+    if (t.isUnaryExpression(node)) {
+      return isSeries(node.argument, scope);
+    }
+
     // Check if variable is assigned from a Series
     if (t.isIdentifier(node)) {
       const binding = scope.getBinding(node.name);
