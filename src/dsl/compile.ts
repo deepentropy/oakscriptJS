@@ -103,11 +103,16 @@ export function compile(): CompiledIndicator {
           const firstPlot = plots[0]!;
           const values = firstPlot.series._compute();
 
-          // Format for Lightweight Charts
-          return data.map((bar, i) => ({
-            time: bar.time,
-            value: values[i],
-          }));
+          // Filter out NaN values (PineScript's na)
+          // Note: lightweight-charts always bridges gaps - there's no way to create
+          // true breaks like PineScript's plot.style_linebr. We filter NaN values
+          // to prevent errors, and the line will naturally bridge across missing data.
+          return data
+            .map((bar, i) => ({
+              time: bar.time,
+              value: values[i],
+            }))
+            .filter(point => !Number.isNaN(point.value));
         }
 
         return [];
