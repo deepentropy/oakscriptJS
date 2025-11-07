@@ -32,6 +32,13 @@ export type input_bool = bool;
 export type input_string = string;
 export type input_color = color;
 
+// Const types (compile-time constants)
+export type const_int = int;
+export type const_float = float;
+export type const_bool = bool;
+export type const_string = string;
+export type const_color = color;
+
 // Source types for indicators
 export type Source = series_float;
 
@@ -232,6 +239,66 @@ export type series_box = series<Box>;
 export type series_label = series<Label>;
 export type series_linefill = series<Linefill>;
 export type series_table = series<Table>;
+
+/**
+ * Plot object - Represents a plot instance created by plot() function
+ * @remarks
+ * In PineScript, plot() returns a reference to a plot instance that can be used with fill().
+ * This ID is used to reference the plot for filling between plots.
+ */
+export interface Plot {
+  /** Unique identifier for this plot */
+  id: string;
+  /** Series being plotted */
+  series: any;
+  /** Plot title */
+  title?: string;
+  /** Plot color */
+  color?: any;
+  /** Line width */
+  linewidth?: number;
+  /** Plot style */
+  style?: 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns';
+  /** Track price on y-axis */
+  trackprice?: boolean;
+  /** Histogram base level */
+  histbase?: number;
+  /** Offset in bars */
+  offset?: number;
+  /** Join gaps */
+  join?: boolean;
+  /** Editable in chart */
+  editable?: boolean;
+  /** Display mode */
+  display?: 'all' | 'none';
+}
+
+/**
+ * HLine object - Represents a horizontal line instance created by hline() function
+ * @remarks
+ * In PineScript, hline() returns a reference to an hline instance that can be used with fill().
+ * This ID is used to reference the horizontal line for filling between levels.
+ */
+export interface HLine {
+  /** Unique identifier for this hline */
+  id: string;
+  /** Price level for the horizontal line */
+  price: number;
+  /** Line title */
+  title?: string;
+  /** Line color */
+  color?: any;
+  /** Line style */
+  linestyle?: 'solid' | 'dashed' | 'dotted';
+  /** Line width */
+  linewidth?: number;
+  /** Editable in chart */
+  editable?: boolean;
+}
+
+// Series types for plot and hline (always series qualifier in PineScript)
+export type series_plot = Plot;
+export type series_hline = HLine;
 
 // Excluded types (StrategyEntry, StrategyExit) - not used in calculation-only library
 

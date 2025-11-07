@@ -6,6 +6,7 @@
 import { getContext } from '../runtime/context';
 import type { PlotRegistration } from '../runtime/context';
 import type { Series } from '../runtime/series';
+import type { Plot } from '../types';
 
 /**
  * Options for plot() function
@@ -36,21 +37,23 @@ export interface PlotOptions {
 /**
  * Plot a series on the chart
  *
- * This function registers a plot in the runtime context.
+ * This function registers a plot in the runtime context and returns a reference to it.
+ * The returned reference can be used with fill() to color the space between plots.
  * Equivalent to PineScript's plot() function.
  *
  * @param series - Series to plot
  * @param options - Plot options
+ * @returns Plot reference that can be used with fill()
  *
  * @example
  * ```typescript
  * plot(close);
- * plot(close, {title: "Close", color: color.blue});
- * plot(rsi, {title: "RSI", color: color.purple, linewidth: 2});
- * plot(volume, {style: "histogram", color: color.gray});
+ * const p1 = plot(close, {title: "Close", color: color.blue});
+ * const p2 = plot(rsi, {title: "RSI", color: color.purple, linewidth: 2});
+ * fill(p1, p2, {color: color.new(color.blue, 90)});
  * ```
  */
-export function plot(series: Series, options: PlotOptions = {}): void {
+export function plot(series: Series, options: PlotOptions = {}): Plot {
   const registration: PlotRegistration = {
     series,
     title: options.title,
@@ -65,5 +68,5 @@ export function plot(series: Series, options: PlotOptions = {}): void {
     display: options.display || 'all',
   };
 
-  getContext().registerPlot(registration);
+  return getContext().registerPlot(registration);
 }

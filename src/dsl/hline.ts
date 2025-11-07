@@ -5,6 +5,7 @@
 
 import { getContext } from '../runtime/context';
 import type { HLineRegistration } from '../runtime/context';
+import type { HLine } from '../types';
 
 /**
  * Options for hline() function
@@ -25,21 +26,23 @@ export interface HLineOptions {
 /**
  * Draw a horizontal line at a specific price level
  *
- * This function registers a horizontal line in the runtime context.
+ * This function registers a horizontal line in the runtime context and returns a reference to it.
+ * The returned reference can be used with fill() to color the space between levels or plots.
  * Equivalent to PineScript's hline() function.
  *
  * @param price - Price level for the horizontal line
  * @param options - Hline options
+ * @returns HLine reference that can be used with fill()
  *
  * @example
  * ```typescript
  * hline(0);
- * hline(0, {title: "Zero Line", color: color.gray});
- * hline(70, {title: "Overbought", color: color.red, linestyle: "dashed"});
- * hline(30, {title: "Oversold", color: color.green, linestyle: "dashed"});
+ * const h1 = hline(70, {title: "Overbought", color: color.red, linestyle: "dashed"});
+ * const h2 = hline(30, {title: "Oversold", color: color.green, linestyle: "dashed"});
+ * fill(h1, h2, {color: color.new(color.gray, 90)});
  * ```
  */
-export function hline(price: number, options: HLineOptions = {}): void {
+export function hline(price: number, options: HLineOptions = {}): HLine {
   const registration: HLineRegistration = {
     price,
     title: options.title,
@@ -49,5 +52,5 @@ export function hline(price: number, options: HLineOptions = {}): void {
     editable: options.editable,
   };
 
-  getContext().registerHLine(registration);
+  return getContext().registerHLine(registration);
 }

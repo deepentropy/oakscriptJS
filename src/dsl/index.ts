@@ -7,6 +7,7 @@
 export { indicator } from './indicator';
 export { plot } from './plot';
 export { hline } from './hline';
+export { fill } from './fill';
 export { compile } from './compile';
 
 // Color and format constants
@@ -39,5 +40,6 @@ export { getContext, resetContext, createIsolatedContext } from '../runtime/cont
 export type { IndicatorOptions } from './indicator';
 export type { PlotOptions } from './plot';
 export type { HLineOptions } from './hline';
+export type { FillOptions } from './fill';
 export type { CompiledIndicator } from './compile';
 export type { Color } from './color';

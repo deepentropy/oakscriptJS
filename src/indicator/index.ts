@@ -3,6 +3,9 @@
  * @module indicator
  */
 
+import type { SeriesType, SeriesDefinition } from 'lightweight-charts';
+import { LineSeries, HistogramSeries, AreaSeries } from 'lightweight-charts';
+
 /**
  * Metadata for a single plot line in an indicator
  */
@@ -53,13 +56,13 @@ export interface IndicatorControllerInterface {
  * Type definition for Lightweight Charts IChartApi
  * @external
  */
-export type IChartApi = any;
+export type IChartApi = import('lightweight-charts').IChartApi;
 
 /**
  * Type definition for Lightweight Charts ISeriesApi
  * @external
  */
-export type ISeriesApi = any;
+export type ISeriesApi = import('lightweight-charts').ISeriesApi<any>;
 
 /**
  * Controller class for managing indicator lifecycle and rendering
@@ -150,8 +153,8 @@ export class IndicatorController implements IndicatorControllerInterface {
     if (!this.metadata.overlay) {
       const panes = this.chart.panes();
       if (panes && panes.length > 1) {
-        panes[0].setHeight(400); // Main chart
-        panes[1].setHeight(200); // Indicator pane
+        panes[0]!.setHeight(400); // Main chart
+        panes[1]!.setHeight(200); // Indicator pane
       }
     }
   }
@@ -189,7 +192,8 @@ export class IndicatorController implements IndicatorControllerInterface {
 
     try {
       const sourceData = this.mainSeries.data();
-      const indicatorValues = this.calculateFn(sourceData, this.options);
+      // Convert readonly array to mutable array for calculation function
+      const indicatorValues = this.calculateFn([...sourceData], this.options);
 
       // For single plot indicators
       if (this.series[0] && indicatorValues) {
@@ -230,21 +234,20 @@ export class IndicatorController implements IndicatorControllerInterface {
    * Map Pine plot style to Lightweight Charts series type
    *
    * @param style - Pine plot style name
-   * @returns Lightweight Charts series type constant
+   * @returns Lightweight Charts series definition (v5 API)
    */
-  private getSeriesType(style: string): string {
-    // Map Pine plot styles to Lightweight Charts series types
-    // Note: These need to be the actual imports from lightweight-charts
-    // For now we return string identifiers that match the API
+  private getSeriesType(style: string): SeriesDefinition<SeriesType> {
+    // Map Pine plot styles to Lightweight Charts v5 series types
+    // v5 requires actual series definition objects, not string identifiers
     switch (style) {
       case 'histogram':
-        return 'Histogram';
+        return HistogramSeries;
       case 'area':
-        return 'Area';
+        return AreaSeries;
       case 'line':
       case 'stepline':
       default:
-        return 'Line';
+        return LineSeries;
     }
   }
 

@@ -28,7 +28,7 @@ export function size<T>(id: PineArray<T>): int {
  * Returns the element at the specified index
  */
 export function get<T>(id: PineArray<T>, index: simple_int): T {
-  return id[index];
+  return id[index]!;
 }
 
 /**
@@ -84,7 +84,7 @@ export function insert<T>(id: PineArray<T>, index: simple_int, value: T): void {
  * Removes the element at the specified index
  */
 export function remove<T>(id: PineArray<T>, index: simple_int): T {
-  return id.splice(index, 1)[0];
+  return id.splice(index, 1)[0]!;
 }
 
 /**
@@ -190,7 +190,7 @@ export function max(id: PineArray<float>): float {
 export function median(id: PineArray<float>): float {
   const sorted = [...id].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
 }
 
 /**
@@ -199,7 +199,7 @@ export function median(id: PineArray<float>): float {
 export function mode(id: PineArray<float>): float {
   const frequency: Map<float, int> = new Map();
   let maxFreq = 0;
-  let mode = id[0];
+  let mode = id[0]!;
 
   for (const val of id) {
     const freq = (frequency.get(val) || 0) + 1;
@@ -267,7 +267,7 @@ export function from<T>(id: PineArray<T>): PineArray<T> {
  *
  */
 export function first<T>(id: PineArray<T>): T {
-  return id[0];
+  return id[0]!;
 }
 
 /**
@@ -288,7 +288,7 @@ export function first<T>(id: PineArray<T>): T {
  *
  */
 export function last<T>(id: PineArray<T>): T {
-  return id[id.length - 1];
+  return id[id.length - 1]!;
 }
 
 /**
@@ -654,11 +654,11 @@ export function binary_search(id: PineArray<float>, val: float): int {
   while (left <= right) {
     const mid = Math.floor((left + right) / 2);
 
-    if (id[mid] === val) {
+    if (id[mid]! === val) {
       return mid;
     }
 
-    if (id[mid] < val) {
+    if (id[mid]! < val) {
       left = mid + 1;
     } else {
       right = mid - 1;
@@ -707,12 +707,12 @@ export function binary_search_leftmost(id: PineArray<float>, val: float): int {
   while (left <= right) {
     const mid = Math.floor((left + right) / 2);
 
-    if (id[mid] < val) {
+    if (id[mid]! < val) {
       if (!found) {
         result = mid; // Track the last element smaller than val (only if not found)
       }
       left = mid + 1;
-    } else if (id[mid] === val) {
+    } else if (id[mid]! === val) {
       result = mid;
       found = true;
       // Continue searching to the left for leftmost occurrence
@@ -765,8 +765,8 @@ export function binary_search_rightmost(id: PineArray<float>, val: float): int {
   while (left <= right) {
     const mid = Math.floor((left + right) / 2);
 
-    if (id[mid] <= val) {
-      if (id[mid] === val) {
+    if (id[mid]! <= val) {
+      if (id[mid]! === val) {
         result = mid;
         found = true;
       }
@@ -824,7 +824,7 @@ export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased:
 
   let sum = 0;
   for (let i = 0; i < n; i++) {
-    sum += (id1[i] - mean1) * (id2[i] - mean2);
+    sum += (id1[i]! - mean1) * (id2[i]! - mean2);
   }
 
   // Biased: divide by n, Unbiased: divide by n-1
@@ -866,7 +866,7 @@ export function percentile_linear_interpolation(id: PineArray<float>, percentage
   const result = ta.percentile_linear_interpolation(id, id.length, percentage);
 
   // The result is a series, return the last value
-  return result[result.length - 1];
+  return result[result.length - 1]!;
 }
 
 /**
@@ -902,7 +902,7 @@ export function percentile_nearest_rank(id: PineArray<float>, percentage: float)
   const result = ta.percentile_nearest_rank(id, id.length, percentage);
 
   // The result is a series, return the last value
-  return result[result.length - 1];
+  return result[result.length - 1]!;
 }
 
 /**
@@ -934,7 +934,7 @@ export function percentrank(id: PineArray<float>, index: int): float {
     return NaN;
   }
 
-  const value = id[index];
+  const value = id[index]!;
 
   if (isNaN(value)) {
     return NaN;
@@ -943,7 +943,7 @@ export function percentrank(id: PineArray<float>, index: int): float {
   // Count elements less than or equal to the value
   let count = 0;
   for (let i = 0; i < id.length; i++) {
-    if (!isNaN(id[i]) && id[i] <= value) {
+    if (!isNaN(id[i]!) && id[i]! <= value) {
       count++;
     }
   }
@@ -986,9 +986,9 @@ export function sort_indices(id: PineArray<float>, order: 'asc' | 'desc' = 'asc'
   // Sort indices based on values in original array
   indices.sort((a, b) => {
     if (order === 'asc') {
-      return id[a] - id[b];
+      return id[a]! - id[b]!;
     } else {
-      return id[b] - id[a];
+      return id[b]! - id[a]!;
     }
   });
 

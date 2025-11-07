@@ -21,10 +21,10 @@
   ],
   "scripts": {
     "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:types",
-    "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/*",
-    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.js --platform=neutral --external:@types/*",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -60,6 +60,9 @@
     "url": "https://github.com/deepentropy/oakscriptJS/issues"
   },
   "homepage": "https://github.com/deepentropy/oakscriptJS#readme",
+  "peerDependencies": {
+    "lightweight-charts": "^5.0.0"
+  },
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
@@ -68,7 +71,9 @@
     "esbuild": "^0.19.11",
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
+    "lightweight-charts": "^5.0.0",
     "prettier": "^3.1.1",
+    "rimraf": "^6.1.0",
     "ts-jest": "^29.1.1",
     "typescript": "^5.3.3"
   },

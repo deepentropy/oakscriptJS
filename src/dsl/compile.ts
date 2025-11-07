@@ -50,8 +50,8 @@ export function compile(): CompiledIndicator {
   // Capture current state (indicator metadata, plots, hlines)
   const indicatorMeta = context.getIndicatorMetadata();
   const plots = context.getPlots();
-  const hlines = context.getHLines();
-  const inputs = context.getInputs();
+  // const hlines = context.getHLines();
+  // const inputs = context.getInputs();
 
   if (!indicatorMeta) {
     throw new Error('indicator() must be called before compile()');
@@ -100,7 +100,7 @@ export function compile(): CompiledIndicator {
         // Compute first plot (for now, single plot support)
         // TODO: Handle multiple plots
         if (plots.length > 0) {
-          const firstPlot = plots[0];
+          const firstPlot = plots[0]!;
           const values = firstPlot.series._compute();
 
           // Format for Lightweight Charts

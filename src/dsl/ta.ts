@@ -22,10 +22,10 @@ import { Series } from '../runtime/series';
  * @returns Series with SMA values
  */
 export function sma(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.sma(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -36,10 +36,10 @@ export function sma(source: Series, length: number): Series {
  * @returns Series with EMA values
  */
 export function ema(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.ema(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -50,10 +50,10 @@ export function ema(source: Series, length: number): Series {
  * @returns Series with WMA values
  */
 export function wma(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.wma(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -64,10 +64,10 @@ export function wma(source: Series, length: number): Series {
  * @returns Series with RSI values
  */
 export function rsi(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.rsi(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -119,14 +119,13 @@ export function bb(source: Series, length: number, mult: number): [Series, Serie
  * Standard Deviation
  * @param source - Source series
  * @param length - Period length
- * @param biased - Use biased estimation
  * @returns Series with standard deviation values
  */
-export function stdev(source: Series, length: number, biased: boolean = true): Series {
-  return new Series(getContext(), (bar, i, data) => {
+export function stdev(source: Series, length: number): Series {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
-    const result = taCore.stdev(sourceValues, length, biased);
-    return result[i];
+    const result = taCore.stdev(sourceValues, length);
+    return result[i]!;
   });
 }
 
@@ -137,24 +136,30 @@ export function stdev(source: Series, length: number, biased: boolean = true): S
  */
 export function atr(length: number): Series {
   const ctx = getContext();
-  return new Series(ctx, (bar, i, data) => {
-    const result = taCore.atr(data, length);
-    return result[i];
+  return new Series(ctx, (_bar, i, data) => {
+    const high = data.map(b => b.high);
+    const low = data.map(b => b.low);
+    const close = data.map(b => b.close);
+    const result = taCore.atr(length, high, low, close);
+    return result[i]!;
   });
 }
 
 /**
  * True Range
- * @param high - High price series (optional, uses built-in high)
- * @param low - Low price series (optional, uses built-in low)
- * @param close - Close price series (optional, uses built-in close)
+ * @param _high - High price series (optional, uses built-in high)
+ * @param _low - Low price series (optional, uses built-in low)
+ * @param _close - Close price series (optional, uses built-in close)
  * @returns Series with TR values
  */
-export function tr(high?: Series, low?: Series, close?: Series): Series {
+export function tr(_high?: Series, _low?: Series, _close?: Series): Series {
   const ctx = getContext();
-  return new Series(ctx, (bar, i, data) => {
-    const result = taCore.tr(data);
-    return result[i];
+  return new Series(ctx, (_bar, i, data) => {
+    const high = data.map(b => b.high);
+    const low = data.map(b => b.low);
+    const close = data.map(b => b.close);
+    const result = taCore.tr(false, high, low, close);
+    return result[i]!;
   });
 }
 
@@ -165,14 +170,14 @@ export function tr(high?: Series, low?: Series, close?: Series): Series {
  * @returns Series with 1 where crossover, 0 otherwise
  */
 export function crossover(source1: Series, source2: Series | number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, data) => {
     const vals1 = source1._compute();
     const vals2 = typeof source2 === 'number'
       ? Array(data.length).fill(source2)
       : source2._compute();
 
     const result = taCore.crossover(vals1, vals2);
-    return result[i];
+    return result[i] ? 1 : 0;
   });
 }
 
@@ -183,14 +188,14 @@ export function crossover(source1: Series, source2: Series | number): Series {
  * @returns Series with 1 where crossunder, 0 otherwise
  */
 export function crossunder(source1: Series, source2: Series | number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, data) => {
     const vals1 = source1._compute();
     const vals2 = typeof source2 === 'number'
       ? Array(data.length).fill(source2)
       : source2._compute();
 
     const result = taCore.crossunder(vals1, vals2);
-    return result[i];
+    return result[i] ? 1 : 0;
   });
 }
 
@@ -201,10 +206,10 @@ export function crossunder(source1: Series, source2: Series | number): Series {
  * @returns Series with change values
  */
 export function change(source: Series, length: number = 1): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.change(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -215,10 +220,10 @@ export function change(source: Series, length: number = 1): Series {
  * @returns Series with momentum values
  */
 export function mom(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.mom(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 
@@ -229,10 +234,10 @@ export function mom(source: Series, length: number): Series {
  * @returns Series with ROC values
  */
 export function roc(source: Series, length: number): Series {
-  return new Series(getContext(), (bar, i, data) => {
+  return new Series(getContext(), (_bar, i, _data) => {
     const sourceValues = source._compute();
     const result = taCore.roc(sourceValues, length);
-    return result[i];
+    return result[i]!;
   });
 }
 

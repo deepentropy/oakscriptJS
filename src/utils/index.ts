@@ -140,10 +140,10 @@ export function getSource(
       case 'open': return ohlc.open;
       case 'high': return ohlc.high;
       case 'low': return ohlc.low;
-      case 'hl2': return ohlc.high.map((h, i) => (h + ohlc.low[i]) / 2);
-      case 'hlc3': return ohlc.high.map((h, i) => (h + ohlc.low[i] + ohlc.close[i]) / 3);
-      case 'ohlc4': return ohlc.open.map((o, i) => (o + ohlc.high[i] + ohlc.low[i] + ohlc.close[i]) / 4);
-      case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i] + ohlc.close[i] + ohlc.close[i]) / 4);
+      case 'hl2': return ohlc.high.map((h, i) => (h + ohlc.low[i]!) / 2);
+      case 'hlc3': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]!) / 3);
+      case 'ohlc4': return ohlc.open.map((o, i) => (o + ohlc.high[i]! + ohlc.low[i]! + ohlc.close[i]!) / 4);
+      case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]! + ohlc.close[i]!) / 4);
     }
   } else {
     const bars = data as Bar[];
@@ -241,7 +241,7 @@ export function formatOutput(
   timestamps?: number[]
 ): Array<{ time: number; value: number | null }> {
   return values.map((value, index) => ({
-    time: timestamps ? timestamps[index] : index,
+    time: timestamps ? timestamps[index]! : index,
     value: isNaN(value) ? null : value
   }));
 }

@@ -54,6 +54,7 @@ export {
   indicator,
   plot,
   hline,
+  fill,
   compile,
   // Built-in series (note: 'time' is renamed to avoid conflict with time namespace)
   close,
@@ -74,6 +75,7 @@ export {
   type IndicatorOptions,
   type PlotOptions,
   type HLineOptions,
+  type FillOptions,
   type CompiledIndicator,
   type Color,
 } from './dsl';
