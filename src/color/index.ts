@@ -203,9 +203,9 @@ function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
     const match = clr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
     if (match) {
       return {
-        r: parseInt(match[1]),
-        g: parseInt(match[2]),
-        b: parseInt(match[3]),
+        r: parseInt(match[1]!),
+        g: parseInt(match[2]!),
+        b: parseInt(match[3]!),
         t: match[4] ? (1 - parseFloat(match[4])) * 100 : 0,
       };
     }
@@ -371,9 +371,9 @@ export function from_gradient(
       const match = col.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
       if (match) {
         return [
-          parseInt(match[1]),
-          parseInt(match[2]),
-          parseInt(match[3]),
+          parseInt(match[1]!),
+          parseInt(match[2]!),
+          parseInt(match[3]!),
           match[4] ? parseFloat(match[4]) : 1
         ];
       }

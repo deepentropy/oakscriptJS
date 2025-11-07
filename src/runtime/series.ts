@@ -252,12 +252,12 @@ export class Series {
    * @returns New Series with offset values
    */
   offset(offset: number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.context, (_bar, i, data) => {
       const targetIndex = i - offset;
       if (targetIndex < 0 || targetIndex >= data.length) {
         return NaN;
       }
-      return this.extractor(data[targetIndex], targetIndex, data);
+      return this.extractor(data[targetIndex]!, targetIndex, data);
     });
   }
 
@@ -303,7 +303,7 @@ export class Series {
    */
   get(index: number): number {
     const values = this._compute();
-    return values[index];
+    return values[index] ?? NaN;
   }
 
   /**
@@ -312,7 +312,7 @@ export class Series {
    */
   last(): number {
     const values = this._compute();
-    return values[values.length - 1];
+    return values[values.length - 1] ?? NaN;
   }
 
   /**
@@ -344,6 +344,6 @@ export class Series {
    * @returns Series
    */
   static fromArray(context: RuntimeContext, values: number[]): Series {
-    return new Series(context, (bar, i) => values[i] || NaN);
+    return new Series(context, (_bar, i) => values[i] || NaN);
   }
 }

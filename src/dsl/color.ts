@@ -15,39 +15,10 @@ export interface Color {
 }
 
 /**
- * Create a color object from hex
- */
-function createColor(hex: string): string {
-  return hex;
-}
-
-/**
  * Pine color constants
  * Exported as simple strings for compatibility with IndicatorController
  */
-export const color: {
-  readonly red: string;
-  readonly green: string;
-  readonly blue: string;
-  readonly yellow: string;
-  readonly orange: string;
-  readonly purple: string;
-  readonly white: string;
-  readonly black: string;
-  readonly gray: string;
-  readonly grey: string;
-  readonly aqua: string;
-  readonly lime: string;
-  readonly maroon: string;
-  readonly navy: string;
-  readonly olive: string;
-  readonly teal: string;
-  readonly fuchsia: string;
-  readonly silver: string;
-  new(col: string, transp: number): string;
-  rgb(r: number, g: number, b: number, transp?: number): string;
-  from_hex(hex: string): string;
-} = {
+export const color = {
   // Basic colors
   red: 'red',
   green: 'green',
@@ -76,7 +47,7 @@ export const color: {
    * @param transp - Transparency (0-100)
    * @returns Color string
    */
-  new(col: string, transp: number): string {
+  new: (col: string, _transp: number): string => {
     return col; // TODO: Implement transparency
   },
 
@@ -88,7 +59,7 @@ export const color: {
    * @param transp - Transparency (0-100)
    * @returns Hex color string
    */
-  rgb(r: number, g: number, b: number, transp?: number): string {
+  rgb: (r: number, g: number, b: number, _transp?: number): string => {
     const hex = '#' +
       Math.floor(r).toString(16).padStart(2, '0') +
       Math.floor(g).toString(16).padStart(2, '0') +
@@ -101,7 +72,7 @@ export const color: {
    * @param hex - Hex color (e.g., "#FF0000")
    * @returns Color string
    */
-  from_hex(hex: string): string {
+  from_hex: (hex: string): string => {
     return hex;
   },
 };

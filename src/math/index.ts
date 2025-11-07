@@ -218,7 +218,7 @@ export function sum(source: series_float, length: simple_int): series_float {
     } else {
       let total = 0;
       for (let j = 0; j < length; j++) {
-        total += source[i - j];
+        total += source[i - j]!;
       }
       result.push(total);
     }

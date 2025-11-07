@@ -159,7 +159,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
        * const [supertrend, direction] = ta.supertrend(3, 10);
        * ```
        */
-      supertrend: (
+      supertrend: ((
         factor: simple_float,
         atrPeriod: simple_int,
         wicks: simple_bool = false
@@ -171,7 +171,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
           );
         }
         return taFunctions.supertrend(factor, atrPeriod, chart.high, chart.low, chart.close, wicks);
-      },
+      }) as any,
 
       /**
        * Average True Range - now uses implicit chart data from context.
@@ -266,7 +266,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
        * @param length - Number of bars
        * @returns Stochastic %K series
        */
-      stoch: (source: Source, length: simple_int): series_float => {
+      stoch: ((source: Source, length: simple_int): series_float => {
         if (!chart) {
           throw new Error(
             'Chart context required for ta.stoch(). ' +
@@ -274,7 +274,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
           );
         }
         return taFunctions.stoch(source, chart.high, chart.low, length);
-      },
+      }) as any,
 
       /**
        * Pivot High - now uses implicit high data from context.
@@ -283,7 +283,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
        * @param rightbars - Right bars
        * @returns Pivot high series
        */
-      pivothigh: (leftbars: simple_int, rightbars: simple_int): series_float => {
+      pivothigh: ((leftbars: simple_int, rightbars: simple_int): series_float => {
         if (!chart) {
           throw new Error(
             'Chart context required for ta.pivothigh(). ' +
@@ -291,7 +291,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
           );
         }
         return taFunctions.pivothigh(leftbars, rightbars, undefined, chart.high);
-      },
+      }) as any,
 
       /**
        * Pivot Low - now uses implicit low data from context.
@@ -300,7 +300,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
        * @param rightbars - Right bars
        * @returns Pivot low series
        */
-      pivotlow: (leftbars: simple_int, rightbars: simple_int): series_float => {
+      pivotlow: ((leftbars: simple_int, rightbars: simple_int): series_float => {
         if (!chart) {
           throw new Error(
             'Chart context required for ta.pivotlow(). ' +
@@ -308,7 +308,7 @@ export function createContext(config: ContextConfig = {}): OakContext {
           );
         }
         return taFunctions.pivotlow(leftbars, rightbars, undefined, chart.low);
-      },
+      }) as any,
 
       /**
        * Directional Movement Index - now uses implicit chart data from context.

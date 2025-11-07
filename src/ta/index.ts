@@ -39,7 +39,7 @@ export function sma(source: Source, length: simple_int): series_float {
     } else {
       let sum = 0;
       for (let j = 0; j < length; j++) {
-        sum += source[i - j];
+        sum += source[i - j]!;
       }
       result.push(sum / length);
     }
@@ -77,16 +77,16 @@ export function ema(source: Source, length: simple_int): series_float {
   // First value is SMA
   let ema = 0;
   for (let i = 0; i < Math.min(length, source.length); i++) {
-    ema += source[i];
+    ema += source[i]!;
   }
   ema = ema / Math.min(length, source.length);
 
   for (let i = 0; i < source.length; i++) {
     if (i === 0) {
-      result.push(source[i]);
-      ema = source[i];
+      result.push(source[i]!);
+      ema = source[i]!;
     } else {
-      ema = (source[i] - ema) * multiplier + ema;
+      ema = (source[i]! - ema) * multiplier + ema;
       result.push(ema);
     }
   }
@@ -125,7 +125,7 @@ export function rsi(source: Source, length: simple_int): series_float {
   // Calculate price changes
   const changes: number[] = [];
   for (let i = 1; i < source.length; i++) {
-    changes.push(source[i] - source[i - 1]);
+    changes.push(source[i]! - source[i - 1]!);
   }
 
   // Separate gains and losses
@@ -139,10 +139,10 @@ export function rsi(source: Source, length: simple_int): series_float {
   result.push(NaN); // First value is NaN
 
   for (let i = 0; i < avgGains.length; i++) {
-    if (avgLosses[i] === 0) {
+    if (avgLosses[i]! === 0) {
       result.push(100);
     } else {
-      const rs = avgGains[i] / avgLosses[i];
+      const rs = avgGains[i]! / avgLosses[i]!;
       result.push(100 - (100 / (1 + rs)));
     }
   }
@@ -184,14 +184,14 @@ export function macd(
 
   const macdLine: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    macdLine.push(fastEma[i] - slowEma[i]);
+    macdLine.push(fastEma[i]! - slowEma[i]!);
   }
 
   const signalLine = ema(macdLine, signalLength);
 
   const histogram: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    histogram.push(macdLine[i] - signalLine[i]);
+    histogram.push(macdLine[i]! - signalLine[i]!);
   }
 
   return [macdLine, signalLine, histogram];
@@ -231,8 +231,8 @@ export function bb(
   const lower: series_float = [];
 
   for (let i = 0; i < series.length; i++) {
-    upper.push(basis[i] + mult * dev[i]);
-    lower.push(basis[i] - mult * dev[i]);
+    upper.push(basis[i]! + mult * dev[i]!);
+    lower.push(basis[i]! - mult * dev[i]!);
   }
 
   return [basis, upper, lower];
@@ -267,7 +267,7 @@ export function stdev(source: Source, length: simple_int): series_float {
     } else {
       let sumSquares = 0;
       for (let j = 0; j < length; j++) {
-        const diff = source[i - j] - avg[i];
+        const diff = source[i - j]! - avg[i]!;
         sumSquares += diff * diff;
       }
       result.push(Math.sqrt(sumSquares / length));
@@ -285,7 +285,7 @@ export function stdev(source: Source, length: simple_int): series_float {
  * @returns Boolean series (true at crossover points)
  *
  * @remarks
- * - True when: series1[i] > series2[i] AND series1[i-1] <= series2[i-1]
+ * - True when: series1[i]! > series2[i]! AND series1[i-1] <= series2[i-1]
  * - First value is always false (no previous value to compare)
  * - Useful for detecting bullish signals (e.g., fast MA crossing over slow MA)
  *
@@ -303,7 +303,7 @@ export function crossover(series1: Source, series2: Source): series_bool {
     if (i === 0) {
       result.push(false);
     } else {
-      result.push(series1[i] > series2[i] && series1[i - 1] <= series2[i - 1]);
+      result.push(series1[i]! > series2[i]! && series1[i - 1]! <= series2[i - 1]!);
     }
   }
 
@@ -318,7 +318,7 @@ export function crossover(series1: Source, series2: Source): series_bool {
  * @returns Boolean series (true at crossunder points)
  *
  * @remarks
- * - True when: series1[i] < series2[i] AND series1[i-1] >= series2[i-1]
+ * - True when: series1[i]! < series2[i]! AND series1[i-1] >= series2[i-1]
  * - First value is always false (no previous value to compare)
  * - Useful for detecting bearish signals (e.g., fast MA crossing under slow MA)
  *
@@ -336,7 +336,7 @@ export function crossunder(series1: Source, series2: Source): series_bool {
     if (i === 0) {
       result.push(false);
     } else {
-      result.push(series1[i] < series2[i] && series1[i - 1] >= series2[i - 1]);
+      result.push(series1[i]! < series2[i]! && series1[i - 1]! >= series2[i - 1]!);
     }
   }
 
@@ -348,7 +348,7 @@ export function crossunder(series1: Source, series2: Source): series_bool {
  *
  * @param source - Series of values to process
  * @param length - Number of bars back (default: 1)
- * @returns Change series (source[i] - source[i - length])
+ * @returns Change series (source[i]! - source[i - length])
  *
  * @remarks
  * - Returns NaN for the first `length` values
@@ -370,7 +370,7 @@ export function change(source: Source, length: simple_int = 1): series_float {
     if (i < length) {
       result.push(NaN);
     } else {
-      result.push(source[i] - source[i - length]);
+      result.push(source[i]! - source[i - length]!);
     }
   }
 
@@ -424,22 +424,22 @@ export function tr(
   for (let i = 0; i < high.length; i++) {
     if (i === 0) {
       // First bar: no previous close, so just use high - low
-      result.push(high[i] - low[i]);
+      result.push(high[i]! - low[i]!);
     } else {
-      const prevClose = close[i - 1];
+      const prevClose = close[i - 1]!;
 
       // Handle na previous close based on handle_na parameter
       if (isNaN(prevClose)) {
         if (handle_na) {
-          result.push(high[i] - low[i]);
+          result.push(high[i]! - low[i]!);
         } else {
           result.push(NaN);
         }
       } else {
         const tr = Math.max(
-          high[i] - low[i],
-          Math.abs(high[i] - prevClose),
-          Math.abs(low[i] - prevClose)
+          high[i]! - low[i]!,
+          Math.abs(high[i]! - prevClose),
+          Math.abs(low[i]! - prevClose)
         );
         result.push(tr);
       }
@@ -544,7 +544,7 @@ export function supertrend(
   // Calculate hl2 (average of high and low)
   const source: series_float = [];
   for (let i = 0; i < high.length; i++) {
-    source.push((high[i] + low[i]) / 2);
+    source.push((high[i]! + low[i]!) / 2);
   }
 
   // Calculate ATR
@@ -556,7 +556,7 @@ export function supertrend(
   let prevSuperTrend = NaN;
 
   for (let i = 0; i < source.length; i++) {
-    const atrValue = atrValues[i] * factor;
+    const atrValue = atrValues[i]! * factor;
 
     // Skip calculation if ATR is not available yet
     if (isNaN(atrValue)) {
@@ -566,14 +566,14 @@ export function supertrend(
     }
 
     // Calculate initial bands
-    let upperBand = source[i] + atrValue;
-    let lowerBand = source[i] - atrValue;
+    let upperBand = source[i]! + atrValue;
+    let lowerBand = source[i]! - atrValue;
 
     // Determine which price to use for comparison
-    const highPrice = wicks ? high[i] : close[i];
-    const lowPrice = wicks ? low[i] : close[i];
-    const prevLowPrice = i > 0 ? (wicks ? low[i - 1] : close[i - 1]) : 0;
-    const prevHighPrice = i > 0 ? (wicks ? high[i - 1] : close[i - 1]) : 0;
+    const highPrice = wicks ? high[i]! : close[i]!;
+    const lowPrice = wicks ? low[i]! : close[i]!;
+    const prevLowPrice = i > 0 ? (wicks ? low[i - 1]! : close[i - 1]!) : 0;
+    const prevHighPrice = i > 0 ? (wicks ? high[i - 1]! : close[i - 1]!) : 0;
 
     // Update bands conditionally (trailing behavior) - only if previous bands are valid
     if (i > 0 && !isNaN(prevLowerBand) && !isNaN(prevUpperBand)) {
@@ -640,7 +640,7 @@ export function rma(source: Source, length: simple_int): series_float {
   // Initialize with SMA for the first value
   let rmaValue = 0;
   for (let i = 0; i < Math.min(length, source.length); i++) {
-    rmaValue += source[i];
+    rmaValue += source[i]!;
   }
   rmaValue = rmaValue / Math.min(length, source.length);
 
@@ -649,7 +649,7 @@ export function rma(source: Source, length: simple_int): series_float {
       result.push(rmaValue);
     } else {
       // RMA formula: alpha * source + (1 - alpha) * RMA[1]
-      rmaValue = alpha * source[i] + (1 - alpha) * rmaValue;
+      rmaValue = alpha * source[i]! + (1 - alpha) * rmaValue;
       result.push(rmaValue);
     }
   }
@@ -667,7 +667,7 @@ export function rma(source: Source, length: simple_int): series_float {
  * @remarks
  * - Weighting factors decrease in arithmetical progression
  * - Most recent value has weight `length`, previous has `length-1`, etc.
- * - Formula: `sum(source[i] * (length - i)) / sum(length - i)` for i = 0 to length-1
+ * - Formula: `sum(source[i]! * (length - i)) / sum(length - i)` for i = 0 to length-1
  * - `na` values in the source series are ignored
  * - More responsive to recent price changes than SMA
  *
@@ -691,7 +691,7 @@ export function wma(source: Source, length: simple_int): series_float {
 
       for (let j = 0; j < length; j++) {
         const weight = length - j;
-        sum += source[i - j] * weight;
+        sum += source[i - j]! * weight;
         weightSum += weight;
       }
 
@@ -732,8 +732,8 @@ export function highest(source: Source, length: simple_int): series_float {
     } else {
       let max = -Infinity;
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j])) {
-          max = Math.max(max, source[i - j]);
+        if (!isNaN(source[i - j]!)) {
+          max = Math.max(max, source[i - j]!);
         }
       }
       result.push(max === -Infinity ? NaN : max);
@@ -773,8 +773,8 @@ export function lowest(source: Source, length: simple_int): series_float {
     } else {
       let min = Infinity;
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j])) {
-          min = Math.min(min, source[i - j]);
+        if (!isNaN(source[i - j]!)) {
+          min = Math.min(min, source[i - j]!);
         }
       }
       result.push(min === Infinity ? NaN : min);
@@ -808,7 +808,7 @@ export function cum(source: Source): series_float {
   let sum = 0;
 
   for (let i = 0; i < source.length; i++) {
-    sum += source[i];
+    sum += source[i]!;
     result.push(sum);
   }
 
@@ -823,8 +823,8 @@ export function cum(source: Source): series_float {
  * @returns Boolean series (true at cross points)
  *
  * @remarks
- * - True when: (source1[i] > source2[i] AND source1[i-1] <= source2[i-1]) OR
- *              (source1[i] < source2[i] AND source1[i-1] >= source2[i-1])
+ * - True when: (source1[i]! > source2[i]! AND source1[i-1] <= source2[i-1]) OR
+ *              (source1[i]! < source2[i]! AND source1[i-1] >= source2[i-1])
  * - First value is always false (no previous value to compare)
  * - Detects any crossing (either over or under)
  * - Use `ta.crossover()` or `ta.crossunder()` for directional crosses
@@ -844,8 +844,8 @@ export function cross(source1: Source, source2: Source): series_bool {
     if (i === 0) {
       result.push(false);
     } else {
-      const crossedUp = source1[i] > source2[i] && source1[i - 1] <= source2[i - 1];
-      const crossedDown = source1[i] < source2[i] && source1[i - 1] >= source2[i - 1];
+      const crossedUp = source1[i]! > source2[i]! && source1[i - 1]! <= source2[i - 1]!;
+      const crossedDown = source1[i]! < source2[i]! && source1[i - 1]! >= source2[i - 1]!;
       result.push(crossedUp || crossedDown);
     }
   }
@@ -883,7 +883,7 @@ export function rising(source: Source, length: simple_int): series_bool {
     } else {
       let isRising = true;
       for (let j = 1; j <= length; j++) {
-        if (source[i - j + 1] <= source[i - j]) {
+        if (source[i - j + 1]! <= source[i - j]!) {
           isRising = false;
           break;
         }
@@ -926,7 +926,7 @@ export function falling(source: Source, length: simple_int): series_bool {
     } else {
       let isFalling = true;
       for (let j = 1; j <= length; j++) {
-        if (source[i - j + 1] >= source[i - j]) {
+        if (source[i - j + 1]! >= source[i - j]!) {
           isFalling = false;
           break;
         }
@@ -968,11 +968,11 @@ export function roc(source: Source, length: simple_int): series_float {
     if (i < length) {
       result.push(NaN);
     } else {
-      const oldValue = source[i - length];
-      if (oldValue === 0 || isNaN(oldValue) || isNaN(source[i])) {
+      const oldValue = source[i - length]!;
+      if (oldValue === 0 || isNaN(oldValue) || isNaN(source[i]!)) {
         result.push(NaN);
       } else {
-        const changeValue = source[i] - oldValue;
+        const changeValue = source[i]! - oldValue;
         result.push((100 * changeValue) / oldValue);
       }
     }
@@ -1010,10 +1010,10 @@ export function mom(source: Source, length: simple_int): series_float {
     if (i < length) {
       result.push(NaN);
     } else {
-      if (isNaN(source[i]) || isNaN(source[i - length])) {
+      if (isNaN(source[i]!) || isNaN(source[i - length]!)) {
         result.push(NaN);
       } else {
-        result.push(source[i] - source[i - length]);
+        result.push(source[i]! - source[i - length]!);
       }
     }
   }
@@ -1030,7 +1030,7 @@ export function mom(source: Source, length: simple_int): series_float {
  *
  * @remarks
  * - Measures average absolute distance from the mean
- * - Formula: `sum(abs(source[i] - sma)) / length` for i in 0 to length-1
+ * - Formula: `sum(abs(source[i]! - sma)) / length` for i in 0 to length-1
  * - Less sensitive to outliers than standard deviation
  * - `na` values in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
@@ -1048,13 +1048,13 @@ export function dev(source: Source, length: simple_int): series_float {
   const meanValues = sma(source, length);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1 || isNaN(meanValues[i])) {
+    if (i < length - 1 || isNaN(meanValues[i]!)) {
       result.push(NaN);
     } else {
       let sum = 0;
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j])) {
-          sum += Math.abs(source[i - j] - meanValues[i]);
+        if (!isNaN(source[i - j]!)) {
+          sum += Math.abs(source[i - j]! - meanValues[i]!);
         }
       }
       result.push(sum / length);
@@ -1076,8 +1076,8 @@ export function dev(source: Source, length: simple_int): series_float {
  * - Measures how far values are spread out from their mean
  * - If `biased` is true: divides by `length` (population variance)
  * - If `biased` is false: divides by `length - 1` (sample variance)
- * - Formula (biased): `sum((source[i] - mean)^2) / length`
- * - Formula (unbiased): `sum((source[i] - mean)^2) / (length - 1)`
+ * - Formula (biased): `sum((source[i]! - mean)^2) / length`
+ * - Formula (unbiased): `sum((source[i]! - mean)^2) / (length - 1)`
  * - `na` values in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
  * - Relationship: `stdev = sqrt(variance)`
@@ -1095,14 +1095,14 @@ export function variance(source: Source, length: simple_int, biased: simple_bool
   const meanValues = sma(source, length);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1 || isNaN(meanValues[i])) {
+    if (i < length - 1 || isNaN(meanValues[i]!)) {
       result.push(NaN);
     } else {
       let sumSquares = 0;
       let count = 0;
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j])) {
-          const diff = source[i - j] - meanValues[i];
+        if (!isNaN(source[i - j]!)) {
+          const diff = source[i - j]! - meanValues[i]!;
           sumSquares += diff * diff;
           count++;
         }
@@ -1147,8 +1147,8 @@ export function median(source: Source, length: simple_int): series_float {
       // Collect non-NaN values
       const values: number[] = [];
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j])) {
-          values.push(source[i - j]);
+        if (!isNaN(source[i - j]!)) {
+          values.push(source[i - j]!);
         }
       }
 
@@ -1162,10 +1162,10 @@ export function median(source: Source, length: simple_int): series_float {
         const mid = Math.floor(values.length / 2);
         if (values.length % 2 === 0) {
           // Even number of values - average of two middle values
-          result.push((values[mid - 1] + values[mid]) / 2);
+          result.push((values[mid - 1]! + values[mid]!) / 2);
         } else {
           // Odd number of values - middle value
-          result.push(values[mid]);
+          result.push(values[mid]!);
         }
       }
     }
@@ -1204,14 +1204,14 @@ export function swma(source: Source): series_float {
       result.push(NaN);
     } else {
       // Check for any NaN values in the window
-      if (isNaN(source[i]) || isNaN(source[i - 1]) || isNaN(source[i - 2]) || isNaN(source[i - 3])) {
+      if (isNaN(source[i]!) || isNaN(source[i - 1]!) || isNaN(source[i - 2]!) || isNaN(source[i - 3]!)) {
         result.push(NaN);
       } else {
         const value = 
-          source[i - 3] * (1 / 6) +
-          source[i - 2] * (2 / 6) +
-          source[i - 1] * (2 / 6) +
-          source[i] * (1 / 6);
+          source[i - 3]! * (1 / 6) +
+          source[i - 2]! * (2 / 6) +
+          source[i - 1]! * (2 / 6) +
+          source[i]! * (1 / 6);
         result.push(value);
       }
     }
@@ -1259,7 +1259,7 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
   // Calculate source * volume
   const sourceTimesVolume: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    sourceTimesVolume.push(source[i] * volume[i]);
+    sourceTimesVolume.push(source[i]! * volume[i]!);
   }
 
   const numerator = sma(sourceTimesVolume, length);
@@ -1267,10 +1267,10 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
 
   const result: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    if (denominator[i] === 0 || isNaN(denominator[i])) {
+    if (denominator[i]! === 0 || isNaN(denominator[i]!)) {
       result.push(NaN);
     } else {
-      result.push(numerator[i] / denominator[i]);
+      result.push(numerator[i]! / denominator[i]!);
     }
   }
 
@@ -1310,7 +1310,7 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
       // Check for NaN values in window
       let hasNaN = false;
       for (let j = 0; j < length; j++) {
-        if (isNaN(source[i - j])) {
+        if (isNaN(source[i - j]!)) {
           hasNaN = true;
           break;
         }
@@ -1327,7 +1327,7 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
 
         for (let j = 0; j < length; j++) {
           const x = j;
-          const y = source[i - (length - 1 - j)];
+          const y = source[i - (length - 1 - j)]!;
           sumX += x;
           sumY += y;
           sumXY += x * y;
@@ -1382,8 +1382,8 @@ export function correlation(source1: Source, source2: Source, length: simple_int
       // Collect non-NaN pairs
       const pairs: Array<[number, number]> = [];
       for (let j = 0; j < length; j++) {
-        if (!isNaN(source1[i - j]) && !isNaN(source2[i - j])) {
-          pairs.push([source1[i - j], source2[i - j]]);
+        if (!isNaN(source1[i - j]!) && !isNaN(source2[i - j]!)) {
+          pairs.push([source1[i - j]!, source2[i - j]!]);
         }
       }
 
@@ -1460,7 +1460,7 @@ export function percentrank(source: Source, length: simple_int): series_float {
       // Check for NaN values
       let hasNaN = false;
       for (let j = 0; j < length; j++) {
-        if (isNaN(source[i - j])) {
+        if (isNaN(source[i - j]!)) {
           hasNaN = true;
           break;
         }
@@ -1469,12 +1469,12 @@ export function percentrank(source: Source, length: simple_int): series_float {
       if (hasNaN) {
         result.push(NaN);
       } else {
-        const currentValue = source[i];
+        const currentValue = source[i]!;
         let countLessOrEqual = 0;
 
         // Count how many values are less than or equal to current
         for (let j = 0; j < length; j++) {
-          if (source[i - j] <= currentValue) {
+          if (source[i - j]! <= currentValue) {
             countLessOrEqual++;
           }
         }
@@ -1520,10 +1520,10 @@ export function cci(source: Source, length: simple_int): series_float {
   const devValues = dev(source, length);
 
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(smaValues[i]) || isNaN(devValues[i]) || devValues[i] === 0) {
+    if (isNaN(smaValues[i]!) || isNaN(devValues[i]!) || devValues[i]! === 0) {
       result.push(NaN);
     } else {
-      const cci = (source[i] - smaValues[i]) / (0.015 * devValues[i]);
+      const cci = (source[i]! - smaValues[i]!) / (0.015 * devValues[i]!);
       result.push(cci);
     }
   }
@@ -1563,14 +1563,14 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
   const highestValues = highest(high, length);
 
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(lowestValues[i]) || isNaN(highestValues[i])) {
+    if (isNaN(lowestValues[i]!) || isNaN(highestValues[i]!)) {
       result.push(NaN);
     } else {
-      const range = highestValues[i] - lowestValues[i];
+      const range = highestValues[i]! - lowestValues[i]!;
       if (range === 0) {
         result.push(NaN);
       } else {
-        const stochValue = 100 * (source[i] - lowestValues[i]) / range;
+        const stochValue = 100 * (source[i]! - lowestValues[i]!) / range;
         result.push(stochValue);
       }
     }
@@ -1621,22 +1621,22 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
 
   const changes: number[] = [NaN];
   for (let i = 1; i < source.length; i++) {
-    changes.push(source[i] - source[i - 1]);
+    changes.push(source[i]! - source[i - 1]!);
   }
 
   const positiveFlow: number[] = [];
   const negativeFlow: number[] = [];
 
   for (let i = 0; i < source.length; i++) {
-    if (i === 0 || isNaN(changes[i])) {
+    if (i === 0 || isNaN(changes[i]!)) {
       positiveFlow.push(0);
       negativeFlow.push(0);
-    } else if (changes[i] > 0) {
-      positiveFlow.push(volume[i] * source[i]);
+    } else if (changes[i]! > 0) {
+      positiveFlow.push(volume[i]! * source[i]!);
       negativeFlow.push(0);
-    } else if (changes[i] < 0) {
+    } else if (changes[i]! < 0) {
       positiveFlow.push(0);
-      negativeFlow.push(volume[i] * source[i]);
+      negativeFlow.push(volume[i]! * source[i]!);
     } else {
       positiveFlow.push(0);
       negativeFlow.push(0);
@@ -1651,8 +1651,8 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
       let negSum = 0;
 
       for (let j = 0; j < length; j++) {
-        posSum += positiveFlow[i - j];
-        negSum += negativeFlow[i - j];
+        posSum += positiveFlow[i - j]!;
+        negSum += negativeFlow[i - j]!;
       }
 
       if (negSum === 0) {
@@ -1699,7 +1699,7 @@ export function hma(source: Source, length: simple_int): series_float {
 
   const diff: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    diff.push(2 * wmaHalf[i] - wmaFull[i]);
+    diff.push(2 * wmaHalf[i]! - wmaFull[i]!);
   }
 
   return wma(diff, sqrtLength);
@@ -1758,14 +1758,14 @@ export function sar(
     }
 
     if (i === 1) {
-      if (close[i] > close[i - 1]) {
+      if (close[i]! > close[i - 1]!) {
         isUpTrend = true;
-        extremePoint = high[i];
-        sarValue = low[i - 1];
+        extremePoint = high[i]!;
+        sarValue = low[i - 1]!;
       } else {
         isUpTrend = false;
-        extremePoint = low[i];
-        sarValue = high[i - 1];
+        extremePoint = low[i]!;
+        sarValue = high[i - 1]!;
       }
       isFirstTrendBar = true;
       acceleration = start;
@@ -1774,46 +1774,46 @@ export function sar(
     sarValue = sarValue + acceleration * (extremePoint - sarValue);
 
     if (isUpTrend) {
-      if (sarValue > low[i]) {
+      if (sarValue > low[i]!) {
         isFirstTrendBar = true;
         isUpTrend = false;
-        sarValue = Math.max(high[i], extremePoint);
-        extremePoint = low[i];
+        sarValue = Math.max(high[i]!, extremePoint);
+        extremePoint = low[i]!;
         acceleration = start;
       }
     } else {
-      if (sarValue < high[i]) {
+      if (sarValue < high[i]!) {
         isFirstTrendBar = true;
         isUpTrend = true;
-        sarValue = Math.min(low[i], extremePoint);
-        extremePoint = high[i];
+        sarValue = Math.min(low[i]!, extremePoint);
+        extremePoint = high[i]!;
         acceleration = start;
       }
     }
 
     if (!isFirstTrendBar) {
       if (isUpTrend) {
-        if (high[i] > extremePoint) {
-          extremePoint = high[i];
+        if (high[i]! > extremePoint) {
+          extremePoint = high[i]!;
           acceleration = Math.min(acceleration + inc, max);
         }
       } else {
-        if (low[i] < extremePoint) {
-          extremePoint = low[i];
+        if (low[i]! < extremePoint) {
+          extremePoint = low[i]!;
           acceleration = Math.min(acceleration + inc, max);
         }
       }
     }
 
     if (isUpTrend) {
-      sarValue = Math.min(sarValue, low[i - 1]);
+      sarValue = Math.min(sarValue, low[i - 1]!);
       if (i > 1) {
-        sarValue = Math.min(sarValue, low[i - 2]);
+        sarValue = Math.min(sarValue, low[i - 2]!);
       }
     } else {
-      sarValue = Math.max(sarValue, high[i - 1]);
+      sarValue = Math.max(sarValue, high[i - 1]!);
       if (i > 1) {
-        sarValue = Math.max(sarValue, high[i - 2]);
+        sarValue = Math.max(sarValue, high[i - 2]!);
       }
     }
 
@@ -1876,11 +1876,11 @@ export function pivothigh(
       continue;
     }
 
-    const centerValue = source[i];
+    const centerValue = source[i]!;
     let isPivot = true;
 
     for (let j = 1; j <= leftbars; j++) {
-      if (source[i - j] >= centerValue) {
+      if (source[i - j]! >= centerValue) {
         isPivot = false;
         break;
       }
@@ -1888,7 +1888,7 @@ export function pivothigh(
 
     if (isPivot) {
       for (let j = 1; j <= right; j++) {
-        if (source[i + j] >= centerValue) {
+        if (source[i + j]! >= centerValue) {
           isPivot = false;
           break;
         }
@@ -1953,11 +1953,11 @@ export function pivotlow(
       continue;
     }
 
-    const centerValue = source[i];
+    const centerValue = source[i]!;
     let isPivot = true;
 
     for (let j = 1; j <= leftbars; j++) {
-      if (source[i - j] <= centerValue) {
+      if (source[i - j]! <= centerValue) {
         isPivot = false;
         break;
       }
@@ -1965,7 +1965,7 @@ export function pivotlow(
 
     if (isPivot) {
       for (let j = 1; j <= right; j++) {
-        if (source[i + j] <= centerValue) {
+        if (source[i + j]! <= centerValue) {
           isPivot = false;
           break;
         }
@@ -2002,7 +2002,7 @@ export function barssince(condition: series_bool): series_float {
   let barsSinceTrue = NaN;
 
   for (let i = 0; i < condition.length; i++) {
-    if (condition[i]) {
+    if (condition[i]!) {
       barsSinceTrue = 0;
     } else if (!isNaN(barsSinceTrue)) {
       barsSinceTrue++;
@@ -2044,7 +2044,7 @@ export function valuewhen(condition: series_bool, source: Source, occurrence: si
     for (let j = i; j >= 0; j--) {
       if (condition[j]) {
         if (occurrenceCount === occurrence) {
-          foundValue = source[j];
+          foundValue = source[j]!;
           break;
         }
         occurrenceCount++;
@@ -2097,8 +2097,8 @@ export function dmi(
       plusDM.push(0);
       minusDM.push(0);
     } else {
-      const upMove = high[i] - high[i - 1];
-      const downMove = low[i - 1] - low[i];
+      const upMove = high[i]! - high[i - 1]!;
+      const downMove = low[i - 1]! - low[i]!;
 
       let plusDMVal = 0;
       let minusDMVal = 0;
@@ -2125,23 +2125,23 @@ export function dmi(
   const minusDI: series_float = [];
 
   for (let i = 0; i < len; i++) {
-    if (smoothedTR[i] === 0) {
+    if (smoothedTR[i]! === 0) {
       plusDI.push(0);
       minusDI.push(0);
     } else {
-      plusDI.push((smoothedPlusDM[i] / smoothedTR[i]) * 100);
-      minusDI.push((smoothedMinusDM[i] / smoothedTR[i]) * 100);
+      plusDI.push((smoothedPlusDM[i]! / smoothedTR[i]!) * 100);
+      minusDI.push((smoothedMinusDM[i]! / smoothedTR[i]!) * 100);
     }
   }
 
   // Calculate DX
   const dx: series_float = [];
   for (let i = 0; i < len; i++) {
-    const sum = plusDI[i] + minusDI[i];
+    const sum = plusDI[i]! + minusDI[i]!;
     if (sum === 0) {
       dx.push(0);
     } else {
-      dx.push((Math.abs(plusDI[i] - minusDI[i]) / sum) * 100);
+      dx.push((Math.abs(plusDI[i]! - minusDI[i]!) / sum) * 100);
     }
   }
 
@@ -2183,7 +2183,7 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
     if (i === 0) {
       momentum.push(0);
     } else {
-      momentum.push(source[i] - source[i - 1]);
+      momentum.push(source[i]! - source[i - 1]!);
     }
   }
 
@@ -2197,10 +2197,10 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
   // Calculate TSI
   const result: series_float = [];
   for (let i = 0; i < source.length; i++) {
-    if (smoothedAbsMomentum[i] === 0) {
+    if (smoothedAbsMomentum[i]! === 0) {
       result.push(0);
     } else {
-      result.push((smoothedMomentum[i] / smoothedAbsMomentum[i]) * 100);
+      result.push((smoothedMomentum[i]! / smoothedAbsMomentum[i]!) * 100);
     }
   }
 
@@ -2243,7 +2243,7 @@ export function cmo(source: Source, length: simple_int): series_float {
     let sumLosses = 0;
 
     for (let j = 0; j < length; j++) {
-      const change = source[i - j] - source[i - j - 1];
+      const change = source[i - j]! - source[i - j - 1]!;
       if (change > 0) {
         sumGains += change;
       } else {
@@ -2314,7 +2314,7 @@ export function kc(
     }
     range = [];
     for (let i = 0; i < high.length; i++) {
-      range.push(high[i] - low[i]);
+      range.push(high[i]! - low[i]!);
     }
   }
 
@@ -2326,8 +2326,8 @@ export function kc(
   const lower: series_float = [];
 
   for (let i = 0; i < middle.length; i++) {
-    upper.push(middle[i] + rangeEma[i] * mult);
-    lower.push(middle[i] - rangeEma[i] * mult);
+    upper.push(middle[i]! + rangeEma[i]! * mult);
+    lower.push(middle[i]! - rangeEma[i]! * mult);
   }
 
   return [middle, upper, lower];
@@ -2362,10 +2362,10 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
-    if (basis[i] === 0) {
+    if (basis[i]! === 0) {
       result.push(NaN);
     } else {
-      const width = ((upper[i] - lower[i]) / basis[i]) * 100;
+      const width = ((upper[i]! - lower[i]!) / basis[i]!) * 100;
       result.push(width);
     }
   }
@@ -2408,12 +2408,12 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
     }
 
     // Find highest high and lowest low in the period
-    let highestHigh = high[i - length + 1];
-    let lowestLow = low[i - length + 1];
+    let highestHigh = high[i - length + 1]!;
+    let lowestLow = low[i - length + 1]!;
 
     for (let j = i - length + 2; j <= i; j++) {
-      if (high[j] > highestHigh) highestHigh = high[j];
-      if (low[j] < lowestLow) lowestLow = low[j];
+      if (high[j]! > highestHigh) highestHigh = high[j]!;
+      if (low[j]! < lowestLow) lowestLow = low[j]!;
     }
 
     const range = highestHigh - lowestLow;
@@ -2421,7 +2421,7 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
       result.push(NaN);
     } else {
       // Formula: (Highest High - Close) / (Highest High - Lowest Low) * -100
-      const wprValue = ((highestHigh - close[i]) / range) * -100;
+      const wprValue = ((highestHigh! - close[i]!) / range) * -100;
       result.push(wprValue);
     }
   }
@@ -2444,7 +2444,7 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
  *
  * @example
  * ```typescript
- * const hlc3 = high.map((h, i) => (h + low[i] + close[i]) / 3);
+ * const hlc3 = high.map((h, i) => (h + low[i]! + close[i]!) / 3);
  * const vwapValue = ta.vwap(hlc3, volume);
  * ```
  *
@@ -2460,13 +2460,13 @@ export function vwap(source: Source, volume: Source): series_float {
   let cumulativeVolume = 0; // Cumulative volume
 
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(source[i]) || isNaN(volume[i])) {
+    if (isNaN(source[i]!) || isNaN(volume[i]!)) {
       result.push(NaN);
       continue;
     }
 
-    cumulativePV += source[i] * volume[i];
-    cumulativeVolume += volume[i];
+    cumulativePV += source[i]! * volume[i]!;
+    cumulativeVolume += volume[i]!;
 
     if (cumulativeVolume === 0) {
       result.push(NaN);
@@ -2521,7 +2521,7 @@ export function alma(
 
   // Normalize weights
   for (let i = 0; i < length; i++) {
-    weights[i] /= weightSum;
+    weights[i]! /= weightSum;
   }
 
   // Calculate ALMA
@@ -2533,7 +2533,7 @@ export function alma(
 
     let almaValue = 0;
     for (let j = 0; j < length; j++) {
-      almaValue += source[i - length + 1 + j] * weights[j];
+      almaValue += source[i - length + 1 + j]! * weights[j]!;
     }
 
     result.push(almaValue);
@@ -2582,10 +2582,10 @@ export function kcw(
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(basis[i]) || basis[i] === 0) {
+    if (isNaN(basis[i]!) || basis[i]! === 0) {
       result.push(NaN);
     } else {
-      const width = ((upper[i] - lower[i]) / basis[i]) * 100;
+      const width = ((upper[i]! - lower[i]!) / basis[i]!) * 100;
       result.push(width);
     }
   }
@@ -2619,10 +2619,10 @@ export function range(high: Source, low: Source): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < high.length; i++) {
-    if (isNaN(high[i]) || isNaN(low[i])) {
+    if (isNaN(high[i]!) || isNaN(low[i]!)) {
       result.push(NaN);
     } else {
-      result.push(high[i] - low[i]);
+      result.push(high[i]! - low[i]!);
     }
   }
 
@@ -2642,7 +2642,7 @@ export function range(high: Source, low: Source): series_float {
  * @example
  * ```typescript
  * const offset = ta.highestbars(close, 10);
- * // If offset[i] = 3, the highest value in last 10 bars was 3 bars ago
+ * // If offset[i]! = 3, the highest value in last 10 bars was 3 bars ago
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highestbars | PineScript ta.highestbars}
@@ -2656,12 +2656,12 @@ export function highestbars(source: Source, length: simple_int): series_int {
       continue;
     }
 
-    let highestValue = source[i - length + 1];
+    let highestValue = source[i - length + 1]!;
     let highestOffset = length - 1;
 
     for (let j = i - length + 2; j <= i; j++) {
-      if (source[j] > highestValue) {
-        highestValue = source[j];
+      if (source[j]! > highestValue) {
+        highestValue = source[j]!;
         highestOffset = i - j;
       }
     }
@@ -2685,7 +2685,7 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * @example
  * ```typescript
  * const offset = ta.lowestbars(close, 10);
- * // If offset[i] = 5, the lowest value in last 10 bars was 5 bars ago
+ * // If offset[i]! = 5, the lowest value in last 10 bars was 5 bars ago
  * ```
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.lowestbars | PineScript ta.lowestbars}
@@ -2699,12 +2699,12 @@ export function lowestbars(source: Source, length: simple_int): series_int {
       continue;
     }
 
-    let lowestValue = source[i - length + 1];
+    let lowestValue = source[i - length + 1]!;
     let lowestOffset = length - 1;
 
     for (let j = i - length + 2; j <= i; j++) {
-      if (source[j] < lowestValue) {
-        lowestValue = source[j];
+      if (source[j]! < lowestValue) {
+        lowestValue = source[j]!;
         lowestOffset = i - j;
       }
     }
@@ -2741,10 +2741,10 @@ export function max(source1: Source, source2: Source): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source1.length; i++) {
-    if (isNaN(source1[i]) || isNaN(source2[i])) {
+    if (isNaN(source1[i]!) || isNaN(source2[i]!)) {
       result.push(NaN);
     } else {
-      result.push(Math.max(source1[i], source2[i]));
+      result.push(Math.max(source1[i]!, source2[i]!));
     }
   }
 
@@ -2777,10 +2777,10 @@ export function min(source1: Source, source2: Source): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source1.length; i++) {
-    if (isNaN(source1[i]) || isNaN(source2[i])) {
+    if (isNaN(source1[i]!) || isNaN(source2[i]!)) {
       result.push(NaN);
     } else {
-      result.push(Math.min(source1[i], source2[i]));
+      result.push(Math.min(source1[i]!, source2[i]!));
     }
   }
 
@@ -2824,7 +2824,7 @@ export function cog(source: Source, length: simple_int = 10): series_float {
 
     for (let j = 0; j < length; j++) {
       const weight = j + 1;
-      const price = source[i - length + 1 + j];
+      const price = source[i - length + 1 + j]!;
       numerator += weight * price;
       denominator += price;
     }
@@ -2876,7 +2876,7 @@ export function mode(source: Source, length: simple_int): series_float {
     // Collect non-NaN values in the window
     const values: number[] = [];
     for (let j = 0; j < length; j++) {
-      const value = source[i - j];
+      const value = source[i - j]!;
       if (!isNaN(value)) {
         values.push(value);
       }
@@ -2957,7 +2957,7 @@ export function percentile_linear_interpolation(
     // Collect values in the window (including NaN)
     const values: number[] = [];
     for (let j = 0; j < length; j++) {
-      const value = source[i - j];
+      const value = source[i - j]!;
       values.push(value);
     }
 
@@ -2977,11 +2977,11 @@ export function percentile_linear_interpolation(
 
     if (lowerIndex === upperIndex) {
       // Exact position
-      result.push(sorted[lowerIndex]);
+      result.push(sorted[lowerIndex]!);
     } else {
       // Linear interpolation between two values
       const fraction = position - lowerIndex;
-      const interpolated = sorted[lowerIndex] + fraction * (sorted[upperIndex] - sorted[lowerIndex]);
+      const interpolated = sorted[lowerIndex]! + fraction * (sorted[upperIndex]! - sorted[lowerIndex]!);
       result.push(interpolated);
     }
   }
@@ -3031,7 +3031,7 @@ export function percentile_nearest_rank(
     // Collect non-NaN values in the window
     const values: number[] = [];
     for (let j = 0; j < length; j++) {
-      const value = source[i - j];
+      const value = source[i - j]!;
       if (!isNaN(value)) {
         values.push(value);
       }
@@ -3047,7 +3047,7 @@ export function percentile_nearest_rank(
 
     // Special case: 100th percentile is the largest value
     if (percentage >= 100) {
-      result.push(sorted[sorted.length - 1]);
+      result.push(sorted[sorted.length - 1]!);
       continue;
     }
 
@@ -3058,7 +3058,7 @@ export function percentile_nearest_rank(
     // Ranks are 1-indexed, so subtract 1 for 0-indexed array
     const index = Math.max(0, rank - 1);
 
-    result.push(sorted[index]);
+    result.push(sorted[index]!);
   }
 
   return result;
@@ -3104,7 +3104,7 @@ export function rci(source: Source, length: simple_int): series_float {
     // Collect values in the window
     const values: number[] = [];
     for (let j = 0; j < length; j++) {
-      values.push(source[i - length + 1 + j]);
+      values.push(source[i - length + 1 + j]!);
     }
 
     // Check for NaN values
@@ -3125,7 +3125,7 @@ export function rci(source: Source, length: simple_int): series_float {
     for (let j = 0; j < sorted.length; j++) {
       // Count ties
       let tieCount = 1;
-      while (j + tieCount < sorted.length && sorted[j].value === sorted[j + tieCount].value) {
+      while (j + tieCount < sorted.length && sorted[j]!.value === sorted[j + tieCount]!.value) {
         tieCount++;
       }
 
@@ -3134,7 +3134,7 @@ export function rci(source: Source, length: simple_int): series_float {
 
       // Assign average rank to all tied values
       for (let k = 0; k < tieCount; k++) {
-        ranks[sorted[j + k].index] = avgRank;
+        ranks[sorted[j + k]!.index] = avgRank;
       }
 
       j += tieCount - 1;
@@ -3181,7 +3181,7 @@ export function rci(source: Source, length: simple_int): series_float {
  * ```typescript
  * const weekChange = [false, false, false, false, true, false, ...]; // Weekly anchor
  * const pivots = ta.pivot_point_levels("Traditional", weekChange, false, high, low, close);
- * // pivots[i] = [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
+ * // pivots[i]! = [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
  * ```
  *
  * @remarks
@@ -3228,13 +3228,13 @@ export function pivot_point_levels(
 
   for (let i = 0; i < length; i++) {
     // Check if anchor triggered
-    if (anchor[i]) {
+    if (anchor[i]!) {
       lastAnchorIndex = i;
       // Store OHLC at anchor point (these will be used for calculations)
-      lastH = high ? high[i] : NaN;
-      lastL = low ? low[i] : NaN;
-      lastC = close ? close[i] : NaN;
-      lastO = open ? open[i] : NaN;
+      lastH = high ? high[i]! : NaN;
+      lastL = low ? low[i]! : NaN;
+      lastC = close ? close[i]! : NaN;
+      lastO = open ? open[i]! : NaN;
     }
 
     // Calculate data to use
@@ -3244,8 +3244,8 @@ export function pivot_point_levels(
       // Developing: use max/min/last since anchor
       h = high ? Math.max(...high.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
       l = low ? Math.min(...low.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
-      c = close ? close[i] : NaN;
-      o = open && lastAnchorIndex >= 0 ? open[lastAnchorIndex] : NaN;
+      c = close ? close[i]! : NaN;
+      o = open && lastAnchorIndex >= 0 ? open[lastAnchorIndex]! : NaN;
     } else {
       // Not developing: use last anchor values
       h = lastH;
@@ -3259,7 +3259,7 @@ export function pivot_point_levels(
 
     // Push to results
     for (let j = 0; j < 11; j++) {
-      results[j].push(levels[j]);
+      results[j]!.push(levels[j]!);
     }
   }
 

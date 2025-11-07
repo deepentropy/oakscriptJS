@@ -4,7 +4,7 @@
  * @module runtime/context
  */
 
-import type { Bar } from '../types';
+import type { Bar, Plot, HLine } from '../types';
 
 /**
  * Indicator metadata registered via indicator() function
@@ -65,6 +65,18 @@ export interface InputRegistration {
 }
 
 /**
+ * Fill registration from fill() function calls
+ */
+export interface FillRegistration {
+  plot1: string; // ID of first plot or hline
+  plot2: string; // ID of second plot or hline
+  color?: any;
+  title?: string;
+  editable?: boolean;
+  display?: 'all' | 'none';
+}
+
+/**
  * Runtime context for indicator execution
  *
  * This class manages the global state during indicator script execution.
@@ -75,8 +87,11 @@ export class RuntimeContext {
   private indicatorMeta: IndicatorMetadata | null = null;
   private plots: PlotRegistration[] = [];
   private hlines: HLineRegistration[] = [];
+  private fills: FillRegistration[] = [];
   private inputs: Map<string, InputRegistration> = new Map();
   private inputValues: Map<string, any> = new Map();
+  private plotIdCounter = 0;
+  private hlineIdCounter = 0;
 
   /**
    * Set chart data for computation
@@ -107,10 +122,26 @@ export class RuntimeContext {
   }
 
   /**
-   * Register a plot
+   * Register a plot and return its reference
    */
-  registerPlot(plot: PlotRegistration): void {
+  registerPlot(plot: PlotRegistration): Plot {
+    const id = `plot_${this.plotIdCounter++}`;
     this.plots.push(plot);
+
+    return {
+      id,
+      series: plot.series,
+      title: plot.title,
+      color: plot.color,
+      linewidth: plot.linewidth,
+      style: plot.style,
+      trackprice: plot.trackprice,
+      histbase: plot.histbase,
+      offset: plot.offset,
+      join: plot.join,
+      editable: plot.editable,
+      display: plot.display,
+    };
   }
 
   /**
@@ -121,10 +152,21 @@ export class RuntimeContext {
   }
 
   /**
-   * Register a horizontal line
+   * Register a horizontal line and return its reference
    */
-  registerHLine(hline: HLineRegistration): void {
+  registerHLine(hline: HLineRegistration): HLine {
+    const id = `hline_${this.hlineIdCounter++}`;
     this.hlines.push(hline);
+
+    return {
+      id,
+      price: hline.price,
+      title: hline.title,
+      color: hline.color,
+      linestyle: hline.linestyle,
+      linewidth: hline.linewidth,
+      editable: hline.editable,
+    };
   }
 
   /**
@@ -132,6 +174,20 @@ export class RuntimeContext {
    */
   getHLines(): HLineRegistration[] {
     return this.hlines;
+  }
+
+  /**
+   * Register a fill between two plots or hlines
+   */
+  registerFill(fill: FillRegistration): void {
+    this.fills.push(fill);
+  }
+
+  /**
+   * Get all registered fills
+   */
+  getFills(): FillRegistration[] {
+    return this.fills;
   }
 
   /**
