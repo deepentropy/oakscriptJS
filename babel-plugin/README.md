@@ -213,10 +213,15 @@ The plugin uses **static analysis** to detect Series expressions:
 ### Detection Logic
 
 The plugin identifies Series by:
-- Built-in identifiers: `close`, `open`, `high`, `low`, `volume`, `hl2`, `hlc3`, `ohlc4`, `bar_index`
-- Function calls: `ta.*()` functions return Series
-- Method calls: `.add()`, `.sub()`, etc. return Series
-- Variable assignment: Variables assigned from Series are tracked
+- **Built-in identifiers**: `close`, `open`, `high`, `low`, `volume`, `hl2`, `hlc3`, `ohlc4`, `bar_index`
+- **Function calls**: `ta.*()` functions return Series
+- **Method calls**: `.add()`, `.sub()`, etc. return Series
+- **Binary expressions**: `(close - open)` is recognized as a Series if either operand is a Series
+- **Logical expressions**: `(a && b)` is recognized as a Series if either operand is a Series
+- **Unary expressions**: `-(close)` is recognized as a Series if the argument is a Series
+- **Variable assignment**: Variables assigned from Series are tracked
+
+This comprehensive detection ensures that complex nested expressions like `(close - open) / (high - low)` are correctly transformed in a single pass.
 
 ## Edge Cases
 
