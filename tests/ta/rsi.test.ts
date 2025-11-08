@@ -1,4 +1,4 @@
-import { ta } from '../../src';
+import { taCore as ta } from '../../src';
 
 describe('ta.rsi', () => {
   it('should calculate RSI correctly for basic data', () => {

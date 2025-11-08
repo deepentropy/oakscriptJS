@@ -22,7 +22,7 @@
 export * from './types';
 
 // Export namespaces
-import * as ta from './ta';
+import * as taCore from './ta';
 import * as math from './math';
 import * as array from './array';
 import * as str from './str';
@@ -34,7 +34,10 @@ import * as box from './box';
 import * as label from './label';
 import * as linefill from './linefill';
 
-export { ta, math, array, str, color, time, matrix, line, box, label, linefill };
+// Export DSL ta as main ta namespace (handles Series expressions)
+import * as ta from './dsl/ta';
+
+export { ta, taCore, math, array, str, color, time, matrix, line, box, label, linefill };
 
 // Export indicator controller (internal - used by DSL compile())
 // Note: These are low-level APIs. Users should use the DSL instead.
@@ -56,6 +59,7 @@ export {
   hline,
   fill,
   compile,
+  input,
   // Built-in series (note: 'time' is renamed to avoid conflict with time namespace)
   close,
   open,
@@ -77,8 +81,12 @@ export {
   type HLineOptions,
   type FillOptions,
   type CompiledIndicator,
+  type InputMetadata,
   type Color,
 } from './dsl';
+
+// Re-export IndicatorMetadata from DSL with clearer name to avoid conflict with indicator controller's IndicatorMetadata
+export type { IndicatorMetadata as DSLIndicatorMetadata } from './dsl/compile';
 
 // Export time series separately to avoid name conflict
 export { time as timeSeriesDSL } from './runtime/builtins';
@@ -92,8 +100,8 @@ export { dslTa as taDSL, dslColor as colorDSL };
 export { createContext } from './context';
 export type { ChartData, SymbolInfo, ContextConfig, OakContext } from './context';
 
-// Re-export commonly used functions for convenience
-export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr } from './ta';
+// Re-export commonly used functions for convenience (DSL versions for Series support)
+export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr } from './dsl/ta';
 export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
 export { rgb, from_hex as color_from_hex, new_color } from './color';
 
@@ -110,14 +118,14 @@ export const info = {
   name: 'OakScriptJS',
   version: VERSION,
   description: 'JavaScript mirror of the PineScript API (calculation/indicator functions only)',
-  namespaces: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix', 'line', 'box', 'label', 'linefill'],
-  excludedNamespaces: ['plot', 'table', 'input', 'strategy', 'request', 'alert'],
+  namespaces: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix', 'line', 'box', 'label', 'linefill', 'input'],
+  excludedNamespaces: ['plot', 'table', 'strategy', 'request', 'alert'],
   drawingObjects: {
     highValue: ['line', 'box'], // High computational value
     lowValue: ['label', 'linefill'], // Low computational value, mainly for annotations
   },
   features: {
-    dsl: 'PineScript DSL with indicator(), plot(), compile()',
+    dsl: 'PineScript DSL with indicator(), plot(), compile(), input.*',
     nativeOperators: 'Native operators with Babel plugin (close - open)',
     lightweightCharts: 'Integrated with Lightweight Charts v5'
   }

@@ -53,6 +53,7 @@ export interface HLineRegistration {
  */
 export interface InputRegistration {
   type: 'int' | 'float' | 'bool' | 'string' | 'source';
+  name: string;
   defval: any;
   title: string;
   tooltip?: string;

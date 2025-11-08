@@ -1,4 +1,4 @@
-import { ta } from '../../src';
+import { taCore as ta } from '../../src';
 
 describe('ta.supertrend', () => {
   it('should calculate supertrend correctly with basic data', () => {

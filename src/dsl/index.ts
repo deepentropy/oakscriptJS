@@ -9,6 +9,7 @@ export { plot } from './plot';
 export { hline } from './hline';
 export { fill } from './fill';
 export { compile } from './compile';
+export { input } from './input';
 
 // Color and format constants
 export { color, format } from './color';
@@ -41,5 +42,5 @@ export type { IndicatorOptions } from './indicator';
 export type { PlotOptions } from './plot';
 export type { HLineOptions } from './hline';
 export type { FillOptions } from './fill';
-export type { CompiledIndicator } from './compile';
+export type { CompiledIndicator, IndicatorMetadata, InputMetadata } from './compile';
 export type { Color } from './color';

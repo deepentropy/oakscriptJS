@@ -9,9 +9,46 @@ import type { IndicatorControllerInterface, IChartApi, ISeriesApi } from '../ind
 import type { PlotMetadata, IndicatorMetadata as ControllerMetadata } from '../indicator';
 
 /**
+ * Input metadata exposed to consumers
+ */
+export interface InputMetadata {
+  type: 'int' | 'float' | 'bool' | 'string' | 'source';
+  name: string;
+  title: string;
+  defval: any;
+  minval?: number;
+  maxval?: number;
+  step?: number;
+  tooltip?: string;
+  inline?: string;
+  group?: string;
+  options?: any[];
+}
+
+/**
+ * Complete indicator metadata exposed by compile()
+ */
+export interface IndicatorMetadata {
+  title: string;
+  shorttitle?: string;
+  overlay: boolean;
+  precision?: number;
+  format?: string;
+  timeframe?: string;
+  timeframe_gaps?: boolean;
+  inputs: InputMetadata[];
+  plots: PlotMetadata[];
+}
+
+/**
  * Compiled indicator object that can be bound to a chart
  */
 export interface CompiledIndicator {
+  /**
+   * Indicator metadata (accessible before binding)
+   */
+  metadata: IndicatorMetadata;
+
   /**
    * Bind the indicator to a chart
    * @param chart - Lightweight Charts instance
@@ -47,11 +84,10 @@ export interface CompiledIndicator {
 export function compile(): CompiledIndicator {
   const context = getContext();
 
-  // Capture current state (indicator metadata, plots, hlines)
+  // Capture current state (indicator metadata, plots, inputs)
   const indicatorMeta = context.getIndicatorMetadata();
   const plots = context.getPlots();
-  // const hlines = context.getHLines();
-  // const inputs = context.getInputs();
+  const inputs = context.getInputs();
 
   if (!indicatorMeta) {
     throw new Error('indicator() must be called before compile()');
@@ -61,7 +97,46 @@ export function compile(): CompiledIndicator {
     console.warn('No plots registered. Indicator will not display anything.');
   }
 
+  // Convert plots to metadata format
+  const plotMetadata: PlotMetadata[] = plots.map((plot, index) => ({
+    varName: `plot${index}`,
+    title: plot.title || `Plot ${index + 1}`,
+    color: convertColor(plot.color),
+    linewidth: plot.linewidth || 1,
+    style: plot.style || 'line',
+  }));
+
+  // Convert inputs to metadata format
+  const inputMetadata: InputMetadata[] = Array.from(inputs.values()).map(input => ({
+    type: input.type,
+    name: input.name,
+    title: input.title,
+    defval: input.defval,
+    minval: input.minval,
+    maxval: input.maxval,
+    step: input.step,
+    tooltip: input.tooltip,
+    inline: input.inline,
+    group: input.group,
+    options: input.options,
+  }));
+
+  // Build complete metadata
+  const metadata: IndicatorMetadata = {
+    title: indicatorMeta.title,
+    shorttitle: indicatorMeta.shorttitle,
+    overlay: indicatorMeta.overlay ?? false,
+    precision: indicatorMeta.precision,
+    format: indicatorMeta.format,
+    timeframe: indicatorMeta.timeframe,
+    timeframe_gaps: indicatorMeta.timeframe_gaps,
+    inputs: inputMetadata,
+    plots: plotMetadata,
+  };
+
   return {
+    metadata,  // Expose metadata
+
     bind(chart: IChartApi, mainSeries: ISeriesApi, options: Record<string, any> = {}): IndicatorControllerInterface {
       // Reset context for fresh execution
       resetContext();
@@ -69,17 +144,8 @@ export function compile(): CompiledIndicator {
       // Set user-provided input values
       context.setInputValues(options);
 
-      // Convert plots to IndicatorController metadata format
-      const plotMetadata: PlotMetadata[] = plots.map((plot, index) => ({
-        varName: `plot${index}`,
-        title: plot.title || `Plot ${index + 1}`,
-        color: convertColor(plot.color),
-        linewidth: plot.linewidth || 1,
-        style: plot.style || 'line',
-      }));
-
-      // Create IndicatorController metadata
-      const metadata: ControllerMetadata = {
+      // Create IndicatorController metadata (for internal use)
+      const controllerMetadata: ControllerMetadata = {
         title: indicatorMeta.title,
         version: 6,
         overlay: indicatorMeta.overlay ?? false,
@@ -96,6 +162,14 @@ export function compile(): CompiledIndicator {
         if (userOptions) {
           context.setInputValues(userOptions);
         }
+
+        // Invalidate all Series caches when options change
+        // This ensures recalculation with new input values
+        plots.forEach(plot => {
+          if (plot.series && typeof plot.series._invalidate === 'function') {
+            plot.series._invalidate();
+          }
+        });
 
         // Compute first plot (for now, single plot support)
         // TODO: Handle multiple plots
@@ -122,7 +196,7 @@ export function compile(): CompiledIndicator {
       return new IndicatorController(
         chart,
         mainSeries,
-        metadata,
+        controllerMetadata,
         calculateFn,
         options
       );
