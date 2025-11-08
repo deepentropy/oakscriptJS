@@ -1,4 +1,4 @@
-import { ta } from '../../src';
+import { taCore as ta } from '../../src';
 
 describe('Newly Implemented TA Functions', () => {
   describe('ta.mode', () => {
