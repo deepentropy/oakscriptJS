@@ -61,7 +61,7 @@ export type {
 } from './types/metadata';
 
 // Re-export commonly used functions for convenience
-export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr } from './ta-series';
+export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr, cum, vwap } from './ta-series';
 export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
 export { rgb, from_hex as color_from_hex, new_color } from './color';
 

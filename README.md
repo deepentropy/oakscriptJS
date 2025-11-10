@@ -1,65 +1,78 @@
 # OakScriptJS
 
-**JavaScript mirror of the PineScript API - with 100% PineScript-like Syntax**
+**Simplified PineScript-like library for JavaScript - Series + TA functions**
 
-OakScriptJS is a TypeScript/JavaScript library that mirrors PineScript's API, enabling you to write indicators that look exactly like PineScript. Perfect for building trading engines, backtesting systems, or transpiling PineScript with **OakScriptEngine**.
+OakScriptJS is a TypeScript/JavaScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations** with a clean Series-based approach, leaving indicator structure to the OakScriptEngine transpiler.
 
 📚 **[Read the Complete Guide →](./GUIDE.md)**
 
-## Three Levels of API
+## Core Features
 
-1. **Computational Core**: Pure calculation functions
-2. **PineScript DSL**: Declarative indicator syntax
-3. **Native Operators**: 100% PineScript-like with `close - open`
+1. **Series Class**: Lazy evaluation with operator chaining
+2. **Core Functions**: Pure array-based calculations
+3. **TA-Series Wrappers**: Series-based technical analysis functions
+4. **Metadata Types**: Type definitions for indicator results
+
+## Why OakScriptJS?
+
+**v0.2.0 Refactoring: Back to Simplicity**
+
+We removed the DSL layer (`indicator()`, `plot()`, `compile()`) and context API to focus on what matters: **computational primitives**. The complexity of indicator structure is now handled by OakScriptEngine transpiler where it belongs.
+
+**Before (v0.1.x):**
+```typescript
+// Complex DSL with global state
+indicator("My Indicator");
+const rsi = ta.rsi(close, 14);
+plot(rsi);
+export default compile();
+```
+
+**After (v0.2.0):**
+```typescript
+// Simple, explicit, testable
+import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+
+export function myIndicator(bars: any[]): IndicatorResult {
+  const close = new Series(bars, (bar) => bar.close);
+  const rsi = ta.rsi(close, 14);
+
+  return {
+    metadata: { title: "My Indicator", overlay: false },
+    plots: [{ data: rsi.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }]
+  };
+}
+```
 
 ## Scope
 
 **This library includes:**
-- ✅ Technical Analysis (`ta.*`) - All indicators and calculations
+- ✅ Technical Analysis (`ta.*`, `taCore.*`) - All indicators and calculations
 - ✅ Mathematics (`math.*`) - All mathematical operations
 - ✅ Arrays (`array.*`) - Array manipulation and operations
-- ✅ Matrices (`matrix.*`) - Matrix operations
+- ✅ Matrices (`matrix.*`) - Matrix operations (minimal, 2%)
 - ✅ Strings (`str.*`) - String manipulation
 - ✅ Time (`time.*`) - Time calculations and conversions
 - ✅ Color (`color.*`) - Color data structures and manipulation
 - ✅ **Drawing Objects** (`line.*`, `box.*`, `label.*`, `linefill.*`) - Computational features only
+- ✅ **Series Class** - Lazy evaluation with operator chaining
 
 **This library does NOT include:**
-- ❌ Rendering functions (`plot.*`, `table.*`)
-- ❌ UI/Input functions (`input.*`)
-- ❌ Strategy execution (`strategy.*`)
-- ❌ Data fetching (`request.*`)
-- ❌ Alert systems (`alert.*`, `alertcondition.*`)
-
-## Why Include Drawing Objects?
-
-While drawing objects (`line`, `box`, `label`, `linefill`) are primarily visual in TradingView, they have **genuine computational value**:
-
-- **`line.get_price()`** - Calculate trend line prices using linear interpolation for breakout detection
-- **`box` getters** - Detect gap fills, range breakouts, and pattern recognition
-- **`label` & `linefill`** - Primarily annotations, but useful for algorithmic context
-
-These objects are implemented **without rendering** - focusing purely on their computational aspects.
-
-## Why These Limitations?
-
-The excluded namespaces require external infrastructure (rendering engines, UI frameworks, data feeds, backtesting systems) that are specific to TradingView's platform. OakScriptJS focuses on what can be accurately replicated in pure JavaScript: calculations and data transformations.
+- ❌ DSL functions (`indicator()`, `plot()`, `compile()`) - Removed in v0.2.0
+- ❌ UI/Input functions (`input.*`) - Application responsibility
+- ❌ Strategy execution (`strategy.*`) - Strategy engine responsibility
+- ❌ Data fetching (`request.*`) - Data provider responsibility
+- ❌ Alert systems (`alert.*`, `alertcondition.*`) - Application responsibility
 
 ## Features
 
-- **100% PineScript Syntax**: Native operators with Babel plugin - write `(close - open) / (high - low)`
+- **Native Operators**: With Babel plugin - write `(close - open) / (high - low)`
 - **Exact API Match**: Function signatures match PineScript exactly
 - **Type Safety**: Full TypeScript support with type definitions
-- **PineScript DSL**: Declarative indicator syntax with `indicator()`, `plot()`, `compile()`
+- **Lazy Evaluation**: Series class evaluates on-demand
 - **Performance Optimized**: Efficient implementations for technical analysis
-- **Zero Dependencies**: Lightweight with no external runtime dependencies
+- **Zero Runtime Dependencies**: Lightweight with no external runtime dependencies
 - **Well Tested**: Extensive test coverage ensuring accuracy
-
-## Priorities
-
-1. **Exact same signature as PineScript API** - Maintains 100% compatibility
-2. **Accuracy** - Produces results matching PineScript calculations
-3. **Performance** - Optimized for speed and efficiency
 
 ## Installation
 
@@ -82,7 +95,7 @@ deno add jsr:@deepentropy/oakscriptjs
 bunx jsr add @deepentropy/oakscriptjs
 ```
 
-### npm (Coming Soon)
+### npm
 
 ```bash
 npm install @deepentropy/oakscriptjs
@@ -90,38 +103,56 @@ npm install @deepentropy/oakscriptjs
 
 ## Quick Start
 
-### Option 1: Basic Calculations
+### Option 1: Array-based Calculations
 
 ```typescript
-import { ta } from '@deepentropy/oakscriptjs';
+import { taCore } from '@deepentropy/oakscriptjs';
 
-const closes = [100, 102, 101, 103, 105];
-const sma = ta.sma(closes, 3);
-const rsi = ta.rsi(closes, 14);
+const prices = [100, 102, 101, 103, 105];
+const sma = taCore.sma(prices, 3);
+const rsi = taCore.rsi(prices, 14);
 ```
 
-### Option 2: PineScript-Style Indicators
+### Option 2: Series-based Calculations
 
 ```typescript
-import { indicator, plot, close, ta, color, compile } from '@deepentropy/oakscriptjs';
+import { Series, ta } from '@deepentropy/oakscriptjs';
 
-indicator("My RSI");
+const bars = [
+  { time: '2024-01-01', open: 100, high: 105, low: 99, close: 103 },
+  { time: '2024-01-02', open: 103, high: 107, low: 102, close: 106 }
+];
+
+const close = new Series(bars, (bar) => bar.close);
 const rsi = ta.rsi(close, 14);
-plot(rsi, {color: color.purple});
 
-export default compile();
+console.log(rsi.toArray());
 ```
 
-### Option 3: Native Operators (100% PineScript-like!)
+### Option 3: Native Operators (with Babel Plugin)
 
 ```typescript
-import { indicator, plot, close, open, high, low, compile } from '@deepentropy/oakscriptjs';
+import { Series } from '@deepentropy/oakscriptjs';
 
-indicator("Balance of Power");
-const bop = (close - open) / (high - low);  // Native operators!
-plot(bop);
+const close = new Series(bars, (bar) => bar.close);
+const open = new Series(bars, (bar) => bar.open);
+const high = new Series(bars, (bar) => bar.high);
+const low = new Series(bars, (bar) => bar.low);
 
-export default compile();
+// Native operators! 🎉
+const bop = (close - open) / (high - low);
+```
+
+**Setup Babel Plugin:**
+
+```javascript
+// babel.config.js
+module.exports = {
+  presets: ['@babel/preset-typescript'],
+  plugins: [
+    './node_modules/@deepentropy/oakscriptjs/babel-plugin/pinescript-operators.cjs'
+  ]
+};
 ```
 
 📚 **[See Complete Examples in the Guide →](./GUIDE.md#examples)**
@@ -136,7 +167,7 @@ export default compile();
 
 ## For OakScriptEngine Developers
 
-OakScriptJS is designed to make PineScript transpilation straightforward:
+OakScriptJS makes PineScript transpilation straightforward:
 
 ```typescript
 // PineScript
@@ -145,29 +176,60 @@ bop = (close - open) / (high - low)
 plot(bop)
 
 // Transpiles to (with Babel plugin)
-import { indicator, plot, close, open, high, low, compile } from '@deepentropy/oakscriptjs';
-indicator("My Indicator");
-const bop = (close - open) / (high - low);
-plot(bop);
-export default compile();
-```
+import { Series, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
-**100% PineScript syntax with Babel plugin!**
+export function myIndicator(bars: any[]): IndicatorResult {
+  const close = new Series(bars, (bar) => bar.close);
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+
+  const bop = (close - open) / (high - low);
+
+  return {
+    metadata: { title: "My Indicator", overlay: false },
+    plots: [{
+      data: bop.toArray().map((value, i) => ({ time: bars[i].time, value }))
+    }]
+  };
+}
+```
 
 📚 **[Complete Transpilation Guide →](./GUIDE.md#for-oakscriptengine-developers)**
 
-## What's New in v0.1.3
+## What's New in v0.2.0
 
-- ✅ **Streamlined Documentation**: Single approach using native operators with Babel
-- ✅ **Cleaner Examples**: All examples updated to use DSL with native operators
-- ✅ **Better Organization**: Removed outdated examples, kept only PineScript DSL patterns
-- ✅ **Internal Refactoring**: IndicatorController is now internal implementation detail
+**Major Refactoring: Back to Simplicity**
+
+- ✅ **Removed DSL Layer**: No more `indicator()`, `plot()`, `compile()`
+- ✅ **Removed Context API**: No more `createContext()`, global state
+- ✅ **Removed IndicatorController**: Complexity moved to transpiler
+- ✅ **Focus on Core**: Series class + computation functions
+- ✅ **Better Architecture**: Transpiler handles structure, library handles calculations
+
+**Migration from v0.1.x:**
+
+The DSL approach is deprecated. Use the new function-based approach with `IndicatorResult`. See the [Complete Guide](./GUIDE.md) for details.
 
 ## Supported Namespaces
 
-### Technical Analysis (`ta`) ✅
+### Technical Analysis (`ta` and `taCore`) ✅
 
 Complete implementation of PineScript's technical analysis functions:
+
+```typescript
+// Core (array-based)
+import { taCore } from '@deepentropy/oakscriptjs';
+taCore.sma(prices, 20)
+taCore.ema(prices, 20)
+taCore.rsi(prices, 14)
+
+// Series (Series-based)
+import { ta } from '@deepentropy/oakscriptjs';
+ta.sma(closeSeries, 20)
+ta.ema(closeSeries, 20)
+ta.rsi(closeSeries, 14)
+```
 
 - **Moving Averages**: `sma()`, `ema()`, `wma()`, `vwma()`, `swma()`, etc.
 - **Oscillators**: `rsi()`, `stoch()`, `cci()`, `macd()`, `mfi()`, etc.
@@ -175,175 +237,135 @@ Complete implementation of PineScript's technical analysis functions:
 - **Momentum**: `mom()`, `roc()`, `percentrank()`, etc.
 - **Regression**: `linreg()`, `correlation()`, etc.
 - **Crossovers**: `crossover()`, `crossunder()`, `cross()`
-- **Other**: `change()`, `tr()`, `supertrend()`, and many more
 
 ### Math (`math`) ✅
 
-Mathematical functions and operations:
-
-- **Basic**: `abs()`, `ceil()`, `floor()`, `round()`
-- **Min/Max**: `min()`, `max()`, `avg()`
-- **Powers**: `sqrt()`, `pow()`, `exp()`, `log()`, `log10()`
-- **Trigonometry**: `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2()`
-- **Utilities**: `sum()`, `sign()`, `random()`, `todegrees()`, `toradians()`
+```typescript
+math.abs(x), math.ceil(x), math.floor(x), math.round(x)
+math.min(...values), math.max(...values), math.avg(...values)
+math.sqrt(x), math.pow(x, y), math.exp(x), math.log(x)
+math.sin(x), math.cos(x), math.tan(x)
+```
 
 ### Array (`array`) ✅
 
-Array manipulation functions:
+```typescript
+array.new_float(size, initial)
+array.push(arr, value)
+array.get(arr, index)
+array.sum(arr), array.avg(arr), array.sort(arr)
+```
 
-- **Creation**: `new_array()`, `from()`
-- **Access**: `get()`, `set()`, `size()`
-- **Modification**: `push()`, `pop()`, `shift()`, `unshift()`, `insert()`, `remove()`
-- **Analysis**: `sum()`, `avg()`, `min()`, `max()`, `median()`, `stdev()`, `variance()`
-- **Operations**: `sort()`, `reverse()`, `slice()`, `concat()`, `includes()`, `indexof()`
+### Series Class ✅
 
-### Matrix (`matrix`) ✅
+```typescript
+class Series {
+  // Arithmetic
+  add(other: Series | number): Series
+  sub(other: Series | number): Series
+  mul(other: Series | number): Series
+  div(other: Series | number): Series
 
-Matrix operations for advanced calculations:
+  // Comparison
+  gt(other: Series | number): Series
+  lt(other: Series | number): Series
 
-- **Creation**: `new()`, `copy()`
-- **Operations**: `mult()`, `add()`, `transpose()`
-- **Access**: `get()`, `set()`, `row()`, `col()`
+  // Logical
+  and(other: Series | number): Series
+  or(other: Series | number): Series
 
-### String (`str`) ✅
-
-String manipulation functions:
-
-- **Conversion**: `tostring()`, `tonumber()`
-- **Manipulation**: `substring()`, `split()`, `concat()`, `replace()`
-- **Case**: `upper()`, `lower()`
-- **Search**: `contains()`, `pos()`, `startswith()`, `endswith()`
-- **Formatting**: `format()`, `trim()`
-
-### Time (`time`) ✅
-
-Time calculations and conversions:
-
-- **Conversions**: Convert between timestamps and time components
-- **Calculations**: Work with timeframes and time-based logic
-
-### Color (`color`) ✅
-
-Color creation and manipulation:
-
-- **Creation**: `rgb()`, `from_hex()`, `new_color()`
-- **Components**: `r()`, `g()`, `b()`, `t()`
-- **Predefined Colors**: `red`, `green`, `blue`, `yellow`, etc.
+  // Access
+  toArray(): number[]
+  last(): number
+  offset(n: number): Series  // Like close[1]
+}
+```
 
 ### Drawing Objects ✅
 
 **NEW**: Drawing objects with computational features (no rendering):
 
-#### Line (`line`) - High Computational Value
-
-- **Creation**: `new()` - Create trend lines with coordinates
-- **Computation**: `get_price()` - Linear interpolation for breakout detection
-- **Getters**: `get_x1()`, `get_y1()`, `get_x2()`, `get_y2()`
-- **Setters**: `set_x1()`, `set_y1()`, `set_xy1()`, `set_color()`, `set_style()`, etc.
-- **Operations**: `copy()`, `delete()`
-
-#### Box (`box`) - High Computational Value
-
-- **Creation**: `new()` - Create rectangles for ranges
-- **Computation**: `get_top()`, `get_bottom()`, `get_left()`, `get_right()` - Gap detection & range analysis
-- **Setters**: `set_top()`, `set_bottom()`, `set_bgcolor()`, `set_border_color()`, etc.
-- **Operations**: `copy()`, `delete()`
-
-#### Label (`label`) - Annotation
-
-- **Creation**: `new()` - Create labels at coordinates
-- **Getters**: `get_x()`, `get_y()`, `get_text()`
-- **Setters**: `set_xy()`, `set_text()`, `set_color()`, `set_style()`, etc.
-- **Operations**: `copy()`, `delete()`
-
-#### Linefill (`linefill`) - Annotation
-
-- **Creation**: `new()` - Fill between two lines
-- **Getters**: `get_line1()`, `get_line2()`
-- **Setters**: `set_color()`
-- **Operations**: `delete()`
+- **Line (`line`)**: `new()`, `get_price()`, getters/setters
+- **Box (`box`)**: `new()`, getters/setters for gap detection
+- **Label (`label`)**: `new()`, getters/setters
+- **Linefill (`linefill`)**: `new()`, `set_color()`
 
 ## API Documentation
 
-### ta.sma(source, length)
-
-Simple Moving Average
+### Series Example
 
 ```typescript
-ta.sma(source: series_float, length: simple_int): series_float
+import { Series, ta } from '@deepentropy/oakscriptjs';
+
+const bars = [/* OHLCV data */];
+
+// Create Series
+const close = new Series(bars, (bar) => bar.close);
+const high = new Series(bars, (bar) => bar.high);
+const low = new Series(bars, (bar) => bar.low);
+
+// Calculations
+const range = high.sub(low);  // Or: high - low (with Babel)
+const rsi = ta.rsi(close, 14);
+
+// Extract values
+const values = rsi.toArray();
+const last = rsi.last();
 ```
 
-**Parameters:**
-- `source` - Source series (e.g., close prices)
-- `length` - Number of bars to average
-
-**Returns:** Series of SMA values
-
-### ta.ema(source, length)
-
-Exponential Moving Average
+### Core Functions Example
 
 ```typescript
-ta.ema(source: series_float, length: simple_int): series_float
+import { taCore, math } from '@deepentropy/oakscriptjs';
+
+const prices = [100, 102, 101, 103, 105];
+const sma = taCore.sma(prices, 3);
+const avg = math.avg(...prices);
 ```
-
-### ta.rsi(source, length)
-
-Relative Strength Index
-
-```typescript
-ta.rsi(source: series_float, length: simple_int): series_float
-```
-
-### ta.macd(source, fastLength, slowLength, signalLength)
-
-Moving Average Convergence Divergence
-
-```typescript
-ta.macd(
-  source: series_float,
-  fastLength: simple_int,
-  slowLength: simple_int,
-  signalLength: simple_int
-): [series_float, series_float, series_float]
-```
-
-**Returns:** `[macdLine, signalLine, histogram]`
-
-### ta.bb(source, length, mult)
-
-Bollinger Bands
-
-```typescript
-ta.bb(
-  source: series_float,
-  length: simple_int,
-  mult: simple_float
-): [series_float, series_float, series_float]
-```
-
-**Returns:** `[basis, upper, lower]`
 
 ## Examples
 
-See the `/examples/indicators` directory for complete examples:
-
-- `balance-of-power.ts` - Balance of Power indicator with native operators
-- `rsi.ts` - RSI with native operators and horizontal lines
-- `macd.ts` - MACD with native operators and histogram
-
-## Type System
-
-OakScriptJS uses TypeScript types that mirror PineScript's type system:
+Complete working examples:
 
 ```typescript
-type int = number;
-type float = number;
-type bool = boolean;
-type series<T> = T[];
-type series_float = series<float>;
-type series_bool = series<bool>;
+// Example 1: Simple Moving Average
+import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+
+export function smaIndicator(bars: any[]): IndicatorResult {
+  const close = new Series(bars, (bar) => bar.close);
+  const sma20 = ta.sma(close, 20);
+
+  return {
+    metadata: { title: "SMA 20", overlay: true },
+    plots: [{
+      data: sma20.toArray().map((v, i) => ({ time: bars[i].time, value: v })),
+      options: { color: '#2196F3', linewidth: 2 }
+    }]
+  };
+}
+
+// Example 2: Balance of Power (with native operators)
+export function bopIndicator(bars: any[]): IndicatorResult {
+  const close = new Series(bars, (bar) => bar.close);
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+
+  // Native operators!
+  const bop = (close - open) / (high - low);
+
+  return {
+    metadata: { title: "Balance of Power", overlay: false },
+    plots: [{
+      data: bop.toArray().map((v, i) => ({ time: bars[i].time, value: v })),
+      options: { color: '#FF0000', linewidth: 2 }
+    }],
+    hlines: [{ value: 0, options: { color: '#808080' } }]
+  };
+}
 ```
+
+See `/examples/indicators/` for more examples.
 
 ## Development
 
@@ -367,18 +389,11 @@ npm run test:watch
 npm run test:coverage
 ```
 
-### Lint
+### Lint & Format
 
 ```bash
 npm run lint
-npm run lint:fix
-```
-
-### Format
-
-```bash
 npm run format
-npm run format:check
 ```
 
 ## Project Structure
@@ -386,43 +401,37 @@ npm run format:check
 ```
 oakscriptjs/
 ├── src/
-│   ├── ta/          # Technical analysis functions
-│   ├── math/        # Mathematical functions
-│   ├── array/       # Array operations
-│   ├── str/         # String operations
-│   ├── color/       # Color functions
-│   ├── types/       # Type definitions
-│   ├── utils/       # Internal utilities
-│   └── index.ts     # Main entry point
-├── tests/           # Test files
-├── examples/        # Usage examples
-└── dist/           # Built output
+│   ├── ta/              # Technical analysis (array-based)
+│   ├── ta-series.ts     # TA wrappers (Series-based)
+│   ├── math/            # Mathematical functions
+│   ├── array/           # Array operations
+│   ├── str/             # String operations
+│   ├── color/           # Color functions
+│   ├── runtime/
+│   │   └── series.ts    # Series class
+│   ├── types/           # Type definitions
+│   │   └── metadata.ts  # Indicator result types
+│   └── index.ts         # Main entry point
+├── tests/               # Test files
+├── examples/            # Usage examples
+└── dist/                # Built output
 ```
 
 ## Roadmap
 
-**Included Namespaces:**
-- [ ] Complete `matrix` namespace implementation
-- [ ] Complete `time` namespace implementation
-- [x] `ta` namespace - Core indicators implemented
-- [x] `math` namespace - Complete
-- [x] `array` namespace - Complete
-- [x] `str` namespace - Complete
-- [x] `color` namespace - Complete
-- [x] **`line`, `box`, `label`, `linefill`** - Drawing objects (computational features only)
+**Current Focus:**
+- [x] Core functions (array-based) - Complete
+- [x] Series class with lazy evaluation - Complete
+- [x] TA-Series wrappers - Complete
+- [x] Metadata types for indicators - Complete
+- [ ] Complete `matrix` namespace (currently 2%)
+- [ ] Performance optimizations
 
-**Improvements:**
-- [ ] Performance benchmarks
-- [ ] Comprehensive documentation site
-- [ ] Additional technical indicators
-- [ ] More test coverage
-
-**Explicitly Excluded** (require external infrastructure):
-- ❌ `plot`, `table` - Rendering functions
-- ❌ `input` - UI controls
-- ❌ `strategy` - Strategy execution engine
-- ❌ `request` - Data fetching
-- ❌ `alert`, `alertcondition` - Alert system
+**Explicitly Removed** (handled by transpiler/application):
+- ❌ DSL functions (`indicator()`, `plot()`, `compile()`)
+- ❌ Context API (`createContext()`)
+- ❌ IndicatorController
+- ❌ Built-in series (`close`, `open`, etc.)
 
 ## Contributing
 
@@ -439,11 +448,15 @@ MIT
 
 ## Documentation
 
-- 📚 **[Complete Guide](./GUIDE.md)** - User guide + OakScriptEngine transpilation guide
-- 🔌 **[Babel Plugin Guide](./docs/BABEL_PLUGIN_GUIDE.md)** - Native operators setup
-- 📊 **[Examples](./examples/indicators/)** - Working indicator examples
+- 📚 **[Complete Guide](./GUIDE.md)** - User guide + OakScriptEngine integration
+- 📊 **[Function Inventory](./INVENTORY.md)** - Complete function list with status
 - 🎯 **[API Reference](./GUIDE.md#api-reference)** - Complete API documentation
 
 ## Acknowledgments
 
 This library is inspired by TradingView's PineScript language. It is not affiliated with or endorsed by TradingView.
+
+---
+
+**Version**: 0.2.0
+**Last Updated**: November 2025

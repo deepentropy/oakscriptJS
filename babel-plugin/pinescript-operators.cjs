@@ -181,6 +181,34 @@ module.exports = function ({ types: t }) {
     path.replaceWith(callExpression);
   }
 
+  /**
+   * Transform member expression (array subscript to offset method)
+   */
+  function transformMemberExpression(path) {
+    const { object, property, computed } = path.node;
+
+    // Only transform computed member expressions (src[len])
+    // Skip dot notation (src.method)
+    if (!computed) {
+      return;
+    }
+
+    const scope = path.scope;
+
+    // Only transform if object is a Series
+    if (!isSeries(object, scope)) {
+      return;
+    }
+
+    // Transform: object[property]  →  object.offset(property)
+    const offsetCall = t.callExpression(
+      t.memberExpression(object, t.identifier('offset')),
+      [property]
+    );
+
+    path.replaceWith(offsetCall);
+  }
+
   return {
     name: 'pinescript-operators',
     visitor: {
@@ -194,6 +222,10 @@ module.exports = function ({ types: t }) {
 
       LogicalExpression(path) {
         transformLogicalExpression(path);
+      },
+
+      MemberExpression(path) {
+        transformMemberExpression(path);
       },
     },
   };
