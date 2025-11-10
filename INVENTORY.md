@@ -2,7 +2,18 @@
 
 This document tracks the implementation status of all PineScript v6 functions for included namespaces.
 
-**Last Updated:** 2025-01-06 (v0.1.3)
+**Last Updated:** 2025-11-10 (v0.2.0)
+
+## Architecture Overview
+
+OakScriptJS is a **simplified PineScript-like library** providing:
+
+1. **Core Functions** (array-based): Pure calculation functions from `ta.*`, `math.*`, `array.*`, etc.
+2. **Series Class**: Lazy evaluation with operator chaining for native PineScript-like syntax
+3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
+4. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills)
+
+**No DSL Layer**: The complexity of DSL functions (`indicator()`, `plot()`, `compile()`) is now handled by the OakScriptEngine transpiler. This library focuses on the computational core.
 
 ## Summary
 
@@ -538,19 +549,21 @@ Based on the inventory, here are recommended priorities for implementation:
 
 ## Notes
 
-1. **Drawing Objects Implemented**: Line, box, label, and linefill namespaces are **fully implemented** (Phases 1-5) with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
+1. **Drawing Objects Implemented**: Line, box, label, and linefill namespaces are **fully implemented** with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
 
-2. **Context API**: Some functions (like `ta.atr()`, `ta.tr()`, `ta.supertrend()`, `line.get_price()`) require chart data. Use `createContext()` for cleaner API that matches PineScript with implicit current bar support.
+2. **Series Class**: The `Series` class provides lazy evaluation and operator chaining. When used with the Babel plugin, it enables native PineScript-like syntax: `(close - open) / (high - low)`.
 
-3. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
+3. **Two API Levels**:
+   - **Core TA** (`taCore`): Array-based functions like `taCore.sma(priceArray, 14)`
+   - **TA-Series** (`ta`): Series-based wrappers like `ta.sma(closeSeries, 14)`
 
-4. **Type-Specific Arrays**: Array functions like `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays (`new_line()`, `new_box()`, `new_label()`, `new_linefill()`) are implemented as type-specific wrappers around `new_array()`.
+4. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
 
-5. **Matrix Implementation**: The matrix namespace has minimal implementation (2%) and represents the largest opportunity for expansion.
+5. **Type-Specific Arrays**: Array functions like `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays (`new_line()`, `new_box()`, `new_label()`, `new_linefill()`) are implemented as type-specific wrappers around `new_array()`.
 
-6. **String Functions**: Fully implemented (100%)! All PineScript string manipulation functions are available.
+6. **Matrix Implementation**: The matrix namespace has minimal implementation (2%) and represents the largest opportunity for expansion.
 
-7. **Drawing Object Arrays**: Phase 5 added `array.new_line()`, `array.new_box()`, `array.new_label()`, and `array.new_linefill()` for systematic collection management.
+7. **String Functions**: Fully implemented (100%)! All PineScript string manipulation functions are available.
 
 ---
 
@@ -563,6 +576,7 @@ When implementing new functions:
 3. Include examples in documentation
 4. Add unit tests with expected outputs from PineScript
 5. Update this inventory file
-6. Consider adding the function to context API if it requires chart data
+6. If the function accepts arrays, implement it in the core namespace (e.g., `src/ta/`)
+7. Add a Series-based wrapper in `src/ta-series.ts` if the function is commonly used with Series
 
-For questions about priorities or implementation details, see the PineScript v6 reference documentation in `docs/reference/functions/`.
+For questions about priorities or implementation details, see the PineScript v6 reference documentation in `docs/official/language-reference/`.

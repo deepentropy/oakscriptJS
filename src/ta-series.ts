@@ -1,6 +1,6 @@
 /**
  * @fileoverview Technical analysis functions that work with Series
- * Simplified wrappers around core ta.* functions
+ * Fixed wrappers around core ta.* functions with O(n) performance
  * @module ta-series
  */
 
@@ -16,11 +16,9 @@ import type { Bar } from './types';
  */
 export function sma(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.sma(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.sma(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -31,11 +29,9 @@ export function sma(source: Series, length: number): Series {
  */
 export function ema(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.ema(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.ema(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -46,11 +42,9 @@ export function ema(source: Series, length: number): Series {
  */
 export function wma(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.wma(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.wma(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -61,11 +55,9 @@ export function wma(source: Series, length: number): Series {
  */
 export function rma(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.rma(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.rma(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -76,11 +68,9 @@ export function rma(source: Series, length: number): Series {
  */
 export function rsi(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.rsi(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.rsi(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -135,11 +125,9 @@ export function bb(source: Series, length: number, mult: number): [Series, Serie
  */
 export function stdev(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.stdev(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.stdev(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -149,13 +137,11 @@ export function stdev(source: Series, length: number): Series {
  * @returns Series with ATR values
  */
 export function atr(bars: Bar[], length: number): Series {
-  return new Series(bars, (_bar, i) => {
-    const high = bars.map(b => b.high);
-    const low = bars.map(b => b.low);
-    const close = bars.map(b => b.close);
-    const result = taCore.atr(length, high, low, close);
-    return result[i]!;
-  });
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const result = taCore.atr(length, high, low, close);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -164,13 +150,11 @@ export function atr(bars: Bar[], length: number): Series {
  * @returns Series with TR values
  */
 export function tr(bars: Bar[]): Series {
-  return new Series(bars, (_bar, i) => {
-    const high = bars.map(b => b.high);
-    const low = bars.map(b => b.low);
-    const close = bars.map(b => b.close);
-    const result = taCore.tr(false, high, low, close);
-    return result[i]!;
-  });
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const result = taCore.tr(false, high, low, close);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -181,15 +165,15 @@ export function tr(bars: Bar[]): Series {
  */
 export function crossover(source1: Series, source2: Series | number): Series {
   const bars = (source1 as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const vals1 = source1.toArray();
-    const vals2 = typeof source2 === 'number'
-      ? Array(bars.length).fill(source2)
-      : source2.toArray();
+  const vals1 = source1.toArray();
+  const vals2 = typeof source2 === 'number'
+    ? Array(bars.length).fill(source2)
+    : source2.toArray();
 
-    const result = taCore.crossover(vals1, vals2);
-    return result[i] ? 1 : 0;
-  });
+  const result = taCore.crossover(vals1, vals2);
+  // Convert boolean array to number array
+  const numResult = result.map(b => b ? 1 : 0);
+  return Series.fromArray(bars, numResult);
 }
 
 /**
@@ -200,15 +184,15 @@ export function crossover(source1: Series, source2: Series | number): Series {
  */
 export function crossunder(source1: Series, source2: Series | number): Series {
   const bars = (source1 as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const vals1 = source1.toArray();
-    const vals2 = typeof source2 === 'number'
-      ? Array(bars.length).fill(source2)
-      : source2.toArray();
+  const vals1 = source1.toArray();
+  const vals2 = typeof source2 === 'number'
+    ? Array(bars.length).fill(source2)
+    : source2.toArray();
 
-    const result = taCore.crossunder(vals1, vals2);
-    return result[i] ? 1 : 0;
-  });
+  const result = taCore.crossunder(vals1, vals2);
+  // Convert boolean array to number array
+  const numResult = result.map(b => b ? 1 : 0);
+  return Series.fromArray(bars, numResult);
 }
 
 /**
@@ -219,15 +203,15 @@ export function crossunder(source1: Series, source2: Series | number): Series {
  */
 export function cross(source1: Series, source2: Series | number): Series {
   const bars = (source1 as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const vals1 = source1.toArray();
-    const vals2 = typeof source2 === 'number'
-      ? Array(bars.length).fill(source2)
-      : source2.toArray();
+  const vals1 = source1.toArray();
+  const vals2 = typeof source2 === 'number'
+    ? Array(bars.length).fill(source2)
+    : source2.toArray();
 
-    const result = taCore.cross(vals1, vals2);
-    return result[i] ? 1 : 0;
-  });
+  const result = taCore.cross(vals1, vals2);
+  // Convert boolean array to number array
+  const numResult = result.map(b => b ? 1 : 0);
+  return Series.fromArray(bars, numResult);
 }
 
 /**
@@ -238,11 +222,9 @@ export function cross(source1: Series, source2: Series | number): Series {
  */
 export function change(source: Series, length: number = 1): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.change(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.change(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -253,11 +235,9 @@ export function change(source: Series, length: number = 1): Series {
  */
 export function mom(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.mom(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.mom(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -268,11 +248,9 @@ export function mom(source: Series, length: number): Series {
  */
 export function roc(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.roc(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.roc(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -283,11 +261,9 @@ export function roc(source: Series, length: number): Series {
  */
 export function highest(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.highest(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.highest(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -298,11 +274,9 @@ export function highest(source: Series, length: number): Series {
  */
 export function lowest(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.lowest(sourceValues, length);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.lowest(sourceValues, length);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -313,11 +287,11 @@ export function lowest(source: Series, length: number): Series {
  */
 export function rising(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.rising(sourceValues, length);
-    return result[i] ? 1 : 0;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.rising(sourceValues, length);
+  // Convert boolean array to number array
+  const numResult = result.map(b => b ? 1 : 0);
+  return Series.fromArray(bars, numResult);
 }
 
 /**
@@ -328,11 +302,11 @@ export function rising(source: Series, length: number): Series {
  */
 export function falling(source: Series, length: number): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.falling(sourceValues, length);
-    return result[i] ? 1 : 0;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.falling(sourceValues, length);
+  // Convert boolean array to number array
+  const numResult = result.map(b => b ? 1 : 0);
+  return Series.fromArray(bars, numResult);
 }
 
 /**
@@ -342,11 +316,9 @@ export function falling(source: Series, length: number): Series {
  */
 export function cum(source: Series): Series {
   const bars = (source as any).data as Bar[];
-  return new Series(bars, (_bar, i) => {
-    const sourceValues = source.toArray();
-    const result = taCore.cum(sourceValues);
-    return result[i]!;
-  });
+  const sourceValues = source.toArray();
+  const result = taCore.cum(sourceValues);
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -366,6 +338,20 @@ export function supertrend(bars: Bar[], factor: number, atrLength: number): [Ser
   const dirSeries = Series.fromArray(bars, dirVals);
 
   return [trendSeries, dirSeries];
+}
+
+/**
+ * Volume Weighted Average Price
+ * @param source - Source series (typically close or hlc3)
+ * @param volume - Volume series
+ * @returns Series with VWAP values
+ */
+export function vwap(source: Series, volume: Series): Series {
+  const bars = (source as any).data as Bar[];
+  const sourceValues = source.toArray();
+  const volumeValues = volume.toArray();
+  const result = taCore.vwap(sourceValues, volumeValues);
+  return Series.fromArray(bars, result);
 }
 
 // Export as namespace object to match PineScript ta.* syntax
@@ -392,4 +378,5 @@ export const ta = {
   falling,
   cum,
   supertrend,
+  vwap,
 };
