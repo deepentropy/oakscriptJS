@@ -1,43 +1,78 @@
 /**
- * @fileoverview Series class for PineScript DSL
+ * @fileoverview Simplified Series class for lazy time-series computation
  * Represents a time-series of values with lazy evaluation
  * @module runtime/series
  */
 
 import type { Bar } from '../types';
-import type { RuntimeContext } from './context';
 
 /**
- * Function that extracts/computes a value for each bar
+ * Function that computes a value for each bar
  */
 export type SeriesExtractor = (bar: Bar, index: number, data: Bar[]) => number;
 
 /**
- * Series - represents a time-series of values
+ * Series - represents a time-series of values with lazy evaluation
  *
  * Series are lazy - they don't compute values until needed.
  * Operations on Series return new Series with composed extractors.
  *
  * @example
  * ```typescript
- * const range = high.sub(low);  // Creates new Series, doesn't compute yet
- * const values = range._compute();  // Now computes for all bars
+ * const close = Series.fromBars(bars, 'close');
+ * const open = Series.fromBars(bars, 'open');
+ * const range = close.sub(open);  // Creates new Series, doesn't compute yet
+ * const values = range.toArray(); // Now computes for all bars
  * ```
  */
 export class Series {
-  private context: RuntimeContext;
   private extractor: SeriesExtractor;
+  private data: Bar[];
   private cached: number[] | null = null;
 
   /**
    * Create a new Series
    *
-   * @param context - Runtime context providing chart data
+   * @param data - Bar data for the series
    * @param extractor - Function to extract/compute value for each bar
    */
-  constructor(context: RuntimeContext, extractor: SeriesExtractor) {
-    this.context = context;
+  constructor(data: Bar[], extractor: SeriesExtractor) {
+    this.data = data;
     this.extractor = extractor;
+  }
+
+  // ============================================
+  // Static Factory Methods
+  // ============================================
+
+  /**
+   * Create Series from bar data by extracting a specific field
+   * @param bars - Bar data
+   * @param field - Field to extract ('open', 'high', 'low', 'close', 'volume')
+   * @returns Series with extracted field values
+   */
+  static fromBars(bars: Bar[], field: 'open' | 'high' | 'low' | 'close' | 'volume'): Series {
+    return new Series(bars, (bar) => bar[field] ?? NaN);
+  }
+
+  /**
+   * Create a constant series (same value for all bars)
+   * @param bars - Bar data
+   * @param value - Constant value
+   * @returns Series with constant value
+   */
+  static constant(bars: Bar[], value: number): Series {
+    return new Series(bars, () => value);
+  }
+
+  /**
+   * Create series from array of values
+   * @param bars - Bar data (for time alignment)
+   * @param values - Array of values
+   * @returns Series
+   */
+  static fromArray(bars: Bar[], values: number[]): Series {
+    return new Series(bars, (_bar, i) => values[i] ?? NaN);
   }
 
   // ============================================
@@ -50,7 +85,7 @@ export class Series {
    * @returns New Series representing the sum
    */
   add(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a + b;
@@ -63,7 +98,7 @@ export class Series {
    * @returns New Series representing the difference
    */
   sub(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a - b;
@@ -76,7 +111,7 @@ export class Series {
    * @returns New Series representing the product
    */
   mul(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a * b;
@@ -89,7 +124,7 @@ export class Series {
    * @returns New Series representing the quotient
    */
   div(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return b !== 0 ? a / b : NaN;
@@ -102,7 +137,7 @@ export class Series {
    * @returns New Series representing the remainder
    */
   mod(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return b !== 0 ? a % b : NaN;
@@ -114,7 +149,7 @@ export class Series {
    * @returns New Series with negated values
    */
   neg(): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       return -this.extractor(bar, i, data);
     });
   }
@@ -129,7 +164,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   gt(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a > b ? 1 : 0;
@@ -142,7 +177,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   gte(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a >= b ? 1 : 0;
@@ -155,7 +190,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   lt(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a < b ? 1 : 0;
@@ -168,7 +203,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   lte(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a <= b ? 1 : 0;
@@ -181,7 +216,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   eq(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a === b ? 1 : 0;
@@ -194,7 +229,7 @@ export class Series {
    * @returns New Series with 1 where true, 0 where false
    */
   neq(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a !== b ? 1 : 0;
@@ -211,7 +246,7 @@ export class Series {
    * @returns New Series with 1 where both true, 0 otherwise
    */
   and(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a && b ? 1 : 0;
@@ -224,7 +259,7 @@ export class Series {
    * @returns New Series with 1 where either true, 0 otherwise
    */
   or(other: Series | number): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
       return a || b ? 1 : 0;
@@ -236,7 +271,7 @@ export class Series {
    * @returns New Series with inverted boolean values
    */
   not(): Series {
-    return new Series(this.context, (bar, i, data) => {
+    return new Series(this.data, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       return !a ? 1 : 0;
     });
@@ -252,7 +287,7 @@ export class Series {
    * @returns New Series with offset values
    */
   offset(offset: number): Series {
-    return new Series(this.context, (_bar, i, data) => {
+    return new Series(this.data, (_bar, i, data) => {
       const targetIndex = i - offset;
       if (targetIndex < 0 || targetIndex >= data.length) {
         return NaN;
@@ -268,15 +303,13 @@ export class Series {
   /**
    * Compute all values for the series
    * @returns Array of computed values
-   * @internal
    */
-  _compute(): number[] {
+  toArray(): number[] {
     if (this.cached !== null) {
       return this.cached;
     }
 
-    const data = this.context.getData();
-    this.cached = data.map((bar, i) => this.extractor(bar, i, data));
+    this.cached = this.data.map((bar, i) => this.extractor(bar, i, this.data));
     return this.cached;
   }
 
@@ -289,11 +322,12 @@ export class Series {
   }
 
   /**
-   * Convert to regular array
-   * @returns Array of values
+   * Compute all values (alias for toArray)
+   * @returns Array of computed values
+   * @internal
    */
-  toArray(): number[] {
-    return this._compute();
+  _compute(): number[] {
+    return this.toArray();
   }
 
   /**
@@ -302,7 +336,7 @@ export class Series {
    * @returns Value at that index
    */
   get(index: number): number {
-    const values = this._compute();
+    const values = this.toArray();
     return values[index] ?? NaN;
   }
 
@@ -311,7 +345,7 @@ export class Series {
    * @returns Most recent value
    */
   last(): number {
-    const values = this._compute();
+    const values = this.toArray();
     return values[values.length - 1] ?? NaN;
   }
 
@@ -320,30 +354,18 @@ export class Series {
    * @returns Length of series
    */
   length(): number {
-    return this.context.getData().length;
-  }
-
-  // ============================================
-  // Utility Methods
-  // ============================================
-
-  /**
-   * Create a constant series (same value for all bars)
-   * @param context - Runtime context
-   * @param value - Constant value
-   * @returns Series with constant value
-   */
-  static constant(context: RuntimeContext, value: number): Series {
-    return new Series(context, () => value);
+    return this.data.length;
   }
 
   /**
-   * Create series from array of values
-   * @param context - Runtime context
-   * @param values - Array of values
-   * @returns Series
+   * Convert series to time-value pairs for charting
+   * @returns Array of { time, value } objects
    */
-  static fromArray(context: RuntimeContext, values: number[]): Series {
-    return new Series(context, (_bar, i) => values[i] || NaN);
+  toTimeValuePairs(): Array<{ time: any; value: number }> {
+    const values = this.toArray();
+    return this.data.map((bar, i) => ({
+      time: bar.time,
+      value: values[i]!
+    })).filter(point => !Number.isNaN(point.value));
   }
 }

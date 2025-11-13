@@ -1,27 +1,23 @@
 /**
- * OakScriptJS - JavaScript mirror of the PineScript API
+ * OakScriptJS - Simplified PineScript-like library for JavaScript
  *
- * This library provides the exact same API signatures as PineScript,
- * allowing you to write indicator and strategy logic in JavaScript/TypeScript
- * that matches PineScript syntax and behavior.
+ * This library provides Series-based lazy evaluation and technical analysis functions
+ * for building trading indicators. Complexity is handled by the OakScriptEngine transpiler.
  *
- * Focus: Calculation and indicator functions.
- *
- * **NEW**: Drawing objects (line, box, label, linefill) are now supported!
- * While primarily visual in TradingView, these objects have computational value:
- * - line.get_price() for trend line breakout detection
- * - box getters for gap detection and range analysis
- *
- * This library does NOT include rendering (plot), UI (input), strategy execution,
- * or data fetching (request) functions.
+ * Key features:
+ * - Series class for lazy evaluation and operator chaining
+ * - Core TA functions (array-based)
+ * - TA-Series wrappers (Series-based)
+ * - Native operator support via Babel plugin
  *
  * @packageDocumentation
  */
 
 // Export all types
 export * from './types';
+export * from './types/metadata';
 
-// Export namespaces
+// Export core namespaces (array-based functions)
 import * as taCore from './ta';
 import * as math from './math';
 import * as array from './array';
@@ -34,82 +30,46 @@ import * as box from './box';
 import * as label from './label';
 import * as linefill from './linefill';
 
-// Export DSL ta as main ta namespace (handles Series expressions)
-import * as ta from './dsl/ta';
+export { taCore, math, array, str, color, time, matrix, line, box, label, linefill };
 
-export { ta, taCore, math, array, str, color, time, matrix, line, box, label, linefill };
+// Export Series class (self-contained, no context)
+export { Series } from './runtime/series';
+export type { SeriesExtractor } from './runtime/series';
 
-// Export indicator controller (internal - used by DSL compile())
-// Note: These are low-level APIs. Users should use the DSL instead.
-export {
-  IndicatorController,
-  createIndicator,
-  type PlotMetadata,
-  type IndicatorMetadata,
-  type IndicatorControllerInterface,
-  type IChartApi,
-  type ISeriesApi
-} from './indicator';
+// Export TA-Series namespace (Series-based wrappers)
+import * as ta from './ta-series';
+export { ta };
 
-// Export PineScript DSL (high-level API)
-export {
-  // DSL functions
-  indicator,
-  plot,
-  hline,
-  fill,
-  compile,
-  input,
-  // Built-in series (note: 'time' is renamed to avoid conflict with time namespace)
-  close,
-  open,
-  high,
-  low,
-  volume,
-  hl2,
-  hlc3,
-  ohlc4,
-  hlcc4,
-  bar_index,
-  // Runtime
-  Series,
-  getContext as getDSLContext,
-  resetContext as resetDSLContext,
-  // Types
-  type IndicatorOptions,
-  type PlotOptions,
-  type HLineOptions,
-  type FillOptions,
-  type CompiledIndicator,
-  type InputMetadata,
-  type Color,
-} from './dsl';
+// Export metadata types for indicator return values
+export type {
+  PlotOptions,
+  HLineOptions,
+  FillOptions,
+  InputMetadata,
+  PlotMetadata,
+  IndicatorMetadata,
+  TimeValue,
+  PlotData,
+  HLineData,
+  FillData,
+  IndicatorResult,
+  IndicatorFactory,
+  PlotStyle,
+  LineStyle,
+  PlotDisplay,
+  InputType
+} from './types/metadata';
 
-// Re-export IndicatorMetadata from DSL with clearer name to avoid conflict with indicator controller's IndicatorMetadata
-export type { IndicatorMetadata as DSLIndicatorMetadata } from './dsl/compile';
-
-// Export time series separately to avoid name conflict
-export { time as timeSeriesDSL } from './runtime/builtins';
-
-// Re-export DSL modules for namespace access
-import * as dslTa from './dsl/ta';
-import * as dslColor from './dsl/color';
-export { dslTa as taDSL, dslColor as colorDSL };
-
-// Export context API
-export { createContext } from './context';
-export type { ChartData, SymbolInfo, ContextConfig, OakContext } from './context';
-
-// Re-export commonly used functions for convenience (DSL versions for Series support)
-export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr } from './dsl/ta';
+// Re-export commonly used functions for convenience
+export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr, cum, vwap } from './ta-series';
 export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
 export { rgb, from_hex as color_from_hex, new_color } from './color';
 
-// Export chart data utilities (previously in chart namespace)
+// Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
 // Version
-export const VERSION = '0.1.3';
+export const VERSION = '0.2.0';
 
 /**
  * Library information
@@ -117,16 +77,15 @@ export const VERSION = '0.1.3';
 export const info = {
   name: 'OakScriptJS',
   version: VERSION,
-  description: 'JavaScript mirror of the PineScript API (calculation/indicator functions only)',
-  namespaces: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix', 'line', 'box', 'label', 'linefill', 'input'],
-  excludedNamespaces: ['plot', 'table', 'strategy', 'request', 'alert'],
-  drawingObjects: {
-    highValue: ['line', 'box'], // High computational value
-    lowValue: ['label', 'linefill'], // Low computational value, mainly for annotations
-  },
+  description: 'Simplified PineScript-like library - Series + TA functions',
   features: {
-    dsl: 'PineScript DSL with indicator(), plot(), compile(), input.*',
-    nativeOperators: 'Native operators with Babel plugin (close - open)',
-    lightweightCharts: 'Integrated with Lightweight Charts v5'
+    series: 'Lazy evaluation with Series class',
+    operators: 'Native operators with Babel plugin (high - low)',
+    ta: 'Technical analysis functions (Series and array-based)',
+    minimal: 'No DSL layer, no global context - complexity in transpiler'
+  },
+  namespaces: {
+    core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
+    drawing: ['line', 'box', 'label', 'linefill']
   }
 };
