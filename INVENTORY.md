@@ -22,7 +22,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **ta** | 59 | 59 | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
 | **array** | 63 | 62 | 1 | 98.4% |
-| **matrix** | 50 | 40 | 10 | 80% |
+| **matrix** | 50 | 50 | 0 | 100% |
 | **str** | 20 | 20 | 0 | 100% |
 | **time** | 1 | 1 | 0 | 100% |
 | **color** | 8 | 8 | 0 | 100% |
@@ -30,7 +30,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **box** | 28 | 28 | 0 | 100% |
 | **label** | 17 | 17 | 0 | 100% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **TOTAL** | **295** | **284** | **11** | **96%** |
+| **TOTAL** | **295** | **294** | **1** | **99.7%** |
 
 ---
 
@@ -218,7 +218,7 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 
 ## matrix (Matrix Operations)
 
-### ✅ Implemented (40 functions)
+### ✅ Implemented (50 functions)
 
 **Phase 1 - Foundation:**
 1. `new_matrix()` - Create new matrix (basic implementation)
@@ -235,7 +235,7 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 12. `is_zero()` - Test if zero matrix
 13. `is_binary()` - Test if binary
 
-**Phase 2 - Manipulation (Row/Column Operations):** ✨ NEW
+**Phase 2 - Manipulation (Row/Column Operations):**
 14. `add_row()` - Add row to matrix
 15. `add_col()` - Add column to matrix
 16. `remove_row()` - Remove row from matrix
@@ -243,7 +243,7 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 18. `swap_rows()` - Swap two rows
 19. `swap_columns()` - Swap two columns
 
-**Phase 2 - Manipulation (Matrix Transformations):** ✨ NEW
+**Phase 2 - Manipulation (Matrix Transformations):**
 20. `transpose()` - Matrix transpose
 21. `concat()` - Concatenate matrices
 22. `submatrix()` - Extract submatrix
@@ -251,11 +251,11 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 24. `reverse()` - Reverse matrix
 25. `sort()` - Sort matrix by column
 
-**Phase 2 - Manipulation (Element-wise Arithmetic):** ✨ NEW
+**Phase 2 - Manipulation (Element-wise Arithmetic):**
 26. `sum()` - Matrix addition (matrix or scalar)
 27. `diff()` - Matrix subtraction (matrix or scalar)
 
-**Phase 2 - Manipulation (Statistical Functions):** ✨ NEW
+**Phase 2 - Manipulation (Statistical Functions):**
 28. `avg()` - Average of all elements
 29. `min()` - Minimum element
 30. `max()` - Maximum element
@@ -263,7 +263,7 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 32. `mode()` - Mode (most frequent element)
 33. `trace()` - Matrix trace (sum of diagonal)
 
-**Phase 2 - Manipulation (Boolean Checks):** ✨ NEW
+**Phase 2 - Manipulation (Boolean Checks):**
 34. `is_diagonal()` - Test if diagonal matrix
 35. `is_identity()` - Test if identity matrix
 36. `is_symmetric()` - Test if symmetric
@@ -272,21 +272,21 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 39. `is_antidiagonal()` - Test if antidiagonal
 40. `is_stochastic()` - Test if stochastic
 
-### ❌ Not Implemented (9 functions)
+**Phase 3 - Linear Algebra (High Complexity):** ✨ NEW
+41. `mult()` - Matrix multiplication (matrix × matrix, matrix × scalar, matrix × vector)
+42. `pow()` - Matrix power using repeated squaring (O(n³ log p))
+43. `det()` - Determinant using LU decomposition with partial pivoting (O(n³))
+44. `inv()` - Matrix inverse using Gauss-Jordan elimination (O(n³))
+45. `pinv()` - Moore-Penrose pseudo-inverse for any matrix shape
+46. `rank()` - Matrix rank via row echelon form (O(n³))
+47. `eigenvalues()` - Eigenvalues using QR algorithm
+48. `eigenvectors()` - Eigenvectors using inverse iteration
+49. `kron()` - Kronecker (tensor) product
+50. `newtype()` - Create matrix of user-defined type
 
-**Phase 3 - Linear Algebra (High Complexity):**
-1. `det()` - Determinant
-2. `inv()` - Matrix inverse
-3. `pinv()` - Pseudo-inverse
-4. `mult()` - Matrix multiplication
-5. `pow()` - Matrix power
-6. `rank()` - Matrix rank
-7. `eigenvalues()` - Eigenvalues of matrix
-8. `eigenvectors()` - Eigenvectors of matrix
-9. `kron()` - Kronecker product
+### ❌ Not Implemented (0 functions)
 
-**Placeholder:**
-10. `newtype()` - Create matrix of user-defined type (requires UDT system)
+**All matrix functions are now implemented!** 🎉
 
 ---
 
