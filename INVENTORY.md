@@ -22,7 +22,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **ta** | 59 | 59 | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
 | **array** | 63 | 62 | 1 | 98.4% |
-| **matrix** | 49 | 13 | 36 | 27% |
+| **matrix** | 50 | 40 | 10 | 80% |
 | **str** | 20 | 20 | 0 | 100% |
 | **time** | 1 | 1 | 0 | 100% |
 | **color** | 8 | 8 | 0 | 100% |
@@ -30,7 +30,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **box** | 28 | 28 | 0 | 100% |
 | **label** | 17 | 17 | 0 | 100% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **TOTAL** | **294** | **257** | **37** | **87%** |
+| **TOTAL** | **295** | **284** | **11** | **96%** |
 
 ---
 
@@ -218,61 +218,75 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 
 ## matrix (Matrix Operations)
 
-### ✅ Implemented (13 functions)
+### ✅ Implemented (40 functions)
 
+**Phase 1 - Foundation:**
 1. `new_matrix()` - Create new matrix (basic implementation)
-2. `get()` - Get element at position ✨ NEW
-3. `set()` - Set element at position ✨ NEW
-4. `rows()` - Get number of rows ✨ NEW
-5. `columns()` - Get number of columns ✨ NEW
-6. `elements_count()` - Total number of elements ✨ NEW
-7. `row()` - Get row as array ✨ NEW
-8. `col()` - Get column as array ✨ NEW
-9. `copy()` - Create a deep copy ✨ NEW
-10. `fill()` - Fill matrix with value ✨ NEW
-11. `is_square()` - Test if square ✨ NEW
-12. `is_zero()` - Test if zero matrix ✨ NEW
-13. `is_binary()` - Test if binary ✨ NEW
+2. `get()` - Get element at position
+3. `set()` - Set element at position
+4. `rows()` - Get number of rows
+5. `columns()` - Get number of columns
+6. `elements_count()` - Total number of elements
+7. `row()` - Get row as array
+8. `col()` - Get column as array
+9. `copy()` - Create a deep copy
+10. `fill()` - Fill matrix with value
+11. `is_square()` - Test if square
+12. `is_zero()` - Test if zero matrix
+13. `is_binary()` - Test if binary
 
-### ❌ Not Implemented (36 functions)
+**Phase 2 - Manipulation (Row/Column Operations):** ✨ NEW
+14. `add_row()` - Add row to matrix
+15. `add_col()` - Add column to matrix
+16. `remove_row()` - Remove row from matrix
+17. `remove_col()` - Remove column from matrix
+18. `swap_rows()` - Swap two rows
+19. `swap_columns()` - Swap two columns
 
-1. `add_col()` - Add column to matrix
-2. `add_row()` - Add row to matrix
-3. `avg()` - Average of matrix elements
-4. `concat()` - Concatenate matrices
-5. `det()` - Determinant
-6. `diff()` - Difference between matrices
+**Phase 2 - Manipulation (Matrix Transformations):** ✨ NEW
+20. `transpose()` - Matrix transpose
+21. `concat()` - Concatenate matrices
+22. `submatrix()` - Extract submatrix
+23. `reshape()` - Reshape matrix
+24. `reverse()` - Reverse matrix
+25. `sort()` - Sort matrix by column
+
+**Phase 2 - Manipulation (Element-wise Arithmetic):** ✨ NEW
+26. `sum()` - Matrix addition (matrix or scalar)
+27. `diff()` - Matrix subtraction (matrix or scalar)
+
+**Phase 2 - Manipulation (Statistical Functions):** ✨ NEW
+28. `avg()` - Average of all elements
+29. `min()` - Minimum element
+30. `max()` - Maximum element
+31. `median()` - Median element
+32. `mode()` - Mode (most frequent element)
+33. `trace()` - Matrix trace (sum of diagonal)
+
+**Phase 2 - Manipulation (Boolean Checks):** ✨ NEW
+34. `is_diagonal()` - Test if diagonal matrix
+35. `is_identity()` - Test if identity matrix
+36. `is_symmetric()` - Test if symmetric
+37. `is_antisymmetric()` - Test if antisymmetric (skew-symmetric)
+38. `is_triangular()` - Test if triangular
+39. `is_antidiagonal()` - Test if antidiagonal
+40. `is_stochastic()` - Test if stochastic
+
+### ❌ Not Implemented (9 functions)
+
+**Phase 3 - Linear Algebra (High Complexity):**
+1. `det()` - Determinant
+2. `inv()` - Matrix inverse
+3. `pinv()` - Pseudo-inverse
+4. `mult()` - Matrix multiplication
+5. `pow()` - Matrix power
+6. `rank()` - Matrix rank
 7. `eigenvalues()` - Eigenvalues of matrix
 8. `eigenvectors()` - Eigenvectors of matrix
-9. `inv()` - Matrix inverse
-10. `is_antidiagonal()` - Test if antidiagonal
-11. `is_antisymmetric()` - Test if antisymmetric
-12. `is_diagonal()` - Test if diagonal
-13. `is_identity()` - Test if identity matrix
-14. `is_stochastic()` - Test if stochastic
-15. `is_symmetric()` - Test if symmetric
-16. `is_triangular()` - Test if triangular
-17. `kron()` - Kronecker product
-18. `max()` - Maximum element
-19. `median()` - Median element
-20. `min()` - Minimum element
-21. `mode()` - Mode (most frequent element)
-22. `mult()` - Matrix multiplication
-23. `newtype()` - Create matrix of user-defined type
-24. `pinv()` - Pseudo-inverse
-25. `pow()` - Matrix power
-26. `rank()` - Matrix rank
-27. `remove_col()` - Remove column
-28. `remove_row()` - Remove row
-29. `reshape()` - Reshape matrix
-30. `reverse()` - Reverse matrix
-31. `sort()` - Sort matrix
-32. `submatrix()` - Extract submatrix
-33. `sum()` - Sum of elements
-34. `swap_columns()` - Swap two columns
-35. `swap_rows()` - Swap two rows
-36. `trace()` - Matrix trace
-37. `transpose()` - Matrix transpose
+9. `kron()` - Kronecker product
+
+**Placeholder:**
+10. `newtype()` - Create matrix of user-defined type (requires UDT system)
 
 ---
 
