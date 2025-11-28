@@ -2311,7 +2311,7 @@ export function rank(id: PineMatrix<float>): int {
  * @remarks
  * Uses the Implicit QL Algorithm with shifts.
  * For non-symmetric matrices, only real eigenvalues are returned accurately.
- * Complex eigenvalues are approximated by NaN.
+ * Complex eigenvalues return their real part for 2x2 matrices.
  * Time complexity: O(n³) per iteration, typically converges in O(n) iterations.
  *
  * @example
@@ -2529,7 +2529,7 @@ function qrAlgorithm(h: PineMatrix<float>, maxIter: int): float[] {
  * @returns A new matrix where columns are eigenvectors
  *
  * @remarks
- * Uses the Implicit QL Algorithm.
+ * Uses inverse iteration method to compute eigenvectors from eigenvalues.
  * Eigenvectors are normalized to unit length.
  * Time complexity: O(n³)
  *
