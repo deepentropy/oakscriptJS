@@ -453,4 +453,50 @@ describe('Matrix Foundational Functions', () => {
       expect(matrix.is_zero(m)).toBe(false);
     });
   });
+
+  describe('Bounds Checking', () => {
+    describe('matrix.get', () => {
+      it('should throw error for row out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.get(m, 5, 0)).toThrow(/out of bounds/);
+        expect(() => matrix.get(m, -1, 0)).toThrow(/out of bounds/);
+      });
+
+      it('should throw error for column out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.get(m, 0, 5)).toThrow(/out of bounds/);
+        expect(() => matrix.get(m, 0, -1)).toThrow(/out of bounds/);
+      });
+    });
+
+    describe('matrix.set', () => {
+      it('should throw error for row out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.set(m, 5, 0, 1)).toThrow(/out of bounds/);
+        expect(() => matrix.set(m, -1, 0, 1)).toThrow(/out of bounds/);
+      });
+
+      it('should throw error for column out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.set(m, 0, 5, 1)).toThrow(/out of bounds/);
+        expect(() => matrix.set(m, 0, -1, 1)).toThrow(/out of bounds/);
+      });
+    });
+
+    describe('matrix.row', () => {
+      it('should throw error for row out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.row(m, 5)).toThrow(/out of bounds/);
+        expect(() => matrix.row(m, -1)).toThrow(/out of bounds/);
+      });
+    });
+
+    describe('matrix.col', () => {
+      it('should throw error for column out of bounds', () => {
+        const m = matrix.new_matrix(2, 3, 0);
+        expect(() => matrix.col(m, 5)).toThrow(/out of bounds/);
+        expect(() => matrix.col(m, -1)).toThrow(/out of bounds/);
+      });
+    });
+  });
 });

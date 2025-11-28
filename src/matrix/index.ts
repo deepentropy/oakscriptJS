@@ -63,6 +63,9 @@ export function new_matrix<T>(
  *
  */
 export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): T {
+  if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
+    throw new Error(`Matrix index out of bounds: [${row}, ${column}] for matrix of size [${id.rows}, ${id.columns}]`);
+  }
   return id.data[row]![column]!;
 }
 
@@ -92,6 +95,9 @@ export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): 
  *
  */
 export function set<T>(id: PineMatrix<T>, row: simple_int, column: simple_int, value: T): void {
+  if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
+    throw new Error(`Matrix index out of bounds: [${row}, ${column}] for matrix of size [${id.rows}, ${id.columns}]`);
+  }
   id.data[row]![column] = value;
 }
 
@@ -188,6 +194,9 @@ export function elements_count<T>(id: PineMatrix<T>): int {
  *
  */
 export function row<T>(id: PineMatrix<T>, row_index: simple_int): PineArray<T> {
+  if (row_index < 0 || row_index >= id.rows) {
+    throw new Error(`Row index out of bounds: ${row_index} for matrix with ${id.rows} rows`);
+  }
   return [...id.data[row_index]!] as PineArray<T>;
 }
 
@@ -218,6 +227,9 @@ export function row<T>(id: PineMatrix<T>, row_index: simple_int): PineArray<T> {
  *
  */
 export function col<T>(id: PineMatrix<T>, column_index: simple_int): PineArray<T> {
+  if (column_index < 0 || column_index >= id.columns) {
+    throw new Error(`Column index out of bounds: ${column_index} for matrix with ${id.columns} columns`);
+  }
   return id.data.map(r => r[column_index]!) as PineArray<T>;
 }
 
