@@ -967,18 +967,22 @@ export function reverse<T>(id: PineMatrix<T>): void {
  * ```
  *
  */
-export function sort<T>(id: PineMatrix<T>, column: simple_int = 0, order: 'ascending' | 'descending' = 'ascending'): void {
+export function sort<T extends number | string>(id: PineMatrix<T>, column: simple_int = 0, order: 'ascending' | 'descending' = 'ascending'): void {
   if (column < 0 || column >= id.columns) {
     throw new Error(`Column index out of bounds: ${column} for matrix with ${id.columns} columns`);
   }
 
   id.data.sort((a, b) => {
-    const valA = a[column] as any;
-    const valB = b[column] as any;
+    const valA = a[column]!;
+    const valB = b[column]!;
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return order === 'ascending' ? valA - valB : valB - valA;
+    }
+    // String comparison
     if (order === 'ascending') {
-      return valA - valB;
+      return valA < valB ? -1 : valA > valB ? 1 : 0;
     } else {
-      return valB - valA;
+      return valB < valA ? -1 : valB > valA ? 1 : 0;
     }
   });
 }
@@ -1543,7 +1547,9 @@ export function is_antisymmetric(id: PineMatrix<float>): bool {
     }
 
     for (let j = i + 1; j < id.columns; j++) {
-      if (id.data[i]![j] !== -id.data[j]![i]!) {
+      const upperVal = id.data[i]![j]!;
+      const lowerVal = id.data[j]![i]!;
+      if (upperVal !== -lowerVal) {
         return false;
       }
     }
