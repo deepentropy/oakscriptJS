@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.mjs",
+      "require": "./dist/runtime/index.js"
     }
   },
   "files": [
@@ -20,9 +25,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:types",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:runtime:esm && npm run build:runtime:cjs && npm run build:types",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:runtime:esm": "esbuild src/runtime/index.ts --bundle --format=esm --outfile=dist/runtime/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:runtime:cjs": "esbuild src/runtime/index.ts --bundle --format=cjs --outfile=dist/runtime/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "clean": "rimraf dist",
     "dev": "tsc --watch",
