@@ -3376,3 +3376,115 @@ function calculatePivotLevels(
 
   return levels;
 }
+
+/**
+ * Ichimoku Kinko Hyo (Ichimoku Cloud) - Japanese charting technique for trend identification.
+ *
+ * @param conversionPeriods - Period for Tenkan-sen (Conversion Line), default: 9
+ * @param basePeriods - Period for Kijun-sen (Base Line), default: 26
+ * @param laggingSpan2Periods - Period for Senkou Span B (Leading Span B), default: 52
+ * @param displacement - Displacement for Senkou Spans and Chikou Span, default: 26
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
+ * @returns Tuple of [tenkanSen, kijunSen, senkouSpanA, senkouSpanB, chikouSpan]
+ *
+ * @remarks
+ * - **Tenkan-sen (Conversion Line)**: `(highest(high, conversionPeriods) + lowest(low, conversionPeriods)) / 2`
+ * - **Kijun-sen (Base Line)**: `(highest(high, basePeriods) + lowest(low, basePeriods)) / 2`
+ * - **Senkou Span A (Leading Span A)**: `(tenkan + kijun) / 2` offset forward by `displacement` periods
+ * - **Senkou Span B (Leading Span B)**: `(highest(high, laggingSpan2Periods) + lowest(low, laggingSpan2Periods)) / 2` offset forward by `displacement` periods
+ * - **Chikou Span (Lagging Span)**: `close` offset backward by `displacement` periods
+ *
+ * The forward offset for Senkou Spans means they are projected into the future (NaN values at the end).
+ * The backward offset for Chikou Span means it shows past prices (NaN values at the beginning).
+ *
+ * @example
+ * ```typescript
+ * const [tenkan, kijun, senkouA, senkouB, chikou] = ta.ichimoku(9, 26, 52, 26, high, low, close);
+ *
+ * // Tenkan-sen crosses above Kijun-sen = bullish signal
+ * const bullishSignal = ta.crossover(tenkan, kijun);
+ *
+ * // Price above cloud = bullish trend
+ * // Cloud = area between senkouSpanA and senkouSpanB
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_ta.ichimoku | PineScript ta.ichimoku}
+ */
+export function ichimoku(
+  conversionPeriods: simple_int,
+  basePeriods: simple_int,
+  laggingSpan2Periods: simple_int,
+  displacement: simple_int,
+  high: Source,
+  low: Source,
+  close: Source
+): [series_float, series_float, series_float, series_float, series_float] {
+  const length = high.length;
+
+  // Calculate Tenkan-sen (Conversion Line): (highest(high, 9) + lowest(low, 9)) / 2
+  const highestConversion = highest(high, conversionPeriods);
+  const lowestConversion = lowest(low, conversionPeriods);
+  const tenkanSen: series_float = [];
+  for (let i = 0; i < length; i++) {
+    if (isNaN(highestConversion[i]!) || isNaN(lowestConversion[i]!)) {
+      tenkanSen.push(NaN);
+    } else {
+      tenkanSen.push((highestConversion[i]! + lowestConversion[i]!) / 2);
+    }
+  }
+
+  // Calculate Kijun-sen (Base Line): (highest(high, 26) + lowest(low, 26)) / 2
+  const highestBase = highest(high, basePeriods);
+  const lowestBase = lowest(low, basePeriods);
+  const kijunSen: series_float = [];
+  for (let i = 0; i < length; i++) {
+    if (isNaN(highestBase[i]!) || isNaN(lowestBase[i]!)) {
+      kijunSen.push(NaN);
+    } else {
+      kijunSen.push((highestBase[i]! + lowestBase[i]!) / 2);
+    }
+  }
+
+  // Calculate Senkou Span A (Leading Span A): (tenkan + kijun) / 2, offset forward by displacement
+  // This means at index i, we store the value that would normally be at index (i - displacement)
+  // Result: first 'displacement' values are NaN, and last 'displacement' calculated values are lost
+  const senkouSpanA: series_float = [];
+  for (let i = 0; i < length; i++) {
+    const sourceIndex = i - displacement;
+    if (sourceIndex < 0 || isNaN(tenkanSen[sourceIndex]!) || isNaN(kijunSen[sourceIndex]!)) {
+      senkouSpanA.push(NaN);
+    } else {
+      senkouSpanA.push((tenkanSen[sourceIndex]! + kijunSen[sourceIndex]!) / 2);
+    }
+  }
+
+  // Calculate Senkou Span B (Leading Span B): (highest(high, 52) + lowest(low, 52)) / 2, offset forward by displacement
+  const highestLagging = highest(high, laggingSpan2Periods);
+  const lowestLagging = lowest(low, laggingSpan2Periods);
+  const senkouSpanB: series_float = [];
+  for (let i = 0; i < length; i++) {
+    const sourceIndex = i - displacement;
+    if (sourceIndex < 0 || isNaN(highestLagging[sourceIndex]!) || isNaN(lowestLagging[sourceIndex]!)) {
+      senkouSpanB.push(NaN);
+    } else {
+      senkouSpanB.push((highestLagging[sourceIndex]! + lowestLagging[sourceIndex]!) / 2);
+    }
+  }
+
+  // Calculate Chikou Span (Lagging Span): close, offset backward by displacement
+  // This means at index i, we store the close value from index (i + displacement)
+  // Result: last 'displacement' values are NaN
+  const chikouSpan: series_float = [];
+  for (let i = 0; i < length; i++) {
+    const sourceIndex = i + displacement;
+    if (sourceIndex >= length || isNaN(close[sourceIndex]!)) {
+      chikouSpan.push(NaN);
+    } else {
+      chikouSpan.push(close[sourceIndex]!);
+    }
+  }
+
+  return [tenkanSen, kijunSen, senkouSpanA, senkouSpanB, chikouSpan];
+}

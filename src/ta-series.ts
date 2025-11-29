@@ -354,6 +354,44 @@ export function vwap(source: Series, volume: Series): Series {
   return Series.fromArray(bars, result);
 }
 
+/**
+ * Ichimoku Kinko Hyo (Ichimoku Cloud)
+ * @param bars - Bar data
+ * @param conversionPeriods - Period for Tenkan-sen (default: 9)
+ * @param basePeriods - Period for Kijun-sen (default: 26)
+ * @param laggingSpan2Periods - Period for Senkou Span B (default: 52)
+ * @param displacement - Displacement for Senkou Spans and Chikou Span (default: 26)
+ * @returns Tuple of [tenkanSen, kijunSen, senkouSpanA, senkouSpanB, chikouSpan] Series
+ */
+export function ichimoku(
+  bars: Bar[],
+  conversionPeriods: number,
+  basePeriods: number,
+  laggingSpan2Periods: number,
+  displacement: number
+): [Series, Series, Series, Series, Series] {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const [tenkan, kijun, senkouA, senkouB, chikou] = taCore.ichimoku(
+    conversionPeriods,
+    basePeriods,
+    laggingSpan2Periods,
+    displacement,
+    high,
+    low,
+    close
+  );
+
+  return [
+    Series.fromArray(bars, tenkan),
+    Series.fromArray(bars, kijun),
+    Series.fromArray(bars, senkouA),
+    Series.fromArray(bars, senkouB),
+    Series.fromArray(bars, chikou),
+  ];
+}
+
 // Export as namespace object to match PineScript ta.* syntax
 export const ta = {
   sma,
@@ -379,4 +417,5 @@ export const ta = {
   cum,
   supertrend,
   vwap,
+  ichimoku,
 };

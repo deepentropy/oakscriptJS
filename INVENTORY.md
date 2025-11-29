@@ -19,7 +19,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 
 | Namespace | Total Functions | Implemented | Not Implemented | Completion % |
 |-----------|----------------|-------------|-----------------|--------------|
-| **ta** | 59 | 59 | 0 | 100% |
+| **ta** | 60 | 60 | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
 | **array** | 63 | 62 | 1 | 98.4% |
 | **matrix** | 50 | 50 | 0 | 100% |
@@ -30,13 +30,13 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **box** | 28 | 28 | 0 | 100% |
 | **label** | 17 | 17 | 0 | 100% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **TOTAL** | **295** | **294** | **1** | **99.7%** |
+| **TOTAL** | **296** | **295** | **1** | **99.7%** |
 
 ---
 
 ## ta (Technical Analysis)
 
-### ✅ Implemented (59 functions)
+### ✅ Implemented (60 functions)
 
 1. `atr()` - Average True Range
 2. `barssince()` - Number of bars since condition was true ✨ NEW
@@ -56,47 +56,48 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 16. `falling()` - Tests if series is falling
 17. `highest()` - Highest value over a period
 18. `hma()` - Hull Moving Average ✨ NEW
-19. `kc()` - Keltner Channels ✨ NEW
-20. `linreg()` - Linear regression
-21. `lowest()` - Lowest value over a period
-22. `macd()` - Moving Average Convergence Divergence
-23. `median()` - Median value over a period
-24. `mfi()` - Money Flow Index ✨ NEW
-25. `mom()` - Momentum
-26. `percentrank()` - Percent rank over a period
-27. `pivothigh()` - Detects pivot high points ✨ NEW
-28. `pivotlow()` - Detects pivot low points ✨ NEW
-29. `rising()` - Tests if series is rising
-30. `rma()` - Relative Moving Average (exponential moving average with alpha = 1 / length)
-31. `roc()` - Rate of Change
-32. `rsi()` - Relative Strength Index
-33. `sar()` - Parabolic SAR ✨ NEW
-34. `sma()` - Simple Moving Average
-35. `stdev()` - Standard deviation
-36. `stoch()` - Stochastic oscillator ✨ NEW
-37. `supertrend()` - SuperTrend indicator
-38. `swma()` - Symmetrically Weighted Moving Average
-39. `tr()` - True Range
-40. `tsi()` - True Strength Index ✨ NEW
-41. `valuewhen()` - Returns value when condition was true ✨ NEW
-42. `variance()` - Variance
-43. `vwap()` - Volume Weighted Average Price ✨ NEW
-44. `vwma()` - Volume Weighted Moving Average
-45. `wma()` - Weighted Moving Average
-46. `wpr()` - Williams %R ✨ NEW
-47. `alma()` - Arnaud Legoux Moving Average ✨ NEW
-48. `kcw()` - Keltner Channels Width ✨ NEW
-49. `range()` - High-Low Range ✨ NEW
-50. `highestbars()` - Offset to the highest value ✨ NEW
-51. `lowestbars()` - Offset to the lowest value ✨ NEW
-52. `max()` - Maximum of two values ✨ NEW
-53. `min()` - Minimum of two values ✨ NEW
-54. `cog()` - Center of Gravity ✨ NEW
-55. `mode()` - Mode (most frequently occurring value) ✨ NEW
-56. `percentile_linear_interpolation()` - Percentile using linear interpolation ✨ NEW
-57. `percentile_nearest_rank()` - Percentile using nearest rank ✨ NEW
-58. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla) ✨ NEW
-59. `rci()` - Rank Correlation Index (Spearman's rank correlation) ✨ NEW
+19. `ichimoku()` - Ichimoku Kinko Hyo (Ichimoku Cloud) ✨ NEW
+20. `kc()` - Keltner Channels ✨ NEW
+21. `linreg()` - Linear regression
+22. `lowest()` - Lowest value over a period
+23. `macd()` - Moving Average Convergence Divergence
+24. `median()` - Median value over a period
+25. `mfi()` - Money Flow Index ✨ NEW
+26. `mom()` - Momentum
+27. `percentrank()` - Percent rank over a period
+28. `pivothigh()` - Detects pivot high points ✨ NEW
+29. `pivotlow()` - Detects pivot low points ✨ NEW
+30. `rising()` - Tests if series is rising
+31. `rma()` - Relative Moving Average (exponential moving average with alpha = 1 / length)
+32. `roc()` - Rate of Change
+33. `rsi()` - Relative Strength Index
+34. `sar()` - Parabolic SAR ✨ NEW
+35. `sma()` - Simple Moving Average
+36. `stdev()` - Standard deviation
+37. `stoch()` - Stochastic oscillator ✨ NEW
+38. `supertrend()` - SuperTrend indicator
+39. `swma()` - Symmetrically Weighted Moving Average
+40. `tr()` - True Range
+41. `tsi()` - True Strength Index ✨ NEW
+42. `valuewhen()` - Returns value when condition was true ✨ NEW
+43. `variance()` - Variance
+44. `vwap()` - Volume Weighted Average Price ✨ NEW
+45. `vwma()` - Volume Weighted Moving Average
+46. `wma()` - Weighted Moving Average
+47. `wpr()` - Williams %R ✨ NEW
+48. `alma()` - Arnaud Legoux Moving Average ✨ NEW
+49. `kcw()` - Keltner Channels Width ✨ NEW
+50. `range()` - High-Low Range ✨ NEW
+51. `highestbars()` - Offset to the highest value ✨ NEW
+52. `lowestbars()` - Offset to the lowest value ✨ NEW
+53. `max()` - Maximum of two values ✨ NEW
+54. `min()` - Minimum of two values ✨ NEW
+55. `cog()` - Center of Gravity ✨ NEW
+56. `mode()` - Mode (most frequently occurring value) ✨ NEW
+57. `percentile_linear_interpolation()` - Percentile using linear interpolation ✨ NEW
+58. `percentile_nearest_rank()` - Percentile using nearest rank ✨ NEW
+59. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla) ✨ NEW
+60. `rci()` - Rank Correlation Index (Spearman's rank correlation) ✨ NEW
 
 ### ❌ Not Implemented (0 functions)
 
