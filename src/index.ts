@@ -68,6 +68,40 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 // Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
+// Runtime exports - global context runtime for transpiler-generated indicators
+export {
+  setContext,
+  clearContext,
+  getContext,
+  registerCalculate,
+  recalculate,
+  plot,
+  hline,
+  clearPlots,
+} from './runtime/runtime';
+
+export {
+  input_int,
+  input_float,
+  input_bool,
+  input_string,
+  input_source,
+} from './runtime/inputs';
+
+export type {
+  OakScriptContext,
+  ChartAdapter,
+  InputAdapter,
+  SeriesHandle,
+  SeriesOptions,
+  InputConfig,
+  InputOptions,
+  OhlcvData,
+} from './runtime/types';
+
+export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';
+export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
+
 // Version
 export const VERSION = '0.2.0';
 
@@ -82,10 +116,12 @@ export const info = {
     series: 'Lazy evaluation with Series class',
     operators: 'Native operators with Babel plugin (high - low)',
     ta: 'Technical analysis functions (Series and array-based)',
-    minimal: 'No DSL layer, no global context - complexity in transpiler'
+    runtime: 'Global context runtime for transpiler-generated indicators',
+    minimal: 'No DSL layer - complexity in transpiler'
   },
   namespaces: {
     core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
-    drawing: ['line', 'box', 'label', 'linefill']
+    drawing: ['line', 'box', 'label', 'linefill'],
+    runtime: ['setContext', 'plot', 'hline', 'input_*']
   }
 };
