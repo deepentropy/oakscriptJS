@@ -165,15 +165,6 @@ export function get_all(): readonly Polyline[] {
 }
 
 /**
- * Getter for all polylines (provides polyline.all syntax)
- */
-export const all = {
-  get value(): readonly Polyline[] {
-    return get_all();
-  },
-};
-
-/**
  * Clears all polylines from the internal tracking array.
  *
  * @remarks
