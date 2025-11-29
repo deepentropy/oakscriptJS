@@ -35,7 +35,11 @@ export function disableAutoRecalculate(): void {
  */
 export function resetInputs(): void {
   registeredInputs.clear();
+  inputCounter = 0;
 }
+
+// Counter for generating unique input IDs when no title is provided
+let inputCounter = 0;
 
 /**
  * Generate a unique input ID from title or default
@@ -48,7 +52,8 @@ function generateInputId(title: string | undefined, defval: unknown, type: strin
   if (title) {
     return title.replace(/\s+/g, '_');
   }
-  return `${type}_${String(defval)}`;
+  // Use counter to ensure uniqueness when no title is provided
+  return `${type}_${inputCounter++}_${String(defval)}`;
 }
 
 /**
@@ -282,11 +287,23 @@ function getSourceData(
     case 'volume':
       return ohlcv.volume;
     case 'hl2':
-      return ohlcv.high.map((h, i) => (h + ohlcv.low[i]!) / 2);
+      return ohlcv.high.map((h, i) => {
+        const l = ohlcv.low[i];
+        return l !== undefined ? (h + l) / 2 : NaN;
+      });
     case 'hlc3':
-      return ohlcv.high.map((h, i) => (h + ohlcv.low[i]! + ohlcv.close[i]!) / 3);
+      return ohlcv.high.map((h, i) => {
+        const l = ohlcv.low[i];
+        const c = ohlcv.close[i];
+        return l !== undefined && c !== undefined ? (h + l + c) / 3 : NaN;
+      });
     case 'ohlc4':
-      return ohlcv.open.map((o, i) => (o + ohlcv.high[i]! + ohlcv.low[i]! + ohlcv.close[i]!) / 4);
+      return ohlcv.open.map((o, i) => {
+        const h = ohlcv.high[i];
+        const l = ohlcv.low[i];
+        const c = ohlcv.close[i];
+        return h !== undefined && l !== undefined && c !== undefined ? (o + h + l + c) / 4 : NaN;
+      });
     default:
       return ohlcv.close;
   }
