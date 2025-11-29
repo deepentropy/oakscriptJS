@@ -29,8 +29,10 @@ import * as line from './line';
 import * as box from './box';
 import * as label from './label';
 import * as linefill from './linefill';
+import * as chartPoint from './chartpoint';
+import * as polyline from './polyline';
 
-export { taCore, math, array, str, color, time, matrix, line, box, label, linefill };
+export { taCore, math, array, str, color, time, matrix, line, box, label, linefill, chartPoint, polyline };
 
 // Export Series class (self-contained, no context)
 export { Series } from './runtime/series';
@@ -121,7 +123,7 @@ export const info = {
   },
   namespaces: {
     core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
-    drawing: ['line', 'box', 'label', 'linefill'],
+    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline'],
     runtime: ['setContext', 'plot', 'hline', 'input_*']
   }
 };
