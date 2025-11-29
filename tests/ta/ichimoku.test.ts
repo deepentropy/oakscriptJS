@@ -78,9 +78,6 @@ describe('ta.ichimoku', () => {
       expect(senkouA[i]).toBeNaN();
     }
 
-    // At index 26+25=51, senkouA should have value from tenkan[25] and kijun[25]
-    // tenkan[25] = (143 + 133) / 2 = 138 (checking highest/lowest for bars 17-25)
-    // Actually let's verify with a simpler check:
     // Senkou Span A at index i should be based on tenkan and kijun at index (i - displacement)
     // At index 51, it uses tenkan[25] and kijun[25]
     const sourceIndex = 51 - 26; // = 25
@@ -150,7 +147,7 @@ describe('ta.ichimoku', () => {
     // Kijun (period 26): all NaN (need 26 bars)
     // Senkou A: all NaN (displaced + kijun needs 26 bars)
     // Senkou B: all NaN (needs 52 bars + displacement)
-    // Chikou: first 10-26 < 0, so all based on indices >= 10, which are out of range = all NaN
+    // Chikou: displacement(26) > array_length(10), so all values are NaN
 
     expect(tenkan[8]).not.toBeNaN();
     expect(tenkan[9]).not.toBeNaN();
