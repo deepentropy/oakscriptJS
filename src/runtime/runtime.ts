@@ -163,10 +163,14 @@ export function plot(
   const seriesHandle = context.chart.addSeries(seriesType, options);
   
   // Convert series data to time-value pairs
-  const data = series.map((value, index) => ({
-    time: context!.ohlcv.time[index]!,
-    value: value,
-  })).filter(point => !Number.isNaN(point.value) && point.time !== undefined);
+  const data: Array<{ time: number; value: number }> = [];
+  for (let index = 0; index < series.length; index++) {
+    const value = series[index];
+    const time = context.ohlcv.time[index];
+    if (time !== undefined && value !== undefined && !Number.isNaN(value)) {
+      data.push({ time, value });
+    }
+  }
 
   // Set the data
   seriesHandle.setData(data);
