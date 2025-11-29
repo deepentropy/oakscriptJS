@@ -323,3 +323,62 @@ export interface OHLC {
 // Constants
 export const na = null;
 export type na = null;
+
+/**
+ * X-axis location constants
+ * Used to specify whether x-coordinates are bar indices or timestamps
+ */
+export const xloc = {
+  /** X-coordinates are bar indices */
+  bar_index: 'bar_index' as const,
+  /** X-coordinates are UNIX timestamps in milliseconds */
+  bar_time: 'bar_time' as const,
+};
+
+/**
+ * ChartPoint interface - Represents a point on the chart
+ * @remarks
+ * A chart point can have time, index, and price coordinates.
+ * At least one of time or index should be provided for x-coordinate positioning.
+ */
+export interface ChartPoint {
+  /** UNIX timestamp in milliseconds (null if using bar index) */
+  readonly time: number | null;
+  /** Bar index (null if using time) */
+  readonly index: number | null;
+  /** Y-axis price value */
+  readonly price: number;
+}
+
+/**
+ * Polyline interface - Represents a polyline on the chart
+ * @remarks
+ * A polyline connects multiple chart points with line segments.
+ * When closed, it forms a polygon that can be filled with color.
+ */
+export interface Polyline {
+  /** Unique identifier for this polyline */
+  readonly id: string;
+  /** Array of chart points that define the polyline */
+  readonly points: readonly ChartPoint[];
+  /** If true, use curved line segments (not yet supported - uses straight lines) */
+  readonly curved: boolean;
+  /** If true, connect the first point to the last point */
+  readonly closed: boolean;
+  /** X-coordinate mode: 'bar_index' or 'bar_time' */
+  readonly xloc: 'bar_index' | 'bar_time';
+  /** Color of line segments */
+  readonly line_color: color;
+  /** Fill color for closed polylines (null for no fill) */
+  readonly fill_color: color | null;
+  /** Line style */
+  readonly line_style: 'solid' | 'dotted' | 'dashed';
+  /** Line width in pixels */
+  readonly line_width: number;
+  /** Force display on main pane */
+  readonly force_overlay: boolean;
+}
+
+// Series types for chart point and polyline
+export type series_chartpoint = series<ChartPoint>;
+export type series_polyline = series<Polyline>;

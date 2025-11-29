@@ -30,7 +30,9 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **box** | 28 | 28 | 0 | 100% |
 | **label** | 17 | 17 | 0 | 100% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **TOTAL** | **296** | **295** | **1** | **99.7%** |
+| **chartPoint** | 4 | 4 | 0 | 100% |
+| **polyline** | 3 | 3 | 0 | 100% |
+| **TOTAL** | **303** | **302** | **1** | **99.7%** |
 
 ---
 
@@ -562,9 +564,48 @@ Based on the inventory, here are recommended priorities for implementation:
 
 ---
 
+## chartPoint (Chart Point Objects) 🎨 NEW
+
+### ✅ Implemented (4 functions)
+
+1. `new()` - Create a new chart point with time, index, and price coordinates
+2. `from_time()` - Create a chart point from timestamp and price
+3. `from_index()` - Create a chart point from bar index and price
+4. `copy()` - Create a copy of a chart point
+
+### ❌ Not Implemented (0 functions)
+
+**All chartPoint functions are implemented!** 🎉
+
+**Note:** Chart points are used with polylines and other multi-point drawing objects to specify locations on the chart.
+
+---
+
+## polyline (Polyline Drawing Objects) 🎨 NEW
+
+### ✅ Implemented (3 functions)
+
+1. `new()` - Create a new polyline connecting multiple chart points
+2. `delete()` - Delete a polyline
+3. `get_all()` - Get all active polylines
+
+### ❌ Not Implemented (0 functions - basic implementation)
+
+**All basic polyline functions are implemented!** 🎉
+
+**Note:** This is a basic implementation focusing on straight-line polylines. The `curved` parameter is accepted but curved polylines are not yet supported - straight-line connections are used instead. Setter/getter functions (e.g., `set_points()`, `get_line_color()`) may be added in future iterations.
+
+### Constants
+
+The `xloc` constants are available for specifying x-coordinate modes:
+- `xloc.bar_index` - X-coordinates are bar indices
+- `xloc.bar_time` - X-coordinates are UNIX timestamps
+
+---
+
 ## Notes
 
-1. **Drawing Objects Implemented**: Line, box, label, and linefill namespaces are **fully implemented** with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
+1. **Drawing Objects Implemented**: Line, box, label, linefill, chartPoint, and polyline namespaces are **fully implemented** with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
 
 2. **Series Class**: The `Series` class provides lazy evaluation and operator chaining. When used with the Babel plugin, it enables native PineScript-like syntax: `(close - open) / (high - low)`.
 
