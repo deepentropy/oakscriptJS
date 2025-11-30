@@ -14,6 +14,14 @@ export interface ASTNode {
   operator?: string;
   /** Step value expression for for loops with 'by' clause */
   step?: ASTNode;
+  /** Whether a type or method is exported */
+  exported?: boolean;
+  /** Field type for FieldDeclaration nodes */
+  fieldType?: string;
+  /** Bound type for method declarations (first parameter type) */
+  boundType?: string;
+  /** Parameters for method declarations */
+  params?: ASTNode[];
   location?: {
     line: number;
     column: number;
@@ -101,6 +109,28 @@ export class PineParser {
       return this.parseIndicatorDeclaration();
     }
 
+    // Parse export keyword (for types, methods, functions)
+    if (this.matchKeyword('export')) {
+      this.skipWhitespace();
+      if (this.matchKeyword('type')) {
+        return this.parseTypeDeclaration(true);
+      }
+      if (this.matchKeyword('method')) {
+        return this.parseMethodDeclaration(true);
+      }
+      // export function or other exports - fall through to expression parsing
+    }
+
+    // Parse type declaration
+    if (this.matchKeyword('type')) {
+      return this.parseTypeDeclaration(false);
+    }
+
+    // Parse method declaration
+    if (this.matchKeyword('method')) {
+      return this.parseMethodDeclaration(false);
+    }
+
     // Parse variable declarations
     if (this.matchKeyword('var') || this.matchKeyword('varip')) {
       return this.parseVariableDeclaration();
@@ -172,6 +202,188 @@ export class PineParser {
     return {
       type: 'IndicatorDeclaration',
       children: [],
+    };
+  }
+
+  private parseTypeDeclaration(exported: boolean): ASTNode {
+    // 'type' keyword already matched
+    this.skipWhitespace();
+    const typeName = this.parseIdentifier();
+    this.skipToEndOfLine();
+    
+    // Parse field declarations in indented block
+    const fields = this.parseTypeFields();
+    
+    return {
+      type: 'TypeDeclaration',
+      value: typeName,
+      exported: exported,
+      children: fields,
+    };
+  }
+
+  private parseTypeFields(): ASTNode[] {
+    const fields: ASTNode[] = [];
+    
+    while (this.position < this.source.length) {
+      const currentIndent = this.getLineIndent();
+      
+      // Block ends when indentation decreases to 0 or empty line
+      if (currentIndent <= 0 && currentIndent !== -1) {
+        break;
+      }
+      
+      // Skip empty lines
+      if (currentIndent === -1) {
+        this.skipLine();
+        continue;
+      }
+      
+      // Consume the indentation whitespace
+      this.consumeIndent();
+      
+      // Parse field: type fieldName [= defaultValue]
+      const fieldType = this.parseTypeIdentifier();
+      this.skipWhitespace();
+      const fieldName = this.parseIdentifier();
+      this.skipWhitespace();
+      
+      let defaultValue: ASTNode | undefined;
+      if (this.peek() === '=') {
+        this.advance(); // skip '='
+        this.skipWhitespace();
+        defaultValue = this.parseExpression();
+      }
+      
+      fields.push({
+        type: 'FieldDeclaration',
+        value: fieldName,
+        fieldType: fieldType,
+        children: defaultValue ? [defaultValue] : [],
+      });
+      
+      this.skipLineRemainder();
+    }
+    
+    return fields;
+  }
+
+  private parseTypeIdentifier(): string {
+    // Parse type identifier which can be:
+    // - Simple: int, float, bool, string, color
+    // - Qualified: chart.point, line, label
+    // - Generic: array<Type>
+    let typeId = this.parseIdentifier();
+    
+    // Handle qualified types (e.g., chart.point)
+    while (this.peek() === '.') {
+      this.advance();
+      typeId += '.' + this.parseIdentifier();
+    }
+    
+    // Handle generic types (e.g., array<Pivot>)
+    if (this.peek() === '<') {
+      this.advance(); // skip '<'
+      const innerType = this.parseTypeIdentifier();
+      typeId += '<' + innerType + '>';
+      if (this.peek() === '>') {
+        this.advance(); // skip '>'
+      }
+    }
+    
+    return typeId;
+  }
+
+  private parseMethodDeclaration(exported: boolean): ASTNode {
+    // 'method' keyword already matched
+    this.skipWhitespace();
+    const methodName = this.parseIdentifier();
+    this.skipWhitespace();
+    
+    // Parse parameters
+    if (this.peek() !== '(') {
+      this.errors.push({
+        message: 'Expected "(" after method name',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.advance(); // skip '('
+    
+    // Parse parameter list - first param should be "TypeName this"
+    const params: ASTNode[] = [];
+    let boundType = '';
+    let isFirstParam = true;
+    
+    while (this.peek() !== ')' && this.position < this.source.length) {
+      this.skipWhitespace();
+      if (this.peek() === ')') break;
+      
+      // Parse parameter: TypeName paramName [= default]
+      const paramType = this.parseTypeIdentifier();
+      this.skipWhitespace();
+      const paramName = this.parseIdentifier();
+      
+      if (isFirstParam && paramName === 'this') {
+        boundType = paramType;
+      } else {
+        this.skipWhitespace();
+        let defaultValue: ASTNode | undefined;
+        if (this.peek() === '=') {
+          this.advance();
+          this.skipWhitespace();
+          defaultValue = this.parseExpression();
+        }
+        
+        params.push({
+          type: 'Parameter',
+          value: paramName,
+          fieldType: paramType,
+          children: defaultValue ? [defaultValue] : [],
+        });
+      }
+      
+      isFirstParam = false;
+      this.skipWhitespace();
+      if (this.peek() === ',') {
+        this.advance();
+      }
+    }
+    
+    if (this.peek() === ')') {
+      this.advance(); // skip ')'
+    }
+    
+    this.skipWhitespace();
+    
+    // Check for => (arrow function body)
+    let body: ASTNode | undefined;
+    if (this.peek() === '=' && this.peekNext() === '>') {
+      this.advance(); // skip '='
+      this.advance(); // skip '>'
+      this.skipWhitespace();
+      
+      // Check if single expression or multi-line body
+      if (this.peek() === '\n') {
+        this.advance();
+        const bodyStatements = this.parseIndentedBlock();
+        body = {
+          type: 'Block',
+          children: bodyStatements,
+        };
+      } else {
+        // Single expression body
+        body = this.parseExpression();
+      }
+    }
+    
+    return {
+      type: 'MethodDeclaration',
+      value: methodName,
+      exported: exported,
+      boundType: boundType,
+      params: params,
+      children: body ? [body] : [],
     };
   }
 
@@ -819,13 +1031,13 @@ export class PineParser {
           value: name,
           children: args,
         };
-        return this.maybeParseHistoryAccess(callNode);
+        return this.maybeParseChainedAccess(callNode);
       }
 
       // Check for member access
       if (this.peek() === '.') {
         const memberExpr = this.parseMemberAccess(name);
-        return this.maybeParseHistoryAccess(memberExpr);
+        return memberExpr;  // maybeParseChainedAccess is already called in parseMemberAccess
       }
 
       // Check for history access on simple identifier
@@ -833,7 +1045,7 @@ export class PineParser {
         type: 'Identifier',
         value: name,
       };
-      return this.maybeParseHistoryAccess(identNode);
+      return this.maybeParseChainedAccess(identNode);
     }
 
     // Skip to end of line on error
@@ -902,23 +1114,94 @@ export class PineParser {
 
     this.skipWhitespace();
     
+    // Handle generic type syntax (e.g., array.new<Type>)
+    let genericType: string | undefined;
+    if (this.peek() === '<') {
+      this.advance(); // skip '<'
+      genericType = this.parseTypeIdentifier();
+      if (this.peek() === '>') {
+        this.advance(); // skip '>'
+      }
+    }
+    
+    this.skipWhitespace();
+    
     // Check for function call
     if (this.peek() === '(') {
       this.advance();
       const args = this.parseArguments();
+      
+      // Check if this is array.new<Type>() call FIRST (before TypeInstantiation)
+      if (parts.join('.') === 'array.new' && genericType) {
+        const callNode: ASTNode = {
+          type: 'GenericFunctionCall',
+          value: 'array.new',
+          name: genericType,  // Store generic type in name field
+          children: args,
+        };
+        return this.maybeParseChainedAccess(callNode);
+      }
+      
+      // Check if this is Type.new() call (type instantiation)
+      // But NOT for built-in namespaces like 'array'
+      if (parts.length === 2 && parts[1] === 'new' && parts[0] !== 'array') {
+        const callNode: ASTNode = {
+          type: 'TypeInstantiation',
+          value: parts[0],  // Type name
+          children: args,
+        };
+        // Continue parsing for chained member access (e.g., Type.new().method())
+        return this.maybeParseChainedAccess(callNode);
+      }
+      
       const callNode: ASTNode = {
         type: 'FunctionCall',
         value: parts.join('.'),
         children: args,
       };
-      return this.maybeParseHistoryAccess(callNode);
+      return this.maybeParseChainedAccess(callNode);
     }
 
     const memberNode: ASTNode = {
       type: 'MemberExpression',
       value: parts.join('.'),
     };
-    return this.maybeParseHistoryAccess(memberNode);
+    return this.maybeParseChainedAccess(memberNode);
+  }
+
+  private maybeParseChainedAccess(base: ASTNode): ASTNode {
+    this.skipWhitespace();
+    
+    // Check for chained member access (e.g., result.field or result.method())
+    if (this.peek() === '.') {
+      this.advance(); // skip '.'
+      const member = this.parseIdentifier();
+      
+      this.skipWhitespace();
+      
+      // Check for method call
+      if (this.peek() === '(') {
+        this.advance();
+        const args = this.parseArguments();
+        const methodCall: ASTNode = {
+          type: 'MethodCall',
+          value: member,
+          children: [base, ...args],  // First child is the object
+        };
+        return this.maybeParseChainedAccess(methodCall);
+      }
+      
+      // Field access
+      const fieldAccess: ASTNode = {
+        type: 'FieldAccess',
+        value: member,
+        children: [base],
+      };
+      return this.maybeParseChainedAccess(fieldAccess);
+    }
+    
+    // Check for history access
+    return this.maybeParseHistoryAccess(base);
   }
 
   private parseArguments(): ASTNode[] {
