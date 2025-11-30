@@ -8,9 +8,12 @@ export interface ASTNode {
   type: string;
   value?: string | number | boolean;
   children?: ASTNode[];
-  name?: string;  // For named properties (e.g., for loop variable names)
-  operator?: string;  // For operators like ':='
-  step?: ASTNode;  // For step value in for loops
+  /** Variable name for for loops, for-in loops, and tuple destructuring */
+  name?: string;
+  /** Operator symbol (e.g., ':=' for reassignment) */
+  operator?: string;
+  /** Step value expression for for loops with 'by' clause */
+  step?: ASTNode;
   location?: {
     line: number;
     column: number;
@@ -39,7 +42,6 @@ export class PineParser {
   private line: number = 1;
   private column: number = 1;
   private errors: ParseError[] = [];
-  private currentIndent: number = 0;  // Track current indentation level
 
   /**
    * Parse PineScript source code
@@ -131,13 +133,11 @@ export class PineParser {
 
     // Parse tuple destructuring: [a, b, c] = ...
     if (this.peek() === '[') {
-      const startPos = this.position;
       const tuple = this.parseTupleDestructuring();
       if (tuple) {
         return tuple;
       }
-      // Restore position if not a tuple destructuring
-      this.position = startPos;
+      // parseTupleDestructuring restores position internally if parsing fails
     }
 
     // Parse expressions/assignments
@@ -464,16 +464,16 @@ export class PineParser {
   }
 
   private parseTupleDestructuring(): ASTNode | null {
-    // '[' already checked, now check if this is a tuple assignment
+    // '[' already checked, save position before '[' for potential backtrack
+    const savedPosition = this.position;
     this.advance(); // skip '['
-    const startPos = this.position;
     const vars: string[] = [];
     
     while (this.peek() !== ']' && this.position < this.source.length) {
       this.skipWhitespace();
       if (!this.isAlpha(this.peek())) {
         // Not an identifier, restore and return null
-        this.position = startPos - 1;
+        this.position = savedPosition;
         return null;
       }
       const varName = this.parseIdentifier();
@@ -485,7 +485,7 @@ export class PineParser {
     }
     
     if (this.peek() !== ']') {
-      this.position = startPos - 1;
+      this.position = savedPosition;
       return null;
     }
     this.advance(); // skip ']'
@@ -493,7 +493,7 @@ export class PineParser {
     
     // Must have '=' after tuple
     if (this.peek() !== '=') {
-      this.position = startPos - 1;
+      this.position = savedPosition;
       return null;
     }
     this.advance(); // skip '='
