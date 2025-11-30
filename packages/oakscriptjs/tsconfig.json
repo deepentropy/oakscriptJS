@@ -1,17 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2021",
-    "lib": ["ES2021"],
     "outDir": "./dist",
     "rootDir": "./src",
+    "lib": ["ES2022"],
     "removeComments": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "isolatedModules": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
