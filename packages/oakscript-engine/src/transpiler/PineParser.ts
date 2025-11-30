@@ -109,6 +109,16 @@ export class PineParser {
       return this.parseIndicatorDeclaration();
     }
 
+    // Parse library declaration
+    if (this.matchKeyword('library')) {
+      return this.parseLibraryDeclaration();
+    }
+
+    // Parse import statement
+    if (this.matchKeyword('import')) {
+      return this.parseImportStatement();
+    }
+
     // Parse export keyword (for types, methods, functions)
     const savedPositionForExport = this.position;
     if (this.matchKeyword('export')) {
@@ -205,6 +215,78 @@ export class PineParser {
     return {
       type: 'IndicatorDeclaration',
       children: [],
+    };
+  }
+
+  private parseLibraryDeclaration(): ASTNode {
+    // Skip 'library' keyword (already matched)
+    this.skipWhitespace();
+    
+    // Parse arguments in parentheses - similar to indicator
+    if (this.peek() === '(') {
+      this.advance(); // skip '('
+      const args = this.parseArguments();
+      return {
+        type: 'LibraryDeclaration',
+        children: args,
+      };
+    }
+
+    return {
+      type: 'LibraryDeclaration',
+      children: [],
+    };
+  }
+
+  private parseImportStatement(): ASTNode {
+    // Skip 'import' keyword (already matched)
+    this.skipWhitespace();
+    
+    // Parse: Publisher/LibraryName/Version [as alias]
+    const publisher = this.parseIdentifier();
+    this.skipWhitespace();
+    
+    if (this.peek() !== '/') {
+      this.errors.push({
+        message: 'Expected "/" after publisher in import statement',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.advance(); // skip '/'
+    
+    const libraryName = this.parseIdentifier();
+    this.skipWhitespace();
+    
+    if (this.peek() !== '/') {
+      this.errors.push({
+        message: 'Expected "/" after library name in import statement',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.advance(); // skip '/'
+    
+    // Parse version number
+    const versionNode = this.parseNumber();
+    const version = typeof versionNode.value === 'number' ? versionNode.value : 0;
+    this.skipWhitespace();
+    
+    // Parse optional alias
+    let alias = libraryName;
+    if (this.matchKeyword('as')) {
+      this.skipWhitespace();
+      alias = this.parseIdentifier();
+    }
+    
+    return {
+      type: 'ImportStatement',
+      value: alias,  // The alias used to access the library
+      children: [
+        { type: 'Publisher', value: publisher },
+        { type: 'LibraryName', value: libraryName },
+        { type: 'Version', value: version },
+      ],
     };
   }
 

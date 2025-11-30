@@ -138,3 +138,27 @@ export interface MethodParameter {
   /** Default value (if any) */
   defaultValue?: string;
 }
+
+/**
+ * Import information for library imports
+ */
+export interface ImportInfo {
+  /** Publisher/organization name (e.g., "TradingView") */
+  publisher: string;
+  /** Library name (e.g., "ZigZag") */
+  libraryName: string;
+  /** Library version number (e.g., 8) */
+  version: number;
+  /** Import alias (e.g., "zigzag") */
+  alias: string;
+}
+
+/**
+ * Library declaration information
+ */
+export interface LibraryInfo {
+  /** Library name */
+  name: string;
+  /** Whether the library shows overlay on chart */
+  overlay: boolean;
+}
