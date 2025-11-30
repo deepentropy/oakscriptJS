@@ -19,7 +19,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 
 | Namespace | Total Functions | Implemented | Not Implemented | Completion % |
 |-----------|----------------|-------------|-----------------|--------------|
-| **ta** | 60 | 60 | 0 | 100% |
+| **ta** | 61 | 61 | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
 | **array** | 63 | 62 | 1 | 98.4% |
 | **matrix** | 50 | 50 | 0 | 100% |
@@ -32,13 +32,13 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **linefill** | 5 | 5 | 0 | 100% |
 | **chartPoint** | 4 | 4 | 0 | 100% |
 | **polyline** | 3 | 3 | 0 | 100% |
-| **TOTAL** | **303** | **302** | **1** | **99.7%** |
+| **TOTAL** | **304** | **303** | **1** | **99.7%** |
 
 ---
 
 ## ta (Technical Analysis)
 
-### ✅ Implemented (60 functions)
+### ✅ Implemented (61 functions)
 
 1. `atr()` - Average True Range
 2. `barssince()` - Number of bars since condition was true ✨ NEW
@@ -100,6 +100,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 58. `percentile_nearest_rank()` - Percentile using nearest rank ✨ NEW
 59. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla) ✨ NEW
 60. `rci()` - Rank Correlation Index (Spearman's rank correlation) ✨ NEW
+61. `zigzag()` - ZigZag indicator for trend reversal identification ✨ NEW
 
 ### ❌ Not Implemented (0 functions)
 
