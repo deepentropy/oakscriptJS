@@ -58,6 +58,9 @@ export function transpileWithResult(source: string, options: TranspileOptions = 
  * TypeScript code generator
  */
 class CodeGenerator {
+  /** Number of spaces for each indentation level */
+  private static readonly INDENT_SIZE = 2;
+  
   private options: TranspileOptions;
   private output: string[] = [];
   private indent: number = 0;
@@ -184,6 +187,38 @@ class CodeGenerator {
         this.generateAssignment(node);
         break;
 
+      case 'Reassignment':
+        this.generateReassignment(node);
+        break;
+
+      case 'IfStatement':
+        this.generateIfStatement(node);
+        break;
+
+      case 'ForLoop':
+        this.generateForLoop(node);
+        break;
+
+      case 'ForInLoop':
+        this.generateForInLoop(node);
+        break;
+
+      case 'WhileLoop':
+        this.generateWhileLoop(node);
+        break;
+
+      case 'TupleDestructuring':
+        this.generateTupleDestructuring(node);
+        break;
+
+      case 'BreakStatement':
+        this.emit('break;');
+        break;
+
+      case 'ContinueStatement':
+        this.emit('continue;');
+        break;
+
       default:
         const expr = this.generateExpression(node);
         if (expr) {
@@ -226,6 +261,251 @@ class CodeGenerator {
     }
   }
 
+  private generateReassignment(node: ASTNode): void {
+    if (!node.children || node.children.length < 2) return;
+
+    const left = node.children[0]!;
+    const right = node.children[1]!;
+    const leftExpr = this.generateExpression(left);
+    const rightExpr = this.generateExpression(right);
+    
+    this.emit(`${leftExpr} = ${rightExpr};`);
+  }
+
+  private generateIfStatement(node: ASTNode): void {
+    if (!node.children || node.children.length < 2) return;
+
+    const condition = node.children[0]!;
+    const body = node.children[1]!;
+    const alternate = node.children[2];
+
+    const condExpr = this.generateExpression(condition);
+    this.emit(`if (${condExpr}) {`);
+    this.indent++;
+    
+    if (body.type === 'Block' && body.children) {
+      for (const stmt of body.children) {
+        this.generateStatement(stmt);
+      }
+    }
+    
+    this.indent--;
+
+    if (alternate) {
+      if (alternate.type === 'IfStatement') {
+        // else if - inline the else if
+        this.emit('} else ' + this.generateIfStatementInline(alternate));
+      } else {
+        this.emit('} else {');
+        this.indent++;
+        if (alternate.type === 'Block' && alternate.children) {
+          for (const stmt of alternate.children) {
+            this.generateStatement(stmt);
+          }
+        }
+        this.indent--;
+        this.emit('}');
+      }
+    } else {
+      this.emit('}');
+    }
+  }
+
+  private generateIfStatementInline(node: ASTNode): string {
+    if (!node.children || node.children.length < 2) return '';
+
+    const condition = node.children[0]!;
+    const body = node.children[1]!;
+    const alternate = node.children[2];
+
+    const condExpr = this.generateExpression(condition);
+    const lines: string[] = [];
+    const indent = this.getIndentString();
+    lines.push(`if (${condExpr}) {`);
+    
+    if (body.type === 'Block' && body.children) {
+      for (const stmt of body.children) {
+        const stmtCode = this.generateStatementToString(stmt);
+        if (stmtCode) {
+          lines.push(indent + stmtCode);
+        }
+      }
+    }
+
+    if (alternate) {
+      if (alternate.type === 'IfStatement') {
+        lines.push('} else ' + this.generateIfStatementInline(alternate));
+      } else {
+        lines.push('} else {');
+        if (alternate.type === 'Block' && alternate.children) {
+          for (const stmt of alternate.children) {
+            const stmtCode = this.generateStatementToString(stmt);
+            if (stmtCode) {
+              lines.push(indent + stmtCode);
+            }
+          }
+        }
+        lines.push('}');
+      }
+    } else {
+      lines.push('}');
+    }
+    
+    return lines.join('\n' + indent.repeat(this.indent));
+  }
+
+  private generateStatementToString(node: ASTNode): string {
+    if (!node) return '';
+
+    switch (node.type) {
+      case 'Comment':
+        return `// ${String(node.value || '').replace(/^\/\/\s*/, '')}`;
+
+      case 'VariableDeclaration': {
+        const name = String(node.value || 'unknown');
+        const tsName = this.sanitizeIdentifier(name);
+        this.variables.set(name, tsName);
+        if (node.children && node.children.length > 0) {
+          const init = this.generateExpression(node.children[0]!);
+          return `const ${tsName} = ${init};`;
+        } else {
+          return `let ${tsName};`;
+        }
+      }
+
+      case 'ExpressionStatement':
+        if (node.children && node.children.length > 0) {
+          const expr = this.generateExpression(node.children[0]!);
+          if (expr) {
+            return `${expr};`;
+          }
+        }
+        return '';
+
+      case 'Assignment': {
+        if (!node.children || node.children.length < 2) return '';
+        const left = node.children[0]!;
+        const right = node.children[1]!;
+        if (left.type === 'Identifier') {
+          const name = String(left.value || 'unknown');
+          const tsName = this.sanitizeIdentifier(name);
+          if (!this.variables.has(name)) {
+            this.variables.set(name, tsName);
+            return `const ${tsName} = ${this.generateExpression(right)};`;
+          } else {
+            return `${tsName} = ${this.generateExpression(right)};`;
+          }
+        }
+        return '';
+      }
+
+      case 'Reassignment': {
+        if (!node.children || node.children.length < 2) return '';
+        const leftExpr = this.generateExpression(node.children[0]!);
+        const rightExpr = this.generateExpression(node.children[1]!);
+        return `${leftExpr} = ${rightExpr};`;
+      }
+
+      case 'BreakStatement':
+        return 'break;';
+
+      case 'ContinueStatement':
+        return 'continue;';
+
+      default:
+        const expr = this.generateExpression(node);
+        if (expr) {
+          return `${expr};`;
+        }
+        return '';
+    }
+  }
+
+  private generateForLoop(node: ASTNode): void {
+    if (!node.children || node.children.length < 3) return;
+
+    const varName = node.name || 'i';
+    const start = node.children[0]!;
+    const end = node.children[1]!;
+    const body = node.children[2]!;
+    const step = node.step;
+
+    const startExpr = this.generateExpression(start);
+    const endExpr = this.generateExpression(end);
+    const stepExpr = step ? this.generateExpression(step) : '1';
+
+    this.emit(`for (let ${varName} = ${startExpr}; ${varName} <= ${endExpr}; ${varName} += ${stepExpr}) {`);
+    this.indent++;
+    
+    if (body.type === 'Block' && body.children) {
+      for (const stmt of body.children) {
+        this.generateStatement(stmt);
+      }
+    }
+    
+    this.indent--;
+    this.emit('}');
+  }
+
+  private generateForInLoop(node: ASTNode): void {
+    if (!node.children || node.children.length < 2) return;
+
+    const varName = node.name || 'item';
+    const iterable = node.children[0]!;
+    const body = node.children[1]!;
+
+    const iterableExpr = this.generateExpression(iterable);
+    
+    // Check if we have destructured variables (e.g., [index, item])
+    if (varName.includes(',')) {
+      const vars = varName.split(',');
+      this.emit(`for (const [${vars.join(', ')}] of ${iterableExpr}.entries()) {`);
+    } else {
+      this.emit(`for (const ${varName} of ${iterableExpr}) {`);
+    }
+    
+    this.indent++;
+    
+    if (body.type === 'Block' && body.children) {
+      for (const stmt of body.children) {
+        this.generateStatement(stmt);
+      }
+    }
+    
+    this.indent--;
+    this.emit('}');
+  }
+
+  private generateWhileLoop(node: ASTNode): void {
+    if (!node.children || node.children.length < 2) return;
+
+    const condition = node.children[0]!;
+    const body = node.children[1]!;
+
+    const condExpr = this.generateExpression(condition);
+    this.emit(`while (${condExpr}) {`);
+    this.indent++;
+    
+    if (body.type === 'Block' && body.children) {
+      for (const stmt of body.children) {
+        this.generateStatement(stmt);
+      }
+    }
+    
+    this.indent--;
+    this.emit('}');
+  }
+
+  private generateTupleDestructuring(node: ASTNode): void {
+    if (!node.children || node.children.length < 1) return;
+
+    const varNames = node.name || '';
+    const initializer = node.children[0]!;
+    const initExpr = this.generateExpression(initializer);
+
+    this.emit(`const [${varNames}] = ${initExpr};`);
+  }
+
   private generateExpression(node: ASTNode): string {
     if (!node) return '';
 
@@ -259,9 +539,107 @@ class CodeGenerator {
         }
         return '';
 
+      case 'Reassignment':
+        if (node.children && node.children.length >= 2) {
+          const left = this.generateExpression(node.children[0]!);
+          const right = this.generateExpression(node.children[1]!);
+          return `${left} = ${right}`;
+        }
+        return '';
+
+      case 'TernaryExpression':
+        return this.generateTernaryExpression(node);
+
+      case 'HistoryAccess':
+        return this.generateHistoryAccess(node);
+
+      case 'SwitchExpression':
+        return this.generateSwitchExpression(node);
+
       default:
         return '';
     }
+  }
+
+  private generateTernaryExpression(node: ASTNode): string {
+    if (!node.children || node.children.length < 3) return '';
+
+    const condition = this.generateExpression(node.children[0]!);
+    const consequent = this.generateExpression(node.children[1]!);
+    const alternate = this.generateExpression(node.children[2]!);
+
+    return `(${condition} ? ${consequent} : ${alternate})`;
+  }
+
+  private generateHistoryAccess(node: ASTNode): string {
+    if (!node.children || node.children.length < 2) return '';
+
+    const base = this.generateExpression(node.children[0]!);
+    const offset = this.generateExpression(node.children[1]!);
+
+    return `${base}.get(${offset})`;
+  }
+
+  private generateSwitchExpression(node: ASTNode): string {
+    if (!node.children || node.children.length === 0) return '';
+
+    // Separate the switch expression from cases
+    const children = node.children;
+    let switchExpr: ASTNode | undefined;
+    let cases: ASTNode[] = [];
+
+    // First child might be the switch expression or a case
+    if (children[0] && children[0].type !== 'SwitchCase' && children[0].type !== 'SwitchDefault') {
+      switchExpr = children[0];
+      cases = children.slice(1);
+    } else {
+      cases = children;
+    }
+
+    // Generate IIFE-wrapped switch
+    const lines: string[] = [];
+    const indent = this.getIndentString();
+    lines.push('(() => {');
+    
+    if (switchExpr) {
+      const switchValue = this.generateExpression(switchExpr);
+      lines.push(`${indent}switch (${switchValue}) {`);
+      
+      for (const caseNode of cases) {
+        if (caseNode.type === 'SwitchCase' && caseNode.children && caseNode.children.length >= 2) {
+          const caseValue = this.generateExpression(caseNode.children[0]!);
+          const result = this.generateExpression(caseNode.children[1]!);
+          lines.push(`${indent}${indent}case ${caseValue}: return ${result};`);
+        } else if (caseNode.type === 'SwitchDefault' && caseNode.children && caseNode.children.length >= 1) {
+          const result = this.generateExpression(caseNode.children[0]!);
+          lines.push(`${indent}${indent}default: return ${result};`);
+        }
+      }
+      
+      lines.push(`${indent}}`);
+    } else {
+      // Condition-based switch (like if-else chain)
+      let isFirst = true;
+      for (const caseNode of cases) {
+        if (caseNode.type === 'SwitchCase' && caseNode.children && caseNode.children.length >= 2) {
+          const condition = this.generateExpression(caseNode.children[0]!);
+          const result = this.generateExpression(caseNode.children[1]!);
+          if (isFirst) {
+            lines.push(`${indent}if (${condition}) return ${result};`);
+            isFirst = false;
+          } else {
+            lines.push(`${indent}else if (${condition}) return ${result};`);
+          }
+        } else if (caseNode.type === 'SwitchDefault' && caseNode.children && caseNode.children.length >= 1) {
+          const result = this.generateExpression(caseNode.children[0]!);
+          lines.push(`${indent}else return ${result};`);
+        }
+      }
+    }
+    
+    lines.push('})()');
+    
+    return lines.join('\n' + indent.repeat(this.indent));
   }
 
   private generateFunctionCall(node: ASTNode): string {
@@ -411,8 +789,12 @@ class CodeGenerator {
       .replace(/^_|_$/g, '') || 'unnamed';
   }
 
+  private getIndentString(): string {
+    return ' '.repeat(CodeGenerator.INDENT_SIZE);
+  }
+
   private emit(line: string): void {
-    const indentation = '  '.repeat(this.indent);
+    const indentation = this.getIndentString().repeat(this.indent);
     this.output.push(indentation + line);
   }
 }
