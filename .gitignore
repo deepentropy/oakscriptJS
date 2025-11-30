@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 yarn.lock
-pnpm-lock.yaml
+.pnpm-store/
 
 # Build output
 dist/
