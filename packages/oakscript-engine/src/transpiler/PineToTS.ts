@@ -58,6 +58,9 @@ export function transpileWithResult(source: string, options: TranspileOptions = 
  * TypeScript code generator
  */
 class CodeGenerator {
+  /** Number of spaces for each indentation level */
+  private static readonly INDENT_SIZE = 2;
+  
   private options: TranspileOptions;
   private output: string[] = [];
   private indent: number = 0;
@@ -317,13 +320,14 @@ class CodeGenerator {
 
     const condExpr = this.generateExpression(condition);
     const lines: string[] = [];
+    const indent = this.getIndentString();
     lines.push(`if (${condExpr}) {`);
     
     if (body.type === 'Block' && body.children) {
       for (const stmt of body.children) {
         const stmtCode = this.generateStatementToString(stmt);
         if (stmtCode) {
-          lines.push('  ' + stmtCode);
+          lines.push(indent + stmtCode);
         }
       }
     }
@@ -337,7 +341,7 @@ class CodeGenerator {
           for (const stmt of alternate.children) {
             const stmtCode = this.generateStatementToString(stmt);
             if (stmtCode) {
-              lines.push('  ' + stmtCode);
+              lines.push(indent + stmtCode);
             }
           }
         }
@@ -347,7 +351,7 @@ class CodeGenerator {
       lines.push('}');
     }
     
-    return lines.join('\n' + '  '.repeat(this.indent));
+    return lines.join('\n' + indent.repeat(this.indent));
   }
 
   private generateStatementToString(node: ASTNode): string {
@@ -594,24 +598,25 @@ class CodeGenerator {
 
     // Generate IIFE-wrapped switch
     const lines: string[] = [];
+    const indent = this.getIndentString();
     lines.push('(() => {');
     
     if (switchExpr) {
       const switchValue = this.generateExpression(switchExpr);
-      lines.push(`  switch (${switchValue}) {`);
+      lines.push(`${indent}switch (${switchValue}) {`);
       
       for (const caseNode of cases) {
         if (caseNode.type === 'SwitchCase' && caseNode.children && caseNode.children.length >= 2) {
           const caseValue = this.generateExpression(caseNode.children[0]!);
           const result = this.generateExpression(caseNode.children[1]!);
-          lines.push(`    case ${caseValue}: return ${result};`);
+          lines.push(`${indent}${indent}case ${caseValue}: return ${result};`);
         } else if (caseNode.type === 'SwitchDefault' && caseNode.children && caseNode.children.length >= 1) {
           const result = this.generateExpression(caseNode.children[0]!);
-          lines.push(`    default: return ${result};`);
+          lines.push(`${indent}${indent}default: return ${result};`);
         }
       }
       
-      lines.push('  }');
+      lines.push(`${indent}}`);
     } else {
       // Condition-based switch (like if-else chain)
       let isFirst = true;
@@ -620,21 +625,21 @@ class CodeGenerator {
           const condition = this.generateExpression(caseNode.children[0]!);
           const result = this.generateExpression(caseNode.children[1]!);
           if (isFirst) {
-            lines.push(`  if (${condition}) return ${result};`);
+            lines.push(`${indent}if (${condition}) return ${result};`);
             isFirst = false;
           } else {
-            lines.push(`  else if (${condition}) return ${result};`);
+            lines.push(`${indent}else if (${condition}) return ${result};`);
           }
         } else if (caseNode.type === 'SwitchDefault' && caseNode.children && caseNode.children.length >= 1) {
           const result = this.generateExpression(caseNode.children[0]!);
-          lines.push(`  else return ${result};`);
+          lines.push(`${indent}else return ${result};`);
         }
       }
     }
     
     lines.push('})()');
     
-    return lines.join('\n' + '  '.repeat(this.indent));
+    return lines.join('\n' + indent.repeat(this.indent));
   }
 
   private generateFunctionCall(node: ASTNode): string {
@@ -784,8 +789,12 @@ class CodeGenerator {
       .replace(/^_|_$/g, '') || 'unnamed';
   }
 
+  private getIndentString(): string {
+    return ' '.repeat(CodeGenerator.INDENT_SIZE);
+  }
+
   private emit(line: string): void {
-    const indentation = '  '.repeat(this.indent);
+    const indentation = this.getIndentString().repeat(this.indent);
     this.output.push(indentation + line);
   }
 }
