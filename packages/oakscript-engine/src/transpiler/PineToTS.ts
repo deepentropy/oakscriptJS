@@ -5,7 +5,7 @@
  */
 
 import { PineParser, ASTNode } from './PineParser.js';
-import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition } from './types.js';
+import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo } from './types.js';
 
 /**
  * Transpile PineScript source code to TypeScript
@@ -71,6 +71,8 @@ class CodeGenerator {
   private inputs: InputDefinition[] = [];
   private usesSyminfo: boolean = false;
   private usesTimeframe: boolean = false;
+  private types: Map<string, TypeInfo> = new Map();
+  private methods: Map<string, MethodInfo[]> = new Map();
   public warnings: TranspileWarning[] = [];
 
   constructor(options: TranspileOptions) {
@@ -88,6 +90,8 @@ class CodeGenerator {
     this.inputs = [];
     this.usesSyminfo = false;
     this.usesTimeframe = false;
+    this.types.clear();
+    this.methods.clear();
 
     // First pass: collect information
     this.collectInfo(ast);
@@ -100,6 +104,11 @@ class CodeGenerator {
 
     // Generate helper functions
     this.generateHelperFunctions();
+
+    // Generate user-defined types (interfaces and namespace objects)
+    if (this.types.size > 0) {
+      this.generateUserDefinedTypes();
+    }
 
     // Generate interfaces if inputs exist
     if (this.inputs.length > 0) {
@@ -201,6 +210,155 @@ class CodeGenerator {
     this.indent--;
     this.emit('}');
     this.emit('');
+  }
+
+  private generateUserDefinedTypes(): void {
+    this.emit('// User-defined types');
+    
+    for (const [typeName, typeInfo] of this.types) {
+      const exportKeyword = typeInfo.exported ? 'export ' : '';
+      
+      // Generate interface
+      this.emit(`${exportKeyword}interface ${typeName} {`);
+      this.indent++;
+      for (const field of typeInfo.fields) {
+        const tsType = this.pineTypeToTs(field.fieldType);
+        this.emit(`${field.name}: ${tsType};`);
+      }
+      this.indent--;
+      this.emit('}');
+      this.emit('');
+      
+      // Generate namespace object with new() factory and methods
+      this.emit(`${exportKeyword}const ${typeName} = {`);
+      this.indent++;
+      
+      // Generate new() factory function
+      const params = typeInfo.fields.map(f => {
+        const tsType = this.pineTypeToTs(f.fieldType);
+        const defaultVal = f.defaultValue || this.getDefaultForPineType(f.fieldType);
+        return `${f.name}: ${tsType} = ${defaultVal}`;
+      }).join(', ');
+      
+      const fieldNames = typeInfo.fields.map(f => f.name).join(', ');
+      
+      this.emit(`new: (${params}): ${typeName} => ({`);
+      this.indent++;
+      this.emit(`${fieldNames},`);
+      this.indent--;
+      this.emit('}),');
+      
+      // Generate methods bound to this type
+      const typeMethods = this.methods.get(typeName) || [];
+      for (const method of typeMethods) {
+        this.generateMethodInNamespace(method, typeName);
+      }
+      
+      this.indent--;
+      this.emit('};');
+      this.emit('');
+    }
+  }
+
+  private generateMethodInNamespace(method: MethodInfo, typeName: string): void {
+    const selfType = typeName;
+    const otherParams = method.parameters.map(p => {
+      const tsType = this.pineTypeToTs(p.paramType);
+      const defaultVal = p.defaultValue ? ` = ${p.defaultValue}` : '';
+      return `${p.name}: ${tsType}${defaultVal}`;
+    }).join(', ');
+    
+    const allParams = otherParams ? `self: ${selfType}, ${otherParams}` : `self: ${selfType}`;
+    
+    // Determine return type - for now, use void or any
+    const returnType = 'void';
+    
+    this.emit(`${method.name}: (${allParams}): ${returnType} => {`);
+    this.indent++;
+    
+    // Generate method body
+    if (method.bodyNode) {
+      const bodyNode = method.bodyNode as ASTNode;
+      if (bodyNode.type === 'Block' && bodyNode.children) {
+        for (const stmt of bodyNode.children) {
+          this.generateStatement(stmt);
+        }
+      } else {
+        // Single expression body
+        const expr = this.generateExpression(bodyNode);
+        this.emit(`return ${expr};`);
+      }
+    }
+    
+    this.indent--;
+    this.emit('},');
+  }
+
+  private pineTypeToTs(pineType: string): string {
+    // Map PineScript types to TypeScript types
+    const typeMap: Record<string, string> = {
+      'int': 'number',
+      'float': 'number',
+      'bool': 'boolean',
+      'string': 'string',
+      'color': 'string',
+      'line': 'Line | null',
+      'label': 'Label | null',
+      'box': 'Box | null',
+      'table': 'Table | null',
+      'chart.point': 'ChartPoint',
+    };
+    
+    // Handle generic array types
+    if (pineType.startsWith('array<') && pineType.endsWith('>')) {
+      const innerType = pineType.slice(6, -1);
+      return `${this.pineTypeToTs(innerType)}[]`;
+    }
+    
+    if (typeMap[pineType]) {
+      return typeMap[pineType];
+    }
+    
+    // Check if it's a user-defined type
+    if (this.types.has(pineType)) {
+      return pineType;
+    }
+    
+    // Assume it's a custom type (e.g., user-defined)
+    return pineType;
+  }
+
+  private getDefaultForPineType(pineType: string): string {
+    const defaults: Record<string, string> = {
+      'int': '0',
+      'float': '0.0',
+      'bool': 'false',
+      'string': '""',
+      'color': '"#000000"',
+      'line': 'null',
+      'label': 'null',
+      'box': 'null',
+      'table': 'null',
+      'chart.point': 'null',
+    };
+    
+    // Handle generic array types
+    if (pineType.startsWith('array<')) {
+      return '[]';
+    }
+    
+    if (defaults[pineType]) {
+      return defaults[pineType];
+    }
+    
+    // For user-defined types, use null to avoid potential infinite recursion
+    // (when a type has a field of its own type)
+    // Runtime code should handle this with explicit instantiation
+    if (this.types.has(pineType)) {
+      return 'null';
+    }
+    
+    return 'null';
   }
 
   private generateInputsInterface(): void {
@@ -397,6 +555,59 @@ class CodeGenerator {
       }
     }
 
+    // Collect type definitions
+    if (node.type === 'TypeDeclaration') {
+      const typeName = String(node.value || '');
+      const fields: FieldInfo[] = [];
+      
+      if (node.children) {
+        for (const fieldNode of node.children) {
+          if (fieldNode.type === 'FieldDeclaration') {
+            const field: FieldInfo = {
+              name: String(fieldNode.value || ''),
+              fieldType: String(fieldNode.fieldType || 'unknown'),
+              defaultValue: fieldNode.children && fieldNode.children.length > 0 
+                ? this.generateExpression(fieldNode.children[0])
+                : undefined,
+              isOptional: !!(fieldNode.children && fieldNode.children.length > 0),
+            };
+            fields.push(field);
+          }
+        }
+      }
+      
+      this.types.set(typeName, {
+        name: typeName,
+        exported: node.exported || false,
+        fields: fields,
+      });
+    }
+
+    // Collect method definitions
+    if (node.type === 'MethodDeclaration') {
+      const methodName = String(node.value || '');
+      const boundType = String(node.boundType || '');
+      
+      const methodInfo: MethodInfo = {
+        name: methodName,
+        boundType: boundType,
+        exported: node.exported || false,
+        parameters: (node.params || []).map(p => ({
+          name: String(p.value || ''),
+          paramType: String(p.fieldType || 'unknown'),
+          defaultValue: p.children && p.children.length > 0 
+            ? this.generateExpression(p.children[0])
+            : undefined,
+        })),
+        bodyNode: node.children && node.children.length > 0 ? node.children[0] : undefined,
+      };
+      
+      if (!this.methods.has(boundType)) {
+        this.methods.set(boundType, []);
+      }
+      this.methods.get(boundType)!.push(methodInfo);
+    }
+
     // Collect input definitions from ExpressionStatement containing Assignment
     // This is the main path - we only check at ExpressionStatement level to avoid duplicates
     if (node.type === 'ExpressionStatement' && node.children && node.children.length > 0) {
@@ -434,6 +645,13 @@ class CodeGenerator {
     if (node.children) {
       for (const child of node.children) {
         this.collectInfo(child);
+      }
+    }
+    
+    // Also check params for method declarations
+    if (node.params) {
+      for (const param of node.params) {
+        this.collectInfo(param);
       }
     }
   }
@@ -609,6 +827,14 @@ class CodeGenerator {
 
       case 'IndicatorDeclaration':
         // Already processed in collectInfo
+        break;
+
+      case 'TypeDeclaration':
+        // Already processed in collectInfo and generateUserDefinedTypes
+        break;
+
+      case 'MethodDeclaration':
+        // Already processed in collectInfo and generateUserDefinedTypes
         break;
 
       case 'VariableDeclaration':
@@ -991,6 +1217,18 @@ class CodeGenerator {
       case 'FunctionCall':
         return this.generateFunctionCall(node);
 
+      case 'TypeInstantiation':
+        return this.generateTypeInstantiation(node);
+
+      case 'MethodCall':
+        return this.generateMethodCall(node);
+
+      case 'FieldAccess':
+        return this.generateFieldAccess(node);
+
+      case 'GenericFunctionCall':
+        return this.generateGenericFunctionCall(node);
+
       case 'BinaryExpression':
         return this.generateBinaryExpression(node);
 
@@ -1022,9 +1260,98 @@ class CodeGenerator {
       case 'SwitchExpression':
         return this.generateSwitchExpression(node);
 
+      case 'ArrayLiteral':
+        return this.generateArrayLiteral(node);
+
       default:
         return '';
     }
+  }
+
+  private generateTypeInstantiation(node: ASTNode): string {
+    const typeName = String(node.value || '');
+    const args = (node.children || []).map(c => this.generateExpression(c)).join(', ');
+    return `${typeName}.new(${args})`;
+  }
+
+  private generateMethodCall(node: ASTNode): string {
+    const methodName = String(node.value || '');
+    if (!node.children || node.children.length < 1) return '';
+    
+    const objectNode = node.children[0];
+    const args = node.children.slice(1).map(c => this.generateExpression(c)).join(', ');
+    const objectExpr = this.generateExpression(objectNode);
+    
+    // Try to determine the type of the object to generate TypeName.method(object, args)
+    // For now, if it's a simple identifier and we know its type from context, use that
+    // Otherwise, generate object.method(args) style (JS compatible)
+    
+    // Check if object is a type instantiation or we have type info
+    const objectType = this.inferObjectType(objectNode);
+    if (objectType && this.types.has(objectType)) {
+      // Verify the method exists on this type before using TypeName.method pattern
+      const typeMethods = this.methods.get(objectType) || [];
+      if (typeMethods.some(m => m.name === methodName)) {
+        const allArgs = args ? `${objectExpr}, ${args}` : objectExpr;
+        return `${objectType}.${methodName}(${allArgs})`;
+      }
+    }
+    
+    // Fall back to object.method(args) style for built-in methods and unknown types
+    return args ? `${objectExpr}.${methodName}(${args})` : `${objectExpr}.${methodName}()`;
+  }
+
+  private generateFieldAccess(node: ASTNode): string {
+    const fieldName = String(node.value || '');
+    if (!node.children || node.children.length < 1) return fieldName;
+    
+    const objectExpr = this.generateExpression(node.children[0]);
+    return `${objectExpr}.${fieldName}`;
+  }
+
+  private generateGenericFunctionCall(node: ASTNode): string {
+    const funcName = String(node.value || '');
+    const genericType = String(node.name || '');
+    const args = (node.children || []).map(c => this.generateExpression(c)).join(', ');
+    
+    // Handle array.new<Type>() -> []
+    if (funcName === 'array.new') {
+      if (args) {
+        // array.new<Type>(size) -> new Array(size).fill(null)
+        // array.new<Type>(size, default) -> new Array(size).fill(default)
+        const argList = (node.children || []);
+        if (argList.length === 1) {
+          const sizeExpr = this.generateExpression(argList[0]);
+          return `new Array(${sizeExpr}).fill(null)`;
+        } else if (argList.length >= 2) {
+          const sizeExpr = this.generateExpression(argList[0]);
+          const defaultExpr = this.generateExpression(argList[1]);
+          return `new Array(${sizeExpr}).fill(${defaultExpr})`;
+        }
+      }
+      return '[]';
+    }
+    
+    // For other generic functions, pass through
+    return `${funcName}(${args})`;
+  }
+
+  private generateArrayLiteral(node: ASTNode): string {
+    const elements = (node.children || []).map(c => this.generateExpression(c)).join(', ');
+    return `[${elements}]`;
+  }
+
+  private inferObjectType(node: ASTNode): string | null {
+    if (!node) return null;
+    
+    // If it's a type instantiation, we know the type
+    if (node.type === 'TypeInstantiation') {
+      return String(node.value || '');
+    }
+    
+    // If it's an identifier, check if we've seen it assigned a type
+    // For now, return null and let the method call use fallback
+    return null;
   }
 
   private generateTernaryExpression(node: ASTNode): string {
@@ -1206,6 +1533,7 @@ class CodeGenerator {
       'true': 'true',
       'false': 'false',
       'bar_index': 'i',
+      'this': 'self',  // Method context: 'this' becomes 'self'
     };
 
     if (builtins[name]) {
@@ -1219,6 +1547,11 @@ class CodeGenerator {
     // Handle color constants
     if (name.startsWith('color.')) {
       return `"${name.replace('color.', '')}"`;
+    }
+
+    // Handle 'this.field' -> 'self.field' for method context
+    if (name.startsWith('this.')) {
+      return name.replace('this.', 'self.');
     }
     
     // Handle barstate variables
