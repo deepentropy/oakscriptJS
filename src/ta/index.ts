@@ -3488,3 +3488,263 @@ export function ichimoku(
 
   return [tenkanSen, kijunSen, senkouSpanA, senkouSpanB, chikouSpan];
 }
+
+/**
+ * ZigZag indicator - identifies significant trend reversals by filtering out minor price movements.
+ *
+ * @param deviation - Minimum percentage price change to form a new pivot (default: 5.0)
+ * @param depth - Minimum bars between pivots for pivot detection (default: 10)
+ * @param backstep - Bars to look back for confirmation (default: 3)
+ * @param source - Price source (optional, typically close)
+ * @param high - High price series (optional, for high/low mode)
+ * @param low - Low price series (optional, for high/low mode)
+ * @returns Tuple of [zigzag values, direction, pivot flags]
+ *
+ * @remarks
+ * - **PineScript v6 signature**: `ta.zigzag(source, deviation, depth, backstep)` - uses implicit chart data
+ * - **JavaScript signature**: Requires explicit `source`, `high`, `low` OR use `createContext()`
+ * - Returns the pivot price at pivot points, NaN for non-pivot bars
+ * - Direction: 1 = uptrend (from low to high), -1 = downtrend (from high to low)
+ * - The ZigZag indicator **repaints** by design - the last segment can change as new data arrives
+ * - Supports two modes:
+ *   - Single source mode: uses same series for highs and lows
+ *   - High/Low mode: uses high for pivot highs, low for pivot lows
+ *
+ * @example
+ * ```typescript
+ * // Using high/low for more accurate pivots
+ * const [zigzag, direction, isPivot] = ta.zigzag(5, 10, 3, null, high, low);
+ *
+ * // Find pivot prices
+ * for (let i = 0; i < zigzag.length; i++) {
+ *   if (!isNaN(zigzag[i]!)) {
+ *     console.log(`Pivot at bar ${i}: ${zigzag[i]!}, direction: ${direction[i]! === 1 ? 'UP' : 'DOWN'}`);
+ *   }
+ * }
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/support/solutions/43000591664-zig-zag/ | TradingView ZigZag Documentation}
+ */
+export function zigzag(
+  deviation: simple_float = 5.0,
+  depth: simple_int = 10,
+  backstep: simple_int = 3,
+  source?: Source,
+  high?: Source,
+  low?: Source
+): [series_float, series_int, series_bool] {
+  // Determine which mode we're in
+  let highSource: Source;
+  let lowSource: Source;
+  
+  if (high && low) {
+    // High/Low mode
+    highSource = high;
+    lowSource = low;
+  } else if (source) {
+    // Single source mode
+    highSource = source;
+    lowSource = source;
+  } else {
+    throw new Error(
+      'ta.zigzag() requires either source series or high/low series. ' +
+      'Either pass them explicitly or use createContext({ chart: { high, low, close } }) for implicit data.'
+    );
+  }
+
+  const length = highSource.length;
+  if (lowSource.length !== length) {
+    throw new Error('ta.zigzag: high and low must have the same length');
+  }
+
+  // Result arrays
+  const zigzagValues: series_float = new Array(length).fill(NaN);
+  const directions: series_int = new Array(length).fill(0);
+  const isPivot: series_bool = new Array(length).fill(false);
+
+  // Helper function to calculate percentage deviation
+  const getDeviation = (price1: number, price2: number): number => {
+    if (price1 === 0 || isNaN(price1) || isNaN(price2)) return 0;
+    return Math.abs((price2 - price1) / price1) * 100;
+  };
+
+  // Track pivot state
+  interface Pivot {
+    index: number;
+    price: number;
+    type: 'high' | 'low';
+  }
+
+  let lastConfirmedPivot: Pivot | null = null;
+  let potentialPivot: Pivot | null = null;
+  let currentDirection = 0; // 0 = undefined, 1 = up, -1 = down
+
+  // Store confirmed pivots for final zigzag construction
+  const confirmedPivots: Pivot[] = [];
+
+  // First pass: Find initial pivot to start
+  let startIndex = -1;
+  let initialHighest = -Infinity;
+  let initialLowest = Infinity;
+  let initialHighIndex = -1;
+  let initialLowIndex = -1;
+
+  // Find the first significant pivot using depth bars
+  for (let i = 0; i < Math.min(depth, length); i++) {
+    if (!isNaN(highSource[i]!) && highSource[i]! > initialHighest) {
+      initialHighest = highSource[i]!;
+      initialHighIndex = i;
+    }
+    if (!isNaN(lowSource[i]!) && lowSource[i]! < initialLowest) {
+      initialLowest = lowSource[i]!;
+      initialLowIndex = i;
+    }
+  }
+
+  // Determine starting direction based on which came first
+  if (initialHighIndex >= 0 && initialLowIndex >= 0) {
+    if (initialLowIndex <= initialHighIndex) {
+      // Low came first or same - start with low, direction will be up
+      lastConfirmedPivot = { index: initialLowIndex, price: initialLowest, type: 'low' };
+      currentDirection = 1;
+    } else {
+      // High came first - start with high, direction will be down
+      lastConfirmedPivot = { index: initialHighIndex, price: initialHighest, type: 'high' };
+      currentDirection = -1;
+    }
+    confirmedPivots.push(lastConfirmedPivot);
+    startIndex = lastConfirmedPivot.index + 1;
+  } else {
+    startIndex = depth;
+  }
+
+  // Main loop: process bars
+  for (let i = Math.max(startIndex, depth); i < length; i++) {
+    const currentHigh = highSource[i]!;
+    const currentLow = lowSource[i]!;
+
+    if (isNaN(currentHigh) || isNaN(currentLow)) {
+      directions[i] = currentDirection;
+      continue;
+    }
+
+    // Check for potential pivot high
+    let isPotentialHigh = true;
+    for (let j = 1; j <= backstep && i - j >= 0; j++) {
+      if (!isNaN(highSource[i - j]!) && highSource[i - j]! >= currentHigh) {
+        isPotentialHigh = false;
+        break;
+      }
+    }
+
+    // Check for potential pivot low
+    let isPotentialLow = true;
+    for (let j = 1; j <= backstep && i - j >= 0; j++) {
+      if (!isNaN(lowSource[i - j]!) && lowSource[i - j]! <= currentLow) {
+        isPotentialLow = false;
+        break;
+      }
+    }
+
+    if (currentDirection === 1) {
+      // Looking for pivot high (uptrend ending)
+      if (isPotentialHigh) {
+        if (potentialPivot === null || potentialPivot.type !== 'high') {
+          // New potential high
+          if (lastConfirmedPivot && getDeviation(lastConfirmedPivot.price, currentHigh) >= deviation) {
+            potentialPivot = { index: i, price: currentHigh, type: 'high' };
+          }
+        } else {
+          // Already have a potential high - update if this is higher
+          if (currentHigh > potentialPivot.price) {
+            potentialPivot = { index: i, price: currentHigh, type: 'high' };
+          }
+        }
+      }
+
+      // Check if we should confirm the potential high and start looking for a low
+      if (potentialPivot && potentialPivot.type === 'high') {
+        const deviationFromPotential = getDeviation(potentialPivot.price, currentLow);
+        if (deviationFromPotential >= deviation && i - potentialPivot.index >= backstep) {
+          // Confirm the high pivot
+          confirmedPivots.push(potentialPivot);
+          lastConfirmedPivot = potentialPivot;
+          currentDirection = -1;
+          potentialPivot = null;
+        }
+      }
+    } else if (currentDirection === -1) {
+      // Looking for pivot low (downtrend ending)
+      if (isPotentialLow) {
+        if (potentialPivot === null || potentialPivot.type !== 'low') {
+          // New potential low
+          if (lastConfirmedPivot && getDeviation(lastConfirmedPivot.price, currentLow) >= deviation) {
+            potentialPivot = { index: i, price: currentLow, type: 'low' };
+          }
+        } else {
+          // Already have a potential low - update if this is lower
+          if (currentLow < potentialPivot.price) {
+            potentialPivot = { index: i, price: currentLow, type: 'low' };
+          }
+        }
+      }
+
+      // Check if we should confirm the potential low and start looking for a high
+      if (potentialPivot && potentialPivot.type === 'low') {
+        const deviationFromPotential = getDeviation(potentialPivot.price, currentHigh);
+        if (deviationFromPotential >= deviation && i - potentialPivot.index >= backstep) {
+          // Confirm the low pivot
+          confirmedPivots.push(potentialPivot);
+          lastConfirmedPivot = potentialPivot;
+          currentDirection = 1;
+          potentialPivot = null;
+        }
+      }
+    } else {
+      // Initial state - determine direction based on first significant move
+      if (lastConfirmedPivot) {
+        if (lastConfirmedPivot.type === 'low' && getDeviation(lastConfirmedPivot.price, currentHigh) >= deviation) {
+          currentDirection = 1;
+        } else if (lastConfirmedPivot.type === 'high' && getDeviation(lastConfirmedPivot.price, currentLow) >= deviation) {
+          currentDirection = -1;
+        }
+      }
+    }
+
+    directions[i] = currentDirection;
+  }
+
+  // Include the last potential pivot if it exists (repaint behavior)
+  // This shows where the zigzag line extends to, but doesn't change direction
+  const lastPotentialWasAdded = potentialPivot !== null;
+  if (potentialPivot) {
+    confirmedPivots.push(potentialPivot);
+  }
+
+  // Build the final zigzag output
+  for (const pivot of confirmedPivots) {
+    zigzagValues[pivot.index] = pivot.price;
+    isPivot[pivot.index] = true;
+  }
+
+  // Set directions for all bars based on confirmed pivots
+  // Direction represents the current trend at each bar:
+  // - After a LOW pivot, trend is UP (1) until the next HIGH
+  // - After a HIGH pivot, trend is DOWN (-1) until the next LOW
+  let currentDir = 0;
+  let pivotIdx = 0;
+  const numConfirmed = lastPotentialWasAdded ? confirmedPivots.length - 1 : confirmedPivots.length;
+  
+  for (let i = 0; i < length; i++) {
+    // Move to next confirmed pivot if we passed the current one
+    // Don't count the last potential pivot for direction changes
+    while (pivotIdx < numConfirmed && confirmedPivots[pivotIdx]!.index <= i) {
+      const pivot = confirmedPivots[pivotIdx]!;
+      currentDir = pivot.type === 'low' ? 1 : -1;
+      pivotIdx++;
+    }
+    directions[i] = currentDir;
+  }
+
+  return [zigzagValues, directions, isPivot];
+}
