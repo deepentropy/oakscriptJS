@@ -399,6 +399,10 @@ export function ichimoku(
  * @param depth - Minimum bars between pivots (default: 10)
  * @param backstep - Bars to look back for confirmation (default: 3)
  * @returns Tuple of [zigzag values, direction, isPivot flags] Series
+ * @remarks
+ * - The isPivot Series contains numeric values (1 for pivot, 0 for non-pivot)
+ *   converted from boolean for consistency with other Series-based functions
+ * - The core ta.zigzag() function returns boolean isPivot values
  */
 export function zigzag(
   bars: Bar[],
@@ -413,6 +417,7 @@ export function zigzag(
     deviation, depth, backstep, undefined, high, low
   );
 
+  // Convert boolean pivot flags to numbers (1/0) for Series compatibility
   return [
     Series.fromArray(bars, zigzagVals),
     Series.fromArray(bars, dirVals),

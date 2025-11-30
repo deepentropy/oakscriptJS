@@ -4,7 +4,7 @@ describe('ta.zigzag', () => {
   describe('basic functionality', () => {
     it('should identify pivot highs correctly', () => {
       // Create price data with clear pivot points
-      // Low at 100, rises to 120 (20% move), drops to 110, rises to 130
+      // Starts at 100 high/98 low, rises to 120 high/118 low, drops to 110 high/108 low, rises to 130 high/128 low
       const high = [100, 105, 110, 115, 120, 118, 115, 112, 110, 115, 120, 125, 130];
       const low =  [98,  103, 108, 113, 118, 116, 113, 110, 108, 113, 118, 123, 128];
       

@@ -3498,10 +3498,12 @@ export function ichimoku(
  * @param source - Price source (optional, typically close)
  * @param high - High price series (optional, for high/low mode)
  * @param low - Low price series (optional, for high/low mode)
- * @returns Tuple of [zigzag values, direction, pivot flags]
+ * @returns Tuple of [zigzag values, direction, pivot flags (boolean)]
  *
  * @remarks
- * - **PineScript v6 signature**: `ta.zigzag(source, deviation, depth, backstep)` - uses implicit chart data
+ * - **Parameter order differs from PineScript**: JavaScript signature puts deviation first,
+ *   while PineScript uses `ta.zigzag(source, deviation, depth, backstep)`. This allows
+ *   deviation to have a default value and makes the API more ergonomic for JS users.
  * - **JavaScript signature**: Requires explicit `source`, `high`, `low` OR use `createContext()`
  * - Returns the pivot price at pivot points, NaN for non-pivot bars
  * - Direction: 1 = uptrend (from low to high), -1 = downtrend (from high to low)
@@ -3513,7 +3515,7 @@ export function ichimoku(
  * @example
  * ```typescript
  * // Using high/low for more accurate pivots
- * const [zigzag, direction, isPivot] = ta.zigzag(5, 10, 3, null, high, low);
+ * const [zigzag, direction, isPivot] = ta.zigzag(5, 10, 3, undefined, high, low);
  *
  * // Find pivot prices
  * for (let i = 0; i < zigzag.length; i++) {
@@ -3564,7 +3566,8 @@ export function zigzag(
 
   // Helper function to calculate percentage deviation
   const getDeviation = (price1: number, price2: number): number => {
-    if (price1 === 0 || isNaN(price1) || isNaN(price2)) return 0;
+    // Use epsilon threshold to avoid numerical instability with very small values
+    if (Math.abs(price1) < 1e-10 || isNaN(price1) || isNaN(price2)) return 0;
     return Math.abs((price2 - price1) / price1) * 100;
   };
 
