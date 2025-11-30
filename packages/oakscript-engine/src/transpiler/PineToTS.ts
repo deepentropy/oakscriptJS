@@ -351,9 +351,11 @@ class CodeGenerator {
       return defaults[pineType];
     }
     
-    // For user-defined types, call their new() with no args
+    // For user-defined types, use null to avoid potential infinite recursion
+    // (when a type has a field of its own type)
+    // Runtime code should handle this with explicit instantiation
     if (this.types.has(pineType)) {
-      return `${pineType}.new()`;
+      return 'null';
     }
     
     return 'null';
@@ -1287,20 +1289,15 @@ class CodeGenerator {
     // Check if object is a type instantiation or we have type info
     const objectType = this.inferObjectType(objectNode);
     if (objectType && this.types.has(objectType)) {
-      // Use TypeName.method(object, args) pattern
-      const allArgs = args ? `${objectExpr}, ${args}` : objectExpr;
-      return `${objectType}.${methodName}(${allArgs})`;
-    }
-    
-    // Check if method exists on any known type (method on UDT)
-    for (const [typeName, methods] of this.methods) {
-      if (methods.some(m => m.name === methodName)) {
+      // Verify the method exists on this type before using TypeName.method pattern
+      const typeMethods = this.methods.get(objectType) || [];
+      if (typeMethods.some(m => m.name === methodName)) {
         const allArgs = args ? `${objectExpr}, ${args}` : objectExpr;
-        return `${typeName}.${methodName}(${allArgs})`;
+        return `${objectType}.${methodName}(${allArgs})`;
       }
     }
     
-    // Fall back to object.method(args) style for built-in methods
+    // Fall back to object.method(args) style for built-in methods and unknown types
     return args ? `${objectExpr}.${methodName}(${args})` : `${objectExpr}.${methodName}()`;
   }
 
