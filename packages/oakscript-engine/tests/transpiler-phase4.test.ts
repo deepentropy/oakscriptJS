@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PineParser } from '../src/transpiler/PineParser';
 import { transpile } from '../src/transpiler/PineToTS';
+import { LibraryResolver, FileSystemInterface } from '../src/transpiler/LibraryResolver';
 
 describe('Phase 4: Library Import System', () => {
   describe('Import Statement Parsing', () => {
@@ -270,6 +271,206 @@ var zz = zigzag.newInstance(settings)`;
       expect(result).toContain('return {');
       expect(result).toContain('metadata:');
       expect(result).toContain('plots:');
+    });
+  });
+
+  describe('Library Resolver', () => {
+    describe('Basic functionality', () => {
+      it('should generate correct library key', () => {
+        const key = LibraryResolver.getLibraryKey('TradingView', 'ZigZag', 8);
+        expect(key).toBe('TradingView/ZigZag/8');
+      });
+
+      it('should generate correct module name', () => {
+        const moduleName = LibraryResolver.getModuleName('TradingView', 'ZigZag', 8);
+        expect(moduleName).toBe('TradingView_ZigZag_v8');
+      });
+
+      it('should resolve library path correctly', () => {
+        const mockFs: FileSystemInterface = {
+          readFile: () => null,
+          fileExists: () => false,
+        };
+        const resolver = new LibraryResolver(mockFs);
+        const path = resolver.resolveLibraryPath('TradingView', 'ZigZag', 8);
+        expect(path).toBe('docs/official/libraries/TradingView/ZigZag-v8.pine');
+      });
+
+      it('should resolve library path with custom base path', () => {
+        const mockFs: FileSystemInterface = {
+          readFile: () => null,
+          fileExists: () => false,
+        };
+        const resolver = new LibraryResolver(mockFs, 'custom/path');
+        const path = resolver.resolveLibraryPath('TradingView', 'ZigZag', 8);
+        expect(path).toBe('custom/path/TradingView/ZigZag-v8.pine');
+      });
+    });
+
+    describe('Import extraction', () => {
+      it('should extract imports from source', () => {
+        const mockFs: FileSystemInterface = {
+          readFile: () => null,
+          fileExists: () => false,
+        };
+        const resolver = new LibraryResolver(mockFs);
+        
+        const source = `indicator("Test")
+import TradingView/ZigZag/8 as zigzag
+import TradingView/ta/10 as ta`;
+        
+        const imports = resolver.findImports(source);
+        
+        expect(imports).toHaveLength(2);
+        expect(imports[0].publisher).toBe('TradingView');
+        expect(imports[0].libraryName).toBe('ZigZag');
+        expect(imports[0].version).toBe(8);
+        expect(imports[0].alias).toBe('zigzag');
+        expect(imports[1].alias).toBe('ta');
+      });
+    });
+
+    describe('Transpilation', () => {
+      it('should transpile a simple library', () => {
+        const librarySource = `library("TestLib")
+export type Settings
+    float value = 1.0`;
+        
+        const mockFs: FileSystemInterface = {
+          readFile: (path) => {
+            if (path === 'docs/official/libraries/Test/TestLib-v1.pine') {
+              return librarySource;
+            }
+            return null;
+          },
+          fileExists: (path) => path === 'docs/official/libraries/Test/TestLib-v1.pine',
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        const result = resolver.resolveAndTranspile('Test', 'TestLib', 1, transpile);
+        
+        expect(result).not.toBeNull();
+        expect(result!.key).toBe('Test/TestLib/1');
+        expect(result!.moduleName).toBe('Test_TestLib_v1');
+        expect(result!.code).toContain('interface Settings');
+      });
+
+      it('should detect circular dependencies', () => {
+        // LibA imports LibB, LibB imports LibA
+        const libASource = `library("LibA")
+import Test/LibB/1 as b`;
+        const libBSource = `library("LibB")
+import Test/LibA/1 as a`;
+        
+        const mockFs: FileSystemInterface = {
+          readFile: (path) => {
+            if (path === 'docs/official/libraries/Test/LibA-v1.pine') return libASource;
+            if (path === 'docs/official/libraries/Test/LibB-v1.pine') return libBSource;
+            return null;
+          },
+          fileExists: () => true,
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        
+        expect(() => {
+          resolver.resolveAndTranspile('Test', 'LibA', 1, transpile);
+        }).toThrow(/Circular dependency/);
+      });
+
+      it('should cache transpiled libraries', () => {
+        const librarySource = `library("TestLib")
+export type Settings
+    float value = 1.0`;
+        
+        let readCount = 0;
+        const mockFs: FileSystemInterface = {
+          readFile: (path) => {
+            if (path === 'docs/official/libraries/Test/TestLib-v1.pine') {
+              readCount++;
+              return librarySource;
+            }
+            return null;
+          },
+          fileExists: () => true,
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        
+        // First transpile
+        resolver.resolveAndTranspile('Test', 'TestLib', 1, transpile);
+        // Second transpile should use cache
+        resolver.resolveAndTranspile('Test', 'TestLib', 1, transpile);
+        
+        expect(readCount).toBe(1);
+      });
+
+      it('should check if library exists', () => {
+        const librarySource = `library("TestLib")`;
+        
+        const mockFs: FileSystemInterface = {
+          readFile: () => librarySource,
+          fileExists: () => true,
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        
+        expect(resolver.hasLibrary('Test', 'TestLib', 1)).toBe(false);
+        
+        resolver.resolveAndTranspile('Test', 'TestLib', 1, transpile);
+        
+        expect(resolver.hasLibrary('Test', 'TestLib', 1)).toBe(true);
+      });
+
+      it('should clear cache', () => {
+        const librarySource = `library("TestLib")`;
+        
+        const mockFs: FileSystemInterface = {
+          readFile: () => librarySource,
+          fileExists: () => true,
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        resolver.resolveAndTranspile('Test', 'TestLib', 1, transpile);
+        
+        expect(resolver.hasLibrary('Test', 'TestLib', 1)).toBe(true);
+        
+        resolver.clear();
+        
+        expect(resolver.hasLibrary('Test', 'TestLib', 1)).toBe(false);
+      });
+    });
+
+    describe('Dependency resolution', () => {
+      it('should resolve all imports in correct order', () => {
+        // Main imports LibA, LibA imports LibB
+        const libASource = `library("LibA")
+import Test/LibB/1 as b
+export type TypeA
+    float value = 1.0`;
+        const libBSource = `library("LibB")
+export type TypeB
+    int value = 0`;
+        
+        const mockFs: FileSystemInterface = {
+          readFile: (path) => {
+            if (path === 'docs/official/libraries/Test/LibA-v1.pine') return libASource;
+            if (path === 'docs/official/libraries/Test/LibB-v1.pine') return libBSource;
+            return null;
+          },
+          fileExists: () => true,
+        };
+        
+        const resolver = new LibraryResolver(mockFs);
+        const imports = [{ publisher: 'Test', libraryName: 'LibA', version: 1, alias: 'a' }];
+        const result = resolver.resolveAll(imports, transpile);
+        
+        expect(result.errors).toHaveLength(0);
+        expect(result.libraries).toHaveLength(2);
+        // LibB should come before LibA (dependency order)
+        expect(result.libraries[0].key).toBe('Test/LibB/1');
+        expect(result.libraries[1].key).toBe('Test/LibA/1');
+      });
     });
   });
 });
