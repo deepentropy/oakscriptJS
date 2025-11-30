@@ -8,6 +8,9 @@ export interface ASTNode {
   type: string;
   value?: string | number | boolean;
   children?: ASTNode[];
+  name?: string;  // For named properties (e.g., for loop variable names)
+  operator?: string;  // For operators like ':='
+  step?: ASTNode;  // For step value in for loops
   location?: {
     line: number;
     column: number;
@@ -36,6 +39,7 @@ export class PineParser {
   private line: number = 1;
   private column: number = 1;
   private errors: ParseError[] = [];
+  private currentIndent: number = 0;  // Track current indentation level
 
   /**
    * Parse PineScript source code
@@ -100,6 +104,42 @@ export class PineParser {
       return this.parseVariableDeclaration();
     }
 
+    // Parse if statement
+    if (this.matchKeyword('if')) {
+      return this.parseIfStatement();
+    }
+
+    // Parse for loop
+    if (this.matchKeyword('for')) {
+      return this.parseForLoop();
+    }
+
+    // Parse while loop
+    if (this.matchKeyword('while')) {
+      return this.parseWhileLoop();
+    }
+
+    // Parse break statement
+    if (this.matchKeyword('break')) {
+      return { type: 'BreakStatement' };
+    }
+
+    // Parse continue statement
+    if (this.matchKeyword('continue')) {
+      return { type: 'ContinueStatement' };
+    }
+
+    // Parse tuple destructuring: [a, b, c] = ...
+    if (this.peek() === '[') {
+      const startPos = this.position;
+      const tuple = this.parseTupleDestructuring();
+      if (tuple) {
+        return tuple;
+      }
+      // Restore position if not a tuple destructuring
+      this.position = startPos;
+    }
+
     // Parse expressions/assignments
     return this.parseExpressionStatement();
   }
@@ -162,14 +202,500 @@ export class PineParser {
     };
   }
 
+  private parseIfStatement(): ASTNode {
+    // 'if' keyword already matched
+    this.skipWhitespace();
+    const condition = this.parseExpression();
+    
+    // Skip to end of line
+    this.skipToEndOfLine();
+    
+    // Parse if body
+    const body = this.parseIndentedBlock();
+    
+    // Check for else if / else
+    this.skipWhitespace();
+    let alternate: ASTNode | undefined;
+    
+    if (this.matchKeyword('else')) {
+      this.skipWhitespace();
+      if (this.matchKeyword('if')) {
+        // else if - recursively parse another if statement
+        alternate = this.parseIfStatement();
+      } else {
+        // else block
+        this.skipToEndOfLine();
+        const elseBody = this.parseIndentedBlock();
+        alternate = {
+          type: 'Block',
+          children: elseBody,
+        };
+      }
+    }
+
+    return {
+      type: 'IfStatement',
+      children: [
+        condition,
+        { type: 'Block', children: body },
+        ...(alternate ? [alternate] : []),
+      ],
+    };
+  }
+
+  private parseForLoop(): ASTNode {
+    // 'for' keyword already matched
+    this.skipWhitespace();
+    
+    // Check for for-in loop: for item in array OR for [index, item] in array
+    if (this.peek() === '[') {
+      return this.parseForInLoopWithDestructuring();
+    }
+    
+    const varName = this.parseIdentifier();
+    this.skipWhitespace();
+    
+    // Check if it's a for-in loop
+    if (this.matchKeyword('in')) {
+      return this.parseForInLoopContinued(varName);
+    }
+    
+    // Standard for loop: for i = start to end [by step]
+    if (this.peek() !== '=') {
+      this.errors.push({
+        message: 'Expected "=" or "in" in for loop',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.advance(); // skip '='
+    this.skipWhitespace();
+    
+    const start = this.parseExpression();
+    this.skipWhitespace();
+    
+    if (!this.matchKeyword('to')) {
+      this.errors.push({
+        message: 'Expected "to" in for loop',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.skipWhitespace();
+    
+    const end = this.parseExpression();
+    this.skipWhitespace();
+    
+    // Check for optional 'by' step
+    let step: ASTNode | undefined;
+    if (this.matchKeyword('by')) {
+      this.skipWhitespace();
+      step = this.parseExpression();
+    }
+    
+    this.skipToEndOfLine();
+    const body = this.parseIndentedBlock();
+
+    return {
+      type: 'ForLoop',
+      name: varName,  // loop variable name
+      step: step,
+      children: [
+        start,  // children[0] = start
+        end,    // children[1] = end
+        { type: 'Block', children: body },  // children[2] = body
+      ],
+    };
+  }
+
+  private parseForInLoopWithDestructuring(): ASTNode {
+    // Parse [index, item] destructuring
+    this.advance(); // skip '['
+    const vars: string[] = [];
+    while (this.peek() !== ']' && this.position < this.source.length) {
+      this.skipWhitespace();
+      const varName = this.parseIdentifier();
+      if (varName) vars.push(varName);
+      this.skipWhitespace();
+      if (this.peek() === ',') {
+        this.advance();
+      }
+    }
+    if (this.peek() === ']') {
+      this.advance();
+    }
+    this.skipWhitespace();
+    
+    if (!this.matchKeyword('in')) {
+      this.errors.push({
+        message: 'Expected "in" in for loop',
+        line: this.line,
+        column: this.column,
+      });
+    }
+    this.skipWhitespace();
+    
+    const iterable = this.parseExpression();
+    this.skipToEndOfLine();
+    const body = this.parseIndentedBlock();
+
+    return {
+      type: 'ForInLoop',
+      name: vars.join(','),  // comma-separated variable names
+      children: [
+        iterable,
+        { type: 'Block', children: body },
+      ],
+    };
+  }
+
+  private parseForInLoopContinued(varName: string): ASTNode {
+    // 'in' keyword already matched
+    this.skipWhitespace();
+    const iterable = this.parseExpression();
+    this.skipToEndOfLine();
+    const body = this.parseIndentedBlock();
+
+    return {
+      type: 'ForInLoop',
+      name: varName,
+      children: [
+        iterable,
+        { type: 'Block', children: body },
+      ],
+    };
+  }
+
+  private parseWhileLoop(): ASTNode {
+    // 'while' keyword already matched
+    this.skipWhitespace();
+    const condition = this.parseExpression();
+    this.skipToEndOfLine();
+    const body = this.parseIndentedBlock();
+
+    return {
+      type: 'WhileLoop',
+      children: [
+        condition,
+        { type: 'Block', children: body },
+      ],
+    };
+  }
+
+  private parseSwitchExpression(): ASTNode {
+    // 'switch' keyword already consumed by parseIdentifier
+    this.skipWhitespace();
+    
+    // Optional switch expression (might be empty for condition-based switch)
+    let switchExpr: ASTNode | undefined;
+    if (this.peek() !== '\n' && this.position < this.source.length) {
+      // Use parseTernary to avoid treating => as assignment
+      switchExpr = this.parseTernary();
+    }
+    
+    // Skip to end of current line
+    this.skipToEndOfLine();
+    
+    // Parse switch cases
+    const cases: ASTNode[] = [];
+    
+    while (this.position < this.source.length) {
+      // Get the indentation at the start of the current line
+      const currentIndent = this.getLineIndent();
+      
+      // If no indent or empty line, check if we should continue
+      if (currentIndent === -1) {
+        this.skipLine();
+        continue;
+      }
+      
+      // Switch cases should be indented; if not, we're done with the switch
+      if (currentIndent === 0) {
+        break;
+      }
+      
+      // Skip indentation whitespace
+      this.consumeIndent();
+      
+      // Check for default case: => result
+      if (this.peek() === '=' && this.peekNext() === '>') {
+        this.advance(); // skip '='
+        this.advance(); // skip '>'
+        this.skipWhitespace();
+        const result = this.parseExpression();
+        cases.push({
+          type: 'SwitchDefault',
+          children: [result],
+        });
+        this.skipToEndOfLine();
+        continue;
+      }
+      
+      // Parse case value - use parseTernary to avoid consuming =>
+      const caseValue = this.parseTernary();
+      this.skipWhitespace();
+      
+      // Expect '=>'
+      if (this.peek() === '=' && this.peekNext() === '>') {
+        this.advance();
+        this.advance();
+      } else {
+        // Not a valid case line, stop parsing
+        break;
+      }
+      this.skipWhitespace();
+      
+      // Parse result expression
+      const result = this.parseExpression();
+      cases.push({
+        type: 'SwitchCase',
+        children: [caseValue, result],
+      });
+      this.skipToEndOfLine();
+    }
+
+    return {
+      type: 'SwitchExpression',
+      children: [
+        ...(switchExpr ? [switchExpr] : []),
+        ...cases,
+      ],
+    };
+  }
+
+  private parseTupleDestructuring(): ASTNode | null {
+    // '[' already checked, now check if this is a tuple assignment
+    this.advance(); // skip '['
+    const startPos = this.position;
+    const vars: string[] = [];
+    
+    while (this.peek() !== ']' && this.position < this.source.length) {
+      this.skipWhitespace();
+      if (!this.isAlpha(this.peek())) {
+        // Not an identifier, restore and return null
+        this.position = startPos - 1;
+        return null;
+      }
+      const varName = this.parseIdentifier();
+      if (varName) vars.push(varName);
+      this.skipWhitespace();
+      if (this.peek() === ',') {
+        this.advance();
+      }
+    }
+    
+    if (this.peek() !== ']') {
+      this.position = startPos - 1;
+      return null;
+    }
+    this.advance(); // skip ']'
+    this.skipWhitespace();
+    
+    // Must have '=' after tuple
+    if (this.peek() !== '=') {
+      this.position = startPos - 1;
+      return null;
+    }
+    this.advance(); // skip '='
+    this.skipWhitespace();
+    
+    const initializer = this.parseExpression();
+
+    return {
+      type: 'TupleDestructuring',
+      name: vars.join(','),
+      children: [initializer],
+    };
+  }
+
+  private parseIndentedBlock(): ASTNode[] {
+    const statements: ASTNode[] = [];
+    
+    // If we're at end of source, return empty
+    if (this.position >= this.source.length) {
+      return statements;
+    }
+    
+    // Calculate the expected indentation for block content
+    // After a newline, the block content should be indented
+    const blockIndent = this.getLineIndent();
+    
+    // Block content should be indented (>0) 
+    if (blockIndent <= 0) {
+      return statements;
+    }
+    
+    while (this.position < this.source.length) {
+      // Check the indentation of the current position
+      const currentIndent = this.getLineIndent();
+      
+      // Block ends when indentation decreases below block indent level
+      if (currentIndent < blockIndent && currentIndent !== -1) {
+        break;
+      }
+      
+      // Skip lines that are less indented (shouldn't happen) or empty (-1)
+      if (currentIndent === -1) {
+        this.skipLine();
+        continue;
+      }
+      
+      // Consume the indentation whitespace
+      this.consumeIndent();
+      
+      const stmt = this.parseStatement();
+      if (stmt) {
+        statements.push(stmt);
+      }
+      
+      // If we've consumed to end of line or there's a newline, advance past it
+      this.skipLineRemainder();
+    }
+    
+    return statements;
+  }
+
+  private getLineIndent(): number {
+    // Save position
+    let pos = this.position;
+    
+    // If we're not at the start of a line, find where the line starts
+    // (we may have already consumed the newline)
+    
+    // Count leading whitespace from current position 
+    let indent = 0;
+    while (pos < this.source.length) {
+      const char = this.source[pos];
+      if (char === ' ') {
+        indent++;
+        pos++;
+      } else if (char === '\t') {
+        indent += 4;
+        pos++;
+      } else if (char === '\n' || char === '\r') {
+        // Empty line - return -1 to indicate skip
+        return -1;
+      } else {
+        break;
+      }
+    }
+    
+    if (pos >= this.source.length) {
+      return -1;
+    }
+    
+    return indent;
+  }
+
+  private consumeIndent(): void {
+    while (this.position < this.source.length) {
+      const char = this.peek();
+      if (char === ' ' || char === '\t') {
+        this.advance();
+      } else {
+        break;
+      }
+    }
+  }
+
+  private skipLine(): void {
+    while (this.position < this.source.length && this.peek() !== '\n') {
+      this.advance();
+    }
+    if (this.peek() === '\n') {
+      this.advance();
+    }
+  }
+
+  private skipLineRemainder(): void {
+    // Skip whitespace and potential newline at end
+    while (this.position < this.source.length) {
+      const char = this.peek();
+      if (char === ' ' || char === '\t' || char === '\r') {
+        this.advance();
+      } else if (char === '\n') {
+        this.advance();
+        break;
+      } else {
+        break;
+      }
+    }
+  }
+
+  private skipToEndOfLine(): void {
+    while (this.position < this.source.length && this.peek() !== '\n') {
+      this.advance();
+    }
+    if (this.peek() === '\n') {
+      this.advance();
+    }
+  }
+
+  private skipWhitespaceAndNewlines(): void {
+    while (this.position < this.source.length) {
+      const char = this.peek();
+      if (char === ' ' || char === '\t' || char === '\r' || char === '\n') {
+        this.advance();
+      } else {
+        break;
+      }
+    }
+  }
+
+  private measureIndent(): number {
+    // Find the start of the current line
+    let lineStart = this.position;
+    while (lineStart > 0 && this.source[lineStart - 1] !== '\n') {
+      lineStart--;
+    }
+    
+    // Count spaces/tabs from line start
+    let indent = 0;
+    let pos = lineStart;
+    while (pos < this.source.length) {
+      const char = this.source[pos];
+      if (char === ' ') {
+        indent++;
+        pos++;
+      } else if (char === '\t') {
+        indent += 4; // Treat tabs as 4 spaces
+        pos++;
+      } else {
+        break;
+      }
+    }
+    
+    // Return -1 if the line is empty or only whitespace
+    if (pos >= this.source.length || this.source[pos] === '\n') {
+      return -1;
+    }
+    
+    return indent;
+  }
+
   private parseExpression(): ASTNode {
     return this.parseAssignment();
   }
 
   private parseAssignment(): ASTNode {
-    const left = this.parseBinary();
+    const left = this.parseTernary();
     
     this.skipWhitespace();
+    
+    // Handle ':=' reassignment operator
+    if (this.peek() === ':' && this.peekNext() === '=') {
+      this.advance(); // skip ':'
+      this.advance(); // skip '='
+      this.skipWhitespace();
+      const right = this.parseAssignment();
+      return {
+        type: 'Reassignment',
+        operator: ':=',
+        children: [left, right],
+      };
+    }
+    
+    // Handle '=' assignment
     if (this.peek() === '=' && this.peekNext() !== '=') {
       this.advance(); // skip '='
       this.skipWhitespace();
@@ -181,6 +707,29 @@ export class PineParser {
     }
 
     return left;
+  }
+
+  private parseTernary(): ASTNode {
+    const condition = this.parseBinary();
+    
+    this.skipWhitespace();
+    if (this.peek() === '?') {
+      this.advance(); // skip '?'
+      this.skipWhitespace();
+      const consequent = this.parseAssignment();
+      this.skipWhitespace();
+      if (this.peek() === ':') {
+        this.advance(); // skip ':'
+        this.skipWhitespace();
+        const alternate = this.parseAssignment();
+        return {
+          type: 'TernaryExpression',
+          children: [condition, consequent, alternate],
+        };
+      }
+    }
+    
+    return condition;
   }
 
   private parseBinary(): ASTNode {
@@ -240,34 +789,46 @@ export class PineParser {
       if (this.peek() === ')') {
         this.advance();
       }
-      return expr;
+      return this.maybeParseHistoryAccess(expr);
     }
 
     // Identifier or function call
     if (this.isAlpha(this.peek())) {
+      // Save position for potential keyword lookahead
+      const startPos = this.position;
       const name = this.parseIdentifier();
+      
+      // Check if this is the 'switch' keyword
+      if (name === 'switch') {
+        return this.parseSwitchExpression();
+      }
+      
       this.skipWhitespace();
       
       // Check for function call
       if (this.peek() === '(') {
         this.advance();
         const args = this.parseArguments();
-        return {
+        const callNode: ASTNode = {
           type: 'FunctionCall',
           value: name,
           children: args,
         };
+        return this.maybeParseHistoryAccess(callNode);
       }
 
       // Check for member access
       if (this.peek() === '.') {
-        return this.parseMemberAccess(name);
+        const memberExpr = this.parseMemberAccess(name);
+        return this.maybeParseHistoryAccess(memberExpr);
       }
 
-      return {
+      // Check for history access on simple identifier
+      const identNode: ASTNode = {
         type: 'Identifier',
         value: name,
       };
+      return this.maybeParseHistoryAccess(identNode);
     }
 
     // Skip to end of line on error
@@ -276,6 +837,26 @@ export class PineParser {
       type: 'Unknown',
       value: char,
     };
+  }
+
+  private maybeParseHistoryAccess(base: ASTNode): ASTNode {
+    this.skipWhitespace();
+    if (this.peek() === '[') {
+      this.advance(); // skip '['
+      this.skipWhitespace();
+      const offset = this.parseExpression();
+      this.skipWhitespace();
+      if (this.peek() === ']') {
+        this.advance(); // skip ']'
+      }
+      const historyNode: ASTNode = {
+        type: 'HistoryAccess',
+        children: [base, offset],
+      };
+      // Check for chained history access (e.g., close[1][2] - unlikely but handle it)
+      return this.maybeParseHistoryAccess(historyNode);
+    }
+    return base;
   }
 
   private parseMemberAccess(object: string): ASTNode {
@@ -293,17 +874,19 @@ export class PineParser {
     if (this.peek() === '(') {
       this.advance();
       const args = this.parseArguments();
-      return {
+      const callNode: ASTNode = {
         type: 'FunctionCall',
         value: parts.join('.'),
         children: args,
       };
+      return this.maybeParseHistoryAccess(callNode);
     }
 
-    return {
+    const memberNode: ASTNode = {
       type: 'MemberExpression',
       value: parts.join('.'),
     };
+    return this.maybeParseHistoryAccess(memberNode);
   }
 
   private parseArguments(): ASTNode[] {
@@ -384,7 +967,8 @@ export class PineParser {
     }
 
     const oneChar = this.peek();
-    if (['+', '-', '*', '/', '%', '<', '>', '?', ':'].includes(oneChar)) {
+    // Note: '?' and ':' are handled by ternary expression parsing, not here
+    if (['+', '-', '*', '/', '%', '<', '>'].includes(oneChar)) {
       this.advance();
       return oneChar;
     }
