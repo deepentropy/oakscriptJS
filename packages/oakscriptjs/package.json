@@ -1,0 +1,88 @@
+{
+  "name": "@deepentropy/oakscriptjs",
+  "version": "0.3.0",
+  "type": "module",
+  "description": "PineScript v6 compatible technical analysis library for JavaScript/TypeScript",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.mjs",
+      "require": "./dist/runtime/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "babel-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:runtime:esm && npm run build:runtime:cjs && npm run build:types",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:runtime:esm": "esbuild src/runtime/index.ts --bundle --format=esm --outfile=dist/runtime/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:runtime:cjs": "esbuild src/runtime/index.ts --bundle --format=cjs --outfile=dist/runtime/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "clean": "rimraf dist",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "keywords": [
+    "pinescript",
+    "trading",
+    "technical-analysis",
+    "indicators",
+    "charting",
+    "oakscript",
+    "ta",
+    "finance",
+    "stocks",
+    "crypto"
+  ],
+  "author": "Odyssée",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepentropy/oakscriptJS.git",
+    "directory": "packages/oakscriptjs"
+  },
+  "bugs": {
+    "url": "https://github.com/deepentropy/oakscriptJS/issues"
+  },
+  "homepage": "https://github.com/deepentropy/oakscriptJS#readme",
+  "peerDependencies": {
+    "lightweight-charts": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "esbuild": "^0.19.11",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "lightweight-charts": "^5.0.0",
+    "prettier": "^3.1.1",
+    "rimraf": "^6.1.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
