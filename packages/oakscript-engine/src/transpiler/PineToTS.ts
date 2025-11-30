@@ -5,7 +5,7 @@
  */
 
 import { PineParser, ASTNode } from './PineParser.js';
-import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo } from './types.js';
+import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo, ImportInfo, LibraryInfo } from './types.js';
 
 /**
  * Transpile PineScript source code to TypeScript
@@ -73,6 +73,9 @@ class CodeGenerator {
   private usesTimeframe: boolean = false;
   private types: Map<string, TypeInfo> = new Map();
   private methods: Map<string, MethodInfo[]> = new Map();
+  private imports: ImportInfo[] = [];
+  private isLibrary: boolean = false;
+  private libraryInfo: LibraryInfo | null = null;
   public warnings: TranspileWarning[] = [];
 
   constructor(options: TranspileOptions) {
@@ -92,6 +95,9 @@ class CodeGenerator {
     this.usesTimeframe = false;
     this.types.clear();
     this.methods.clear();
+    this.imports = [];
+    this.isLibrary = false;
+    this.libraryInfo = null;
 
     // First pass: collect information
     this.collectInfo(ast);
@@ -99,6 +105,13 @@ class CodeGenerator {
     // Generate imports
     if (this.options.includeImports !== false) {
       this.emit("import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';");
+      
+      // Generate library imports
+      for (const imp of this.imports) {
+        const moduleName = `${imp.publisher}_${imp.libraryName}_v${imp.version}`;
+        this.emit(`import * as ${imp.alias} from './libs/${moduleName}';`);
+      }
+      
       this.emit('');
     }
 
@@ -555,6 +568,62 @@ class CodeGenerator {
       }
     }
 
+    // Collect library declaration
+    if (node.type === 'LibraryDeclaration') {
+      this.isLibrary = true;
+      if (node.children && node.children.length > 0) {
+        const firstArg = node.children[0];
+        if (firstArg && firstArg.type === 'StringLiteral' && typeof firstArg.value === 'string') {
+          this.indicatorTitle = firstArg.value;
+          this.libraryInfo = {
+            name: firstArg.value,
+            overlay: false,
+          };
+        }
+        // Check for overlay argument
+        for (const arg of node.children) {
+          if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
+            const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
+            if (paramName === 'overlay' && arg.children[1]) {
+              const paramValue = arg.children[1];
+              if (paramValue.type === 'Identifier' && paramValue.value === 'true') {
+                if (this.libraryInfo) {
+                  this.libraryInfo.overlay = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Collect import statements
+    if (node.type === 'ImportStatement') {
+      const alias = String(node.value || '');
+      let publisher = '';
+      let libraryName = '';
+      let version = 0;
+      
+      if (node.children) {
+        for (const child of node.children) {
+          if (child.type === 'Publisher') {
+            publisher = String(child.value || '');
+          } else if (child.type === 'LibraryName') {
+            libraryName = String(child.value || '');
+          } else if (child.type === 'Version') {
+            version = typeof child.value === 'number' ? child.value : 0;
+          }
+        }
+      }
+      
+      this.imports.push({
+        publisher,
+        libraryName,
+        version,
+        alias,
+      });
+    }
+
     // Collect type definitions
     if (node.type === 'TypeDeclaration') {
       const typeName = String(node.value || '');
@@ -826,6 +895,14 @@ class CodeGenerator {
         break;
 
       case 'IndicatorDeclaration':
+        // Already processed in collectInfo
+        break;
+
+      case 'LibraryDeclaration':
+        // Already processed in collectInfo
+        break;
+
+      case 'ImportStatement':
         // Already processed in collectInfo
         break;
 
