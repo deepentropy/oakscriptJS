@@ -110,6 +110,7 @@ export class PineParser {
     }
 
     // Parse export keyword (for types, methods, functions)
+    const savedPositionForExport = this.position;
     if (this.matchKeyword('export')) {
       this.skipWhitespace();
       if (this.matchKeyword('type')) {
@@ -118,7 +119,9 @@ export class PineParser {
       if (this.matchKeyword('method')) {
         return this.parseMethodDeclaration(true);
       }
-      // export function or other exports - fall through to expression parsing
+      // export function or other exports - restore position and fall through to expression parsing
+      // This handles cases like `export newInstance(...)` which would parse as a function call
+      this.position = savedPositionForExport;
     }
 
     // Parse type declaration
