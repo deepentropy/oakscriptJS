@@ -781,6 +781,11 @@ export class PineParser {
       return this.parseString();
     }
 
+    // Array literal [...]
+    if (this.peek() === '[') {
+      return this.parseArrayLiteral();
+    }
+
     // Parenthesized expression
     if (this.peek() === '(') {
       this.advance();
@@ -836,6 +841,33 @@ export class PineParser {
     return {
       type: 'Unknown',
       value: char,
+    };
+  }
+
+  private parseArrayLiteral(): ASTNode {
+    this.advance(); // skip '['
+    const elements: ASTNode[] = [];
+    
+    while (this.peek() !== ']' && this.position < this.source.length) {
+      this.skipWhitespace();
+      if (this.peek() === ']') break;
+      
+      const element = this.parseExpression();
+      elements.push(element);
+      
+      this.skipWhitespace();
+      if (this.peek() === ',') {
+        this.advance();
+      }
+    }
+    
+    if (this.peek() === ']') {
+      this.advance();
+    }
+    
+    return {
+      type: 'ArrayLiteral',
+      children: elements,
     };
   }
 
