@@ -82,3 +82,59 @@ export interface TranspileWarning {
   line?: number;
   column?: number;
 }
+
+/**
+ * Field information for user-defined types
+ */
+export interface FieldInfo {
+  /** Field name */
+  name: string;
+  /** Field type (PineScript type) */
+  fieldType: string;
+  /** Default value expression (as string) */
+  defaultValue?: string;
+  /** Whether the field is optional (has default or is nullable) */
+  isOptional: boolean;
+}
+
+/**
+ * User-defined type information
+ */
+export interface TypeInfo {
+  /** Type name */
+  name: string;
+  /** Whether this type is exported */
+  exported: boolean;
+  /** Fields in the type */
+  fields: FieldInfo[];
+}
+
+/**
+ * Method information for user-defined types
+ */
+export interface MethodInfo {
+  /** Method name */
+  name: string;
+  /** The type this method is bound to (first parameter type) */
+  boundType: string;
+  /** Whether this method is exported */
+  exported: boolean;
+  /** Parameter list (excluding 'this' parameter) */
+  parameters: MethodParameter[];
+  /** Return type (if specified) */
+  returnType?: string;
+  /** Method body AST node */
+  bodyNode?: unknown;
+}
+
+/**
+ * Method parameter information
+ */
+export interface MethodParameter {
+  /** Parameter name */
+  name: string;
+  /** Parameter type */
+  paramType: string;
+  /** Default value (if any) */
+  defaultValue?: string;
+}
