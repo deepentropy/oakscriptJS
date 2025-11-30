@@ -1,0 +1,56 @@
+{
+  "name": "@deepentropy/oakscript-engine",
+  "version": "0.3.0",
+  "type": "module",
+  "description": "PineScript to TypeScript transpiler with pine2ts CLI",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "pine2ts": "./bin/pine2ts.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@deepentropy/oakscriptjs": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "vitest": "^1.0.0",
+    "typescript": "^5.3.0",
+    "rimraf": "^6.1.0"
+  },
+  "keywords": [
+    "pinescript",
+    "transpiler",
+    "typescript",
+    "cli",
+    "pine2ts"
+  ],
+  "author": "Odyssée",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepentropy/oakscriptJS.git",
+    "directory": "packages/oakscript-engine"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
