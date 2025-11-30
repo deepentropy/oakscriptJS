@@ -392,6 +392,39 @@ export function ichimoku(
   ];
 }
 
+/**
+ * ZigZag indicator - identifies significant trend reversals
+ * @param bars - Bar data
+ * @param deviation - Minimum percentage price change to form a new pivot (default: 5.0)
+ * @param depth - Minimum bars between pivots (default: 10)
+ * @param backstep - Bars to look back for confirmation (default: 3)
+ * @returns Tuple of [zigzag values, direction, isPivot flags] Series
+ * @remarks
+ * - The isPivot Series contains numeric values (1 for pivot, 0 for non-pivot)
+ *   converted from boolean for consistency with other Series-based functions
+ * - The core ta.zigzag() function returns boolean isPivot values
+ */
+export function zigzag(
+  bars: Bar[],
+  deviation: number = 5,
+  depth: number = 10,
+  backstep: number = 3
+): [Series, Series, Series] {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+
+  const [zigzagVals, dirVals, pivotVals] = taCore.zigzag(
+    deviation, depth, backstep, undefined, high, low
+  );
+
+  // Convert boolean pivot flags to numbers (1/0) for Series compatibility
+  return [
+    Series.fromArray(bars, zigzagVals),
+    Series.fromArray(bars, dirVals),
+    Series.fromArray(bars, pivotVals.map(b => b ? 1 : 0)),
+  ];
+}
+
 // Export as namespace object to match PineScript ta.* syntax
 export const ta = {
   sma,
@@ -418,4 +451,5 @@ export const ta = {
   supertrend,
   vwap,
   ichimoku,
+  zigzag,
 };
