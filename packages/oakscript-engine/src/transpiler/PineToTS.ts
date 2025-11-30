@@ -286,11 +286,11 @@ class CodeGenerator {
     }
     
     if (this.usesSyminfo) {
-      params.push('syminfo?: Partial<SymbolInfo>');
+      params.push('syminfoParam?: Partial<SymbolInfo>');
     }
     
     if (this.usesTimeframe) {
-      params.push('timeframeInfo?: Partial<TimeframeInfo>');
+      params.push('timeframeParam?: Partial<TimeframeInfo>');
     }
     
     return params.join(', ');
@@ -303,12 +303,12 @@ class CodeGenerator {
   }
 
   private generateSyminfoSetup(): void {
-    this.emit('const syminfo = { ...defaultSyminfo, ...syminfo };');
+    this.emit('const syminfo = { ...defaultSyminfo, ...syminfoParam };');
     this.emit('');
   }
 
   private generateTimeframeSetup(): void {
-    this.emit('const timeframe = { ...defaultTimeframe, ...timeframeInfo };');
+    this.emit('const timeframe = { ...defaultTimeframe, ...timeframeParam };');
     this.emit('');
   }
 
