@@ -88,6 +88,13 @@ export function calculate(bars: Bar[], inputs: Partial<MassIndexInputs> = {}) {
 /**
  * Mass Index Indicator using the new indicator() pattern
  * Provides automatic pane management based on overlay setting (separate pane)
+ * 
+ * Note: The setup function is a placeholder for future implementation.
+ * Currently, calculation is done via the calculate() function which is
+ * used by the indicator registry. The indicator() pattern provides:
+ * - Metadata with overlay setting for automatic pane placement
+ * - getPaneIndex() for determining where to render the indicator
+ * - isOverlay() for checking if indicator should be on price chart
  */
 export const MassIndexIndicator = indicator({
   title: 'Mass Index',
@@ -96,6 +103,6 @@ export const MassIndexIndicator = indicator({
   format: 'price',
   precision: 2,
 }, (_ctx) => {
-  // The setup function is called during calculate()
-  // Actual calculation is done via the calculate() function above
+  // Calculation is handled by the calculate() function
+  // This setup function will be enhanced when ctx.addLineSeries() is available
 });
