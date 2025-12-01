@@ -393,6 +393,35 @@ export function ichimoku(
 }
 
 /**
+ * Volume Weighted Moving Average
+ * @param source - Source series
+ * @param length - Period length
+ * @param volume - Volume series
+ * @returns Series with VWMA values
+ */
+export function vwma(source: Series, length: number, volume: Series): Series {
+  const bars = (source as any).data as Bar[];
+  const sourceValues = source.toArray();
+  const volumeValues = volume.toArray();
+  const result = taCore.vwma(sourceValues, length, volumeValues);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Linear Regression
+ * @param source - Source series
+ * @param length - Period length
+ * @param offset - Offset (default: 0)
+ * @returns Series with linear regression values
+ */
+export function linreg(source: Series, length: number, offset: number = 0): Series {
+  const bars = (source as any).data as Bar[];
+  const sourceValues = source.toArray();
+  const result = taCore.linreg(sourceValues, length, offset);
+  return Series.fromArray(bars, result);
+}
+
+/**
  * ZigZag indicator - identifies significant trend reversals
  * @param bars - Bar data
  * @param deviation - Minimum percentage price change to form a new pivot (default: 5.0)
@@ -430,6 +459,7 @@ export const ta = {
   sma,
   ema,
   wma,
+  vwma,
   rma,
   rsi,
   macd,
@@ -451,5 +481,6 @@ export const ta = {
   supertrend,
   vwap,
   ichimoku,
+  linreg,
   zigzag,
 };

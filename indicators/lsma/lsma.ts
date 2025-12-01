@@ -10,14 +10,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
 }
 
 export interface IndicatorInputs {
-  length: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
-  offset: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
+  length: number;
+  offset: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
 }
 
 const defaultInputs: IndicatorInputs = {
-  length: "25",
-  offset: "0",
+  length: 25,
+  offset: 0,
   src: "close",
 };
 
@@ -29,7 +29,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -38,32 +38,6 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   
   // Map source inputs to Series
-  const lengthSeries = (() => {
-    switch (length) {
-      case "open": return open;
-      case "high": return high;
-      case "low": return low;
-      case "close": return close;
-      case "hl2": return hl2;
-      case "hlc3": return hlc3;
-      case "ohlc4": return ohlc4;
-      case "hlcc4": return hlcc4;
-      default: return close;
-    }
-  })();
-  const offsetSeries = (() => {
-    switch (offset) {
-      case "open": return open;
-      case "high": return high;
-      case "low": return low;
-      case "close": return close;
-      case "hl2": return hl2;
-      case "hlc3": return hlc3;
-      case "ohlc4": return ohlc4;
-      case "hlcc4": return hlcc4;
-      default: return close;
-    }
-  })();
   const srcSeries = (() => {
     switch (src) {
       case "open": return open;
@@ -90,7 +64,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  const lsma = ta.linreg(srcSeries, lengthSeries, offsetSeries);
+  const lsma = ta.linreg(srcSeries, length, offset);
   
   return {
     metadata: { title: "Least Squares Moving Average", overlay: true },
@@ -99,7 +73,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Least Squares Moving Average", overlay: true };
+export const metadata = { title: "Least Squares Moving Average", shortTitle: "LSMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig = {};
