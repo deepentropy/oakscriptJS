@@ -46,7 +46,7 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   
   // @version=6
   src = input(close, "Source");
-  hullma = ta.wma(2.mul(ta.wma(src, (length / 2))).sub(ta.wma(src, length)), math.floor(math.sqrt(length)));
+  hullma = ta.wma(ta.wma(src, length).sub(ta.wma(src, (length / 2)).mul(2)), math.floor(math.sqrt(length)));
   
   return {
     metadata: { title: "Indicator", overlay: false },
