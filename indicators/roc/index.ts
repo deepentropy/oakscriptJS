@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  ROCIndicator,
-  type ROCInputs,
+  Rate_Of_ChangeIndicator as ROCIndicator,
+  type Rate_Of_ChangeInputs as ROCInputs,
 } from './roc';
 
 export { calculateROC } from './roc-calculation';

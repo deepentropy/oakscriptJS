@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  SMAIndicator,
-  type SMAInputs,
+  Moving_Average_SimpleIndicator as SMAIndicator,
+  type Moving_Average_SimpleInputs as SMAInputs,
 } from './sma';
 
 export { calculateSMA, getSourceSeries } from './sma-calculation';
