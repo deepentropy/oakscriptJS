@@ -62,16 +62,20 @@ export function calculateSMA(
   const smaValues = ta.sma(src, length);
 
   // Convert to time-value pairs with offset applied
+  // Offset shifts the indicator line horizontally:
+  // - Positive offset: shifts line forward (into the future)
+  // - Negative offset: shifts line backward (into the past)
   const smaArray = smaValues.toArray();
   const data: Array<{ time: number; value: number }> = [];
 
   for (let i = 0; i < bars.length; i++) {
-    const targetIndex = i + offset;
-    if (targetIndex >= 0 && targetIndex < bars.length) {
+    // Apply offset to determine which bar's timestamp to use for this value
+    const offsetIndex = i + offset;
+    if (offsetIndex >= 0 && offsetIndex < bars.length) {
       const value = smaArray[i];
-      const targetBar = bars[targetIndex];
-      if (targetBar && value !== undefined && !Number.isNaN(value)) {
-        data.push({ time: targetBar.time, value });
+      const offsetBar = bars[offsetIndex];
+      if (offsetBar && value !== undefined && !Number.isNaN(value)) {
+        data.push({ time: offsetBar.time, value });
       }
     }
   }

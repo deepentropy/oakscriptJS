@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Reusable technical indicators for oakscriptjs",
-  "main": "sma/index.ts",
+  "main": "index.ts",
   "dependencies": {
     "@deepentropy/oakscriptjs": "workspace:*"
   },
