@@ -271,16 +271,10 @@ describe('plot helpers', () => {
       expect(result[4]).toEqual({ time: 5000, value: 50 });
     });
 
-    it('should filter out null values', () => {
-      const values = [10, null, 30, null, 50];
-      const result = plot(values, times);
-      
-      expect(result).toHaveLength(3);
-      expect(result.map(r => r.value)).toEqual([10, 30, 50]);
-    });
-
-    it('should filter out NaN values', () => {
-      const values = [10, NaN, 30, NaN, 50];
+    it.each([
+      { description: 'null', values: [10, null, 30, null, 50] },
+      { description: 'NaN', values: [10, NaN, 30, NaN, 50] },
+    ])('should filter out $description values', ({ values }) => {
       const result = plot(values, times);
       
       expect(result).toHaveLength(3);

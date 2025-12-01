@@ -50,21 +50,21 @@ export interface InputDefinition {
  */
 export interface IndicatorContext {
   /** Bar data for calculation */
-  data: Bar[];
+  readonly data: Bar[];
   /** Open prices array */
-  open: number[];
+  readonly open: number[];
   /** High prices array */
-  high: number[];
+  readonly high: number[];
   /** Low prices array */
-  low: number[];
+  readonly low: number[];
   /** Close prices array */
-  close: number[];
+  readonly close: number[];
   /** Volume array */
-  volume: number[];
+  readonly volume: number[];
   /** Time values array */
-  time: number[];
+  readonly time: number[];
   /** Pane index (0 for overlay, higher for separate panes) */
-  paneIndex: number;
+  readonly paneIndex: number;
 }
 
 /**

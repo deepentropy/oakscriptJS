@@ -202,3 +202,6 @@ export const input = {
     };
   },
 };
+
+// Freeze the input object to prevent accidental modifications
+Object.freeze(input);
