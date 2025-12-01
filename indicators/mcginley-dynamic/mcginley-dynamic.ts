@@ -1,0 +1,87 @@
+/**
+ * McGinley Dynamic Indicator
+ * 
+ * Transpiled from PineScript:
+ * ```pine
+ * //@version=6
+ * indicator(title="McGinley Dynamic", overlay=true, timeframe="", timeframe_gaps=true)
+ * length = input.int(14, minval=1)
+ * source = close
+ * mg = 0.0
+ * mg := na(mg[1]) ? ta.ema(source, length) : mg[1] + (source - mg[1]) / (length * math.pow(source/mg[1], 4))
+ * plot(mg, "McGinley Dynamic")
+ * ```
+ */
+
+import type { Bar } from '@deepentropy/oakscriptjs';
+import { calculateMcGinleyDynamic } from './mcginley-dynamic-calculation';
+
+/**
+ * Indicator metadata
+ */
+export const metadata = {
+  title: 'McGinley Dynamic',
+  shortTitle: 'MGD',
+  overlay: true,
+};
+
+/**
+ * Input definitions for the McGinley Dynamic indicator
+ */
+export interface McGinleyDynamicInputs {
+  length: number;
+}
+
+/**
+ * Default input values
+ */
+export const defaultInputs: McGinleyDynamicInputs = {
+  length: 14,
+};
+
+/**
+ * Input configuration for UI generation
+ */
+export const inputConfig = [
+  {
+    id: 'length',
+    type: 'int' as const,
+    title: 'Length',
+    defval: 14,
+    min: 1,
+    max: 500,
+    step: 1,
+  },
+];
+
+/**
+ * Plot configuration
+ */
+export const plotConfig = [
+  {
+    id: 'mg',
+    title: 'McGinley Dynamic',
+    color: '#26A69A', // teal
+    lineWidth: 2,
+  },
+];
+
+/**
+ * Calculate McGinley Dynamic indicator
+ * @param bars - OHLCV bar data
+ * @param inputs - Indicator inputs
+ * @returns Object containing plot data
+ */
+export function calculate(bars: Bar[], inputs: Partial<McGinleyDynamicInputs> = {}) {
+  // Merge inputs with defaults
+  const { length } = { ...defaultInputs, ...inputs };
+
+  // Calculate McGinley Dynamic using the calculation module
+  const mgData = calculateMcGinleyDynamic(bars, length);
+
+  return {
+    plots: {
+      mg: mgData,
+    },
+  };
+}
