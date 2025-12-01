@@ -47,7 +47,6 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   // @version=6
   source = input(close, "Source");
   roc = ((100 * (source - source.get(length))) / source.get(length));
-  hline(0, color = , 787, B86, title = "Zero Line");
   
   return {
     metadata: { title: "Indicator", overlay: false },
