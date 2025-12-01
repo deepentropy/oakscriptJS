@@ -2,12 +2,29 @@
 
 This example demonstrates how to use the OakScriptJS library with LightweightCharts v5 to display technical indicators on a chart.
 
+## 🚀 Live Demo
+
+**[View Live Demo on GitHub Pages](https://deepentropy.github.io/oakscriptJS/)**
+
 ## Features
 
 - **Candlestick Chart**: Display OHLCV data using LightweightCharts v5
-- **SMA Indicator**: Simple Moving Average indicator transpiled from PineScript
+- **Dynamic Indicator Loading**: All indicators from the `indicators/` folder are automatically loaded
 - **Dynamic Inputs**: Real-time indicator parameter adjustment
 - **Dark Theme**: Professional trading chart appearance
+
+## Automatic Deployment
+
+This example is automatically deployed to GitHub Pages whenever changes are pushed to the `main` branch.
+
+### How It Works
+
+1. Push changes to the `main` branch
+2. GitHub Actions workflow (`deploy-pages.yml`) automatically:
+   - Installs dependencies
+   - Builds the example with the correct base path
+   - Deploys to GitHub Pages
+3. The live demo is updated at https://deepentropy.github.io/oakscriptJS/
 
 ## Quick Start
 
@@ -44,8 +61,11 @@ Open your browser to `http://localhost:5173` to see the chart.
 ### Production Build
 
 ```bash
-# Build for production
+# Build for production (local)
 pnpm build
+
+# Build for GitHub Pages (with /oakscriptJS/ base path)
+pnpm build:pages
 
 # Preview the production build
 pnpm preview
@@ -56,13 +76,15 @@ pnpm preview
 ```
 example/
 ├── index.html          # Main HTML file
-├── data/
-│   └── SPX.csv         # S&P 500 historical data
+├── public/
+│   └── data/
+│       └── SPX.csv     # S&P 500 historical data
 ├── src/
 │   ├── main.ts         # Application entry point
 │   ├── chart.ts        # LightweightCharts setup and management
 │   ├── data-loader.ts  # CSV data loading utilities
 │   └── indicator-ui.ts # UI for indicator selection and inputs
+├── vite.config.ts      # Vite configuration with GitHub Pages support
 ├── package.json        # Dependencies
 ├── tsconfig.json       # TypeScript configuration
 └── README.md           # This file
@@ -72,44 +94,39 @@ example/
 
 Indicators are located in the **repository root** at `../indicators/` for better reusability across different examples and applications. See the [indicators README](../indicators/README.md) for detailed documentation.
 
-### Using Indicators
+The example uses an **indicator registry** (`indicators/index.ts`) that automatically populates the dropdown with all available indicators.
 
-Indicators are imported from the root `indicators/` directory:
+### Adding New Indicators to the Demo
 
-```typescript
-import * as smaIndicator from '../../indicators/sma';
-```
+To add a new indicator that will appear in the demo:
 
-Each indicator exports:
+1. **Create the indicator** in the `indicators/` directory following the existing pattern (see [indicators README](../indicators/README.md))
 
-- `metadata`: Title, short title, and overlay settings
-- `inputConfig`: Input definitions for the UI
-- `plotConfig`: Plot styling information
-- `defaultInputs`: Default input values
-- `calculate`: Function that computes the indicator values
-
-### Adding New Indicators
-
-New indicators should be added to the root `indicators/` directory. See the [indicators README](../indicators/README.md) for instructions on creating new indicators.
-
-To use a new indicator in this example, register it in `src/indicator-ui.ts`:
+2. **Register it** in `indicators/index.ts`:
 
 ```typescript
-import * as newIndicator from '../../indicators/new-indicator';
+// Import the new indicator
+import * as myIndicator from './my-indicator';
 
-const indicators: IndicatorDefinition[] = [
+// Add to the registry
+export const indicatorRegistry: IndicatorRegistryEntry[] = [
   // ... existing indicators
   {
-    id: 'new-indicator',
-    name: 'New Indicator',
-    metadata: newIndicator.metadata,
-    inputConfig: newIndicator.inputConfig,
-    plotConfig: newIndicator.plotConfig,
-    calculate: newIndicator.calculate,
-    defaultInputs: newIndicator.defaultInputs,
+    id: 'my-indicator',
+    name: 'My Indicator (MI)',
+    shortName: 'MI',
+    description: 'Description of what this indicator does',
+    overlay: true, // or false for separate pane
+    metadata: myIndicator.metadata,
+    inputConfig: myIndicator.inputConfig,
+    plotConfig: myIndicator.plotConfig,
+    defaultInputs: { ...myIndicator.defaultInputs },
+    calculate: myIndicator.calculate,
   },
 ];
 ```
+
+3. **Push to main** - The demo will automatically update with your new indicator!
 
 ## Original PineScript
 
