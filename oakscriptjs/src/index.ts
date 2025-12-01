@@ -70,6 +70,36 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 // Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
+// Export indicator infrastructure
+export {
+  indicator,
+  type IndicatorMetadataConfig,
+  type InputDefinition,
+  type IndicatorContext,
+  type IndicatorInstance,
+  type IndicatorConstructor,
+} from './indicator';
+
+export {
+  input,
+  type InputValue,
+  type IntInputOptions,
+  type FloatInputOptions,
+  type SourceInputOptions,
+  type BoolInputOptions,
+  type StringInputOptions,
+  type SourceType,
+} from './input';
+
+export {
+  plot as plotHelper,
+  createPlot,
+  type Time,
+  type TimeValuePair,
+  type PlotOptions as PlotHelperOptions,
+  type PlotResult,
+} from './plot';
+
 // Runtime exports - global context runtime for transpiler-generated indicators
 export {
   setContext,
@@ -105,7 +135,7 @@ export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAd
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
 
 // Version
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 /**
  * Library information
@@ -119,11 +149,13 @@ export const info = {
     operators: 'Native operators with Babel plugin (high - low)',
     ta: 'Technical analysis functions (Series and array-based)',
     runtime: 'Global context runtime for transpiler-generated indicators',
+    indicator: 'Indicator function with automatic pane management',
     minimal: 'No DSL layer - complexity in transpiler'
   },
   namespaces: {
     core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
     drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline'],
-    runtime: ['setContext', 'plot', 'hline', 'input_*']
+    runtime: ['setContext', 'plot', 'hline', 'input_*'],
+    indicator: ['indicator', 'input', 'plotHelper', 'createPlot']
   }
 };
