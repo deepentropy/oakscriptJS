@@ -195,12 +195,13 @@ export function avg(...values: float[]): float {
  *
  * @param source - Series of values or array
  * @param length - Window length for summation
- * @returns Series with rolling sum values or array
+ * @returns Series or array with rolling sum values
  *
  * @remarks
  * - Calculates sum of last `length` values at each point
  * - Returns NaN for first `length-1` values (insufficient data)
  * - Window slides forward one value at a time
+ * - When passed a Series, returns a Series; when passed an array, returns an array
  *
  * @example
  * ```typescript
@@ -211,40 +212,25 @@ export function avg(...values: float[]): float {
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sum | PineScript math.sum}
  */
 export function sum(source: series_float | Series, length: simple_int): series_float | Series {
-  // Handle Series objects
-  if (source instanceof Series) {
-    const sourceArray = source.toArray();
-    const result: series_float = [];
-
-    for (let i = 0; i < sourceArray.length; i++) {
-      if (i < length - 1) {
-        result.push(NaN);
-      } else {
-        let total = 0;
-        for (let j = 0; j < length; j++) {
-          total += sourceArray[i - j]!;
-        }
-        result.push(total);
-      }
-    }
-
-    // Return Series object from the result array
-    return new Series(source.bars, (bar, idx) => result[idx] ?? NaN);
-  }
-
-  // Handle plain arrays
+  // Handle Series objects - extract to array first
+  const sourceArray = source instanceof Series ? source.toArray() : source;
   const result: series_float = [];
 
-  for (let i = 0; i < source.length; i++) {
+  for (let i = 0; i < sourceArray.length; i++) {
     if (i < length - 1) {
       result.push(NaN);
     } else {
       let total = 0;
       for (let j = 0; j < length; j++) {
-        total += source[i - j]!;
+        total += sourceArray[i - j]!;
       }
       result.push(total);
     }
+  }
+
+  // If input was a Series, return a Series
+  if (source instanceof Series) {
+    return Series.fromArray(source.bars, result);
   }
 
   return result;

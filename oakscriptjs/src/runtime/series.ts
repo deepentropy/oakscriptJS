@@ -41,6 +41,14 @@ export class Series {
     this.extractor = extractor;
   }
 
+  /**
+   * Get the underlying bar data
+   * @returns Bar array
+   */
+  get bars(): Bar[] {
+    return this.data;
+  }
+
   // ============================================
   // Static Factory Methods
   // ============================================
