@@ -69,6 +69,7 @@ class CodeGenerator {
   private variables: Map<string, string> = new Map();
   private seriesVariables: Set<string> = new Set();  // Track which variables are Series
   private plots: string[] = [];
+  private plotConfigs: Array<{ id: string; title: string; color: string; lineWidth: number }> = [];
   private inputs: InputDefinition[] = [];
   private usesSyminfo: boolean = false;
   private usesTimeframe: boolean = false;
@@ -91,6 +92,7 @@ class CodeGenerator {
     this.output = [];
     this.variables.clear();
     this.plots = [];
+    this.plotConfigs = [];
     this.inputs = [];
     this.usesSyminfo = false;
     this.usesTimeframe = false;
@@ -118,6 +120,16 @@ class CodeGenerator {
 
     // Generate helper functions
     this.generateHelperFunctions();
+    
+    // Generate PlotConfig interface
+    this.emit('// Plot configuration interface');
+    this.emit('interface PlotConfig {');
+    this.emit('  id: string;');
+    this.emit('  title: string;');
+    this.emit('  color: string;');
+    this.emit('  lineWidth?: number;');
+    this.emit('}');
+    this.emit('');
 
     // Generate user-defined types (interfaces and namespace objects)
     if (this.types.size > 0) {
@@ -220,7 +232,18 @@ class CodeGenerator {
     this.emit('return {');
     this.indent++;
     this.emit(`metadata: { title: "${this.indicatorTitle}", overlay: ${this.indicatorOverlay} },`);
-    this.emit(`plots: [${this.plots.join(', ')}],`);
+    
+    // Generate plots as Record<string, PlotData[]>
+    if (this.plotConfigs.length > 0) {
+      const plotsObject = this.plotConfigs.map((p, i) => 
+        `'${p.id}': ${this.plots[i]}`
+      ).join(', ');
+      this.emit(`plots: { ${plotsObject} },`);
+    } else {
+      // Fallback for indicators without plot configs (shouldn't happen, but safe)
+      this.emit(`plots: [${this.plots.join(', ')}],`);
+    }
+    
     this.indent--;
     this.emit('};');
 
@@ -241,7 +264,17 @@ class CodeGenerator {
       this.emit('export const inputConfig = {};');
     }
     
-    this.emit('export const plotConfig = {};');
+    // Generate plotConfig as PlotConfig[] array
+    if (this.plotConfigs.length > 0) {
+      const plotConfigArray = this.plotConfigs.map(p => 
+        `{ id: '${p.id}', title: '${p.title}', color: '${p.color}', lineWidth: ${p.lineWidth} }`
+      ).join(', ');
+      this.emit(`export const plotConfig: PlotConfig[] = [${plotConfigArray}];`);
+    } else {
+      // Export empty array when there are no plots
+      this.emit('export const plotConfig: PlotConfig[] = [];');
+    }
+    
     this.emit(`export const calculate = ${funcName};`);
     
     // Export with indicator-specific name (e.g., MomentumIndicator)
@@ -1687,7 +1720,30 @@ class CodeGenerator {
       const seriesArg = node.children?.[0];
       if (seriesArg) {
         const seriesName = this.generateExpression(seriesArg);
-        this.plots.push(`{ data: ${seriesName}.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }`);
+        const plotId = `plot${this.plots.length}`;
+        
+        // Extract plot metadata from named arguments
+        const titleArg = this.findNamedArg(node, 'title');
+        const colorArg = this.findNamedArg(node, 'color');
+        const lineWidthArg = this.findNamedArg(node, 'linewidth');
+        
+        // Determine title - use title arg if present, otherwise use series name
+        let title = titleArg ? this.getStringValue(titleArg) : seriesName;
+        // Clean up title: remove quotes and simplify Series expressions
+        title = title.replace(/^["']|["']$/g, '');
+        if (title.includes('.') || title.includes('(')) {
+          // If it's a complex expression, use a simple name
+          title = `Plot ${this.plots.length}`;
+        }
+        
+        const color = colorArg ? this.getColorValue(colorArg) : '#2962FF';
+        const lineWidth = lineWidthArg ? this.getNumberValue(lineWidthArg) : 2;
+        
+        // Store plot config
+        this.plotConfigs.push({ id: plotId, title, color, lineWidth });
+        
+        // Generate plot data
+        this.plots.push(`${seriesName}.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN }))`);
       }
       return '';
     }
@@ -1868,6 +1924,96 @@ class CodeGenerator {
     }
     
     return name;
+  }
+
+  /**
+   * Find a named argument in function call arguments
+   */
+  private findNamedArg(node: ASTNode, argName: string): ASTNode | null {
+    if (!node.children) return null;
+    
+    for (const child of node.children) {
+      if (child.type === 'Assignment' && child.children && child.children.length >= 2) {
+        const left = child.children[0];
+        if (left?.type === 'Identifier' && left.value === argName) {
+          return child.children[1];
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Extract string value from an AST node
+   */
+  private getStringValue(node: ASTNode): string {
+    if (node.type === 'StringLiteral') {
+      return String(node.value || '');
+    }
+    if (node.type === 'Identifier') {
+      return String(node.value || '');
+    }
+    return this.generateExpression(node);
+  }
+
+  /**
+   * Extract color value from an AST node (e.g., color.blue, #2962FF)
+   */
+  private getColorValue(node: ASTNode): string {
+    if (node.type === 'StringLiteral') {
+      // Direct hex color like #2962FF
+      return String(node.value || '#2962FF');
+    }
+    if (node.type === 'MemberExpression') {
+      // color.blue represented as MemberExpression with value "color.blue"
+      const fullPath = String(node.value || '');
+      const parts = fullPath.split('.');
+      if (parts.length === 2 && parts[0] === 'color') {
+        const colorName = parts[1];
+        const colorMap: Record<string, string> = {
+          'blue': '#2962FF',
+          'red': '#FF0000',
+          'green': '#00FF00',
+          'yellow': '#FFFF00',
+          'orange': '#FF6D00',
+          'purple': '#9C27B0',
+          'gray': '#787B86',
+          'white': '#FFFFFF',
+          'black': '#000000',
+        };
+        return colorMap[colorName] || '#2962FF';
+      }
+    }
+    if (node.type === 'MemberAccess' && node.children && node.children.length >= 1) {
+      const obj = node.children[0];
+      const prop = String(node.value || '');
+      if (obj?.type === 'Identifier' && obj.value === 'color') {
+        // Map color.blue to actual hex values
+        const colorMap: Record<string, string> = {
+          'blue': '#2962FF',
+          'red': '#FF0000',
+          'green': '#00FF00',
+          'yellow': '#FFFF00',
+          'orange': '#FF6D00',
+          'purple': '#9C27B0',
+          'gray': '#787B86',
+          'white': '#FFFFFF',
+          'black': '#000000',
+        };
+        return colorMap[prop] || '#2962FF';
+      }
+    }
+    return '#2962FF';
+  }
+
+  /**
+   * Extract number value from an AST node
+   */
+  private getNumberValue(node: ASTNode): number {
+    if (node.type === 'NumberLiteral') {
+      return Number(node.value) || 2;
+    }
+    return 2;
   }
 
   private translateFunctionName(name: string): string {

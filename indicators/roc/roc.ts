@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   length: number;
   source: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -27,7 +35,7 @@ export function Rate_Of_Change(bars: any[], inputs: Partial<IndicatorInputs> = {
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -66,15 +74,15 @@ export function Rate_Of_Change(bars: any[], inputs: Partial<IndicatorInputs> = {
   
   return {
     metadata: { title: "Rate Of Change", overlay: false },
-    plots: [{ data: roc.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    plots: { 'plot0': roc.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Rate Of Change", shortTitle: "ROC", overlay: false };
+export const metadata = { title: "Rate Of Change", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'ROC', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Rate_Of_Change;
 export { Rate_Of_Change as Rate_Of_ChangeIndicator };
 export type Rate_Of_ChangeInputs = IndicatorInputs;
