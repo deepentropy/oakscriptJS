@@ -1,108 +1,55 @@
-/**
- * Mass Index Indicator
- * 
- * Transpiled from PineScript:
- * ```pine
- * //@version=6
- * indicator(title="Mass Index", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
- * length = input.int(10, minval=1)
- * span = high - low
- * mi = math.sum(ta.ema(span, 9) / ta.ema(ta.ema(span, 9), 9), length)
- * plot(mi, "Mass Index")
- * ```
- */
+import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
-import { indicator, type Bar } from '@deepentropy/oakscriptjs';
-import { calculateMassIndex } from './mass-index-calculation';
+// Helper functions
+function na(value: number | null | undefined): boolean {
+  return value === null || value === undefined || Number.isNaN(value);
+}
 
-/**
- * Indicator metadata
- */
-export const metadata = {
-  title: 'Mass Index',
-  shortTitle: 'MI',
-  overlay: false,
-};
+function nz(value: number | null | undefined, replacement: number = 0): number {
+  return na(value) ? replacement : value as number;
+}
 
-/**
- * Input definitions for the Mass Index indicator
- */
-export interface MassIndexInputs {
+export interface IndicatorInputs {
   length: number;
 }
 
-/**
- * Default input values
- */
-export const defaultInputs: MassIndexInputs = {
+const defaultInputs: IndicatorInputs = {
   length: 10,
 };
 
-/**
- * Input configuration for UI generation
- */
-export const inputConfig = [
-  {
-    id: 'length',
-    type: 'int' as const,
-    title: 'Length',
-    defval: 10,
-    min: 1,
-    max: 500,
-    step: 1,
-  },
-];
-
-/**
- * Plot configuration
- */
-export const plotConfig = [
-  {
-    id: 'mi',
-    title: 'Mass Index',
-    color: '#FF6D00', // orange
-    lineWidth: 2,
-  },
-];
-
-/**
- * Calculate Mass Index indicator
- * @param bars - OHLCV bar data
- * @param inputs - Indicator inputs
- * @returns Object containing plot data
- */
-export function calculate(bars: Bar[], inputs: Partial<MassIndexInputs> = {}) {
-  // Merge inputs with defaults
+export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
   const { length } = { ...defaultInputs, ...inputs };
-
-  // Calculate Mass Index using the calculation module
-  const miData = calculateMassIndex(bars, length);
-
+  
+  // OHLCV Series
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+  const close = new Series(bars, (bar) => bar.close);
+  const volume = new Series(bars, (bar) => bar.volume);
+  
+  // Calculated price sources
+  const hl2 = high.add(low).div(2);
+  const hlc3 = high.add(low).add(close).div(3);
+  const ohlc4 = open.add(high).add(low).add(close).div(4);
+  const hlcc4 = high.add(low).add(close).add(close).div(4);
+  
+  // Time series
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  
+  // Bar index
+  const last_bar_index = bars.length - 1;
+  
+  // @version=6
+  span = high.sub(low);
+  mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
+  
   return {
-    plots: {
-      mi: miData,
-    },
+    metadata: { title: "Indicator", overlay: false },
+    plots: [{ data: mi.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
   };
 }
-
-/**
- * Mass Index Indicator using the new indicator() pattern
- * Provides automatic pane management based on overlay setting (separate pane)
- * 
- * Note: The setup function is a placeholder for future implementation.
- * Currently, calculation is done via the calculate() function which is
- * used by the indicator registry. The indicator() pattern provides:
- * - Metadata with overlay setting for automatic pane placement
- * - getPaneIndex() for determining where to render the indicator
- * - isOverlay() for checking if indicator should be on price chart
- */
-export const MassIndexIndicator = indicator({
-  title: 'Mass Index',
-  shortTitle: 'MI',
-  overlay: false,
-  format: 'price',
-  precision: 2,
-}, (_ctx) => {
-  // Calculation is handled by the calculate() function
-  // This setup function will be enhanced when ctx.addLineSeries() is available
-});

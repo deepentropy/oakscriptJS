@@ -1,105 +1,54 @@
-/**
- * Average Day Range (ADR) Indicator
- * 
- * Transpiled from PineScript:
- * ```pine
- * //@version=6
- * indicator("Average Day Range", shorttitle="ADR", timeframe="", timeframe_gaps=true)
- * lengthInput = input.int(14, title="Length")
- * adr = ta.sma(high - low, lengthInput)
- * plot(adr, title="ADR")
- * ```
- */
+import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
-import { indicator, type Bar } from '@deepentropy/oakscriptjs';
-import { calculateADR } from './adr-calculation';
-
-/**
- * Indicator metadata
- */
-export const metadata = {
-  title: 'Average Day Range',
-  shortTitle: 'ADR',
-  overlay: false,
-};
-
-/**
- * Input definitions for the ADR indicator
- */
-export interface ADRInputs {
-  length: number;
+// Helper functions
+function na(value: number | null | undefined): boolean {
+  return value === null || value === undefined || Number.isNaN(value);
 }
 
-/**
- * Default input values
- */
-export const defaultInputs: ADRInputs = {
-  length: 14,
+function nz(value: number | null | undefined, replacement: number = 0): number {
+  return na(value) ? replacement : value as number;
+}
+
+export interface IndicatorInputs {
+  lengthInput: number;
+}
+
+const defaultInputs: IndicatorInputs = {
+  lengthInput: 14,
 };
 
-/**
- * Input configuration for UI generation
- */
-export const inputConfig = [
-  {
-    id: 'length',
-    type: 'int' as const,
-    title: 'Length',
-    defval: 14,
-    min: 1,
-    max: 500,
-    step: 1,
-  },
-];
-
-/**
- * Plot configuration
- */
-export const plotConfig = [
-  {
-    id: 'adr',
-    title: 'ADR',
-    color: '#7E57C2', // purple
-    lineWidth: 2,
-  },
-];
-
-/**
- * Calculate ADR indicator
- * @param bars - OHLCV bar data
- * @param inputs - Indicator inputs
- * @returns Object containing plot data
- */
-export function calculate(bars: Bar[], inputs: Partial<ADRInputs> = {}) {
-  // Merge inputs with defaults
-  const { length } = { ...defaultInputs, ...inputs };
-
-  // Calculate ADR using the calculation module
-  const adrData = calculateADR(bars, length);
-
+export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+  const { lengthInput } = { ...defaultInputs, ...inputs };
+  
+  // OHLCV Series
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+  const close = new Series(bars, (bar) => bar.close);
+  const volume = new Series(bars, (bar) => bar.volume);
+  
+  // Calculated price sources
+  const hl2 = high.add(low).div(2);
+  const hlc3 = high.add(low).add(close).div(3);
+  const ohlc4 = open.add(high).add(low).add(close).div(4);
+  const hlcc4 = high.add(low).add(close).add(close).div(4);
+  
+  // Time series
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  
+  // Bar index
+  const last_bar_index = bars.length - 1;
+  
+  // @version=6
+  adr = ta.sma(high.sub(low), lengthInput);
+  
   return {
-    plots: {
-      adr: adrData,
-    },
+    metadata: { title: "Average Day Range", overlay: false },
+    plots: [{ data: adr.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
   };
 }
-
-/**
- * Average Day Range Indicator using the new indicator() pattern
- * Provides automatic pane management based on overlay setting (separate pane)
- * 
- * Note: The setup function is a placeholder for future implementation.
- * Currently, calculation is done via the calculate() function which is
- * used by the indicator registry. The indicator() pattern provides:
- * - Metadata with overlay setting for automatic pane placement
- * - getPaneIndex() for determining where to render the indicator
- * - isOverlay() for checking if indicator should be on price chart
- */
-export const ADRIndicator = indicator({
-  title: 'Average Day Range',
-  shortTitle: 'ADR',
-  overlay: false,
-}, (_ctx) => {
-  // Calculation is handled by the calculate() function
-  // This setup function will be enhanced when ctx.addLineSeries() is available
-});

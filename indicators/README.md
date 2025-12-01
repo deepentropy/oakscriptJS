@@ -1,198 +1,65 @@
-# OakScriptJS Indicators
+# Indicators
 
-This directory contains reusable technical indicators built with the OakScriptJS library.
+> ⚠️ **AUTO-GENERATED FILES** ⚠️
+> 
+> The indicator files in this directory are **automatically generated** by the `pine2ts` transpiler.
+> 
+> **DO NOT EDIT THESE FILES MANUALLY** - your changes will be overwritten on the next commit.
 
-## Structure
+## How it works
 
-Each indicator is organized in its own subdirectory:
+1. PineScript source files are stored in the `pinescript/` directory
+2. On each commit to `main`, a GitHub Action runs the `pine2ts` transpiler
+3. Generated TypeScript indicators are placed in this `indicators/` directory
+4. The generated files use the `oakscriptjs` library for calculations
+
+## To modify an indicator
+
+1. Edit the source PineScript file in `pinescript/`
+2. Commit and push your changes
+3. The GitHub Action will automatically regenerate the TypeScript version
+
+## To add a new indicator
+
+1. Add your PineScript file to `pinescript/` (e.g., `pinescript/MyIndicator.pine`)
+2. Commit and push
+3. A new folder will be created: `indicators/my-indicator/`
+
+## Directory Structure
 
 ```
 indicators/
+├── README.md           # This file (not auto-generated)
+├── index.ts            # Registry of all indicators (auto-generated)
 ├── sma/
-│   ├── index.ts            # Module exports
-│   ├── sma.ts              # Main indicator wrapper (metadata, inputs, calculate function)
-│   └── sma-calculation.ts  # Core calculation logic using oakscriptjs
-├── package.json            # Workspace package configuration
-└── README.md               # This file
+│   ├── index.ts        # Exports (auto-generated)
+│   └── sma.ts          # Indicator implementation (auto-generated)
+├── momentum/
+│   ├── index.ts
+│   └── momentum.ts
+└── ...
 ```
 
-## Usage
+## Manual Generation
 
-### Importing Indicators
+To manually regenerate indicators locally:
 
-Indicators can be imported in any application that has access to this workspace:
+```bash
+# Install dependencies
+pnpm install
 
-```typescript
-import { calculate, metadata, defaultInputs } from '../indicators/sma';
+# Build the transpiler
+pnpm --filter @deepentropy/oakscript-engine build
 
-// Or import specific exports
-import { calculateSMA, getSourceSeries } from '../indicators/sma';
+# Transpile a single indicator
+node ./transpiler/bin/pine2ts.js pinescript/SMA.pine --output indicators/sma/
+
+# Or transpile all indicators
+pnpm generate-indicators
 ```
 
-### Indicator Structure
+## Related
 
-Each indicator exports:
-
-- **metadata**: Title, short title, and overlay settings
-- **inputConfig**: Input definitions for UI generation
-- **plotConfig**: Plot styling information (colors, line widths)
-- **defaultInputs**: Default input values
-- **calculate**: Main function that computes indicator values
-
-### Example Usage
-
-```typescript
-import { calculate, type SMAInputs } from '../indicators/sma';
-import type { Bar } from '@deepentropy/oakscriptjs';
-
-// Your bar data
-const bars: Bar[] = [...];
-
-// Calculate with default inputs
-const result = calculate(bars);
-
-// Or with custom inputs
-const result = calculate(bars, {
-  length: 20,
-  source: 'close',
-  offset: 0,
-});
-
-// Result contains plot data
-console.log(result.plots.ma); // Array of { time, value } points
-```
-
-## Adding New Indicators
-
-1. **Create a new directory** for your indicator:
-   ```
-   indicators/
-   └── your-indicator/
-       ├── index.ts
-       ├── your-indicator.ts
-       └── your-indicator-calculation.ts
-   ```
-
-2. **Implement the calculation logic** in `*-calculation.ts`:
-   ```typescript
-   import { Series, ta, type Bar } from '@deepentropy/oakscriptjs';
-
-   export function calculateYourIndicator(
-     bars: Bar[],
-     // ... other parameters
-   ): Array<{ time: number; value: number }> {
-     // Use oakscriptjs Series and ta functions
-     const close = Series.fromBars(bars, 'close');
-     const result = ta.yourFunction(close, length);
-     // ...
-   }
-   ```
-
-3. **Create the main wrapper** in `your-indicator.ts`:
-   ```typescript
-   import type { Bar } from '@deepentropy/oakscriptjs';
-   import { calculateYourIndicator } from './your-indicator-calculation';
-
-   export const metadata = {
-     title: 'Your Indicator',
-     shortTitle: 'YI',
-     overlay: true, // or false for separate pane
-   };
-
-   export interface YourIndicatorInputs {
-     length: number;
-     // ... other inputs
-   }
-
-   export const defaultInputs: YourIndicatorInputs = {
-     length: 14,
-   };
-
-   export const inputConfig = [
-     {
-       id: 'length',
-       type: 'int' as const,
-       title: 'Length',
-       defval: 14,
-       min: 1,
-       max: 500,
-     },
-   ];
-
-   export const plotConfig = [
-     {
-       id: 'line',
-       title: 'Line',
-       color: '#2962FF',
-       lineWidth: 2,
-     },
-   ];
-
-   export function calculate(bars: Bar[], inputs: Partial<YourIndicatorInputs> = {}) {
-     const { length } = { ...defaultInputs, ...inputs };
-     const data = calculateYourIndicator(bars, length);
-     return { plots: { line: data } };
-   }
-   ```
-
-4. **Export from index.ts**:
-   ```typescript
-   export {
-     metadata,
-     defaultInputs,
-     inputConfig,
-     plotConfig,
-     calculate,
-     type YourIndicatorInputs,
-   } from './your-indicator';
-
-   export { calculateYourIndicator } from './your-indicator-calculation';
-   ```
-
-5. **Register in your application** (e.g., in `indicator-ui.ts`):
-   ```typescript
-   import * as yourIndicator from '../../indicators/your-indicator';
-
-   const indicators: IndicatorDefinition[] = [
-     // ... existing indicators
-     {
-       id: 'your-indicator',
-       name: 'Your Indicator (YI)',
-       metadata: yourIndicator.metadata,
-       inputConfig: yourIndicator.inputConfig,
-       plotConfig: yourIndicator.plotConfig,
-       calculate: yourIndicator.calculate,
-       defaultInputs: yourIndicator.defaultInputs,
-     },
-   ];
-   ```
-
-## Available Indicators
-
-### SMA (Simple Moving Average)
-
-A simple moving average indicator that smooths price data by calculating the arithmetic mean over a specified period.
-
-**Inputs:**
-- `length` (int): Number of periods for averaging (default: 9)
-- `source` (source): Price source - open, high, low, close, hl2, hlc3, ohlc4 (default: close)
-- `offset` (int): Horizontal offset for the line (default: 0)
-
-**Original PineScript:**
-```pine
-//@version=6
-indicator(title="Moving Average Simple", shorttitle="SMA", overlay=true)
-len = input.int(9, minval=1, title="Length")
-src = input(close, title="Source")
-offset = input.int(title="Offset", defval=0, minval=-500, maxval=500)
-out = ta.sma(src, len)
-plot(out, color=color.blue, title="MA", offset=offset)
-```
-
-## Dependencies
-
-- `@deepentropy/oakscriptjs`: Core technical analysis library with Series and ta functions
-
-## License
-
-MIT
+- [oakscriptjs](../oakscriptjs/) - Technical analysis library used by generated indicators
+- [transpiler](../transpiler/) - The pine2ts transpiler
+- [example](../example/) - Demo application showing indicators in action
