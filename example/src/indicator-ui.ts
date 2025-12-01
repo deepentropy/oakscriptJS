@@ -244,6 +244,7 @@ export class IndicatorUI {
           this.chartManager.setIndicatorData(plotDef.id, plotData, {
             color: plotDef.color,
             lineWidth: plotDef.lineWidth,
+            overlay: indicator.overlay, // Pass overlay setting for pane placement
           });
         }
       }
