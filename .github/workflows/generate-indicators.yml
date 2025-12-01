@@ -41,7 +41,10 @@ jobs:
           # Find all .pine files and transpile them
           for pine_file in pinescript/*.pine; do
             if [ -f "$pine_file" ]; then
-              indicator_name=$(basename "$pine_file" .pine | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+              # Extract base name and convert to kebab-case
+              base_name=$(basename "$pine_file" .pine)
+              # Replace spaces first, then convert camelCase to kebab-case
+              indicator_name=$(echo "$base_name" | tr ' ' '-' | sed 's/\([a-z0-9]\)\([A-Z]\)/\1-\2/g' | tr '[:upper:]' '[:lower:]')
               output_dir="indicators/$indicator_name"
               output_file="$output_dir/$indicator_name.ts"
               
