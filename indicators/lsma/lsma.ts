@@ -101,13 +101,13 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const lsma = ta.linreg(srcSeries, lengthSeries, offsetSeries);
   
   return {
-    metadata: { title: "Least Squares Moving Average", overlay: true },
+    metadata: { title: "Least Squares Moving Average", shorttitle: "LSMA", overlay: true },
     plots: { 'plot0': lsma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Least Squares Moving Average", overlay: true };
+export const metadata = { title: "Least Squares Moving Average", shortTitle: "LSMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'lsma', color: '#2962FF', lineWidth: 2 }];

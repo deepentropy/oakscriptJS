@@ -200,8 +200,8 @@ export interface FillData {
 export interface IndicatorResult {
   /** Indicator metadata */
   metadata: IndicatorMetadata;
-  /** Plot data arrays */
-  plots: PlotData[];
+  /** Plot data as Record mapping plot IDs to TimeValue arrays */
+  plots: Record<string, TimeValue[]>;
   /** Horizontal lines */
   hlines?: HLineData[];
   /** Fills */

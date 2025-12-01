@@ -57,13 +57,13 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
   
   return {
-    metadata: { title: "Mass Index", overlay: false },
+    metadata: { title: "Mass Index", shorttitle: "Mass Index", overlay: false },
     plots: { 'plot0': mi.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Mass Index", overlay: false };
+export const metadata = { title: "Mass Index", shortTitle: "Mass Index", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'mi', color: '#2962FF', lineWidth: 2 }];

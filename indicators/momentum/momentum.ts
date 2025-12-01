@@ -73,13 +73,13 @@ export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): In
   const mom = srcSeries.sub(srcSeries.get(len));
   
   return {
-    metadata: { title: "Momentum", overlay: false },
+    metadata: { title: "Momentum", shorttitle: "Mom", overlay: false },
     plots: { 'plot0': mom.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Momentum", overlay: false };
+export const metadata = { title: "Momentum", shortTitle: "Mom", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MOM', color: '#2962FF', lineWidth: 2 }];

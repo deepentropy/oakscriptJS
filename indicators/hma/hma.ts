@@ -73,13 +73,13 @@ export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs
   const hullma = ta.wma(ta.wma(srcSeries, (length / 2)).mul(2).sub(ta.wma(srcSeries, length)), math.floor(math.sqrt(length)));
   
   return {
-    metadata: { title: "Hull Moving Average", overlay: true },
+    metadata: { title: "Hull Moving Average", shorttitle: "HMA", overlay: true },
     plots: { 'plot0': hullma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Hull Moving Average", overlay: true };
+export const metadata = { title: "Hull Moving Average", shortTitle: "HMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'hullma', color: '#2962FF', lineWidth: 2 }];

@@ -73,13 +73,13 @@ export function Rate_Of_Change(bars: any[], inputs: Partial<IndicatorInputs> = {
   const roc = sourceSeries.sub(sourceSeries.get(length)).mul(100).div(sourceSeries.get(length));
   
   return {
-    metadata: { title: "Rate Of Change", overlay: false },
+    metadata: { title: "Rate Of Change", shorttitle: "ROC", overlay: false },
     plots: { 'plot0': roc.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Rate Of Change", overlay: false };
+export const metadata = { title: "Rate Of Change", shortTitle: "ROC", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'ROC', color: '#2962FF', lineWidth: 2 }];

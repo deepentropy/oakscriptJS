@@ -45,13 +45,13 @@ export function Balance_of_Power(bars: any[]): IndicatorResult {
   // @version=6
   
   return {
-    metadata: { title: "Balance of Power", overlay: false },
+    metadata: { title: "Balance of Power", shorttitle: "Balance of Power", overlay: false },
     plots: { 'plot0': close.sub(open).div(high.sub(low)).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Balance of Power", overlay: false };
+export const metadata = { title: "Balance of Power", shortTitle: "Balance of Power", overlay: false };
 export const defaultInputs = {};
 export const inputConfig = {};
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'Plot 0', color: '#FF0000', lineWidth: 2 }];
