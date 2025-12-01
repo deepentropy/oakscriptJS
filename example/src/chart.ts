@@ -25,6 +25,8 @@ export interface SeriesConfig {
   color?: string;
   lineWidth?: number;
   lineStyle?: number;
+  overlay?: boolean;  // Whether to overlay on price chart
+  paneIndex?: number; // Which pane to use (0 = main, 1+ = separate)
 }
 
 /**
@@ -34,6 +36,7 @@ export class ChartManager {
   private chart: IChartApi;
   private candlestickSeries: ISeriesApi<'Candlestick'>;
   private indicatorSeries: Map<string, ISeriesApi<'Line'>> = new Map();
+  private indicatorPanes: Map<string, number> = new Map(); // Track which pane each indicator is in
   private container: HTMLElement;
 
   constructor(container: HTMLElement) {
@@ -110,12 +113,40 @@ export class ChartManager {
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,
       });
+
+      // Handle pane placement for non-overlay indicators
+      // Note: We use === false to require explicit opt-in for separate panes.
+      // When overlay is undefined or true, the indicator is placed on the main price chart.
+      if (config.overlay === false) {
+        // Create a new pane for this indicator
+        // In LightweightCharts v5, moveToPane creates a new pane if it doesn't exist
+        // paneIndex can be explicitly specified, otherwise auto-assign the next available pane
+        const paneIndex = config.paneIndex ?? this.getNextPaneIndex();
+        series.moveToPane(paneIndex);
+        this.indicatorPanes.set(id, paneIndex);
+      } else {
+        // Overlay on main price chart (pane 0)
+        this.indicatorPanes.set(id, 0);
+      }
+
       this.indicatorSeries.set(id, series);
     }
 
     // Set data
     const lineData = data as LineData<Time>[];
     series.setData(lineData);
+  }
+
+  /**
+   * Get the next available pane index
+   */
+  private getNextPaneIndex(): number {
+    const usedPanes = new Set(this.indicatorPanes.values());
+    let nextPane = 1; // Start from 1 (0 is main chart)
+    while (usedPanes.has(nextPane)) {
+      nextPane++;
+    }
+    return nextPane;
   }
 
   /**
@@ -126,6 +157,7 @@ export class ChartManager {
     if (series) {
       this.chart.removeSeries(series);
       this.indicatorSeries.delete(id);
+      this.indicatorPanes.delete(id);
     }
   }
 
@@ -137,6 +169,7 @@ export class ChartManager {
       this.chart.removeSeries(series);
     }
     this.indicatorSeries.clear();
+    this.indicatorPanes.clear();
   }
 
   /**
