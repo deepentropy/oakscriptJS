@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   len: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -27,7 +35,7 @@ export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): In
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -65,16 +73,16 @@ export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): In
   const mom = srcSeries.sub(srcSeries.get(len));
   
   return {
-    metadata: { title: "Momentum", overlay: false },
-    plots: [{ data: mom.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    metadata: { title: "Momentum", shorttitle: "Mom", overlay: false },
+    plots: { 'plot0': mom.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Momentum", shortTitle: "MOM", overlay: false };
+export const metadata = { title: "Momentum", shortTitle: "Mom", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MOM', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Momentum;
 export { Momentum as MomentumIndicator };
 export type MomentumInputs = IndicatorInputs;

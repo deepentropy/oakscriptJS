@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   length: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -27,7 +35,7 @@ export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -65,8 +73,8 @@ export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs
   const hullma = ta.wma(ta.wma(srcSeries, (length / 2)).mul(2).sub(ta.wma(srcSeries, length)), math.floor(math.sqrt(length)));
   
   return {
-    metadata: { title: "Hull Moving Average", overlay: true },
-    plots: [{ data: hullma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    metadata: { title: "Hull Moving Average", shorttitle: "HMA", overlay: true },
+    plots: { 'plot0': hullma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
@@ -74,7 +82,7 @@ export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs
 export const metadata = { title: "Hull Moving Average", shortTitle: "HMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'hullma', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Hull_Moving_Average;
 export { Hull_Moving_Average as Hull_Moving_AverageIndicator };
 export type Hull_Moving_AverageInputs = IndicatorInputs;

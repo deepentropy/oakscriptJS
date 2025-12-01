@@ -9,15 +9,23 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
-  length: number;
-  offset: number;
+  length: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
+  offset: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
 }
 
 const defaultInputs: IndicatorInputs = {
-  length: 25,
-  offset: 0,
+  length: "25",
+  offset: "0",
   src: "close",
 };
 
@@ -29,7 +37,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -38,6 +46,32 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   
   // Map source inputs to Series
+  const lengthSeries = (() => {
+    switch (length) {
+      case "open": return open;
+      case "high": return high;
+      case "low": return low;
+      case "close": return close;
+      case "hl2": return hl2;
+      case "hlc3": return hlc3;
+      case "ohlc4": return ohlc4;
+      case "hlcc4": return hlcc4;
+      default: return close;
+    }
+  })();
+  const offsetSeries = (() => {
+    switch (offset) {
+      case "open": return open;
+      case "high": return high;
+      case "low": return low;
+      case "close": return close;
+      case "hl2": return hl2;
+      case "hlc3": return hlc3;
+      case "ohlc4": return ohlc4;
+      case "hlcc4": return hlcc4;
+      default: return close;
+    }
+  })();
   const srcSeries = (() => {
     switch (src) {
       case "open": return open;
@@ -64,11 +98,11 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  const lsma = ta.linreg(srcSeries, length, offset);
+  const lsma = ta.linreg(srcSeries, lengthSeries, offsetSeries);
   
   return {
-    metadata: { title: "Least Squares Moving Average", overlay: true },
-    plots: [{ data: lsma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    metadata: { title: "Least Squares Moving Average", shorttitle: "LSMA", overlay: true },
+    plots: { 'plot0': lsma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
@@ -76,7 +110,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
 export const metadata = { title: "Least Squares Moving Average", shortTitle: "LSMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'lsma', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Least_Squares_Moving_Average;
 export { Least_Squares_Moving_Average as Least_Squares_Moving_AverageIndicator };
 export type Least_Squares_Moving_AverageInputs = IndicatorInputs;
