@@ -62,7 +62,7 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const enableMA = (maTypeInput != "None");
   // Smoothing MA Calculation
   function ma(source: any, length: any, MAtype: any): any {
-    return ((() => {
+    return (() => {
       switch (MAtype) {
         case "SMA": return ta.sma(source, length);
         case "SMA + Bollinger Bands": return ta.sma(source, length);
@@ -71,11 +71,9 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
         case "WMA": return ta.wma(source, length);
         case "VWMA": return ta.vwma(source, length);
       }
-    })() / );
+    })();
   }
-  Smoothing;
-  MA;
-  plots;
+  // Smoothing MA plots
   smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
   smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
   
