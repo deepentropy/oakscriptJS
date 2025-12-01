@@ -5,60 +5,13 @@
 
 import type { Bar } from '@deepentropy/oakscriptjs';
 import { ChartManager } from './chart';
-import * as smaIndicator from '../../indicators/sma';
+import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig } from '../../indicators';
 
 /**
- * Input configuration type
+ * Use the indicator registry from indicators/index.ts
+ * Adding new indicators to the registry will automatically make them available in the UI
  */
-interface InputConfig {
-  id: string;
-  type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: string[];
-}
-
-/**
- * Indicator definition
- */
-interface IndicatorDefinition {
-  id: string;
-  name: string;
-  metadata: {
-    title: string;
-    shortTitle: string;
-    overlay: boolean;
-  };
-  inputConfig: InputConfig[];
-  plotConfig: Array<{
-    id: string;
-    title: string;
-    color: string;
-    lineWidth?: number;
-  }>;
-  calculate: (bars: Bar[], inputs: Record<string, unknown>) => {
-    plots: Record<string, Array<{ time: number; value: number }>>;
-  };
-  defaultInputs: Record<string, unknown>;
-}
-
-/**
- * Registry of available indicators
- */
-const indicators: IndicatorDefinition[] = [
-  {
-    id: 'sma',
-    name: 'Simple Moving Average (SMA)',
-    metadata: smaIndicator.metadata,
-    inputConfig: smaIndicator.inputConfig,
-    plotConfig: smaIndicator.plotConfig,
-    calculate: smaIndicator.calculate,
-    defaultInputs: { ...smaIndicator.defaultInputs },
-  },
-];
+const indicators: IndicatorRegistryEntry[] = indicatorRegistry;
 
 /**
  * Indicator UI Manager class
@@ -144,7 +97,7 @@ export class IndicatorUI {
   /**
    * Render input controls for an indicator
    */
-  private renderInputs(indicator: IndicatorDefinition, container: HTMLElement): void {
+  private renderInputs(indicator: IndicatorRegistryEntry, container: HTMLElement): void {
     const inputsHtml = indicator.inputConfig.map(input => {
       const value = this.currentInputs[input.id] ?? input.defval;
 
