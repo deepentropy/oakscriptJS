@@ -1435,8 +1435,8 @@ export class PineParser {
     this.advance(); // skip '#'
     let value = '#';
     
-    // Parse hex digits (6 or 8 characters for RRGGBB or RRGGBBAA)
-    while (this.isHexDigit(this.peek()) && value.length < 9) {
+    // Parse hex digits (6 for RRGGBB or 8 for RRGGBBAA)
+    while (this.isHexDigit(this.peek()) && value.length <= 9) {
       value += this.advance();
     }
 

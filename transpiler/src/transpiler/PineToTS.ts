@@ -1644,19 +1644,20 @@ class CodeGenerator {
       const method = seriesOps[op];
       if (method) {
         // Ensure the Series is on the left side of the method call
-        // If only right is Series, swap the operands for commutative operations
+        // For commutative operations (+ and *), we can swap if needed
+        // For non-commutative operations (-, /), we must keep the order
         if (!leftIsSeries && rightIsSeries) {
-          // For commutative operations, swap
+          // Only swap for commutative operations
           if (op === '+' || op === '*') {
             return `${right}.${method}(${left})`;
           }
-          // For non-commutative operations, keep order but use proper method
-          // e.g., 2 - series becomes series.mul(-1).add(2) but that's complex
-          // Instead, wrap the literal in a Series constructor if needed
-          // For now, use the right side as the object
-          return `${right}.${method}(${left})`;
+          // For non-commutative operations with literal on left and series on right,
+          // we cannot simply swap. Fall through to use regular operators.
+          // This shouldn't happen in typical PineScript, but if it does,
+          // use standard JS operators
+        } else {
+          return `${left}.${method}(${right})`;
         }
-        return `${left}.${method}(${right})`;
       }
     }
 
