@@ -211,6 +211,8 @@ export function avg(...values: float[]): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sum | PineScript math.sum}
  */
+export function sum(source: Series, length: simple_int): Series;
+export function sum(source: series_float, length: simple_int): series_float;
 export function sum(source: series_float | Series, length: simple_int): series_float | Series {
   // Handle Series objects - extract to array first
   const sourceArray = source instanceof Series ? source.toArray() : source;
