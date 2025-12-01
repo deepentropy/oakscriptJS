@@ -11,6 +11,7 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
 
 export interface IndicatorInputs {
   len: number;
+  src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
   offset: number;
   maTypeInput: "None" | "SMA" | "SMA + Bollinger Bands" | "EMA" | "SMMA (RMA)" | "WMA" | "VWMA";
   maLengthInput: number;
@@ -19,14 +20,15 @@ export interface IndicatorInputs {
 
 const defaultInputs: IndicatorInputs = {
   len: 9,
+  src: "close",
   offset: 0,
   maTypeInput: "None",
   maLengthInput: 14,
   bbMultInput: 2,
 };
 
-export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
-  const { len, offset, maTypeInput, maLengthInput, bbMultInput } = { ...defaultInputs, ...inputs };
+export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+  const { len, src, offset, maTypeInput, maLengthInput, bbMultInput } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
@@ -41,6 +43,21 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   
+  // Map source inputs to Series
+  const srcSeries = (() => {
+    switch (src) {
+      case "open": return open;
+      case "high": return high;
+      case "low": return low;
+      case "close": return close;
+      case "hl2": return hl2;
+      case "hlc3": return hlc3;
+      case "ohlc4": return ohlc4;
+      case "hlcc4": return hlcc4;
+      default: return close;
+    }
+  })();
+  
   // Time series
   const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
   const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
@@ -53,11 +70,10 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  src = input(close, title = "Source");
-  out = ta.sma(src, len);
+  const out = ta.sma(srcSeries, len);
   // Smoothing MA inputs
-  GRP = "Smoothing";
-  TT_BB = "Only applies when 'SMA + Bollinger Bands' is selected. Determines the distance between the SMA and the bands.";
+  const GRP = "Smoothing";
+  const TT_BB = "Only applies when 'SMA + Bollinger Bands' is selected. Determines the distance between the SMA and the bands.";
   const isBB = (maTypeInput == "SMA + Bollinger Bands");
   const enableMA = (maTypeInput != "None");
   // Smoothing MA Calculation
@@ -74,11 +90,22 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
     })();
   }
   // Smoothing MA plots
-  smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
-  smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
+  const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
+  const smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
+  // bbUpperBand = <unsupported>;
+  // bbLowerBand = <unsupported>;
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: out.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }, { data: smoothingMA.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }, { data: (smoothingMA + smoothingStDev).toArray().map((v, i) => ({ time: bars[i].time, value: v })) }, { data: (smoothingMA - smoothingStDev).toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Moving Average Simple", overlay: true },
+    plots: [{ data: out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: (smoothingMA + smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: (smoothingMA - smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Moving Average Simple", overlay: true };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Moving_Average_Simple;
+export { Moving_Average_Simple as Moving_Average_SimpleIndicator };
+export type Moving_Average_SimpleInputs = IndicatorInputs;

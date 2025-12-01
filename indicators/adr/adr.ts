@@ -45,10 +45,19 @@ export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> 
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  adr = ta.sma(high.sub(low), lengthInput);
+  const adr = ta.sma(high.sub(low), lengthInput);
   
   return {
     metadata: { title: "Average Day Range", overlay: false },
-    plots: [{ data: adr.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    plots: [{ data: adr.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Average Day Range", overlay: false };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Average_Day_Range;
+export { Average_Day_Range as Average_Day_RangeIndicator };
+export type Average_Day_RangeInputs = IndicatorInputs;

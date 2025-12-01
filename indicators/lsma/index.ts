@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  LSMAIndicator,
-  type LSMAInputs,
+  Least_Squares_Moving_AverageIndicator as LSMAIndicator,
+  type Least_Squares_Moving_AverageInputs as LSMAInputs,
 } from './lsma';
 
 export { calculateLSMA } from './lsma-calculation';
