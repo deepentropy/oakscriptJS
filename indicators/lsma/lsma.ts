@@ -13,7 +13,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateLSMA } from './lsma-calculation';
 
 /**
@@ -105,3 +105,16 @@ export function calculate(bars: Bar[], inputs: Partial<LSMAInputs> = {}) {
     },
   };
 }
+
+/**
+ * Least Squares Moving Average Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (price chart)
+ */
+export const LSMAIndicator = indicator({
+  title: 'Least Squares Moving Average',
+  shortTitle: 'LSMA',
+  overlay: true,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

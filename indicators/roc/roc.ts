@@ -12,7 +12,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateROC } from './roc-calculation';
 
 /**
@@ -93,3 +93,18 @@ export function calculate(bars: Bar[], inputs: Partial<ROCInputs> = {}) {
     },
   };
 }
+
+/**
+ * Rate of Change Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (separate pane)
+ */
+export const ROCIndicator = indicator({
+  title: 'Rate Of Change',
+  shortTitle: 'ROC',
+  overlay: false,
+  format: 'price',
+  precision: 2,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

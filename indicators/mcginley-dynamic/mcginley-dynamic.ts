@@ -13,7 +13,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateMcGinleyDynamic } from './mcginley-dynamic-calculation';
 
 /**
@@ -85,3 +85,16 @@ export function calculate(bars: Bar[], inputs: Partial<McGinleyDynamicInputs> = 
     },
   };
 }
+
+/**
+ * McGinley Dynamic Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (price chart)
+ */
+export const McGinleyDynamicIndicator = indicator({
+  title: 'McGinley Dynamic',
+  shortTitle: 'MGD',
+  overlay: true,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

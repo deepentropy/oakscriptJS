@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  HMAIndicator,
   type HMAInputs,
 } from './hma';
 

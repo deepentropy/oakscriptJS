@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  BOPIndicator,
   type BOPInputs,
 } from './bop';
 
