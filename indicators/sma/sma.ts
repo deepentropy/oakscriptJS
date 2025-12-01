@@ -13,7 +13,8 @@
  * ```
  */
 
-import { Series, ta, type Bar } from '@deepentropy/oakscriptjs';
+import type { Bar } from '@deepentropy/oakscriptjs';
+import { calculateSMA } from './sma-calculation';
 
 /**
  * Indicator metadata
@@ -86,75 +87,21 @@ export const plotConfig = [
 ];
 
 /**
- * Get source series based on source name
- */
-function getSourceSeries(bars: Bar[], sourceName: string): Series {
-  switch (sourceName) {
-    case 'open':
-      return Series.fromBars(bars, 'open');
-    case 'high':
-      return Series.fromBars(bars, 'high');
-    case 'low':
-      return Series.fromBars(bars, 'low');
-    case 'close':
-      return Series.fromBars(bars, 'close');
-    case 'hl2': {
-      const high = Series.fromBars(bars, 'high');
-      const low = Series.fromBars(bars, 'low');
-      return high.add(low).div(2);
-    }
-    case 'hlc3': {
-      const high = Series.fromBars(bars, 'high');
-      const low = Series.fromBars(bars, 'low');
-      const close = Series.fromBars(bars, 'close');
-      return high.add(low).add(close).div(3);
-    }
-    case 'ohlc4': {
-      const open = Series.fromBars(bars, 'open');
-      const high = Series.fromBars(bars, 'high');
-      const low = Series.fromBars(bars, 'low');
-      const close = Series.fromBars(bars, 'close');
-      return open.add(high).add(low).add(close).div(4);
-    }
-    default:
-      return Series.fromBars(bars, 'close');
-  }
-}
-
-/**
  * Calculate SMA indicator
  * @param bars - OHLCV bar data
  * @param inputs - Indicator inputs
- * @returns Array of plot data points
+ * @returns Object containing plot data
  */
 export function calculate(bars: Bar[], inputs: Partial<SMAInputs> = {}) {
   // Merge inputs with defaults
   const { length, source, offset } = { ...defaultInputs, ...inputs };
 
-  // Get source series
-  const src = getSourceSeries(bars, source);
-
-  // Calculate SMA
-  const smaValues = ta.sma(src, length);
-
-  // Convert to time-value pairs with offset applied
-  const smaArray = smaValues.toArray();
-  const data: Array<{ time: number; value: number }> = [];
-
-  for (let i = 0; i < bars.length; i++) {
-    const targetIndex = i + offset;
-    if (targetIndex >= 0 && targetIndex < bars.length) {
-      const value = smaArray[i];
-      const targetBar = bars[targetIndex];
-      if (targetBar && value !== undefined && !Number.isNaN(value)) {
-        data.push({ time: targetBar.time, value });
-      }
-    }
-  }
+  // Calculate SMA using the calculation module
+  const smaData = calculateSMA(bars, length, source, offset);
 
   return {
     plots: {
-      ma: data,
+      ma: smaData,
     },
   };
 }
