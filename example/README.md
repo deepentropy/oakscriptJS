@@ -58,8 +58,6 @@ example/
 ├── index.html          # Main HTML file
 ├── data/
 │   └── SPX.csv         # S&P 500 historical data
-├── indicators/
-│   └── sma.ts          # SMA indicator (transpiled from PineScript)
 ├── src/
 │   ├── main.ts         # Application entry point
 │   ├── chart.ts        # LightweightCharts setup and management
@@ -70,11 +68,19 @@ example/
 └── README.md           # This file
 ```
 
-## How It Works
+## Indicators
 
-### Indicator System
+Indicators are located in the **repository root** at `../indicators/` for better reusability across different examples and applications. See the [indicators README](../indicators/README.md) for detailed documentation.
 
-Indicators are defined in the `indicators/` directory. Each indicator exports:
+### Using Indicators
+
+Indicators are imported from the root `indicators/` directory:
+
+```typescript
+import * as smaIndicator from '../../indicators/sma';
+```
+
+Each indicator exports:
 
 - `metadata`: Title, short title, and overlay settings
 - `inputConfig`: Input definitions for the UI
@@ -84,69 +90,23 @@ Indicators are defined in the `indicators/` directory. Each indicator exports:
 
 ### Adding New Indicators
 
-1. Create a new file in `indicators/` (e.g., `ema.ts`)
-2. Follow the structure of `sma.ts`:
+New indicators should be added to the root `indicators/` directory. See the [indicators README](../indicators/README.md) for instructions on creating new indicators.
+
+To use a new indicator in this example, register it in `src/indicator-ui.ts`:
 
 ```typescript
-import { Series, ta, type Bar } from '@deepentropy/oakscriptjs';
-
-export const metadata = {
-  title: 'Exponential Moving Average',
-  shortTitle: 'EMA',
-  overlay: true,
-};
-
-export interface EMAInputs {
-  length: number;
-  source: 'open' | 'high' | 'low' | 'close';
-}
-
-export const defaultInputs: EMAInputs = {
-  length: 20,
-  source: 'close',
-};
-
-export const inputConfig = [
-  {
-    id: 'length',
-    type: 'int' as const,
-    title: 'Length',
-    defval: 20,
-    min: 1,
-    max: 500,
-  },
-  // ... more inputs
-];
-
-export const plotConfig = [
-  {
-    id: 'ema',
-    title: 'EMA',
-    color: '#FF6D00',
-    lineWidth: 2,
-  },
-];
-
-export function calculate(bars: Bar[], inputs: Partial<EMAInputs>) {
-  // ... calculation logic using ta.ema()
-}
-```
-
-3. Register the indicator in `src/indicator-ui.ts`:
-
-```typescript
-import * as emaIndicator from '../indicators/ema';
+import * as newIndicator from '../../indicators/new-indicator';
 
 const indicators: IndicatorDefinition[] = [
   // ... existing indicators
   {
-    id: 'ema',
-    name: 'Exponential Moving Average (EMA)',
-    metadata: emaIndicator.metadata,
-    inputConfig: emaIndicator.inputConfig,
-    plotConfig: emaIndicator.plotConfig,
-    calculate: emaIndicator.calculate,
-    defaultInputs: emaIndicator.defaultInputs,
+    id: 'new-indicator',
+    name: 'New Indicator',
+    metadata: newIndicator.metadata,
+    inputConfig: newIndicator.inputConfig,
+    plotConfig: newIndicator.plotConfig,
+    calculate: newIndicator.calculate,
+    defaultInputs: newIndicator.defaultInputs,
   },
 ];
 ```
@@ -168,6 +128,7 @@ plot(out, color=color.blue, title="MA", offset=offset)
 ## Dependencies
 
 - **@deepentropy/oakscriptjs**: Technical analysis library
+- **@deepentropy/indicators**: Reusable indicators from the repository root
 - **lightweight-charts**: TradingView's charting library (v5)
 - **vite**: Build tool and dev server
 - **typescript**: Type safety

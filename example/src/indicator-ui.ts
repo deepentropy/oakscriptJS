@@ -5,7 +5,7 @@
 
 import type { Bar } from '@deepentropy/oakscriptjs';
 import { ChartManager } from './chart';
-import * as smaIndicator from '../indicators/sma';
+import * as smaIndicator from '../../indicators/sma';
 
 /**
  * Input configuration type
