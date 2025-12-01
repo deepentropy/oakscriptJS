@@ -11,14 +11,16 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
 
 export interface IndicatorInputs {
   len: number;
+  src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
 }
 
 const defaultInputs: IndicatorInputs = {
   len: 10,
+  src: "close",
 };
 
-export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
-  const { len } = { ...defaultInputs, ...inputs };
+export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+  const { len, src } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
@@ -33,6 +35,21 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   
+  // Map source inputs to Series
+  const srcSeries = (() => {
+    switch (src) {
+      case "open": return open;
+      case "high": return high;
+      case "low": return low;
+      case "close": return close;
+      case "hl2": return hl2;
+      case "hlc3": return hlc3;
+      case "ohlc4": return ohlc4;
+      case "hlcc4": return hlcc4;
+      default: return close;
+    }
+  })();
+  
   // Time series
   const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
   const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
@@ -45,11 +62,19 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  src = input(close, title = "Source");
-  mom = (src - src.get(len));
+  const mom = srcSeries.sub(srcSeries.get(len));
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: mom.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Momentum", overlay: false },
+    plots: [{ data: mom.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Momentum", overlay: false };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Momentum;
+export { Momentum as MomentumIndicator };
+export type MomentumInputs = IndicatorInputs;

@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  ADRIndicator,
-  type ADRInputs,
+  Average_Day_RangeIndicator as ADRIndicator,
+  type Average_Day_RangeInputs as ADRInputs,
 } from './adr';
 
 export { calculateADR } from './adr-calculation';

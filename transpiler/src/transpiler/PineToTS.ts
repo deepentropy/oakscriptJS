@@ -235,6 +235,10 @@ class CodeGenerator {
     if (this.inputs.length > 0) {
       this.emit('export { defaultInputs };');
       this.emit('export const inputConfig = defaultInputs;');
+    } else {
+      // Export empty objects even when there are no inputs for consistency
+      this.emit('export const defaultInputs = {};');
+      this.emit('export const inputConfig = {};');
     }
     
     this.emit('export const plotConfig = {};');
@@ -250,6 +254,10 @@ class CodeGenerator {
     if (this.inputs.length > 0) {
       const inputsTypeName = `${indicatorBaseName}Inputs`;
       this.emit(`export type ${inputsTypeName} = IndicatorInputs;`);
+    } else {
+      // Export empty type for consistency
+      const inputsTypeName = `${indicatorBaseName}Inputs`;
+      this.emit(`export type ${inputsTypeName} = Record<string, never>;`);
     }
 
     return this.output.join('\n');
@@ -627,8 +635,15 @@ class CodeGenerator {
     if (!node) return;
 
     if (node.type === 'IndicatorDeclaration') {
-      // Extract indicator title and overlay from named arguments
+      // Extract indicator title and overlay from arguments
       if (node.children && node.children.length > 0) {
+        // First check for positional argument (first child might be a StringLiteral)
+        const firstChild = node.children[0];
+        if (firstChild?.type === 'StringLiteral') {
+          this.indicatorTitle = String(firstChild.value || 'Indicator');
+        }
+        
+        // Then check for named arguments (these override positional)
         for (const arg of node.children) {
           if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
             const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
@@ -1672,7 +1687,7 @@ class CodeGenerator {
       const seriesArg = node.children?.[0];
       if (seriesArg) {
         const seriesName = this.generateExpression(seriesArg);
-        this.plots.push(`{ data: ${seriesName}.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }`);
+        this.plots.push(`{ data: ${seriesName}.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }`);
       }
       return '';
     }

@@ -11,14 +11,16 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
 
 export interface IndicatorInputs {
   length: number;
+  src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
 }
 
 const defaultInputs: IndicatorInputs = {
   length: 9,
+  src: "close",
 };
 
-export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
-  const { length } = { ...defaultInputs, ...inputs };
+export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+  const { length, src } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
@@ -33,6 +35,21 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   
+  // Map source inputs to Series
+  const srcSeries = (() => {
+    switch (src) {
+      case "open": return open;
+      case "high": return high;
+      case "low": return low;
+      case "close": return close;
+      case "hl2": return hl2;
+      case "hlc3": return hlc3;
+      case "ohlc4": return ohlc4;
+      case "hlcc4": return hlcc4;
+      default: return close;
+    }
+  })();
+  
   // Time series
   const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
   const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
@@ -45,11 +62,19 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  src = input(close, "Source");
-  hullma = ta.wma((ta.wma(src, (length / 2)).mul(2) - ta.wma(src, length)), math.floor(math.sqrt(length)));
+  const hullma = ta.wma(ta.wma(srcSeries, (length / 2)).mul(2).sub(ta.wma(srcSeries, length)), math.floor(math.sqrt(length)));
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: hullma.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Hull Moving Average", overlay: true },
+    plots: [{ data: hullma.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Hull Moving Average", overlay: true };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Hull_Moving_Average;
+export { Hull_Moving_Average as Hull_Moving_AverageIndicator };
+export type Hull_Moving_AverageInputs = IndicatorInputs;
