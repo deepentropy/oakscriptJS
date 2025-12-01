@@ -686,7 +686,6 @@ import { Series } from '@deepentropy/oakscriptjs';
 
 - **Function Inventory**: `/INVENTORY.md` - Complete list of implemented functions
 - **Official PineScript Reference**: `/docs/official/language-reference/`
-- **Examples**: `/examples/indicators/`
 - **GitHub**: https://github.com/deepentropy/oakscriptJS
 
 ---
