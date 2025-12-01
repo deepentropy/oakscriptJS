@@ -1,0 +1,3 @@
+# Mark indicators as generated (for GitHub UI)
+indicators/**/*.ts linguist-generated=true
+indicators/**/index.ts linguist-generated=true

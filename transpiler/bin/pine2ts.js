@@ -91,7 +91,7 @@ try {
 
 // Import the transpiler
 try {
-  const { transpile } = await import('../dist/index.mjs');
+  const { transpile } = await import('../dist/index.js');
   
   const result = transpile(pineSource, {
     filename: basename(inputFile),
