@@ -9,7 +9,7 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
-export function Indicator(bars: any[]): IndicatorResult {
+export function Balance_of_Power(bars: any[]): IndicatorResult {
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);
@@ -37,7 +37,16 @@ export function Indicator(bars: any[]): IndicatorResult {
   // @version=6
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: (close.sub(open) / high.sub(low)).toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Balance of Power", overlay: false },
+    plots: [{ data: close.sub(open).div(high.sub(low)).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Balance of Power", overlay: false };
+export const defaultInputs = {};
+export const inputConfig = {};
+export const plotConfig = {};
+export const calculate = Balance_of_Power;
+export { Balance_of_Power as Balance_of_PowerIndicator };
+export type Balance_of_PowerInputs = Record<string, never>;
