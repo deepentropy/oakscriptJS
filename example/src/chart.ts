@@ -115,9 +115,12 @@ export class ChartManager {
       });
 
       // Handle pane placement for non-overlay indicators
+      // Note: We use === false to require explicit opt-in for separate panes.
+      // When overlay is undefined or true, the indicator is placed on the main price chart.
       if (config.overlay === false) {
         // Create a new pane for this indicator
         // In LightweightCharts v5, moveToPane creates a new pane if it doesn't exist
+        // paneIndex can be explicitly specified, otherwise auto-assign the next available pane
         const paneIndex = config.paneIndex ?? this.getNextPaneIndex();
         series.moveToPane(paneIndex);
         this.indicatorPanes.set(id, paneIndex);
