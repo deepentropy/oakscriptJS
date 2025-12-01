@@ -61,25 +61,21 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const isBB = (maTypeInput == "SMA + Bollinger Bands");
   const enableMA = (maTypeInput != "None");
   // Smoothing MA Calculation
-  ma(source, length, MAtype) = ;
-  ((() => {
-    switch (MAtype) {
-      case "SMA": return ta.sma(source, length);
-      case "SMA + Bollinger Bands": return ta.sma(source, length);
-      case "EMA": return ta.ema(source, length);
-      case "SMMA (RMA)": return ta.rma(source, length);
-      case "WMA": return ta.wma(source, length);
-      case "VWMA": return ta.vwma(source, length);
-    }
-  })() / );
-  Smoothing;
-  MA;
-  plots;
+  function ma(source: any, length: any, MAtype: any): any {
+    return (() => {
+      switch (MAtype) {
+        case "SMA": return ta.sma(source, length);
+        case "SMA + Bollinger Bands": return ta.sma(source, length);
+        case "EMA": return ta.ema(source, length);
+        case "SMMA (RMA)": return ta.rma(source, length);
+        case "WMA": return ta.wma(source, length);
+        case "VWMA": return ta.vwma(source, length);
+      }
+    })();
+  }
+  // Smoothing MA plots
   smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
   smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
-  bbUpperBand = ;
-  bbLowerBand = ;
-  fill(bbUpperBand, bbLowerBand, color = (isBB ? color.new("green", 90) : NaN), title = "Bollinger Bands Background Fill", display = (isBB ? display.all : display.none), editable = isBB);
   
   return {
     metadata: { title: "Indicator", overlay: false },

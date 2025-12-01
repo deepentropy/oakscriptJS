@@ -183,6 +183,12 @@ export class PineParser {
       // parseTupleDestructuring restores position internally if parsing fails
     }
 
+    // Try to parse function declaration: name(params) =>
+    const funcDecl = this.tryParseFunctionDeclaration();
+    if (funcDecl) {
+      return funcDecl;
+    }
+
     // Parse expressions/assignments
     return this.parseExpressionStatement();
   }
@@ -488,6 +494,101 @@ export class PineParser {
       type: 'VariableDeclaration',
       value: name,
       children: initializer ? [initializer] : [],
+    };
+  }
+
+  private tryParseFunctionDeclaration(): ASTNode | null {
+    const savedPosition = this.position;
+    const savedLine = this.line;
+    const savedColumn = this.column;
+
+    // Try to parse: functionName(param1, param2, ...) =>
+    this.skipWhitespace();
+    
+    // Must start with identifier
+    if (!this.isAlpha(this.peek())) {
+      return null;
+    }
+
+    const functionName = this.parseIdentifier();
+    this.skipWhitespace();
+
+    // Must have opening parenthesis
+    if (this.peek() !== '(') {
+      this.position = savedPosition;
+      this.line = savedLine;
+      this.column = savedColumn;
+      return null;
+    }
+
+    this.advance(); // skip '('
+
+    // Parse parameters - only simple identifiers are allowed
+    // If we find anything else, this is not a function declaration
+    const params: string[] = [];
+    while (this.peek() !== ')' && this.position < this.source.length) {
+      this.skipWhitespace();
+      if (this.peek() === ')') break;
+
+      // Parameters must be identifiers
+      if (!this.isAlpha(this.peek())) {
+        // Not a function declaration - restore position
+        this.position = savedPosition;
+        this.line = savedLine;
+        this.column = savedColumn;
+        return null;
+      }
+
+      const paramName = this.parseIdentifier();
+      params.push(paramName);
+
+      this.skipWhitespace();
+      if (this.peek() === ',') {
+        this.advance();
+      }
+    }
+
+    if (this.peek() !== ')') {
+      this.position = savedPosition;
+      this.line = savedLine;
+      this.column = savedColumn;
+      return null;
+    }
+
+    this.advance(); // skip ')'
+    this.skipWhitespace();
+
+    // Must have '=>' arrow
+    if (this.peek() !== '=' || this.peekNext() !== '>') {
+      this.position = savedPosition;
+      this.line = savedLine;
+      this.column = savedColumn;
+      return null;
+    }
+
+    this.advance(); // skip '='
+    this.advance(); // skip '>'
+    this.skipWhitespace();
+
+    // Parse function body
+    let body: ASTNode;
+    if (this.peek() === '\n') {
+      this.advance();
+      const bodyStatements = this.parseIndentedBlock();
+      body = {
+        type: 'Block',
+        children: bodyStatements,
+      };
+    } else {
+      // Single expression body
+      body = this.parseExpression();
+    }
+
+    return {
+      type: 'FunctionDeclaration',
+      value: functionName,
+      name: params.join(','), // Store params as comma-separated string
+      children: [body],
     };
   }
 
@@ -1068,6 +1169,11 @@ export class PineParser {
   private parsePrimary(): ASTNode {
     this.skipWhitespace();
 
+    // Hex color literal (#RRGGBB or #RRGGBBAA)
+    if (this.peek() === '#') {
+      return this.parseHexColor();
+    }
+
     // Number literal
     if (this.isDigit(this.peek()) || (this.peek() === '.' && this.isDigit(this.peekNext()))) {
       return this.parseNumber();
@@ -1325,6 +1431,21 @@ export class PineParser {
     };
   }
 
+  private parseHexColor(): ASTNode {
+    this.advance(); // skip '#'
+    let value = '#';
+    
+    // Parse hex digits (6 for RRGGBB or 8 for RRGGBBAA)
+    while (this.isHexDigit(this.peek()) && value.length <= 9) {
+      value += this.advance();
+    }
+
+    return {
+      type: 'StringLiteral',
+      value,
+    };
+  }
+
   private parseString(): ASTNode {
     const quote = this.advance();
     let value = '';
@@ -1368,6 +1489,10 @@ export class PineParser {
 
     const oneChar = this.peek();
     // Note: '?' and ':' are handled by ternary expression parsing, not here
+    // Don't treat '//' as division operator - it's a comment
+    if (oneChar === '/' && this.peekNext() === '/') {
+      return null;
+    }
     if (['+', '-', '*', '/', '%', '<', '>'].includes(oneChar)) {
       this.advance();
       return oneChar;
@@ -1418,6 +1543,10 @@ export class PineParser {
 
   private isDigit(char: string): boolean {
     return char >= '0' && char <= '9';
+  }
+
+  private isHexDigit(char: string): boolean {
+    return (char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F');
   }
 
   private isAlpha(char: string): boolean {

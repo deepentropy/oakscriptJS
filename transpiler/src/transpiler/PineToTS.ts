@@ -914,6 +914,10 @@ class CodeGenerator {
         // Already processed in collectInfo and generateUserDefinedTypes
         break;
 
+      case 'FunctionDeclaration':
+        this.generateFunctionDeclaration(node);
+        break;
+
       case 'VariableDeclaration':
         this.generateVariableDeclaration(node);
         break;
@@ -996,6 +1000,51 @@ class CodeGenerator {
     }
   }
 
+  private generateFunctionDeclaration(node: ASTNode): void {
+    const name = String(node.value || 'unknown');
+    const tsName = this.sanitizeIdentifier(name);
+    const paramsStr = String(node.name || '');
+    const params = paramsStr ? paramsStr.split(',').map(p => `${p.trim()}: any`).join(', ') : '';
+    
+    // Mark function as defined
+    this.variables.set(name, tsName);
+
+    // Generate function signature
+    this.emit(`function ${tsName}(${params}): any {`);
+    this.indent++;
+
+    // Generate function body
+    if (node.children && node.children.length > 0) {
+      const body = node.children[0]!;
+      if (body.type === 'Block' && body.children) {
+        // Check if this is a single expression block (like a switch expression)
+        if (body.children.length === 1) {
+          const singleChild = body.children[0]!;
+          // If it's an expression statement containing a switch or other expression, return it
+          if (singleChild.type === 'ExpressionStatement' && singleChild.children && singleChild.children.length > 0) {
+            const expr = this.generateExpression(singleChild.children[0]!);
+            this.emit(`return ${expr};`);
+          } else {
+            // Generate as a statement
+            this.generateStatement(singleChild);
+          }
+        } else {
+          // Multiple statements
+          for (const stmt of body.children) {
+            this.generateStatement(stmt);
+          }
+        }
+      } else {
+        // Single expression body - return it
+        const expr = this.generateExpression(body);
+        this.emit(`return ${expr};`);
+      }
+    }
+
+    this.indent--;
+    this.emit('}');
+  }
+
   private generateAssignment(node: ASTNode): void {
     if (!node.children || node.children.length < 2) return;
 
@@ -1019,12 +1068,19 @@ class CodeGenerator {
       const name = String(left.value || 'unknown');
       const tsName = this.sanitizeIdentifier(name);
       
+      const rightExpr = this.generateExpression(right);
+      
+      // Skip assignment if right side is empty (e.g., unsupported functions)
+      if (!rightExpr || rightExpr.trim() === '') {
+        // Comment it out instead
+        this.emit(`// ${tsName} = <unsupported>;`);
+        return;
+      }
+      
       if (!this.variables.has(name)) {
         this.variables.set(name, tsName);
-        const rightExpr = this.generateExpression(right);
         this.emit(`const ${tsName} = ${rightExpr};`);
       } else {
-        const rightExpr = this.generateExpression(right);
         this.emit(`${tsName} = ${rightExpr};`);
       }
     }
@@ -1316,6 +1372,10 @@ class CodeGenerator {
         if (node.children && node.children.length >= 2) {
           const left = this.generateExpression(node.children[0]!);
           const right = this.generateExpression(node.children[1]!);
+          // If right is empty (unsupported function), return empty to skip the whole statement
+          if (!right || right.trim() === '') {
+            return '';
+          }
           return `${left} = ${right}`;
         }
         return '';
@@ -1324,6 +1384,10 @@ class CodeGenerator {
         if (node.children && node.children.length >= 2) {
           const left = this.generateExpression(node.children[0]!);
           const right = this.generateExpression(node.children[1]!);
+          // If right is empty (unsupported function), return empty to skip the whole statement
+          if (!right || right.trim() === '') {
+            return '';
+          }
           return `${left} = ${right}`;
         }
         return '';
@@ -1526,8 +1590,14 @@ class CodeGenerator {
       return '';
     }
 
-    // Handle bgcolor function specially
-    if (name === 'bgcolor') {
+    // Handle unsupported display functions - skip them
+    const unsupportedDisplayFunctions = ['hline', 'bgcolor', 'fill', 'barcolor', 'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar'];
+    if (unsupportedDisplayFunctions.includes(name)) {
+      // Add a warning comment
+      this.warnings.push({
+        message: `Unsupported display function '${name}()' was skipped`,
+        line: 0,
+      });
       return '';
     }
 
@@ -1567,10 +1637,27 @@ class CodeGenerator {
     };
 
     // Check if this is a Series operation
-    if (this.isSeriesExpression(node.children[0]!) || this.isSeriesExpression(node.children[1]!)) {
+    const leftIsSeries = this.isSeriesExpression(node.children[0]!);
+    const rightIsSeries = this.isSeriesExpression(node.children[1]!);
+    
+    if (leftIsSeries || rightIsSeries) {
       const method = seriesOps[op];
       if (method) {
-        return `${left}.${method}(${right})`;
+        // Ensure the Series is on the left side of the method call
+        // For commutative operations (+ and *), we can swap if needed
+        // For non-commutative operations (-, /), we must keep the order
+        if (!leftIsSeries && rightIsSeries) {
+          // Only swap for commutative operations
+          if (op === '+' || op === '*') {
+            return `${right}.${method}(${left})`;
+          }
+          // For non-commutative operations with literal on left and series on right,
+          // we cannot simply swap. Fall through to use regular operators.
+          // This shouldn't happen in typical PineScript, but if it does,
+          // use standard JS operators
+        } else {
+          return `${left}.${method}(${right})`;
+        }
       }
     }
 
