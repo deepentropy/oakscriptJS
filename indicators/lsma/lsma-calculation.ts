@@ -25,7 +25,7 @@ export function calculateLSMA(
   const src = getSourceSeries(bars, source);
   const srcArray = src.toArray();
 
-  // Calculate LSMA using core ta.linreg
+  // Calculate LSMA using taCore.linreg (linreg is only available in core ta module, not in Series-based ta)
   const lsmaValues = taCore.linreg(srcArray, length, offset);
 
   // Convert to time-value pairs
