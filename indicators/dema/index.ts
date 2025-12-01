@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  DEMAIndicator,
-  type DEMAInputs,
+  Double_EMAIndicator as DEMAIndicator,
+  type Double_EMAInputs as DEMAInputs,
 } from './dema';
 
 export { calculateDEMA } from './dema-calculation';
