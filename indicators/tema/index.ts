@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  TEMAIndicator,
-  type TEMAInputs,
+  Triple_EMAIndicator as TEMAIndicator,
+  type Triple_EMAInputs as TEMAInputs,
 } from './tema';
 
 export { calculateTEMA } from './tema-calculation';

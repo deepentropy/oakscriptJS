@@ -8,8 +8,8 @@ export {
   inputConfig,
   plotConfig,
   calculate,
-  MassIndexIndicator,
-  type MassIndexInputs,
+  Mass_IndexIndicator as MassIndexIndicator,
+  type Mass_IndexInputs as MassIndexInputs,
 } from './mass-index';
 
 export { calculateMassIndex } from './mass-index-calculation';

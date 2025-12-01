@@ -67,6 +67,7 @@ class CodeGenerator {
   private indicatorTitle: string = 'Indicator';
   private indicatorOverlay: boolean = false;
   private variables: Map<string, string> = new Map();
+  private seriesVariables: Set<string> = new Set();  // Track which variables are Series
   private plots: string[] = [];
   private inputs: InputDefinition[] = [];
   private usesSyminfo: boolean = false;
@@ -144,9 +145,11 @@ class CodeGenerator {
     this.emit(`export function ${funcName}(${params}): IndicatorResult {`);
     this.indent++;
 
-    // Destructure inputs if any
+    // Destructure inputs if any (but don't map source inputs yet)
     if (this.inputs.length > 0) {
-      this.generateInputsDestructuring();
+      const inputNames = this.inputs.map(i => i.name).join(', ');
+      this.emit(`const { ${inputNames} } = { ...defaultInputs, ...inputs };`);
+      this.emit('');
     }
 
     // Generate syminfo setup if used
@@ -167,6 +170,13 @@ class CodeGenerator {
     this.emit("const close = new Series(bars, (bar) => bar.close);");
     this.emit("const volume = new Series(bars, (bar) => bar.volume);");
     this.emit('');
+    
+    // Mark these as Series variables
+    this.seriesVariables.add('open');
+    this.seriesVariables.add('high');
+    this.seriesVariables.add('low');
+    this.seriesVariables.add('close');
+    this.seriesVariables.add('volume');
 
     // Generate calculated price sources
     this.emit('// Calculated price sources');
@@ -175,6 +185,17 @@ class CodeGenerator {
     this.emit('const ohlc4 = open.add(high).add(low).add(close).div(4);');
     this.emit('const hlcc4 = high.add(low).add(close).add(close).div(4);');
     this.emit('');
+    
+    // Mark calculated sources as Series
+    this.seriesVariables.add('hl2');
+    this.seriesVariables.add('hlc3');
+    this.seriesVariables.add('ohlc4');
+    this.seriesVariables.add('hlcc4');
+
+    // Now map source inputs to Series (after Series are created)
+    if (this.inputs.length > 0) {
+      this.generateSourceInputMapping();
+    }
 
     // Generate time series
     this.emit('// Time series');
@@ -205,6 +226,39 @@ class CodeGenerator {
 
     this.indent--;
     this.emit('}');
+    
+    // Generate additional exports for compatibility
+    this.emit('');
+    this.emit('// Additional exports for compatibility');
+    this.emit(`export const metadata = { title: "${this.indicatorTitle}", overlay: ${this.indicatorOverlay} };`);
+    
+    if (this.inputs.length > 0) {
+      this.emit('export { defaultInputs };');
+      this.emit('export const inputConfig = defaultInputs;');
+    } else {
+      // Export empty objects even when there are no inputs for consistency
+      this.emit('export const defaultInputs = {};');
+      this.emit('export const inputConfig = {};');
+    }
+    
+    this.emit('export const plotConfig = {};');
+    this.emit(`export const calculate = ${funcName};`);
+    
+    // Export with indicator-specific name (e.g., MomentumIndicator)
+    // Use the indicator title as the base name
+    const indicatorBaseName = this.sanitizeIdentifier(this.indicatorTitle);
+    const indicatorClassName = `${indicatorBaseName}Indicator`;
+    this.emit(`export { ${funcName} as ${indicatorClassName} };`);
+    
+    // Export type alias with indicator-specific name (e.g., MomentumInputs)
+    if (this.inputs.length > 0) {
+      const inputsTypeName = `${indicatorBaseName}Inputs`;
+      this.emit(`export type ${inputsTypeName} = IndicatorInputs;`);
+    } else {
+      // Export empty type for consistency
+      const inputsTypeName = `${indicatorBaseName}Inputs`;
+      this.emit(`export type ${inputsTypeName} = Record<string, never>;`);
+    }
 
     return this.output.join('\n');
   }
@@ -467,10 +521,38 @@ class CodeGenerator {
     return params.join(', ');
   }
 
-  private generateInputsDestructuring(): void {
-    const inputNames = this.inputs.map(i => i.name).join(', ');
-    this.emit(`const { ${inputNames} } = { ...defaultInputs, ...inputs };`);
-    this.emit('');
+  private generateSourceInputMapping(): void {
+    // Map source-type inputs to their corresponding Series
+    const sourceInputs = this.inputs.filter(i => i.inputType === 'source');
+    if (sourceInputs.length > 0) {
+      this.emit('// Map source inputs to Series');
+      for (const input of sourceInputs) {
+        const varName = this.sanitizeIdentifier(input.name);
+        const seriesVarName = `${varName}Series`;
+        this.emit(`const ${seriesVarName} = (() => {`);
+        this.indent++;
+        this.emit(`switch (${varName}) {`);
+        this.indent++;
+        this.emit(`case "open": return open;`);
+        this.emit(`case "high": return high;`);
+        this.emit(`case "low": return low;`);
+        this.emit(`case "close": return close;`);
+        this.emit(`case "hl2": return hl2;`);
+        this.emit(`case "hlc3": return hlc3;`);
+        this.emit(`case "ohlc4": return ohlc4;`);
+        this.emit(`case "hlcc4": return hlcc4;`);
+        this.emit(`default: return close;`);
+        this.indent--;
+        this.emit(`}`);
+        this.indent--;
+        this.emit(`})();`);
+        // Update the variable mapping so references to this variable use the Series version
+        this.variables.set(input.name, seriesVarName);
+        // Mark this as a Series variable
+        this.seriesVariables.add(seriesVarName);
+      }
+      this.emit('');
+    }
   }
 
   private generateSyminfoSetup(): void {
@@ -553,16 +635,25 @@ class CodeGenerator {
     if (!node) return;
 
     if (node.type === 'IndicatorDeclaration') {
-      // Extract indicator title from first string argument
+      // Extract indicator title and overlay from arguments
       if (node.children && node.children.length > 0) {
-        const firstArg = node.children[0];
-        if (firstArg && firstArg.type === 'StringLiteral' && typeof firstArg.value === 'string') {
-          this.indicatorTitle = firstArg.value;
+        // First check for positional argument (first child might be a StringLiteral)
+        const firstChild = node.children[0];
+        if (firstChild?.type === 'StringLiteral') {
+          this.indicatorTitle = String(firstChild.value || 'Indicator');
         }
-        // Check for overlay argument
+        
+        // Then check for named arguments (these override positional)
         for (const arg of node.children) {
-          if (arg && arg.type === 'Assignment') {
-            // Handle overlay=true
+          if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
+            const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
+            const paramValue = arg.children[1];
+            
+            if (paramName === 'title' && paramValue?.type === 'StringLiteral') {
+              this.indicatorTitle = String(paramValue.value || 'Indicator');
+            } else if (paramName === 'overlay' && paramValue?.type === 'Identifier') {
+              this.indicatorOverlay = String(paramValue.value) === 'true';
+            }
           }
         }
       }
@@ -686,7 +777,7 @@ class CodeGenerator {
         const right = expr.children[1];
         if (left && left.type === 'Identifier' && right && right.type === 'FunctionCall') {
           const funcName = String(right.value || '');
-          if (funcName.startsWith('input.')) {
+          if (funcName === 'input' || funcName.startsWith('input.')) {
             const varName = String(left.value || '');
             // Check if we already have this input to avoid duplicates
             if (!this.inputs.some(i => i.name === varName)) {
@@ -727,6 +818,7 @@ class CodeGenerator {
 
   private parseInputFunction(varName: string, funcName: string, args: ASTNode[]): InputDefinition | null {
     const inputTypeMap: Record<string, InputDefinition['inputType']> = {
+      'input': 'source',  // Plain input() defaults to source
       'input.int': 'int',
       'input.float': 'float',
       'input.bool': 'bool',
@@ -930,11 +1022,14 @@ class CodeGenerator {
             const right = child.children[1];
             if (right && right.type === 'FunctionCall') {
               const funcName = String(right.value || '');
-              if (funcName.startsWith('input.')) {
+              if (funcName === 'input' || funcName.startsWith('input.')) {
                 // Skip - handled as function parameter
                 return;
               }
             }
+            // Handle other assignments by calling generateAssignment
+            this.generateAssignment(child);
+            return;
           }
           const expr = this.generateExpression(child);
           if (expr) {
@@ -1054,7 +1149,7 @@ class CodeGenerator {
     // Skip input.* function assignments - they're handled as function parameters
     if (right.type === 'FunctionCall') {
       const funcName = String(right.value || '');
-      if (funcName.startsWith('input.')) {
+      if (funcName === 'input' || funcName.startsWith('input.')) {
         // Mark this variable as defined (it's a function parameter)
         if (left.type === 'Identifier') {
           const name = String(left.value || 'unknown');
@@ -1077,9 +1172,16 @@ class CodeGenerator {
         return;
       }
       
+      // Check if the right side is a Series expression
+      const rightIsSeries = this.isSeriesExpression(right);
+      
       if (!this.variables.has(name)) {
         this.variables.set(name, tsName);
         this.emit(`const ${tsName} = ${rightExpr};`);
+        // If assigning a Series expression, mark this variable as a Series
+        if (rightIsSeries) {
+          this.seriesVariables.add(tsName);
+        }
       } else {
         this.emit(`${tsName} = ${rightExpr};`);
       }
@@ -1585,7 +1687,7 @@ class CodeGenerator {
       const seriesArg = node.children?.[0];
       if (seriesArg) {
         const seriesName = this.generateExpression(seriesArg);
-        this.plots.push(`{ data: ${seriesName}.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }`);
+        this.plots.push(`{ data: ${seriesName}.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }`);
       }
       return '';
     }
@@ -1602,7 +1704,7 @@ class CodeGenerator {
     }
 
     // Handle input.* functions - return variable name since already extracted
-    if (name.startsWith('input.')) {
+    if (name === 'input' || name.startsWith('input.')) {
       // This should not typically happen since input calls are processed at assignment level
       // But if it does, return empty string
       return '';
@@ -1678,13 +1780,29 @@ class CodeGenerator {
     
     if (node.type === 'Identifier') {
       const name = String(node.value || '');
-      // Include OHLCV and calculated price sources
+      // Check if this identifier is marked as a Series variable
+      // First check the mapped name (in case it was remapped)
+      const mappedName = this.variables.get(name) || name;
+      if (this.seriesVariables.has(mappedName)) {
+        return true;
+      }
+      // Also check the original name for built-in series
       return ['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'].includes(name);
     }
     
     if (node.type === 'FunctionCall') {
       const name = String(node.value || '');
       return name.startsWith('ta.') || name.startsWith('taCore.');
+    }
+    
+    if (node.type === 'HistoryAccess') {
+      // History access (e.g., src[1]) returns a Series element, but the base should be a Series
+      return true;
+    }
+    
+    if (node.type === 'BinaryExpression') {
+      // Binary expressions on Series return Series
+      return true;
     }
     
     return false;
@@ -1702,6 +1820,11 @@ class CodeGenerator {
 
     if (builtins[name]) {
       return builtins[name];
+    }
+
+    // Check if variable has been mapped (e.g., source inputs mapped to Series)
+    if (this.variables.has(name)) {
+      return this.variables.get(name)!;
     }
 
     return this.sanitizeIdentifier(name);

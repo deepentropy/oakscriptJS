@@ -17,7 +17,7 @@ const defaultInputs: IndicatorInputs = {
   length: 10,
 };
 
-export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
   const { length } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
@@ -45,11 +45,20 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  span = high.sub(low);
-  mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
+  const span = high.sub(low);
+  const mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: mi.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Mass Index", overlay: false },
+    plots: [{ data: mi.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Mass Index", overlay: false };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Mass_Index;
+export { Mass_Index as Mass_IndexIndicator };
+export type Mass_IndexInputs = IndicatorInputs;

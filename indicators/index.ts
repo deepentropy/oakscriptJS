@@ -14,7 +14,7 @@ export * as tema from './tema';
 export * as roc from './roc';
 export * as adr from './adr';
 export * as massIndex from './mass-index';
-export * as mcginleyDynamic from './mcginley-dynamic';
+export * as mcginleyDynamic from './mc-ginley-dynamic';
 export * as hma from './hma';
 export * as lsma from './lsma';
 
@@ -27,7 +27,7 @@ import * as temaIndicator from './tema';
 import * as rocIndicator from './roc';
 import * as adrIndicator from './adr';
 import * as massIndexIndicator from './mass-index';
-import * as mcginleyDynamicIndicator from './mcginley-dynamic';
+import * as mcginleyDynamicIndicator from './mc-ginley-dynamic';
 import * as hmaIndicator from './hma';
 import * as lsmaIndicator from './lsma';
 
@@ -40,7 +40,7 @@ export { TEMAIndicator } from './tema';
 export { ROCIndicator } from './roc';
 export { ADRIndicator } from './adr';
 export { MassIndexIndicator } from './mass-index';
-export { McGinleyDynamicIndicator } from './mcginley-dynamic';
+export { McGinleyDynamicIndicator } from './mc-ginley-dynamic';
 export { HMAIndicator } from './hma';
 export { LSMAIndicator } from './lsma';
 
@@ -192,7 +192,7 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     calculate: massIndexIndicator.calculate,
   },
   {
-    id: 'mcginley-dynamic',
+    id: 'mc-ginley-dynamic',
     name: 'McGinley Dynamic',
     shortName: 'MGD',
     description: 'A dynamic moving average that automatically adjusts to market speed and reduces price separation.',

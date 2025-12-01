@@ -17,7 +17,7 @@ const defaultInputs: IndicatorInputs = {
   length: 9,
 };
 
-export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
   const { length } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
@@ -45,13 +45,22 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  ema1 = ta.ema(close, length);
-  ema2 = ta.ema(ema1, length);
-  ema3 = ta.ema(ema2, length);
-  out = ((3 * (ema1 - ema2)) + ema3);
+  const ema1 = ta.ema(close, length);
+  const ema2 = ta.ema(ema1, length);
+  const ema3 = ta.ema(ema2, length);
+  const out = ema1.sub(ema2).mul(3).add(ema3);
   
   return {
-    metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: out.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    metadata: { title: "Triple EMA", overlay: true },
+    plots: [{ data: out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
   };
 }
+
+// Additional exports for compatibility
+export const metadata = { title: "Triple EMA", overlay: true };
+export { defaultInputs };
+export const inputConfig = defaultInputs;
+export const plotConfig = {};
+export const calculate = Triple_EMA;
+export { Triple_EMA as Triple_EMAIndicator };
+export type Triple_EMAInputs = IndicatorInputs;
