@@ -14,7 +14,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateDEMA } from './dema-calculation';
 
 /**
@@ -95,3 +95,16 @@ export function calculate(bars: Bar[], inputs: Partial<DEMAInputs> = {}) {
     },
   };
 }
+
+/**
+ * Double EMA Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (price chart)
+ */
+export const DEMAIndicator = indicator({
+  title: 'Double EMA',
+  shortTitle: 'DEMA',
+  overlay: true,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

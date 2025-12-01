@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  ADRIndicator,
   type ADRInputs,
 } from './adr';
 

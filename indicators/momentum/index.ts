@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  MomentumIndicator,
   type MomentumInputs,
 } from './momentum';
 

@@ -5,7 +5,7 @@
 
 import type { Bar } from '@deepentropy/oakscriptjs';
 
-// Export all indicators
+// Export all indicators as namespaces
 export * as sma from './sma';
 export * as momentum from './momentum';
 export * as bop from './bop';
@@ -30,6 +30,19 @@ import * as massIndexIndicator from './mass-index';
 import * as mcginleyDynamicIndicator from './mcginley-dynamic';
 import * as hmaIndicator from './hma';
 import * as lsmaIndicator from './lsma';
+
+// Export indicator classes using the new indicator() pattern
+export { SMAIndicator } from './sma';
+export { MomentumIndicator } from './momentum';
+export { BOPIndicator } from './bop';
+export { DEMAIndicator } from './dema';
+export { TEMAIndicator } from './tema';
+export { ROCIndicator } from './roc';
+export { ADRIndicator } from './adr';
+export { MassIndexIndicator } from './mass-index';
+export { McGinleyDynamicIndicator } from './mcginley-dynamic';
+export { HMAIndicator } from './hma';
+export { LSMAIndicator } from './lsma';
 
 /**
  * Input configuration type

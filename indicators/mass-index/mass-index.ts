@@ -12,7 +12,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateMassIndex } from './mass-index-calculation';
 
 /**
@@ -84,3 +84,18 @@ export function calculate(bars: Bar[], inputs: Partial<MassIndexInputs> = {}) {
     },
   };
 }
+
+/**
+ * Mass Index Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (separate pane)
+ */
+export const MassIndexIndicator = indicator({
+  title: 'Mass Index',
+  shortTitle: 'MI',
+  overlay: false,
+  format: 'price',
+  precision: 2,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

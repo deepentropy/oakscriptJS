@@ -9,7 +9,7 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateBOP } from './bop-calculation';
 
 /**
@@ -75,3 +75,18 @@ export function calculate(bars: Bar[], _inputs: Partial<BOPInputs> = {}) {
     },
   };
 }
+
+/**
+ * Balance of Power Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting (separate pane)
+ */
+export const BOPIndicator = indicator({
+  title: 'Balance of Power',
+  shortTitle: 'BOP',
+  overlay: false,
+  format: 'price',
+  precision: 2,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});

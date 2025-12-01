@@ -13,14 +13,14 @@
  * ```
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import { indicator, type Bar } from '@deepentropy/oakscriptjs';
 import { calculateSMA } from './sma-calculation';
 
 /**
  * Indicator metadata
  */
 export const metadata = {
-  title: 'Moving Average Simple',
+  title: 'Simple Moving Average',
   shortTitle: 'SMA',
   overlay: true,
 };
@@ -105,3 +105,16 @@ export function calculate(bars: Bar[], inputs: Partial<SMAInputs> = {}) {
     },
   };
 }
+
+/**
+ * SMA Indicator using the new indicator() pattern
+ * Provides automatic pane management based on overlay setting
+ */
+export const SMAIndicator = indicator({
+  title: 'Simple Moving Average',
+  shortTitle: 'SMA',
+  overlay: true,
+}, (_ctx) => {
+  // The setup function is called during calculate()
+  // Actual calculation is done via the calculate() function above
+});
