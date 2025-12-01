@@ -98,14 +98,14 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
     })();
   }
   // Smoothing MA plots
-  const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
-  const smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
+  const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : new Series(bars, () => NaN));
+  const smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : new Series(bars, () => NaN));
   // bbUpperBand = <unsupported>;
   // bbLowerBand = <unsupported>;
   
   return {
     metadata: { title: "Moving Average Simple", shorttitle: "SMA", overlay: true },
-    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot1': smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot2': (smoothingMA + smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot3': (smoothingMA - smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
+    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot1': smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot2': smoothingMA.add(smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot3': smoothingMA.sub(smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 

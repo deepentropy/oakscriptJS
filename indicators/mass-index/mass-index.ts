@@ -54,7 +54,7 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   
   // @version=6
   const span = high.sub(low);
-  const mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
+  const mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length) as Series;
   
   return {
     metadata: { title: "Mass Index", shorttitle: "Mass Index", overlay: false },
