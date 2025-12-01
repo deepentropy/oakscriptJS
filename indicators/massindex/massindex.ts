@@ -14,7 +14,7 @@ export interface IndicatorInputs {
 }
 
 const defaultInputs: IndicatorInputs = {
-  length: 9,
+  length: 10,
 };
 
 export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
@@ -45,13 +45,11 @@ export function Indicator(bars: any[], inputs: Partial<IndicatorInputs> = {}): I
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  src = input(close, title = "Source");
-  e1 = ta.ema(src, length);
-  e2 = ta.ema(e1, length);
-  dema = ((2 * e1) - e2);
+  span = high.sub(low);
+  mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
   
   return {
     metadata: { title: "Indicator", overlay: false },
-    plots: [{ data: dema.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
+    plots: [{ data: mi.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
   };
 }
