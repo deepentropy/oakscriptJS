@@ -12,6 +12,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "indicators/**/*.ts"],
+  "include": ["src/**/*.ts", "../indicators/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

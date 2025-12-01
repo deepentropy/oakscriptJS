@@ -2,3 +2,4 @@ packages:
   - 'transpiler'
   - 'oakscriptjs'
   - 'example'
+  - 'indicators'
