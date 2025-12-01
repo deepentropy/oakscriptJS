@@ -1489,6 +1489,10 @@ export class PineParser {
 
     const oneChar = this.peek();
     // Note: '?' and ':' are handled by ternary expression parsing, not here
+    // Don't treat '//' as division operator - it's a comment
+    if (oneChar === '/' && this.peekNext() === '/') {
+      return null;
+    }
     if (['+', '-', '*', '/', '%', '<', '>'].includes(oneChar)) {
       this.advance();
       return oneChar;
