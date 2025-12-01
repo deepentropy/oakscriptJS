@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  TEMAIndicator,
   type TEMAInputs,
 } from './tema';
 
