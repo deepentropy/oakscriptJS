@@ -13,7 +13,11 @@ console.log(`Found ${pineFiles.length} PineScript files to transpile`);
 
 for (const pineFile of pineFiles) {
   const baseName = path.basename(pineFile, '.pine');
-  const indicatorName = baseName.toLowerCase().replace(/\s+/g, '-');
+  // Convert to kebab-case: replace spaces first, then handle camelCase
+  const indicatorName = baseName
+    .replace(/\s+/g, '-')                     // Replace spaces with hyphens first
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')  // Insert hyphen between lowercase/digit and uppercase
+    .toLowerCase();
   const outputDir = path.join(INDICATORS_DIR, indicatorName);
   
   console.log(`Transpiling ${pineFile} -> ${indicatorName}/`);
