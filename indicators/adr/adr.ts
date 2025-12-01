@@ -56,13 +56,13 @@ export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> 
   const adr = ta.sma(high.sub(low), lengthInput);
   
   return {
-    metadata: { title: "Average Day Range", overlay: false },
+    metadata: { title: "Average Day Range", shorttitle: "ADR", overlay: false },
     plots: { 'plot0': adr.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Average Day Range", overlay: false };
+export const metadata = { title: "Average Day Range", shortTitle: "ADR", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'ADR', color: '#2962FF', lineWidth: 2 }];

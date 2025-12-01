@@ -75,13 +75,13 @@ export function Double_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const dema = e1.mul(2).sub(e2);
   
   return {
-    metadata: { title: "Double EMA", overlay: true },
+    metadata: { title: "Double EMA", shorttitle: "DEMA", overlay: true },
     plots: { 'plot0': dema.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Double EMA", overlay: true };
+export const metadata = { title: "Double EMA", shortTitle: "DEMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'dema', color: '#43A047', lineWidth: 2 }];

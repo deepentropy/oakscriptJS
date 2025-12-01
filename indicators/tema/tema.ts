@@ -59,13 +59,13 @@ export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const out = ema1.sub(ema2).mul(3).add(ema3);
   
   return {
-    metadata: { title: "Triple EMA", overlay: true },
+    metadata: { title: "Triple EMA", shorttitle: "TEMA", overlay: true },
     plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Triple EMA", overlay: true };
+export const metadata = { title: "Triple EMA", shortTitle: "TEMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'out', color: '#2962FF', lineWidth: 2 }];

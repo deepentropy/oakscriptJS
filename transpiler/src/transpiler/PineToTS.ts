@@ -65,6 +65,7 @@ class CodeGenerator {
   private output: string[] = [];
   private indent: number = 0;
   private indicatorTitle: string = 'Indicator';
+  private indicatorShortTitle: string = '';
   private indicatorOverlay: boolean = false;
   private variables: Map<string, string> = new Map();
   private seriesVariables: Set<string> = new Set();  // Track which variables are Series
@@ -231,7 +232,7 @@ class CodeGenerator {
     this.emit('');
     this.emit('return {');
     this.indent++;
-    this.emit(`metadata: { title: "${this.indicatorTitle}", overlay: ${this.indicatorOverlay} },`);
+    this.emit(`metadata: { title: "${this.indicatorTitle}", shorttitle: "${this.indicatorShortTitle}", overlay: ${this.indicatorOverlay} },`);
     
     // Generate plots as Record<string, PlotData[]>
     if (this.plotConfigs.length > 0) {
@@ -253,7 +254,7 @@ class CodeGenerator {
     // Generate additional exports for compatibility
     this.emit('');
     this.emit('// Additional exports for compatibility');
-    this.emit(`export const metadata = { title: "${this.indicatorTitle}", overlay: ${this.indicatorOverlay} };`);
+    this.emit(`export const metadata = { title: "${this.indicatorTitle}", shortTitle: "${this.indicatorShortTitle}", overlay: ${this.indicatorOverlay} };`);
     
     if (this.inputs.length > 0) {
       this.emit('export { defaultInputs };');
@@ -684,10 +685,17 @@ class CodeGenerator {
             
             if (paramName === 'title' && paramValue?.type === 'StringLiteral') {
               this.indicatorTitle = String(paramValue.value || 'Indicator');
+            } else if (paramName === 'shorttitle' && paramValue?.type === 'StringLiteral') {
+              this.indicatorShortTitle = String(paramValue.value || '');
             } else if (paramName === 'overlay' && paramValue?.type === 'Identifier') {
               this.indicatorOverlay = String(paramValue.value) === 'true';
             }
           }
+        }
+        
+        // If shortTitle not provided, use the title
+        if (!this.indicatorShortTitle) {
+          this.indicatorShortTitle = this.indicatorTitle;
         }
       }
     }

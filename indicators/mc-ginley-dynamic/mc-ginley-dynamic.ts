@@ -58,13 +58,13 @@ export function McGinley_Dynamic(bars: any[], inputs: Partial<IndicatorInputs> =
   mg = (na(mg.get(1)) ? ta.ema(source, length) : mg.get(1).add(source.sub(mg.get(1))).div((length * math.pow(source.div(mg.get(1)), 4))));
   
   return {
-    metadata: { title: "McGinley Dynamic", overlay: true },
+    metadata: { title: "McGinley Dynamic", shorttitle: "McGinley Dynamic", overlay: true },
     plots: { 'plot0': mg.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "McGinley Dynamic", overlay: true };
+export const metadata = { title: "McGinley Dynamic", shortTitle: "McGinley Dynamic", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'mg', color: '#2962FF', lineWidth: 2 }];
