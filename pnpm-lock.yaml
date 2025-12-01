@@ -12,26 +12,7 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
-  packages/oakscript-engine:
-    dependencies:
-      '@deepentropy/oakscriptjs':
-        specifier: workspace:*
-        version: link:../oakscriptjs
-    devDependencies:
-      rimraf:
-        specifier: ^6.1.0
-        version: 6.1.2
-      tsup:
-        specifier: ^8.0.0
-        version: 8.5.1(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1
-
-  packages/oakscriptjs:
+  oakscriptjs:
     devDependencies:
       '@types/jest':
         specifier: ^29.5.11
@@ -69,6 +50,25 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  transpiler:
+    dependencies:
+      '@deepentropy/oakscriptjs':
+        specifier: workspace:*
+        version: link:../oakscriptjs
+    devDependencies:
+      rimraf:
+        specifier: ^6.1.0
+        version: 6.1.2
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1
 
 packages:
 

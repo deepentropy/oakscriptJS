@@ -8,8 +8,8 @@ This monorepo contains the OakScript ecosystem for running PineScript-like code 
 
 | Package | Description | Version |
 |---------|-------------|---------|
-| [`@deepentropy/oakscriptjs`](./packages/oakscriptjs) | Technical analysis library with Series-based API | 0.3.0 |
-| [`@deepentropy/oakscript-engine`](./packages/oakscript-engine) | PineScript to TypeScript transpiler | 0.3.0 |
+| [`@deepentropy/oakscriptjs`](./oakscriptjs) | Technical analysis library with Series-based API | 0.3.0 |
+| [`@deepentropy/oakscript-engine`](./transpiler) | PineScript to TypeScript transpiler | 0.3.0 |
 
 ## Quick Start
 
@@ -83,24 +83,22 @@ pnpm --filter @deepentropy/oakscriptjs lint
 
 ```
 oakscript/
-├── packages/
-│   ├── oakscriptjs/           # @deepentropy/oakscriptjs
-│   │   ├── src/
-│   │   │   ├── ta/            # Technical analysis functions
-│   │   │   ├── math/          # Math functions
-│   │   │   ├── array/         # Array functions
-│   │   │   ├── runtime/       # Series class
-│   │   │   └── ...
-│   │   ├── tests/
-│   │   └── package.json
-│   │
-│   └── oakscript-engine/      # @deepentropy/oakscript-engine
-│       ├── src/
-│       │   └── transpiler/    # PineScript parser and code generator
-│       ├── bin/
-│       │   └── pine2ts.js     # CLI tool
-│       ├── examples/
-│       └── package.json
+├── transpiler/                # @deepentropy/oakscript-engine
+│   ├── src/
+│   │   └── transpiler/        # PineScript parser and code generator
+│   ├── bin/
+│   │   └── pine2ts.js         # CLI tool
+│   └── package.json
+│
+├── oakscriptjs/               # @deepentropy/oakscriptjs
+│   ├── src/
+│   │   ├── ta/                # Technical analysis functions
+│   │   ├── math/              # Math functions
+│   │   ├── array/             # Array functions
+│   │   ├── runtime/           # Series class
+│   │   └── ...
+│   ├── tests/
+│   └── package.json
 │
 ├── docs/                      # Shared documentation
 ├── .github/workflows/         # CI/CD pipelines
@@ -129,8 +127,8 @@ oakscript/
 
 ## Documentation
 
-- [OakScriptJS Guide](./packages/oakscriptjs/README.md)
-- [Transpiler CLI](./packages/oakscript-engine/README.md)
+- [OakScriptJS Guide](./oakscriptjs/README.md)
+- [Transpiler CLI](./transpiler/README.md)
 - [Function Inventory](./INVENTORY.md)
 - [Complete Guide](./GUIDE.md)
 
