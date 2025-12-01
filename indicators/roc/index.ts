@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  ROCIndicator,
   type ROCInputs,
 } from './roc';
 

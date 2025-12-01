@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  DEMAIndicator,
   type DEMAInputs,
 } from './dema';
 

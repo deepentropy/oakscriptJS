@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  SMAIndicator,
   type SMAInputs,
 } from './sma';
 

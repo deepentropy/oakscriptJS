@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  LSMAIndicator,
   type LSMAInputs,
 } from './lsma';
 

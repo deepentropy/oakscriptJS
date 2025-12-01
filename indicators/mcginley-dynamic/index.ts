@@ -8,6 +8,7 @@ export {
   inputConfig,
   plotConfig,
   calculate,
+  McGinleyDynamicIndicator,
   type McGinleyDynamicInputs,
 } from './mcginley-dynamic';
 
