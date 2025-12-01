@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   length: number;
 }
@@ -25,7 +33,7 @@ export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -52,15 +60,15 @@ export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   
   return {
     metadata: { title: "Triple EMA", overlay: true },
-    plots: [{ data: out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Triple EMA", shortTitle: "TEMA", overlay: true };
+export const metadata = { title: "Triple EMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'out', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Triple_EMA;
 export { Triple_EMA as Triple_EMAIndicator };
 export type Triple_EMAInputs = IndicatorInputs;

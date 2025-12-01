@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   lengthInput: number;
 }
@@ -25,7 +33,7 @@ export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> 
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -49,15 +57,15 @@ export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> 
   
   return {
     metadata: { title: "Average Day Range", overlay: false },
-    plots: [{ data: adr.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    plots: { 'plot0': adr.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Average Day Range", shortTitle: "ADR", overlay: false };
+export const metadata = { title: "Average Day Range", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'ADR', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Average_Day_Range;
 export { Average_Day_Range as Average_Day_RangeIndicator };
 export type Average_Day_RangeInputs = IndicatorInputs;

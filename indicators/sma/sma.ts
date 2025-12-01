@@ -9,6 +9,14 @@ function nz(value: number | null | undefined, replacement: number = 0): number {
   return na(value) ? replacement : value as number;
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
 export interface IndicatorInputs {
   len: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -35,7 +43,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
+  const volume = new Series(bars, (bar) => bar.volume);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -85,7 +93,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
         case "EMA": return ta.ema(source, length);
         case "SMMA (RMA)": return ta.rma(source, length);
         case "WMA": return ta.wma(source, length);
-        case "VWMA": return ta.vwma(source, length, volume);
+        case "VWMA": return ta.vwma(source, length);
       }
     })();
   }
@@ -95,33 +103,17 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   // bbUpperBand = <unsupported>;
   // bbLowerBand = <unsupported>;
   
-  // Helper to convert NaN or Series to data array
-  const toPlotData = (series: any) => {
-    if (typeof series === 'number' && isNaN(series)) {
-      return bars.map((bar) => ({ time: bar.time, value: NaN }));
-    }
-    return series.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN }));
-  };
-  
-  const bbUpper = (isBB && typeof smoothingMA !== 'number') ? smoothingMA.add(smoothingStDev) : NaN;
-  const bbLower = (isBB && typeof smoothingMA !== 'number') ? smoothingMA.sub(smoothingStDev) : NaN;
-  
   return {
     metadata: { title: "Moving Average Simple", overlay: true },
-    plots: [
-      { data: toPlotData(out) },
-      { data: toPlotData(smoothingMA) },
-      { data: toPlotData(bbUpper) },
-      { data: toPlotData(bbLower) }
-    ],
+    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot1': smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot2': (smoothingMA + smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot3': (smoothingMA - smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Moving Average Simple", shortTitle: "SMA", overlay: true };
+export const metadata = { title: "Moving Average Simple", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
-export const plotConfig = {};
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MA', color: '#2962FF', lineWidth: 2 }, { id: 'plot1', title: 'smoothingMA', color: '#FFFF00', lineWidth: 2 }, { id: 'plot2', title: 'Upper Bollinger Band', color: '#00FF00', lineWidth: 2 }, { id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2 }];
 export const calculate = Moving_Average_Simple;
 export { Moving_Average_Simple as Moving_Average_SimpleIndicator };
 export type Moving_Average_SimpleInputs = IndicatorInputs;
