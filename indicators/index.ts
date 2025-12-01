@@ -74,7 +74,14 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     defaultInputs: { ...smaIndicator.defaultInputs },
     calculate: smaIndicator.calculate,
   },
-  // Future indicators will be added here:
-  // export { RSIIndicator } from './rsi';
-  // export { MACDIndicator } from './macd';
+  // Future indicators will be added here as new registry entries
+  // Example:
+  // {
+  //   id: 'rsi',
+  //   name: 'Relative Strength Index (RSI)',
+  //   shortName: 'RSI',
+  //   overlay: false,
+  //   metadata: rsiIndicator.metadata,
+  //   ...
+  // },
 ];
