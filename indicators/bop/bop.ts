@@ -1,99 +1,43 @@
-/**
- * Balance of Power (BOP) Indicator
- * 
- * Transpiled from PineScript:
- * ```pine
- * //@version=6
- * indicator(title="Balance of Power", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
- * plot((close - open) / (high - low), color=color.red)
- * ```
- */
+import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
-import { indicator, type Bar } from '@deepentropy/oakscriptjs';
-import { calculateBOP } from './bop-calculation';
-
-/**
- * Indicator metadata
- */
-export const metadata = {
-  title: 'Balance of Power',
-  shortTitle: 'BOP',
-  overlay: false,
-};
-
-/**
- * Input definitions for the BOP indicator
- */
-export interface BOPInputs {
-  // BOP has no configurable inputs
+// Helper functions
+function na(value: number | null | undefined): boolean {
+  return value === null || value === undefined || Number.isNaN(value);
 }
 
-/**
- * Default input values
- */
-export const defaultInputs: BOPInputs = {};
+function nz(value: number | null | undefined, replacement: number = 0): number {
+  return na(value) ? replacement : value as number;
+}
 
-/**
- * Input configuration for UI generation
- */
-export const inputConfig: Array<{
-  id: string;
-  type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: string[];
-}> = [];
-
-/**
- * Plot configuration
- */
-export const plotConfig = [
-  {
-    id: 'bop',
-    title: 'BOP',
-    color: '#F23645', // red
-    lineWidth: 2,
-  },
-];
-
-/**
- * Calculate Balance of Power indicator
- * @param bars - OHLCV bar data
- * @param inputs - Indicator inputs (unused for BOP)
- * @returns Object containing plot data
- */
-export function calculate(bars: Bar[], _inputs: Partial<BOPInputs> = {}) {
-  // Calculate BOP using the calculation module
-  const bopData = calculateBOP(bars);
-
+export function Indicator(bars: any[]): IndicatorResult {
+  // OHLCV Series
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+  const close = new Series(bars, (bar) => bar.close);
+  const volume = new Series(bars, (bar) => bar.volume);
+  
+  // Calculated price sources
+  const hl2 = high.add(low).div(2);
+  const hlc3 = high.add(low).add(close).div(3);
+  const ohlc4 = open.add(high).add(low).add(close).div(4);
+  const hlcc4 = high.add(low).add(close).add(close).div(4);
+  
+  // Time series
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  
+  // Bar index
+  const last_bar_index = bars.length - 1;
+  
+  // @version=6
+  
   return {
-    plots: {
-      bop: bopData,
-    },
+    metadata: { title: "Indicator", overlay: false },
+    plots: [{ data: (close.sub(open) / high.sub(low)).toArray().map((v, i) => ({ time: bars[i].time, value: v })) }],
   };
 }
-
-/**
- * Balance of Power Indicator using the new indicator() pattern
- * Provides automatic pane management based on overlay setting (separate pane)
- * 
- * Note: The setup function is a placeholder for future implementation.
- * Currently, calculation is done via the calculate() function which is
- * used by the indicator registry. The indicator() pattern provides:
- * - Metadata with overlay setting for automatic pane placement
- * - getPaneIndex() for determining where to render the indicator
- * - isOverlay() for checking if indicator should be on price chart
- */
-export const BOPIndicator = indicator({
-  title: 'Balance of Power',
-  shortTitle: 'BOP',
-  overlay: false,
-  format: 'price',
-  precision: 2,
-}, (_ctx) => {
-  // Calculation is handled by the calculate() function
-  // This setup function will be enhanced when ctx.addLineSeries() is available
-});
