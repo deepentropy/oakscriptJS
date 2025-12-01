@@ -99,10 +99,13 @@ export class ChartManager {
     let series = this.indicatorSeries.get(id);
 
     if (!series) {
-      // Create new line series
+      // Create new line series - validate lineWidth is within valid range (1-4)
+      const lineWidth = config.lineWidth && config.lineWidth >= 1 && config.lineWidth <= 4
+        ? config.lineWidth as 1 | 2 | 3 | 4
+        : 2;
       series = this.chart.addSeries(LineSeries, {
         color: config.color || '#2962FF',
-        lineWidth: (config.lineWidth || 2) as 1 | 2 | 3 | 4,
+        lineWidth,
         lineStyle: config.lineStyle ?? LineStyle.Solid,
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,

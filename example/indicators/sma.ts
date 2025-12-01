@@ -145,9 +145,9 @@ export function calculate(bars: Bar[], inputs: Partial<SMAInputs> = {}) {
     const targetIndex = i + offset;
     if (targetIndex >= 0 && targetIndex < bars.length) {
       const value = smaArray[i];
-      const time = bars[targetIndex]!.time;
-      if (value !== undefined && !Number.isNaN(value) && time !== undefined) {
-        data.push({ time, value });
+      const targetBar = bars[targetIndex];
+      if (targetBar && value !== undefined && !Number.isNaN(value)) {
+        data.push({ time: targetBar.time, value });
       }
     }
   }

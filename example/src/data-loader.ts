@@ -40,14 +40,22 @@ export function parseCSV(content: string): Bar[] {
     const parts = line.split(',');
     if (parts.length < 6) continue;
 
-    const [dateStr, openStr, highStr, lowStr, closeStr, volumeStr] = parts;
+    // Use index access with explicit bounds checking for robust parsing
+    const dateStr = parts[0];
+    const openStr = parts[1];
+    const highStr = parts[2];
+    const lowStr = parts[3];
+    const closeStr = parts[4];
+    const volumeStr = parts[5];
+
+    if (!dateStr || !openStr || !highStr || !lowStr || !closeStr) continue;
     
-    const time = parseDate(dateStr!);
-    const open = parseFloat(openStr!);
-    const high = parseFloat(highStr!);
-    const low = parseFloat(lowStr!);
-    const close = parseFloat(closeStr!);
-    const volume = parseFloat(volumeStr!);
+    const time = parseDate(dateStr);
+    const open = parseFloat(openStr);
+    const high = parseFloat(highStr);
+    const low = parseFloat(lowStr);
+    const close = parseFloat(closeStr);
+    const volume = volumeStr ? parseFloat(volumeStr) : 0;
 
     if (!isNaN(time) && !isNaN(open) && !isNaN(high) && !isNaN(low) && !isNaN(close)) {
       bars.push({ time, open, high, low, close, volume: volume || 0 });
