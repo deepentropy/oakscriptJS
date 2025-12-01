@@ -33,7 +33,7 @@ export function McGinley_Dynamic(bars: any[], inputs: Partial<IndicatorInputs> =
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -54,8 +54,8 @@ export function McGinley_Dynamic(bars: any[], inputs: Partial<IndicatorInputs> =
   
   // @version=6
   const source = close;
-  const mg = 0;
-  mg = (na(mg.get(1)) ? ta.ema(source, length) : mg.get(1).add(source.sub(mg.get(1))).div((length * math.pow(source.div(mg.get(1)), 4))));
+  let mg = new Series(bars, () => 0);
+  mg = (na(mg.get(1)) ? ta.ema(source, length) : source.sub(mg.get(1)).add(mg.get(1)).div((length * math.pow(source.div(mg.get(1)), 4))));
   
   return {
     metadata: { title: "McGinley Dynamic", shorttitle: "McGinley Dynamic", overlay: true },

@@ -43,7 +43,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -93,19 +93,19 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
         case "EMA": return ta.ema(source, length);
         case "SMMA (RMA)": return ta.rma(source, length);
         case "WMA": return ta.wma(source, length);
-        case "VWMA": return ta.vwma(source, length);
+        case "VWMA": return ta.vwma(source, length, volume);
       }
     })();
   }
   // Smoothing MA plots
-  const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : NaN);
-  const smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : NaN);
+  const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : new Series(bars, () => NaN));
+  const smoothingStDev = (isBB ? ta.stdev(out, maLengthInput).mul(bbMultInput) : new Series(bars, () => NaN));
   // bbUpperBand = <unsupported>;
   // bbLowerBand = <unsupported>;
   
   return {
     metadata: { title: "Moving Average Simple", shorttitle: "SMA", overlay: true },
-    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot1': smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot2': (smoothingMA + smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot3': (smoothingMA - smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
+    plots: { 'plot0': out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot1': smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot2': smoothingStDev.add(smoothingMA).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })), 'plot3': smoothingMA.sub(smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
   };
 }
 
