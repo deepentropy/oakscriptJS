@@ -1666,9 +1666,38 @@ class CodeGenerator {
   private generateTernaryExpression(node: ASTNode): string {
     if (!node.children || node.children.length < 3) return '';
 
-    const condition = this.generateExpression(node.children[0]!);
-    const consequent = this.generateExpression(node.children[1]!);
-    const alternate = this.generateExpression(node.children[2]!);
+    const conditionNode = node.children[0]!;
+    const consequentNode = node.children[1]!;
+    const alternateNode = node.children[2]!;
+
+    const condition = this.generateExpression(conditionNode);
+    let consequent = this.generateExpression(consequentNode);
+    let alternate = this.generateExpression(alternateNode);
+
+    // Check if one branch is a Series and the other is a scalar
+    const consequentIsSeries = this.isSeriesExpression(consequentNode);
+    const alternateIsSeries = this.isSeriesExpression(alternateNode);
+
+    // Special handling for 'na' (which becomes NaN)
+    const alternateIsNa = alternateNode.type === 'Identifier' && String(alternateNode.value) === 'na';
+    const consequentIsNa = consequentNode.type === 'Identifier' && String(consequentNode.value) === 'na';
+
+    // If one branch is definitely a Series and the other is NaN or a scalar constant,
+    // wrap the scalar in a Series to maintain type consistency
+    if (consequentIsSeries && (alternateIsNa || (!alternateIsSeries && alternateNode.type === 'NumberLiteral'))) {
+      // Wrap alternate in a Series with constant value
+      alternate = `new Series(bars, () => ${alternate})`;
+    } else if (alternateIsSeries && (consequentIsNa || (!consequentIsSeries && consequentNode.type === 'NumberLiteral'))) {
+      // Wrap consequent in a Series with constant value
+      consequent = `new Series(bars, () => ${consequent})`;
+    } else if (alternateIsNa && !consequentIsNa) {
+      // If we're not sure about consequent but alternate is na, assume consequent might be Series
+      // This is a heuristic - if alternate is na, likely consequent is a Series
+      alternate = `new Series(bars, () => ${alternate})`;
+    } else if (consequentIsNa && !alternateIsNa) {
+      // Similarly for consequent is na
+      consequent = `new Series(bars, () => ${consequent})`;
+    }
 
     return `(${condition} ? ${consequent} : ${alternate})`;
   }
@@ -1898,6 +1927,15 @@ class CodeGenerator {
     if (node.type === 'BinaryExpression') {
       // Binary expressions on Series return Series
       return true;
+    }
+    
+    if (node.type === 'TernaryExpression') {
+      // Ternary expressions return a Series if either branch is a Series
+      if (node.children && node.children.length >= 3) {
+        const consequentIsSeries = this.isSeriesExpression(node.children[1]!);
+        const alternateIsSeries = this.isSeriesExpression(node.children[2]!);
+        return consequentIsSeries || alternateIsSeries;
+      }
     }
     
     return false;
