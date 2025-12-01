@@ -98,7 +98,10 @@ export class IndicatorUI {
    * Render input controls for an indicator
    */
   private renderInputs(indicator: IndicatorRegistryEntry, container: HTMLElement): void {
-    const inputsHtml = indicator.inputConfig.map(input => {
+    // Handle inputConfig as either array or object
+    const inputConfigArray = Array.isArray(indicator.inputConfig) ? indicator.inputConfig : [];
+    
+    const inputsHtml = inputConfigArray.map((input: any) => {
       const value = this.currentInputs[input.id] ?? input.defval;
 
       switch (input.type) {
@@ -124,7 +127,7 @@ export class IndicatorUI {
             <div class="input-group">
               <label for="input-${input.id}">${input.title}:</label>
               <select id="input-${input.id}" data-input-id="${input.id}">
-                ${(input.options || []).map(opt =>
+                ${(input.options || []).map((opt: any) =>
                   `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
                 ).join('')}
               </select>
@@ -150,7 +153,7 @@ export class IndicatorUI {
               <div class="input-group">
                 <label for="input-${input.id}">${input.title}:</label>
                 <select id="input-${input.id}" data-input-id="${input.id}">
-                  ${input.options.map(opt =>
+                  ${input.options.map((opt: any) =>
                     `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
                   ).join('')}
                 </select>
@@ -182,7 +185,7 @@ export class IndicatorUI {
     // Add event listeners
     container.querySelectorAll('[data-input-id]').forEach(element => {
       const inputId = element.getAttribute('data-input-id')!;
-      const inputConfig = indicator.inputConfig.find(c => c.id === inputId);
+      const inputConfig = inputConfigArray.find((c: any) => c.id === inputId);
 
       if (element.tagName === 'SELECT') {
         element.addEventListener('change', (e) => {

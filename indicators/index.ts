@@ -82,12 +82,10 @@ export interface IndicatorRegistryEntry {
     shortTitle: string;
     overlay: boolean;
   };
-  inputConfig: InputConfig[];
-  plotConfig: PlotConfig[];
+  inputConfig: any; // Actual type is IndicatorInputs object, not array
+  plotConfig: any; // Actual type is empty object or config object
   defaultInputs: Record<string, unknown>;
-  calculate: (bars: Bar[], inputs: Record<string, unknown>) => {
-    plots: Record<string, Array<{ time: number; value: number }>>;
-  };
+  calculate: (bars: Bar[], inputs?: any) => any; // Returns IndicatorResult with plots: PlotData[]
 }
 
 /**

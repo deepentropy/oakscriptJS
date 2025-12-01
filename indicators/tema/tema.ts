@@ -25,7 +25,7 @@ export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -57,7 +57,7 @@ export function Triple_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Triple EMA", overlay: true };
+export const metadata = { title: "Triple EMA", shortTitle: "TEMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig = {};

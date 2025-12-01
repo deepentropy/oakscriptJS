@@ -35,7 +35,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -85,7 +85,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
         case "EMA": return ta.ema(source, length);
         case "SMMA (RMA)": return ta.rma(source, length);
         case "WMA": return ta.wma(source, length);
-        case "VWMA": return ta.vwma(source, length);
+        case "VWMA": return ta.vwma(source, length, volume);
       }
     })();
   }
@@ -95,14 +95,30 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   // bbUpperBand = <unsupported>;
   // bbLowerBand = <unsupported>;
   
+  // Helper to convert NaN or Series to data array
+  const toPlotData = (series: any) => {
+    if (typeof series === 'number' && isNaN(series)) {
+      return bars.map((bar) => ({ time: bar.time, value: NaN }));
+    }
+    return series.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN }));
+  };
+  
+  const bbUpper = (isBB && typeof smoothingMA !== 'number') ? smoothingMA.add(smoothingStDev) : NaN;
+  const bbLower = (isBB && typeof smoothingMA !== 'number') ? smoothingMA.sub(smoothingStDev) : NaN;
+  
   return {
     metadata: { title: "Moving Average Simple", overlay: true },
-    plots: [{ data: out.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: smoothingMA.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: (smoothingMA + smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }, { data: (smoothingMA - smoothingStDev).toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v! })) }],
+    plots: [
+      { data: toPlotData(out) },
+      { data: toPlotData(smoothingMA) },
+      { data: toPlotData(bbUpper) },
+      { data: toPlotData(bbLower) }
+    ],
   };
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Moving Average Simple", overlay: true };
+export const metadata = { title: "Moving Average Simple", shortTitle: "SMA", overlay: true };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig = {};
