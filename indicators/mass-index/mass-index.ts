@@ -25,7 +25,7 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -46,7 +46,11 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
   
   // @version=6
   const span = high.sub(low);
-  const mi = math.sum(ta.ema(span, 9).div(ta.ema(ta.ema(span, 9), 9)), length);
+  const ema1 = ta.ema(span, 9);
+  const ema2 = ta.ema(ema1, 9);
+  const ratio = ema1.div(ema2);
+  const miArray = math.sum(ratio.toArray(), length);
+  const mi = Series.fromArray(bars, miArray);
   
   return {
     metadata: { title: "Mass Index", overlay: false },
@@ -55,7 +59,7 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
 }
 
 // Additional exports for compatibility
-export const metadata = { title: "Mass Index", overlay: false };
+export const metadata = { title: "Mass Index", shortTitle: "MI", overlay: false };
 export { defaultInputs };
 export const inputConfig = defaultInputs;
 export const plotConfig = {};
