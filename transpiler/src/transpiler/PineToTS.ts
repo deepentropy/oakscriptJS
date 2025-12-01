@@ -69,6 +69,7 @@ class CodeGenerator {
   private indicatorOverlay: boolean = false;
   private variables: Map<string, string> = new Map();
   private seriesVariables: Set<string> = new Set();  // Track which variables are Series
+  private reassignedVariables: Set<string> = new Set();  // Track which variables are reassigned
   private plots: string[] = [];
   private plotConfigs: Array<{ id: string; title: string; color: string; lineWidth: number }> = [];
   private inputs: InputDefinition[] = [];
@@ -181,7 +182,7 @@ class CodeGenerator {
     this.emit("const high = new Series(bars, (bar) => bar.high);");
     this.emit("const low = new Series(bars, (bar) => bar.low);");
     this.emit("const close = new Series(bars, (bar) => bar.close);");
-    this.emit("const volume = new Series(bars, (bar) => bar.volume);");
+    this.emit("const volume = new Series(bars, (bar) => bar.volume ?? 0);");
     this.emit('');
     
     // Mark these as Series variables
@@ -831,6 +832,15 @@ class CodeGenerator {
         }
       }
     }
+    
+    // Track variables that are reassigned (using := operator)
+    if (node.type === 'Reassignment' && node.children && node.children.length >= 1) {
+      const left = node.children[0];
+      if (left && left.type === 'Identifier') {
+        const varName = String(left.value || '');
+        this.reassignedVariables.add(varName);
+      }
+    }
 
     // Detect syminfo usage
     if (node.type === 'MemberExpression') {
@@ -868,7 +878,7 @@ class CodeGenerator {
       'input.source': 'source',
     };
 
-    const inputType = inputTypeMap[funcName];
+    let inputType = inputTypeMap[funcName];
     if (!inputType) return null;
 
     const input: InputDefinition = {
@@ -918,6 +928,11 @@ class CodeGenerator {
     // If title not set from named arg, check second positional argument
     if (!input.title && args.length > 1 && args[1]?.type === 'StringLiteral') {
       input.title = String(args[1].value || '');
+    }
+
+    // For plain input(), infer type from defval if it's a number
+    if (funcName === 'input' && typeof input.defval === 'number') {
+      input.inputType = Number.isInteger(input.defval) ? 'int' : 'float';
     }
 
     return input;
@@ -1204,7 +1219,7 @@ class CodeGenerator {
       const name = String(left.value || 'unknown');
       const tsName = this.sanitizeIdentifier(name);
       
-      const rightExpr = this.generateExpression(right);
+      let rightExpr = this.generateExpression(right);
       
       // Skip assignment if right side is empty (e.g., unsupported functions)
       if (!rightExpr || rightExpr.trim() === '') {
@@ -1214,11 +1229,21 @@ class CodeGenerator {
       }
       
       // Check if the right side is a Series expression
-      const rightIsSeries = this.isSeriesExpression(right);
+      let rightIsSeries = this.isSeriesExpression(right);
+      
+      // Special case: if this variable will be reassigned and the right side is a numeric literal,
+      // convert it to a Series initialized with that constant value
+      if (this.reassignedVariables.has(name) && right.type === 'NumberLiteral') {
+        const numValue = Number(right.value);
+        rightExpr = `new Series(bars, () => ${numValue})`;
+        rightIsSeries = true;
+      }
       
       if (!this.variables.has(name)) {
         this.variables.set(name, tsName);
-        this.emit(`const ${tsName} = ${rightExpr};`);
+        // Use 'let' if this variable will be reassigned, otherwise use 'const'
+        const declKeyword = this.reassignedVariables.has(name) ? 'let' : 'const';
+        this.emit(`${declKeyword} ${tsName} = ${rightExpr};`);
         // If assigning a Series expression, mark this variable as a Series
         if (rightIsSeries) {
           this.seriesVariables.add(tsName);
@@ -1774,6 +1799,12 @@ class CodeGenerator {
       return '';
     }
 
+    // Handle ta.vwma specially - it needs volume parameter
+    if (name === 'ta.vwma') {
+      // ta.vwma(source, length) should become ta.vwma(source, length, volume)
+      return `ta.vwma(${args}, volume)`;
+    }
+
     // Translate common function names
     const translated = this.translateFunctionName(name);
     return `${translated}(${args})`;
@@ -1860,8 +1891,8 @@ class CodeGenerator {
     }
     
     if (node.type === 'HistoryAccess') {
-      // History access (e.g., src[1]) returns a Series element, but the base should be a Series
-      return true;
+      // History access (e.g., src[1]) returns a scalar value, not a Series
+      return false;
     }
     
     if (node.type === 'BinaryExpression') {

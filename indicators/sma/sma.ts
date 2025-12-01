@@ -43,7 +43,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   
   // Calculated price sources
   const hl2 = high.add(low).div(2);
@@ -93,7 +93,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
         case "EMA": return ta.ema(source, length);
         case "SMMA (RMA)": return ta.rma(source, length);
         case "WMA": return ta.wma(source, length);
-        case "VWMA": return ta.vwma(source, length);
+        case "VWMA": return ta.vwma(source, length, volume);
       }
     })();
   }

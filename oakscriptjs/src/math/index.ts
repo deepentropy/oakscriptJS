@@ -10,6 +10,7 @@
  */
 
 import { float, int, simple_int, series_float } from '../types';
+import { Series } from '../runtime/series';
 
 /**
  * Returns the absolute value of a number.
@@ -192,9 +193,9 @@ export function avg(...values: float[]): float {
 /**
  * Returns the sum of values over a sliding window.
  *
- * @param source - Series of values
+ * @param source - Series of values or array
  * @param length - Window length for summation
- * @returns Series with rolling sum values
+ * @returns Series with rolling sum values or array
  *
  * @remarks
  * - Calculates sum of last `length` values at each point
@@ -209,7 +210,29 @@ export function avg(...values: float[]): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sum | PineScript math.sum}
  */
-export function sum(source: series_float, length: simple_int): series_float {
+export function sum(source: series_float | Series, length: simple_int): series_float | Series {
+  // Handle Series objects
+  if (source instanceof Series) {
+    const sourceArray = source.toArray();
+    const result: series_float = [];
+
+    for (let i = 0; i < sourceArray.length; i++) {
+      if (i < length - 1) {
+        result.push(NaN);
+      } else {
+        let total = 0;
+        for (let j = 0; j < length; j++) {
+          total += sourceArray[i - j]!;
+        }
+        result.push(total);
+      }
+    }
+
+    // Return Series object from the result array
+    return new Series(source.bars, (bar, idx) => result[idx] ?? NaN);
+  }
+
+  // Handle plain arrays
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
