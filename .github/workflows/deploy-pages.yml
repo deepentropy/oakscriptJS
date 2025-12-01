@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
+      - name: Build oakscriptjs
+        run: pnpm --filter @deepentropy/oakscriptjs build
+        
       - name: Build example for GitHub Pages
         run: pnpm --filter oakscriptjs-example build:pages
         
