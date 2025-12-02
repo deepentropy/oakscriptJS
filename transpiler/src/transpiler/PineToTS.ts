@@ -1852,12 +1852,13 @@ class CodeGenerator {
       '-': 'sub',
       '*': 'mul',
       '/': 'div',
+      '%': 'mod',
       '>': 'gt',
       '<': 'lt',
       '>=': 'gte',
       '<=': 'lte',
       '==': 'eq',
-      '!=': 'ne',
+      '!=': 'neq',
       '&&': 'and',
       '||': 'or',
     };
@@ -1896,6 +1897,14 @@ class CodeGenerator {
     const operand = this.generateExpression(node.children[0]!);
     const op = String(node.value || '');
     
+    // For unary minus on Series, use .neg() method
+    if (op === '-') {
+      const operandIsSeries = this.isSeriesExpression(node.children[0]!);
+      if (operandIsSeries) {
+        return `${operand}.neg()`;
+      }
+    }
+    
     return `${op}${operand}`;
   }
 
@@ -1916,7 +1925,13 @@ class CodeGenerator {
     
     if (node.type === 'FunctionCall') {
       const name = String(node.value || '');
-      return name.startsWith('ta.') || name.startsWith('taCore.');
+      // ta.* and taCore.* functions always return Series
+      if (name.startsWith('ta.') || name.startsWith('taCore.')) {
+        return true;
+      }
+      // Assume user-defined functions also return Series
+      // In PineScript, most functions work with Series, so this is a reasonable assumption
+      return true;
     }
     
     if (node.type === 'HistoryAccess') {
@@ -1932,9 +1947,23 @@ class CodeGenerator {
     if (node.type === 'TernaryExpression') {
       // Ternary expressions return a Series if either branch is a Series
       if (node.children && node.children.length >= 3) {
-        const consequentIsSeries = this.isSeriesExpression(node.children[1]!);
-        const alternateIsSeries = this.isSeriesExpression(node.children[2]!);
-        return consequentIsSeries || alternateIsSeries;
+        const consequentNode = node.children[1]!;
+        const alternateNode = node.children[2]!;
+        const consequentIsSeries = this.isSeriesExpression(consequentNode);
+        const alternateIsSeries = this.isSeriesExpression(alternateNode);
+        
+        // If either branch is a Series, the whole expression is a Series
+        if (consequentIsSeries || alternateIsSeries) {
+          return true;
+        }
+        
+        // Special case: if one branch is 'na', assume the other branch is a Series
+        // This is because 'na' is typically used as a fallback for Series values
+        const consequentIsNa = consequentNode.type === 'Identifier' && String(consequentNode.value) === 'na';
+        const alternateIsNa = alternateNode.type === 'Identifier' && String(alternateNode.value) === 'na';
+        if (consequentIsNa || alternateIsNa) {
+          return true;
+        }
       }
     }
     
