@@ -18,13 +18,13 @@ export interface Bar {
  * Extract price/volume arrays from bars
  */
 function extractArrays(bars: Bar[]) {
-  const open = bars.map(b => b.open);
-  const high = bars.map(b => b.high);
-  const low = bars.map(b => b.low);
-  const close = bars.map(b => b.close);
-  const volume = bars.map(b => b.volume);
-  const hl2 = bars.map((b, i) => (high[i] + low[i]) / 2);
-  const hlc3 = bars.map((b, i) => (high[i] + low[i] + close[i]) / 3);
+  const open = bars.map((_, i) => bars[i].open);
+  const high = bars.map((_, i) => bars[i].high);
+  const low = bars.map((_, i) => bars[i].low);
+  const close = bars.map((_, i) => bars[i].close);
+  const volume = bars.map((_, i) => bars[i].volume);
+  const hl2 = bars.map((_, i) => (high[i] + low[i]) / 2);
+  const hlc3 = bars.map((_, i) => (high[i] + low[i] + close[i]) / 3);
   
   return { open, high, low, close, volume, hl2, hlc3 };
 }
@@ -209,7 +209,7 @@ export function calculateNonOverlayIndicators(
       let lowestIndex = i;
       let lowestValue = low[i];
       
-      for (let j = i; j > i - length - 1 && j >= 0; j--) {
+      for (let j = i; j > i - length && j >= 0; j--) {
         if (low[j] <= lowestValue) {
           lowestValue = low[j];
           lowestIndex = j;
