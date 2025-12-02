@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   len: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -112,7 +124,7 @@ export function Moving_Average_Simple(bars: any[], inputs: Partial<IndicatorInpu
 // Additional exports for compatibility
 export const metadata = { title: "Moving Average Simple", shortTitle: "SMA", overlay: true };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'len', type: 'int', title: 'Length', defval: 9, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }, { id: 'offset', type: 'int', title: 'Offset', defval: 0, min: -500, max: 500 }, { id: 'maTypeInput', type: 'string', title: 'Type', defval: "None", options: ['None', 'SMA', 'SMA + Bollinger Bands', 'EMA', 'SMMA (RMA)', 'WMA', 'VWMA'] }, { id: 'maLengthInput', type: 'int', title: 'Length', defval: 14 }, { id: 'bbMultInput', type: 'float', title: 'BB StdDev', defval: 2, min: 0.001, max: 50, step: 0.5 }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MA', color: '#2962FF', lineWidth: 2 }, { id: 'plot1', title: 'smoothingMA', color: '#FFFF00', lineWidth: 2 }, { id: 'plot2', title: 'Upper Bollinger Band', color: '#00FF00', lineWidth: 2 }, { id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2 }];
 export const calculate = Moving_Average_Simple;
 export { Moving_Average_Simple as Moving_Average_SimpleIndicator };

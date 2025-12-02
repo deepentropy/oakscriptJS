@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   length: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -83,7 +95,7 @@ export function Double_EMA(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
 // Additional exports for compatibility
 export const metadata = { title: "Double EMA", shortTitle: "DEMA", overlay: true };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'length', type: 'int', title: 'length', defval: 9, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'dema', color: '#43A047', lineWidth: 2 }];
 export const calculate = Double_EMA;
 export { Double_EMA as Double_EMAIndicator };
