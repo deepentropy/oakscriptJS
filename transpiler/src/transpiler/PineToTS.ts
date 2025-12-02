@@ -1929,8 +1929,13 @@ class CodeGenerator {
       if (name.startsWith('ta.') || name.startsWith('taCore.')) {
         return true;
       }
-      // Assume user-defined functions also return Series
-      // In PineScript, most functions work with Series, so this is a reasonable assumption
+      // Assume user-defined functions also return Series.
+      // This is a pragmatic choice for PineScript where:
+      // 1. Most functions that operate on price data return Series
+      // 2. The transpiler's ternary expression handler wraps scalar values in Series when needed
+      // 3. Over-estimating (assuming Series when it's scalar) causes TypeScript errors that are caught at compile time
+      // 4. Under-estimating (assuming scalar when it's Series) causes runtime errors that are harder to debug
+      // If this causes issues, we could track function return types or use a whitelist approach
       return true;
     }
     
@@ -1952,14 +1957,16 @@ class CodeGenerator {
         const consequentIsSeries = this.isSeriesExpression(consequentNode);
         const alternateIsSeries = this.isSeriesExpression(alternateNode);
         
-        // If either branch is a Series, the whole expression is a Series
+        // If either branch is definitively a Series, the whole expression is a Series
         if (consequentIsSeries || alternateIsSeries) {
           return true;
         }
         
         // Special case: if one branch is 'na' and the other is a function call,
-        // assume the whole expression is a Series. This is because in PineScript,
-        // 'na' is typically used as a fallback for Series values.
+        // assume the whole expression is a Series. This handles the common PineScript
+        // pattern: `condition ? seriesFunction() : na`
+        // We only apply this heuristic when there's a function call to avoid
+        // incorrectly marking scalar ternaries like `condition ? 10 : na` as Series.
         const consequentIsNa = consequentNode.type === 'Identifier' && String(consequentNode.value) === 'na';
         const alternateIsNa = alternateNode.type === 'Identifier' && String(alternateNode.value) === 'na';
         const consequentIsFunc = consequentNode.type === 'FunctionCall';
