@@ -3,8 +3,8 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const PINE_DIR = path.join(__dirname, '..', 'pinescript');
-const INDICATORS_DIR = path.join(__dirname, '..', 'indicators');
+const PINE_DIR = path.join(__dirname, '..', '..', 'example', 'pinescript');
+const INDICATORS_DIR = path.join(__dirname, '..', '..', 'indicators');
 
 // Find all .pine files
 const pineFiles = fs.readdirSync(PINE_DIR).filter(f => f.endsWith('.pine'));

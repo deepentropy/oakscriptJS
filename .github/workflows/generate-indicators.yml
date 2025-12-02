@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       # Trigger when PineScript source files change
-      - 'pinescript/**/*.pine'
+      - 'example/pinescript/**/*.pine'
       # Or when transpiler changes
       - 'transpiler/**'
   workflow_dispatch:  # Allow manual trigger
@@ -39,7 +39,7 @@ jobs:
       - name: Generate indicators
         run: |
           # Find all .pine files and transpile them
-          for pine_file in pinescript/*.pine; do
+          for pine_file in example/pinescript/*.pine; do
             if [ -f "$pine_file" ]; then
               # Extract base name and convert to kebab-case
               base_name=$(basename "$pine_file" .pine)

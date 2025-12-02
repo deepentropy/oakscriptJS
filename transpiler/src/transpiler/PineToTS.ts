@@ -132,6 +132,20 @@ class CodeGenerator {
     this.emit('  lineWidth?: number;');
     this.emit('}');
     this.emit('');
+    
+    // Generate InputConfig interface
+    this.emit('// Input configuration interface');
+    this.emit('export interface InputConfig {');
+    this.emit('  id: string;');
+    this.emit("  type: 'int' | 'float' | 'bool' | 'source' | 'string';");
+    this.emit('  title: string;');
+    this.emit('  defval: number | string | boolean;');
+    this.emit('  min?: number;');
+    this.emit('  max?: number;');
+    this.emit('  step?: number;');
+    this.emit('  options?: string[];');
+    this.emit('}');
+    this.emit('');
 
     // Generate user-defined types (interfaces and namespace objects)
     if (this.types.size > 0) {
@@ -259,11 +273,11 @@ class CodeGenerator {
     
     if (this.inputs.length > 0) {
       this.emit('export { defaultInputs };');
-      this.emit('export const inputConfig = defaultInputs;');
+      this.emit(`export const inputConfig: InputConfig[] = ${this.generateInputConfigArray()};`);
     } else {
       // Export empty objects even when there are no inputs for consistency
       this.emit('export const defaultInputs = {};');
-      this.emit('export const inputConfig = {};');
+      this.emit('export const inputConfig: InputConfig[] = [];');
     }
     
     // Generate plotConfig as PlotConfig[] array
@@ -666,6 +680,39 @@ class CodeGenerator {
     return colorMap[color] || color;
   }
 
+  private generateInputConfigArray(): string {
+    const configs = this.inputs.map(input => {
+      const parts: string[] = [
+        `id: '${input.name}'`,
+        `type: '${input.inputType}'`,
+        `title: '${input.title || input.name}'`,
+        `defval: ${this.formatDefaultValue(input)}`
+      ];
+
+      // Add optional properties
+      if (input.minval !== undefined) {
+        parts.push(`min: ${input.minval}`);
+      }
+      if (input.maxval !== undefined) {
+        parts.push(`max: ${input.maxval}`);
+      }
+      if (input.step !== undefined) {
+        parts.push(`step: ${input.step}`);
+      }
+      if (input.inputType === 'source') {
+        // Always include source options
+        parts.push(`options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4']`);
+      } else if (input.options && input.options.length > 0) {
+        const optionsStr = input.options.map(o => `'${o}'`).join(', ');
+        parts.push(`options: [${optionsStr}]`);
+      }
+
+      return `{ ${parts.join(', ')} }`;
+    });
+
+    return `[${configs.join(', ')}]`;
+  }
+
   private collectInfo(node: ASTNode): void {
     if (!node) return;
 
@@ -905,16 +952,22 @@ class CodeGenerator {
           case 'minval':
             if (paramValue?.type === 'NumberLiteral') {
               input.minval = Number(paramValue.value);
+            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
+              input.minval = -Number(paramValue.children[0].value);
             }
             break;
           case 'maxval':
             if (paramValue?.type === 'NumberLiteral') {
               input.maxval = Number(paramValue.value);
+            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
+              input.maxval = -Number(paramValue.children[0].value);
             }
             break;
           case 'step':
             if (paramValue?.type === 'NumberLiteral') {
               input.step = Number(paramValue.value);
+            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
+              input.step = -Number(paramValue.children[0].value);
             }
             break;
           case 'options':

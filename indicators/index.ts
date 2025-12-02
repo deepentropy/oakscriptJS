@@ -82,8 +82,8 @@ export interface IndicatorRegistryEntry {
     shortTitle: string;
     overlay: boolean;
   };
-  inputConfig: any; // Actual type is IndicatorInputs object, not array
-  plotConfig: any; // Actual type is empty object or config object
+  inputConfig: InputConfig[]; // Array of input configurations with metadata
+  plotConfig: PlotConfig[]; // Array of plot configurations
   defaultInputs: Record<string, unknown>;
   calculate: (bars: Bar[], inputs?: any) => any; // Returns IndicatorResult with plots: PlotData[]
 }

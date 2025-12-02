@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   length: number;
 }
@@ -65,7 +77,7 @@ export function Mass_Index(bars: any[], inputs: Partial<IndicatorInputs> = {}): 
 // Additional exports for compatibility
 export const metadata = { title: "Mass Index", shortTitle: "Mass Index", overlay: false };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'length', type: 'int', title: 'length', defval: 10, min: 1 }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'mi', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Mass_Index;
 export { Mass_Index as Mass_IndexIndicator };
