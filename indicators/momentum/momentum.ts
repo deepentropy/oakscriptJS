@@ -42,6 +42,10 @@ const defaultInputs: IndicatorInputs = {
 export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
   const { len, src } = { ...defaultInputs, ...inputs };
   
+  console.log('=== MOMENTUM DEBUG ===');
+  console.log('inputs received:', inputs);
+  console.log('len:', len, 'type:', typeof len);
+  console.log('src:', src);
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);
