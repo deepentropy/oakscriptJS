@@ -11,7 +11,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { parseCSV, extractColumn, type OHLCVRow } from './utils/csv-parser.js';
 import { compareArrays, formatComparisonResult } from './utils/comparison.js';
-import { calculateOverlayIndicators, calculateNonOverlayIndicators, type Bar } from './utils/indicators.js';
+import type { Bar } from './utils/indicators.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,7 +44,8 @@ describe('Indicator Regression Tests', () => {
     const tolerance = 1e-4; // Tolerance for floating point comparison
     const skipInitialValues = 100; // Skip initial values that may be warming up
     
-    it('should calculate all overlay indicators', () => {
+    it('should calculate all overlay indicators', async () => {
+      const { calculateOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateOverlayIndicators(bars, length);
       
       // Test each indicator
@@ -84,7 +85,8 @@ describe('Indicator Regression Tests', () => {
       expect(failedIndicators.length).toBeLessThanOrEqual(indicators.length);
     });
     
-    it('SMA should match reference values', () => {
+    it('SMA should match reference values', async () => {
+      const { calculateOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateOverlayIndicators(bars, length);
       const expected = extractColumn(referenceData, 'SMA');
       const result = compareArrays(calculated.SMA, expected, tolerance, skipInitialValues);
@@ -95,7 +97,8 @@ describe('Indicator Regression Tests', () => {
       }
     });
     
-    it('EMA should match reference values', () => {
+    it('EMA should match reference values', async () => {
+      const { calculateOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateOverlayIndicators(bars, length);
       const expected = extractColumn(referenceData, 'EMA');
       const result = compareArrays(calculated.EMA, expected, tolerance, skipInitialValues);
@@ -106,7 +109,8 @@ describe('Indicator Regression Tests', () => {
       }
     });
     
-    it('Bollinger Bands should match reference values', () => {
+    it('Bollinger Bands should match reference values', async () => {
+      const { calculateOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateOverlayIndicators(bars, length);
       
       const bbBasisResult = compareArrays(
@@ -144,7 +148,8 @@ describe('Indicator Regression Tests', () => {
     const tolerance = 1e-4;
     const skipInitialValues = 100;
     
-    it('should calculate all non-overlay indicators', () => {
+    it('should calculate all non-overlay indicators', async () => {
+      const { calculateNonOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateNonOverlayIndicators(bars, length, fastLength, slowLength, signalLength);
       
       const indicators = [
@@ -183,7 +188,8 @@ describe('Indicator Regression Tests', () => {
       expect(failedIndicators.length).toBeLessThanOrEqual(indicators.length);
     });
     
-    it('RSI should match reference values', () => {
+    it('RSI should match reference values', async () => {
+      const { calculateNonOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateNonOverlayIndicators(bars, length);
       const expected = extractColumn(referenceData, 'RSI');
       const result = compareArrays(calculated.RSI, expected, tolerance, skipInitialValues);
@@ -194,7 +200,8 @@ describe('Indicator Regression Tests', () => {
       }
     });
     
-    it('MACD should match reference values', () => {
+    it('MACD should match reference values', async () => {
+      const { calculateNonOverlayIndicators } = await import('./utils/indicators.js');
       const calculated = calculateNonOverlayIndicators(bars, length, fastLength, slowLength, signalLength);
       const expected = extractColumn(referenceData, 'MACD');
       const result = compareArrays(calculated.MACD, expected, tolerance, skipInitialValues);
