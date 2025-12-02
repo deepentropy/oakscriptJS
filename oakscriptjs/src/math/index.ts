@@ -15,12 +15,13 @@ import { Series } from '../runtime/series';
 /**
  * Returns the absolute value of a number.
  *
- * @param value - The number
+ * @param value - The number or Series
  * @returns The absolute value (always non-negative)
  *
  * @remarks
  * - Returns the distance from zero on the number line
  * - |x| = x if x ≥ 0, -x if x < 0
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -31,20 +32,37 @@ import { Series } from '../runtime/series';
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.abs | PineScript math.abs}
  */
-export function abs(value: float): float {
+export function abs(value: Series): Series;
+export function abs(value: float): float;
+export function abs(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.abs(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.abs(value);
 }
 
 /**
  * Returns the smallest integer greater than or equal to a given number (rounds up).
  *
- * @param value - The number to round up
+ * @param value - The number to round up or Series
  * @returns The ceiling value (smallest integer ≥ value)
  *
  * @remarks
  * - Always rounds towards positive infinity
  * - For positive numbers, rounds away from zero
  * - For negative numbers, rounds towards zero
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -56,20 +74,37 @@ export function abs(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.ceil | PineScript math.ceil}
  */
-export function ceil(value: float): int {
+export function ceil(value: Series): Series;
+export function ceil(value: float): int;
+export function ceil(value: float | Series): int | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.ceil(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.ceil(value);
 }
 
 /**
  * Returns the largest integer less than or equal to a given number (rounds down).
  *
- * @param value - The number to round down
+ * @param value - The number to round down or Series
  * @returns The floor value (largest integer ≤ value)
  *
  * @remarks
  * - Always rounds towards negative infinity
  * - For positive numbers, rounds towards zero
  * - For negative numbers, rounds away from zero
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -81,14 +116,30 @@ export function ceil(value: float): int {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.floor | PineScript math.floor}
  */
-export function floor(value: float): int {
+export function floor(value: Series): Series;
+export function floor(value: float): int;
+export function floor(value: float | Series): int | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.floor(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.floor(value);
 }
 
 /**
  * Returns the value rounded to the nearest integer or to a specified precision.
  *
- * @param value - The number to round
+ * @param value - The number to round or Series
  * @param precision - Optional number of decimal places (default: 0)
  * @returns The rounded value
  *
@@ -96,6 +147,7 @@ export function floor(value: float): int {
  * - Rounds to nearest integer by default
  * - With precision, rounds to that many decimal places
  * - Uses "round half up" strategy (0.5 rounds to 1)
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -108,7 +160,31 @@ export function floor(value: float): int {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.round | PineScript math.round}
  */
-export function round(value: float, precision?: int): float {
+export function round(value: Series, precision?: int): Series;
+export function round(value: float, precision?: int): float;
+export function round(value: float | Series, precision?: int): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    if (precision === undefined) {
+      for (let i = 0; i < length; i++) {
+        const v = valueArray[i] ?? NaN;
+        result.push(Math.round(v));
+      }
+    } else {
+      const multiplier = Math.pow(10, precision);
+      for (let i = 0; i < length; i++) {
+        const v = valueArray[i] ?? NaN;
+        result.push(Math.round(v * multiplier) / multiplier);
+      }
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   if (precision === undefined) {
     return Math.round(value);
   }
@@ -119,13 +195,14 @@ export function round(value: float, precision?: int): float {
 /**
  * Returns the maximum value from the arguments.
  *
- * @param values - Variable number of values to compare
+ * @param values - Variable number of values to compare (numbers or Series)
  * @returns The largest value
  *
  * @remarks
  * - Accepts any number of arguments
  * - Returns -Infinity if no arguments provided
  * - Returns NaN if any argument is NaN
+ * - If any argument is a Series, returns a Series; otherwise returns a number
  *
  * @example
  * ```typescript
@@ -137,20 +214,47 @@ export function round(value: float, precision?: int): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.max | PineScript math.max}
  */
-export function max(...values: float[]): float {
-  return Math.max(...values);
+export function max(...values: (float | Series)[]): float | Series {
+  // Check if any value is a Series
+  const hasSeries = values.some(v => v instanceof Series);
+  
+  if (!hasSeries) {
+    // All scalars - use native Math.max
+    return Math.max(...(values as number[]));
+  }
+  
+  // At least one Series - return a Series
+  const firstSeries = values.find(v => v instanceof Series) as Series;
+  const bars = firstSeries.bars;
+  const length = bars.length;
+  
+  // Convert all values to arrays (scalars become constant arrays)
+  const valueArrays = values.map(v => 
+    v instanceof Series ? v.toArray() : null
+  );
+  
+  const result: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const nums = values.map((v, idx) => 
+      valueArrays[idx] ? valueArrays[idx]![i] ?? NaN : (v as number)
+    );
+    result.push(Math.max(...nums));
+  }
+  
+  return Series.fromArray(bars, result);
 }
 
 /**
  * Returns the minimum value from the arguments.
  *
- * @param values - Variable number of values to compare
+ * @param values - Variable number of values to compare (numbers or Series)
  * @returns The smallest value
  *
  * @remarks
  * - Accepts any number of arguments
  * - Returns Infinity if no arguments provided
  * - Returns NaN if any argument is NaN
+ * - If any argument is a Series, returns a Series; otherwise returns a number
  *
  * @example
  * ```typescript
@@ -162,19 +266,46 @@ export function max(...values: float[]): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.min | PineScript math.min}
  */
-export function min(...values: float[]): float {
-  return Math.min(...values);
+export function min(...values: (float | Series)[]): float | Series {
+  // Check if any value is a Series
+  const hasSeries = values.some(v => v instanceof Series);
+  
+  if (!hasSeries) {
+    // All scalars - use native Math.min
+    return Math.min(...(values as number[]));
+  }
+  
+  // At least one Series - return a Series
+  const firstSeries = values.find(v => v instanceof Series) as Series;
+  const bars = firstSeries.bars;
+  const length = bars.length;
+  
+  // Convert all values to arrays (scalars become constant arrays)
+  const valueArrays = values.map(v => 
+    v instanceof Series ? v.toArray() : null
+  );
+  
+  const result: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const nums = values.map((v, idx) => 
+      valueArrays[idx] ? valueArrays[idx]![i] ?? NaN : (v as number)
+    );
+    result.push(Math.min(...nums));
+  }
+  
+  return Series.fromArray(bars, result);
 }
 
 /**
  * Returns the average (arithmetic mean) of the arguments.
  *
- * @param values - Variable number of values
+ * @param values - Variable number of values (numbers or Series)
  * @returns The arithmetic mean
  *
  * @remarks
  * - Calculates sum of all values divided by count
  * - Returns NaN if no arguments provided (division by zero)
+ * - If any argument is a Series, returns a Series; otherwise returns a number
  *
  * @example
  * ```typescript
@@ -186,8 +317,35 @@ export function min(...values: float[]): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.avg | PineScript math.avg}
  */
-export function avg(...values: float[]): float {
-  return values.reduce((a, b) => a + b, 0) / values.length;
+export function avg(...values: (float | Series)[]): float | Series {
+  // Check if any value is a Series
+  const hasSeries = values.some(v => v instanceof Series);
+  
+  if (!hasSeries) {
+    // All scalars - calculate simple average
+    return (values as number[]).reduce((a, b) => a + b, 0) / values.length;
+  }
+  
+  // At least one Series - return a Series
+  const firstSeries = values.find(v => v instanceof Series) as Series;
+  const bars = firstSeries.bars;
+  const length = bars.length;
+  
+  // Convert all values to arrays (scalars become constant arrays)
+  const valueArrays = values.map(v => 
+    v instanceof Series ? v.toArray() : null
+  );
+  
+  const result: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const nums = values.map((v, idx) => 
+      valueArrays[idx] ? valueArrays[idx]![i] ?? NaN : (v as number)
+    );
+    const sum = nums.reduce((a, b) => a + b, 0);
+    result.push(sum / nums.length);
+  }
+  
+  return Series.fromArray(bars, result);
 }
 
 /**
@@ -241,12 +399,13 @@ export function sum(source: series_float | Series, length: simple_int): series_f
 /**
  * Returns the square root of a number.
  *
- * @param value - The number (must be non-negative)
+ * @param value - The number (must be non-negative) or Series
  * @returns The square root (√value)
  *
  * @remarks
  * - Returns NaN for negative numbers
  * - √x × √x = x (for non-negative x)
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -258,21 +417,38 @@ export function sum(source: series_float | Series, length: simple_int): series_f
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sqrt | PineScript math.sqrt}
  */
-export function sqrt(value: float): float {
+export function sqrt(value: Series): Series;
+export function sqrt(value: float): float;
+export function sqrt(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.sqrt(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.sqrt(value);
 }
 
 /**
  * Returns base raised to the power of exponent.
  *
- * @param base - The base number
- * @param exponent - The exponent (power)
+ * @param base - The base number or Series
+ * @param exponent - The exponent (power) or Series
  * @returns base^exponent
  *
  * @remarks
  * - 0^0 returns 1
  * - Negative base with fractional exponent returns NaN
  * - Any number to the power of 0 equals 1
+ * - If any argument is a Series, returns a Series; if all are numbers, returns a number
  *
  * @example
  * ```typescript
@@ -284,20 +460,46 @@ export function sqrt(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.pow | PineScript math.pow}
  */
-export function pow(base: float, exponent: float): float {
-  return Math.pow(base, exponent);
+export function pow(base: Series, exponent: float): Series;
+export function pow(base: float, exponent: Series): Series;
+export function pow(base: Series, exponent: Series): Series;
+export function pow(base: float, exponent: float): float;
+export function pow(base: float | Series, exponent: float | Series): float | Series {
+  const baseIsSeries = base instanceof Series;
+  const expIsSeries = exponent instanceof Series;
+  
+  // Pure scalar case
+  if (!baseIsSeries && !expIsSeries) {
+    return Math.pow(base as number, exponent as number);
+  }
+  
+  // At least one is a Series - return a Series
+  const bars = baseIsSeries ? (base as Series).bars : (exponent as Series).bars;
+  const baseArray = baseIsSeries ? (base as Series).toArray() : null;
+  const expArray = expIsSeries ? (exponent as Series).toArray() : null;
+  const length = bars.length;
+  
+  const result: number[] = [];
+  for (let i = 0; i < length; i++) {
+    const b = baseArray ? baseArray[i] ?? NaN : (base as number);
+    const e = expArray ? expArray[i] ?? NaN : (exponent as number);
+    result.push(Math.pow(b, e));
+  }
+  
+  return Series.fromArray(bars, result);
 }
 
 /**
  * Returns e (Euler's number) raised to the power of value.
  *
- * @param value - The exponent
+ * @param value - The exponent or Series
  * @returns e^value (where e ≈ 2.71828)
  *
  * @remarks
  * - e^0 = 1
  * - e^1 = e ≈ 2.71828
  * - Inverse of ln(x)
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -309,14 +511,30 @@ export function pow(base: float, exponent: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.exp | PineScript math.exp}
  */
-export function exp(value: float): float {
+export function exp(value: Series): Series;
+export function exp(value: float): float;
+export function exp(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.exp(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.exp(value);
 }
 
 /**
  * Returns the natural logarithm (base e) of a number.
  *
- * @param value - The number (must be positive)
+ * @param value - The number (must be positive) or Series
  * @returns ln(value)
  *
  * @remarks
@@ -325,6 +543,7 @@ export function exp(value: float): float {
  * - ln(e) = 1
  * - ln(1) = 0
  * - Inverse of exp(x)
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -336,14 +555,30 @@ export function exp(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.log | PineScript math.log}
  */
-export function log(value: float): float {
+export function log(value: Series): Series;
+export function log(value: float): float;
+export function log(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.log(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.log(value);
 }
 
 /**
  * Returns the base-10 logarithm of a number.
  *
- * @param value - The number (must be positive)
+ * @param value - The number (must be positive) or Series
  * @returns log₁₀(value)
  *
  * @remarks
@@ -351,6 +586,7 @@ export function log(value: float): float {
  * - Returns -Infinity for 0
  * - log₁₀(10) = 1
  * - log₁₀(100) = 2
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -362,14 +598,30 @@ export function log(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.log10 | PineScript math.log10}
  */
-export function log10(value: float): float {
+export function log10(value: Series): Series;
+export function log10(value: float): float;
+export function log10(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.log10(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.log10(value);
 }
 
 /**
  * Returns the sine of an angle in radians.
  *
- * @param value - The angle in radians
+ * @param value - The angle in radians or Series
  * @returns The sine value (range: [-1, 1])
  *
  * @remarks
@@ -377,6 +629,7 @@ export function log10(value: float): float {
  * - sin(0) = 0
  * - sin(π/2) = 1
  * - Periodic with period 2π
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -388,14 +641,30 @@ export function log10(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sin | PineScript math.sin}
  */
-export function sin(value: float): float {
+export function sin(value: Series): Series;
+export function sin(value: float): float;
+export function sin(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.sin(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.sin(value);
 }
 
 /**
  * Returns the cosine of an angle in radians.
  *
- * @param value - The angle in radians
+ * @param value - The angle in radians or Series
  * @returns The cosine value (range: [-1, 1])
  *
  * @remarks
@@ -403,6 +672,7 @@ export function sin(value: float): float {
  * - cos(0) = 1
  * - cos(π/2) = 0
  * - Periodic with period 2π
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -414,14 +684,30 @@ export function sin(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.cos | PineScript math.cos}
  */
-export function cos(value: float): float {
+export function cos(value: Series): Series;
+export function cos(value: float): float;
+export function cos(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.cos(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.cos(value);
 }
 
 /**
  * Returns the tangent of an angle in radians.
  *
- * @param value - The angle in radians
+ * @param value - The angle in radians or Series
  * @returns The tangent value
  *
  * @remarks
@@ -429,6 +715,7 @@ export function cos(value: float): float {
  * - tan(x) = sin(x) / cos(x)
  * - Undefined at π/2, 3π/2, etc. (returns very large numbers)
  * - Periodic with period π
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -439,14 +726,30 @@ export function cos(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.tan | PineScript math.tan}
  */
-export function tan(value: float): float {
+export function tan(value: Series): Series;
+export function tan(value: float): float;
+export function tan(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.tan(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.tan(value);
 }
 
 /**
  * Returns the arcsine (inverse sine) of a number.
  *
- * @param value - The value (must be in range [-1, 1])
+ * @param value - The value (must be in range [-1, 1]) or Series
  * @returns The angle in radians (range: [-π/2, π/2])
  *
  * @remarks
@@ -454,6 +757,7 @@ export function tan(value: float): float {
  * - asin(sin(x)) = x for x in [-π/2, π/2]
  * - asin(0) = 0
  * - asin(1) = π/2
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -465,14 +769,30 @@ export function tan(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.asin | PineScript math.asin}
  */
-export function asin(value: float): float {
+export function asin(value: Series): Series;
+export function asin(value: float): float;
+export function asin(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.asin(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.asin(value);
 }
 
 /**
  * Returns the arccosine (inverse cosine) of a number.
  *
- * @param value - The value (must be in range [-1, 1])
+ * @param value - The value (must be in range [-1, 1]) or Series
  * @returns The angle in radians (range: [0, π])
  *
  * @remarks
@@ -480,6 +800,7 @@ export function asin(value: float): float {
  * - acos(cos(x)) = x for x in [0, π]
  * - acos(1) = 0
  * - acos(0) = π/2
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -491,14 +812,30 @@ export function asin(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.acos | PineScript math.acos}
  */
-export function acos(value: float): float {
+export function acos(value: Series): Series;
+export function acos(value: float): float;
+export function acos(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.acos(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.acos(value);
 }
 
 /**
  * Returns the arctangent (inverse tangent) of a number.
  *
- * @param value - The value
+ * @param value - The value or Series
  * @returns The angle in radians (range: [-π/2, π/2])
  *
  * @remarks
@@ -506,6 +843,7 @@ export function acos(value: float): float {
  * - atan(tan(x)) = x for x in [-π/2, π/2]
  * - atan(0) = 0
  * - atan(1) = π/4
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -517,20 +855,37 @@ export function acos(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.atan | PineScript math.atan}
  */
-export function atan(value: float): float {
+export function atan(value: Series): Series;
+export function atan(value: float): float;
+export function atan(value: float | Series): float | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(Math.atan(v));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return Math.atan(value);
 }
 
 /**
  * Converts an angle from degrees to radians.
  *
- * @param degrees - The angle in degrees
+ * @param degrees - The angle in degrees or Series
  * @returns The angle in radians
  *
  * @remarks
  * - Radians = Degrees × (π / 180)
  * - One full rotation: 360° = 2π radians
  * - Common conversions: 90° = π/2, 180° = π, 270° = 3π/2
+ * - If degrees is a Series, returns a Series; if degrees is a number, returns a number
  *
  * @example
  * ```typescript
@@ -542,20 +897,37 @@ export function atan(value: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.toradians | PineScript math.toradians}
  */
-export function toradians(degrees: float): float {
+export function toradians(degrees: Series): Series;
+export function toradians(degrees: float): float;
+export function toradians(degrees: float | Series): float | Series {
+  if (degrees instanceof Series) {
+    const bars = degrees.bars;
+    const valueArray = degrees.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(v * (Math.PI / 180));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return degrees * (Math.PI / 180);
 }
 
 /**
  * Converts an angle from radians to degrees.
  *
- * @param radians - The angle in radians
+ * @param radians - The angle in radians or Series
  * @returns The angle in degrees
  *
  * @remarks
  * - Degrees = Radians × (180 / π)
  * - One full rotation: 2π radians = 360°
  * - Common conversions: π/2 = 90°, π = 180°, 3π/2 = 270°
+ * - If radians is a Series, returns a Series; if radians is a number, returns a number
  *
  * @example
  * ```typescript
@@ -567,7 +939,23 @@ export function toradians(degrees: float): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.todegrees | PineScript math.todegrees}
  */
-export function todegrees(radians: float): float {
+export function todegrees(radians: Series): Series;
+export function todegrees(radians: float): float;
+export function todegrees(radians: float | Series): float | Series {
+  if (radians instanceof Series) {
+    const bars = radians.bars;
+    const valueArray = radians.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(v * (180 / Math.PI));
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return radians * (180 / Math.PI);
 }
 
@@ -608,7 +996,7 @@ export function random(min?: float, max?: float, _seed?: int): float {
 /**
  * Returns the sign of a number.
  *
- * @param value - The number to check
+ * @param value - The number to check or Series
  * @returns 1 for positive, -1 for negative, 0 for zero
  *
  * @remarks
@@ -616,6 +1004,7 @@ export function random(min?: float, max?: float, _seed?: int): float {
  * - Returns -1 if value < 0
  * - Returns 0 if value = 0
  * - Useful for determining direction or polarity
+ * - If value is a Series, returns a Series; if value is a number, returns a number
  *
  * @example
  * ```typescript
@@ -627,14 +1016,30 @@ export function random(min?: float, max?: float, _seed?: int): float {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.sign | PineScript math.sign}
  */
-export function sign(value: float): int {
+export function sign(value: Series): Series;
+export function sign(value: float): int;
+export function sign(value: float | Series): int | Series {
+  if (value instanceof Series) {
+    const bars = value.bars;
+    const valueArray = value.toArray();
+    const length = bars.length;
+    
+    const result: number[] = [];
+    for (let i = 0; i < length; i++) {
+      const v = valueArray[i] ?? NaN;
+      result.push(v > 0 ? 1 : v < 0 ? -1 : 0);
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
   return value > 0 ? 1 : value < 0 ? -1 : 0;
 }
 
 /**
  * Rounds a value to the nearest mintick.
  *
- * @param number - The number to round
+ * @param number - The number to round or Series
  * @param mintick - Optional mintick value (defaults to requiring syminfo context)
  * @returns The number rounded to tick precision
  *
@@ -644,6 +1049,7 @@ export function sign(value: float): int {
  * - Rounds to the nearest value divisible by mintick
  * - Returns NaN for NaN input
  * - Ties round up (0.5 -> 1)
+ * - If number is a Series, returns a Series; if number is a float, returns a float
  *
  * @example
  * ```typescript
@@ -658,7 +1064,40 @@ export function sign(value: float): int {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_math.round_to_mintick | PineScript math.round_to_mintick}
  */
-export function round_to_mintick(number: float, mintick?: float): float {
+export function round_to_mintick(number: Series, mintick?: float): Series;
+export function round_to_mintick(number: float, mintick?: float): float;
+export function round_to_mintick(number: float | Series, mintick?: float): float | Series {
+  if (number instanceof Series) {
+    const bars = number.bars;
+    const valueArray = number.toArray();
+    const length = bars.length;
+    
+    if (mintick === undefined) {
+      throw new Error(
+        'math.round_to_mintick() requires mintick value. ' +
+        'Either pass it explicitly or use createContext({ syminfo: { mintick } }) for implicit data.'
+      );
+    }
+    
+    const result: number[] = [];
+    if (mintick === 0) {
+      // No rounding needed
+      result.push(...valueArray);
+    } else {
+      for (let i = 0; i < length; i++) {
+        const v = valueArray[i];
+        if (v === undefined || isNaN(v)) {
+          result.push(NaN);
+        } else {
+          result.push(Math.round(v / mintick) * mintick);
+        }
+      }
+    }
+    
+    return Series.fromArray(bars, result);
+  }
+  
+  // Scalar case
   if (isNaN(number)) {
     return NaN;
   }
