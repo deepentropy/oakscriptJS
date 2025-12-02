@@ -82,7 +82,7 @@ export function Rate_Of_Change(bars: any[], inputs: Partial<IndicatorInputs> = {
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  const roc = sourceSeries.sub(sourceSeries.get(length)).mul(100).div(sourceSeries.get(length));
+  const roc = sourceSeries.sub(sourceSeries.offset(length)).mul(100).div(sourceSeries.offset(length));
   
   return {
     metadata: { title: "Rate Of Change", shorttitle: "ROC", overlay: false },

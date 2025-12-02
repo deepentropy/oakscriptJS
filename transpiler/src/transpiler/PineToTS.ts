@@ -70,6 +70,7 @@ class CodeGenerator {
   private variables: Map<string, string> = new Map();
   private seriesVariables: Set<string> = new Set();  // Track which variables are Series
   private reassignedVariables: Set<string> = new Set();  // Track which variables are reassigned
+  private recursiveVariables: Set<string> = new Set();  // Track which variables are recursive
   private plots: string[] = [];
   private plotConfigs: Array<{ id: string; title: string; color: string; lineWidth: number }> = [];
   private inputs: InputDefinition[] = [];
@@ -93,6 +94,9 @@ class CodeGenerator {
   generate(ast: ASTNode): string {
     this.output = [];
     this.variables.clear();
+    this.seriesVariables.clear();
+    this.reassignedVariables.clear();
+    this.recursiveVariables.clear();
     this.plots = [];
     this.plotConfigs = [];
     this.inputs = [];
@@ -881,11 +885,18 @@ class CodeGenerator {
     }
     
     // Track variables that are reassigned (using := operator)
-    if (node.type === 'Reassignment' && node.children && node.children.length >= 1) {
+    // Also check if they're recursive (reference themselves with history access)
+    if (node.type === 'Reassignment' && node.children && node.children.length >= 2) {
       const left = node.children[0];
+      const right = node.children[1];
       if (left && left.type === 'Identifier') {
         const varName = String(left.value || '');
         this.reassignedVariables.add(varName);
+        
+        // Check if the right-hand side contains a history access to this variable
+        if (right && this.containsHistoryAccessTo(right, varName)) {
+          this.recursiveVariables.add(varName);
+        }
       }
     }
 
@@ -1140,6 +1151,11 @@ class CodeGenerator {
             this.generateAssignment(child);
             return;
           }
+          // Handle reassignment
+          if (child.type === 'Reassignment') {
+            this.generateReassignment(child);
+            return;
+          }
           const expr = this.generateExpression(child);
           if (expr) {
             this.emit(`${expr};`);
@@ -1312,11 +1328,165 @@ class CodeGenerator {
 
     const left = node.children[0]!;
     const right = node.children[1]!;
+    
+    // Check if this is a recursive formula
+    if (left.type === 'Identifier') {
+      const varName = String(left.value || '');
+      
+      if (this.recursiveVariables.has(varName)) {
+        // This is a recursive formula - generate bar-by-bar iteration
+        this.generateRecursiveFormula(varName, right);
+        return;
+      }
+    }
+    
+    // Non-recursive reassignment - generate normal code
     const leftExpr = this.generateExpression(left);
     const rightExpr = this.generateExpression(right);
-    
     this.emit(`${leftExpr} = ${rightExpr};`);
   }
+
+  /**
+   * Generate bar-by-bar iteration code for recursive formulas
+   * e.g., mg := na(mg[1]) ? ta.ema(source, length) : mg[1] + (source - mg[1]) / ...
+   */
+  private generateRecursiveFormula(varName: string, rightNode: ASTNode): void {
+    const tsName = this.variables.get(varName) || varName;
+    
+    // We need to generate code that:
+    // 1. Creates an array to store computed values
+    // 2. Iterates bar by bar
+    // 3. Computes each value based on the previous one
+    
+    this.emit(`// Recursive formula for ${varName}`);
+    this.emit(`const ${tsName}Values: number[] = new Array(bars.length).fill(NaN);`);
+    
+    // Generate the for loop
+    this.emit(`for (let i = 0; i < bars.length; i++) {`);
+    this.indent++;
+    
+    // Generate code to get the previous value
+    this.emit(`const ${tsName}Prev = i > 0 ? ${tsName}Values[i - 1] : NaN;`);
+    
+    // Generate the formula - we need to translate it specially
+    // Replace history access mg[1] with mgPrev
+    const formulaCode = this.generateRecursiveFormulaExpression(rightNode, varName, `${tsName}Prev`);
+    this.emit(`${tsName}Values[i] = ${formulaCode};`);
+    
+    this.indent--;
+    this.emit(`}`);
+    
+    // Convert the array back to a Series
+    this.emit(`${tsName} = Series.fromArray(bars, ${tsName}Values);`);
+  }
+
+  /**
+   * Generate expression code for recursive formulas
+   * Replaces history access to the recursive variable with the previous value variable
+   */
+  private generateRecursiveFormulaExpression(node: ASTNode, recursiveVarName: string, prevValueVar: string): string {
+    if (!node) return '';
+    
+    // Special handling for history access to the recursive variable
+    if (node.type === 'HistoryAccess') {
+      if (node.children && node.children.length >= 1) {
+        const base = node.children[0];
+        if (base?.type === 'Identifier' && String(base.value) === recursiveVarName) {
+          // This is accessing the recursive variable's history - use the previous value
+          return prevValueVar;
+        }
+      }
+    }
+    
+    // For ternary expressions and other complex nodes, we need special handling
+    if (node.type === 'TernaryExpression') {
+      if (!node.children || node.children.length < 3) return '';
+      
+      const conditionNode = node.children[0]!;
+      const consequentNode = node.children[1]!;
+      const alternateNode = node.children[2]!;
+      
+      const condition = this.generateRecursiveFormulaExpression(conditionNode, recursiveVarName, prevValueVar);
+      const consequent = this.generateRecursiveFormulaExpression(consequentNode, recursiveVarName, prevValueVar);
+      const alternate = this.generateRecursiveFormulaExpression(alternateNode, recursiveVarName, prevValueVar);
+      
+      return `(${condition} ? ${consequent} : ${alternate})`;
+    }
+    
+    // For binary expressions
+    if (node.type === 'BinaryExpression') {
+      if (!node.children || node.children.length < 2) return '';
+      
+      const left = this.generateRecursiveFormulaExpression(node.children[0]!, recursiveVarName, prevValueVar);
+      const right = this.generateRecursiveFormulaExpression(node.children[1]!, recursiveVarName, prevValueVar);
+      const op = String(node.value || '+');
+      
+      return `(${left} ${op} ${right})`;
+    }
+    
+    // For unary expressions
+    if (node.type === 'UnaryExpression') {
+      if (!node.children || node.children.length < 1) return '';
+      
+      const operand = this.generateRecursiveFormulaExpression(node.children[0]!, recursiveVarName, prevValueVar);
+      const op = String(node.value || '');
+      
+      return `${op}${operand}`;
+    }
+    
+    // For function calls, we need to convert Series arguments to point values
+    if (node.type === 'FunctionCall') {
+      const funcName = String(node.value || '');
+      
+      // For ta.* functions that operate on Series, we need special handling
+      // For now, we'll need to extract values at current bar
+      if (funcName.startsWith('ta.')) {
+        // This is complex - ta functions need the whole series
+        // For simplicity in recursive formulas, we'll compute the ta function result once
+        // and access it by index
+        const args = (node.children || []).map(c => this.generateExpression(c)).join(', ');
+        const tempVarName = `_${funcName.replace('.', '_')}_temp`;
+        
+        // Note: This is a simplification. We should generate this temp variable outside the loop
+        // For now, we'll just call the function and get the value at index i
+        return `${this.translateFunctionName(funcName)}(${args}).get(i)`;
+      }
+      
+      // For math.* functions, generate normally but with recursive substitutions
+      const args = (node.children || []).map(c => 
+        this.generateRecursiveFormulaExpression(c, recursiveVarName, prevValueVar)
+      ).join(', ');
+      return `${this.translateFunctionName(funcName)}(${args})`;
+    }
+    
+    // For identifiers, check if it's a Series variable
+    if (node.type === 'Identifier') {
+      const name = String(node.value || '');
+      const mappedName = this.variables.get(name) || name;
+      
+      // Check if this is a Series variable (but not the recursive variable itself)
+      if (this.seriesVariables.has(mappedName) && name !== recursiveVarName) {
+        // Access the value at current bar index
+        return `${this.translateIdentifier(name)}.get(i)`;
+      }
+      
+      return this.translateIdentifier(name);
+    }
+    
+    // For literals and other simple nodes, generate normally
+    if (node.type === 'NumberLiteral') {
+      return String(node.value);
+    }
+    
+    if (node.type === 'StringLiteral') {
+      return `"${String(node.value).replace(/"/g, '\\"')}"`;
+    }
+    
+    // Default: try to generate the expression normally
+    // This might not work correctly for all cases, but it's a fallback
+    return this.generateExpression(node);
+  }
+
 
   private generateIfStatement(node: ASTNode): void {
     if (!node.children || node.children.length < 2) return;
@@ -1761,7 +1931,7 @@ class CodeGenerator {
     const base = this.generateExpression(node.children[0]!);
     const offset = this.generateExpression(node.children[1]!);
 
-    return `${base}.get(${offset})`;
+    return `${base}.offset(${offset})`;
   }
 
   private generateSwitchExpression(node: ASTNode): string {
@@ -2026,6 +2196,36 @@ class CodeGenerator {
         const alternateIsFunc = alternateNode.type === 'FunctionCall';
         
         if ((consequentIsNa && alternateIsFunc) || (alternateIsNa && consequentIsFunc)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Check if an expression contains a history access to a specific variable
+   * e.g., checking if "mg[1] + ..." contains "mg[1]"
+   */
+  private containsHistoryAccessTo(node: ASTNode, varName: string): boolean {
+    if (!node) return false;
+    
+    // Check if this is a history access node
+    if (node.type === 'HistoryAccess') {
+      // The first child is the base variable
+      if (node.children && node.children.length >= 1) {
+        const base = node.children[0];
+        if (base?.type === 'Identifier' && String(base.value) === varName) {
+          return true;
+        }
+      }
+    }
+    
+    // Recursively check all children
+    if (node.children) {
+      for (const child of node.children) {
+        if (this.containsHistoryAccessTo(child, varName)) {
           return true;
         }
       }

@@ -67,7 +67,13 @@ export function McGinley_Dynamic(bars: any[], inputs: Partial<IndicatorInputs> =
   // @version=6
   const source = close;
   let mg = new Series(bars, () => 0);
-  mg = (na(mg.get(1)) ? ta.ema(source, length) : source.sub(mg.get(1)).add(mg.get(1)).div(math.pow(source.div(mg.get(1)), 4).mul(length)));
+  // Recursive formula for mg
+  const mgValues: number[] = new Array(bars.length).fill(NaN);
+  for (let i = 0; i < bars.length; i++) {
+    const mgPrev = i > 0 ? mgValues[i - 1] : NaN;
+    mgValues[i] = (na(mgPrev) ? ta.ema(source, length).get(i) : ((mgPrev + (source.get(i) - mgPrev)) / (length * math.pow((source.get(i) / mgPrev), 4))));
+  }
+  mg = Series.fromArray(bars, mgValues);
   
   return {
     metadata: { title: "McGinley Dynamic", shorttitle: "McGinley Dynamic", overlay: true },
