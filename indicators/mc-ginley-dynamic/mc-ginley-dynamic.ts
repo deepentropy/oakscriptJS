@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   length: number;
 }
@@ -66,7 +78,7 @@ export function McGinley_Dynamic(bars: any[], inputs: Partial<IndicatorInputs> =
 // Additional exports for compatibility
 export const metadata = { title: "McGinley Dynamic", shortTitle: "McGinley Dynamic", overlay: true };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'length', type: 'int', title: 'length', defval: 14, min: 1 }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'mg', color: '#2962FF', lineWidth: 2 }];
 export const calculate = McGinley_Dynamic;
 export { McGinley_Dynamic as McGinley_DynamicIndicator };

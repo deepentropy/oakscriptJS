@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   length: number;
   offset: number;
@@ -83,7 +95,7 @@ export function Least_Squares_Moving_Average(bars: any[], inputs: Partial<Indica
 // Additional exports for compatibility
 export const metadata = { title: "Least Squares Moving Average", shortTitle: "LSMA", overlay: true };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'length', type: 'int', title: 'Length', defval: 25 }, { id: 'offset', type: 'int', title: 'Offset', defval: 0 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'lsma', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Least_Squares_Moving_Average;
 export { Least_Squares_Moving_Average as Least_Squares_Moving_AverageIndicator };

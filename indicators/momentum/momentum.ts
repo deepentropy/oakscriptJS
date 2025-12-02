@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   len: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -81,7 +93,7 @@ export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): In
 // Additional exports for compatibility
 export const metadata = { title: "Momentum", shortTitle: "Mom", overlay: false };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'len', type: 'int', title: 'Length', defval: 10, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MOM', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Momentum;
 export { Momentum as MomentumIndicator };

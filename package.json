@@ -8,7 +8,7 @@
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
-    "generate-indicators": "node scripts/generate-indicators.js"
+    "generate-indicators": "node example/scripts/generate-indicators.cjs"
   },
   "devDependencies": {
     "typescript": "^5.3.0"

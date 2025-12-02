@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   length: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
@@ -81,7 +93,7 @@ export function Hull_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs
 // Additional exports for compatibility
 export const metadata = { title: "Hull Moving Average", shortTitle: "HMA", overlay: true };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'length', type: 'int', title: 'Length', defval: 9, min: 2 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'hullma', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Hull_Moving_Average;
 export { Hull_Moving_Average as Hull_Moving_AverageIndicator };
