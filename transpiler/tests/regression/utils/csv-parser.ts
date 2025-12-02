@@ -32,7 +32,7 @@ export function parseCSV(csvContent: string): OHLCVRow[] {
       continue;
     }
 
-    const row: any = {};
+    const row: Partial<OHLCVRow> = {};
     for (let j = 0; j < headers.length; j++) {
       const header = headers[j].trim();
       const value = values[j].trim();
@@ -45,7 +45,7 @@ export function parseCSV(csvContent: string): OHLCVRow[] {
         row[header] = isNaN(numValue) ? null : numValue;
       }
     }
-    rows.push(row);
+    rows.push(row as OHLCVRow);
   }
 
   return rows;
