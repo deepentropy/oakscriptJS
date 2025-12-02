@@ -55,15 +55,15 @@ color = close > open ? 1 : 0`;
       expect(rightSide.type).toBe('HistoryAccess');
     });
 
-    it('should transpile history access to `.get()`', () => {
+    it('should transpile history access to `.offset()`', () => {
       const source = `indicator("Test")
 prevClose = close[1]
 highFive = high[5]`;
       
       const result = transpile(source);
       
-      expect(result).toContain('close.get(1)');
-      expect(result).toContain('high.get(5)');
+      expect(result).toContain('close.offset(1)');
+      expect(result).toContain('high.offset(5)');
     });
 
     it('should handle dynamic history index', () => {
@@ -73,7 +73,7 @@ value = close[idx]`;
       
       const result = transpile(source);
       
-      expect(result).toContain('close.get(idx)');
+      expect(result).toContain('close.offset(idx)');
     });
   });
 
@@ -370,7 +370,7 @@ plot(customSMA)`;
       const result = transpile(source);
       
       expect(result).toContain('for (let i = 0; i <= length; i += 1)');
-      expect(result).toContain('close.get(i)');
+      expect(result).toContain('close.offset(i)');
       expect(result).toContain('sum / length');
     });
 
