@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export function Balance_of_Power(bars: any[]): IndicatorResult {
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
@@ -53,7 +65,7 @@ export function Balance_of_Power(bars: any[]): IndicatorResult {
 // Additional exports for compatibility
 export const metadata = { title: "Balance of Power", shortTitle: "Balance of Power", overlay: false };
 export const defaultInputs = {};
-export const inputConfig = {};
+export const inputConfig: InputConfig[] = [];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'Plot 0', color: '#FF0000', lineWidth: 2 }];
 export const calculate = Balance_of_Power;
 export { Balance_of_Power as Balance_of_PowerIndicator };

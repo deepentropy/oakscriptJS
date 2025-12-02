@@ -17,6 +17,18 @@ interface PlotConfig {
   lineWidth?: number;
 }
 
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 export interface IndicatorInputs {
   lengthInput: number;
 }
@@ -64,7 +76,7 @@ export function Average_Day_Range(bars: any[], inputs: Partial<IndicatorInputs> 
 // Additional exports for compatibility
 export const metadata = { title: "Average Day Range", shortTitle: "ADR", overlay: false };
 export { defaultInputs };
-export const inputConfig = defaultInputs;
+export const inputConfig: InputConfig[] = [{ id: 'lengthInput', type: 'int', title: 'Length', defval: 14 }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'ADR', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Average_Day_Range;
 export { Average_Day_Range as Average_Day_RangeIndicator };
