@@ -72,4 +72,80 @@ bop = (close - open) / (high - low)`;
     
     expect(result).toContain("close.sub(open)");
   });
+
+  it('should generate Series method calls for arithmetic operators', () => {
+    const source = `indicator("Test Arithmetic")
+a = ta.sma(close, 14)
+b = ta.sma(close, 21)
+c1 = a + b
+c2 = a - b
+c3 = a * b
+c4 = a / b
+c5 = a % b`;
+    
+    const result = transpile(source);
+    
+    expect(result).toContain("a.add(b)");
+    expect(result).toContain("a.sub(b)");
+    expect(result).toContain("a.mul(b)");
+    expect(result).toContain("a.div(b)");
+    expect(result).toContain("a.mod(b)");
+  });
+
+  it('should generate Series method calls for comparison operators', () => {
+    const source = `indicator("Test Comparison")
+a = ta.sma(close, 14)
+b = ta.sma(close, 21)
+c1 = a > b
+c2 = a < b
+c3 = a >= b
+c4 = a <= b
+c5 = a == b
+c6 = a != b`;
+    
+    const result = transpile(source);
+    
+    expect(result).toContain("a.gt(b)");
+    expect(result).toContain("a.lt(b)");
+    expect(result).toContain("a.gte(b)");
+    expect(result).toContain("a.lte(b)");
+    expect(result).toContain("a.eq(b)");
+    expect(result).toContain("a.neq(b)");
+  });
+
+  it('should generate Series.neg() for unary minus', () => {
+    const source = `indicator("Test Unary")
+a = ta.sma(close, 14)
+b = -a`;
+    
+    const result = transpile(source);
+    
+    expect(result).toContain("a.neg()");
+  });
+
+  it('should detect Series in ternary expressions with na', () => {
+    const source = `indicator("Test Ternary")
+ma(source, length) => ta.sma(source, length)
+enableMA = true
+smoothingMA = enableMA ? ma(close, 14) : na
+b = ta.sma(close, 21)
+c = smoothingMA - b`;
+    
+    const result = transpile(source);
+    
+    expect(result).toContain("smoothingMA.sub(b)");
+    expect(result).not.toContain("(smoothingMA - b)");
+  });
+
+  it('should handle user-defined functions as Series', () => {
+    const source = `indicator("Test User Function")
+myFunc(x) => ta.sma(x, 10)
+a = myFunc(close)
+b = ta.ema(close, 20)
+c = a + b`;
+    
+    const result = transpile(source);
+    
+    expect(result).toContain("a.add(b)");
+  });
 });
