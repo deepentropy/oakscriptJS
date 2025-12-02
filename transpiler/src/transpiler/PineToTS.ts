@@ -1957,11 +1957,15 @@ class CodeGenerator {
           return true;
         }
         
-        // Special case: if one branch is 'na', assume the other branch is a Series
-        // This is because 'na' is typically used as a fallback for Series values
+        // Special case: if one branch is 'na' and the other is a function call,
+        // assume the whole expression is a Series. This is because in PineScript,
+        // 'na' is typically used as a fallback for Series values.
         const consequentIsNa = consequentNode.type === 'Identifier' && String(consequentNode.value) === 'na';
         const alternateIsNa = alternateNode.type === 'Identifier' && String(alternateNode.value) === 'na';
-        if (consequentIsNa || alternateIsNa) {
+        const consequentIsFunc = consequentNode.type === 'FunctionCall';
+        const alternateIsFunc = alternateNode.type === 'FunctionCall';
+        
+        if ((consequentIsNa && alternateIsFunc) || (alternateIsNa && consequentIsFunc)) {
           return true;
         }
       }
