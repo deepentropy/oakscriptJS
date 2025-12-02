@@ -1058,7 +1058,9 @@ export function round_to_mintick(number: float | Series, mintick?: float): float
     const result: number[] = [];
     if (mintick === 0) {
       // No rounding needed
-      result.push(...valueArray);
+      for (let i = 0; i < length; i++) {
+        result.push(valueArray[i] ?? NaN);
+      }
     } else {
       for (let i = 0; i < length; i++) {
         const v = valueArray[i];
