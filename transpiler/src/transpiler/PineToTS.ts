@@ -1479,7 +1479,7 @@ class CodeGenerator {
     }
     
     if (node.type === 'StringLiteral') {
-      return `"${String(node.value).replace(/"/g, '\\"')}"`;
+      return `"${String(node.value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
     }
     
     // Default: try to generate the expression normally
@@ -1730,7 +1730,7 @@ class CodeGenerator {
         return String(node.value);
 
       case 'StringLiteral':
-        return `"${String(node.value).replace(/"/g, '\\"')}"`;
+        return `"${String(node.value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
       case 'Identifier':
         return this.translateIdentifier(String(node.value || ''));
