@@ -17,20 +17,20 @@
 
 ## How it works
 
-1. PineScript source files are stored in the `pinescript/` directory
+1. PineScript source files are stored in the `example/pinescript/` directory
 2. On each commit to `main`, a GitHub Action runs the `pine2ts` transpiler
 3. Generated TypeScript indicators are placed in this `indicators/` directory
 4. The generated files use the `oakscriptjs` library for calculations
 
 ## To modify an indicator
 
-1. Edit the source PineScript file in `pinescript/`
+1. Edit the source PineScript file in `example/pinescript/`
 2. Commit and push your changes
 3. The GitHub Action will automatically regenerate the TypeScript version
 
 ## To add a new indicator
 
-1. Add your PineScript file to `pinescript/` (e.g., `pinescript/MyIndicator.pine`)
+1. Add your PineScript file to `example/pinescript/` (e.g., `example/pinescript/MyIndicator.pine`)
 2. Commit and push
 3. A new folder will be created: `indicators/my-indicator/`
 
@@ -61,7 +61,7 @@ pnpm install
 pnpm --filter @deepentropy/oakscript-engine build
 
 # Transpile a single indicator
-node ./transpiler/bin/pine2ts.js pinescript/SMA.pine --output indicators/sma/
+node ./transpiler/bin/pine2ts.js example/pinescript/SMA.pine --output indicators/sma/
 
 # Or transpile all indicators
 pnpm generate-indicators
