@@ -315,7 +315,7 @@ if na(close[100])
       
       const result = transpile(source);
       
-      expect(result).toContain('if (na(close.get(100)))');
+      expect(result).toContain('if (na(close.offset(100)))');
     });
 
     it('should allow using nz() for safe values', () => {
@@ -324,7 +324,7 @@ safeValue = nz(close[100])`;
       
       const result = transpile(source);
       
-      expect(result).toContain('nz(close.get(100))');
+      expect(result).toContain('nz(close.offset(100))');
     });
 
     it('should allow nz() with replacement value', () => {
@@ -333,7 +333,7 @@ safeValue = nz(close[100], -1)`;
       
       const result = transpile(source);
       
-      expect(result).toContain('nz(close.get(100), -1)');
+      expect(result).toContain('nz(close.offset(100), -1)');
     });
   });
 
