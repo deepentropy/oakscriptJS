@@ -82,7 +82,7 @@ export function Momentum(bars: any[], inputs: Partial<IndicatorInputs> = {}): In
   const last_bar_index = bars.length - 1;
   
   // @version=6
-  const mom = srcSeries.sub(srcSeries.get(len));
+  const mom = srcSeries.sub(srcSeries.offset(len));
   
   return {
     metadata: { title: "Momentum", shorttitle: "Mom", overlay: false },
