@@ -17,6 +17,11 @@ export * as massIndex from './mass-index';
 export * as mcginleyDynamic from './mc-ginley-dynamic';
 export * as hma from './hma';
 export * as lsma from './lsma';
+export * as rma from './rma';
+export * as wma from './wma';
+export * as vwma from './vwma';
+export * as alma from './alma';
+export * as obv from './obv';
 
 // Import indicators for registry
 import * as smaIndicator from './sma';
@@ -30,6 +35,11 @@ import * as massIndexIndicator from './mass-index';
 import * as mcginleyDynamicIndicator from './mc-ginley-dynamic';
 import * as hmaIndicator from './hma';
 import * as lsmaIndicator from './lsma';
+import * as rmaIndicator from './rma';
+import * as wmaIndicator from './wma';
+import * as vwmaIndicator from './vwma';
+import * as almaIndicator from './alma';
+import * as obvIndicator from './obv';
 
 // Export indicator classes using the new indicator() pattern
 export { SMAIndicator } from './sma';
@@ -224,5 +234,65 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     plotConfig: lsmaIndicator.plotConfig,
     defaultInputs: { ...lsmaIndicator.defaultInputs },
     calculate: lsmaIndicator.calculate,
+  },
+  {
+    id: 'rma',
+    name: 'Smoothed Moving Average (RMA)',
+    shortName: 'RMA',
+    description: 'A smoothed moving average, also known as SMMA or RMA, that gives more weight to recent data.',
+    overlay: true,
+    metadata: rmaIndicator.metadata,
+    inputConfig: rmaIndicator.inputConfig,
+    plotConfig: rmaIndicator.plotConfig,
+    defaultInputs: { ...rmaIndicator.defaultInputs },
+    calculate: rmaIndicator.calculate,
+  },
+  {
+    id: 'wma',
+    name: 'Weighted Moving Average (WMA)',
+    shortName: 'WMA',
+    description: 'A moving average that gives linearly decreasing weights to older data points.',
+    overlay: true,
+    metadata: wmaIndicator.metadata,
+    inputConfig: wmaIndicator.inputConfig,
+    plotConfig: wmaIndicator.plotConfig,
+    defaultInputs: { ...wmaIndicator.defaultInputs },
+    calculate: wmaIndicator.calculate,
+  },
+  {
+    id: 'vwma',
+    name: 'Volume Weighted Moving Average (VWMA)',
+    shortName: 'VWMA',
+    description: 'A moving average that gives more weight to periods with higher volume.',
+    overlay: true,
+    metadata: vwmaIndicator.metadata,
+    inputConfig: vwmaIndicator.inputConfig,
+    plotConfig: vwmaIndicator.plotConfig,
+    defaultInputs: { ...vwmaIndicator.defaultInputs },
+    calculate: vwmaIndicator.calculate,
+  },
+  {
+    id: 'alma',
+    name: 'Arnaud Legoux Moving Average (ALMA)',
+    shortName: 'ALMA',
+    description: 'A moving average using a Gaussian distribution to reduce lag while maintaining smoothness.',
+    overlay: true,
+    metadata: almaIndicator.metadata,
+    inputConfig: almaIndicator.inputConfig,
+    plotConfig: almaIndicator.plotConfig,
+    defaultInputs: { ...almaIndicator.defaultInputs },
+    calculate: almaIndicator.calculate,
+  },
+  {
+    id: 'obv',
+    name: 'On Balance Volume (OBV)',
+    shortName: 'OBV',
+    description: 'A cumulative volume-based indicator that tracks buying and selling pressure.',
+    overlay: false,
+    metadata: obvIndicator.metadata,
+    inputConfig: obvIndicator.inputConfig,
+    plotConfig: obvIndicator.plotConfig,
+    defaultInputs: { ...obvIndicator.defaultInputs },
+    calculate: obvIndicator.calculate,
   },
 ];
