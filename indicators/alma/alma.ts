@@ -1,12 +1,33 @@
-import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import { Series, taCore, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
-// Helper functions
-function na(value: number | null | undefined): boolean {
-  return value === null || value === undefined || Number.isNaN(value);
+export interface IndicatorInputs {
+  lengthInput: number;
+  offsetInput: number;
+  sigmaInput: number;
 }
 
-function nz(value: number | null | undefined, replacement: number = 0): number {
-  return na(value) ? replacement : value as number;
+const defaultInputs: IndicatorInputs = {
+  lengthInput: 9,
+  offsetInput: 0.85,
+  sigmaInput: 6,
+};
+
+export function Arnaud_Legoux_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
+  const { lengthInput, offsetInput, sigmaInput } = { ...defaultInputs, ...inputs };
+  
+  // Close series for ALMA calculation
+  const close = new Series(bars, (bar) => bar.close);
+  
+  // @version=6
+  // ALMA calculation using taCore.alma (array-based)
+  const closeArray = close.toArray();
+  const almaArray = taCore.alma(closeArray, lengthInput, offsetInput, sigmaInput);
+  const almaValues = new Series(bars, (bar, i) => almaArray[i] ?? NaN);
+  
+  return {
+    metadata: { title: "Arnaud Legoux Moving Average", shorttitle: "ALMA", overlay: true },
+    plots: { 'plot0': almaValues.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
+  };
 }
 
 // Plot configuration interface
@@ -27,51 +48,6 @@ export interface InputConfig {
   max?: number;
   step?: number;
   options?: string[];
-}
-
-export interface IndicatorInputs {
-  lengthInput: number;
-  offsetInput: number;
-  sigmaInput: number;
-}
-
-const defaultInputs: IndicatorInputs = {
-  lengthInput: 9,
-  offsetInput: 0.85,
-  sigmaInput: 6,
-};
-
-export function Arnaud_Legoux_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
-  const { lengthInput, offsetInput, sigmaInput } = { ...defaultInputs, ...inputs };
-  
-  // OHLCV Series
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-  const close = new Series(bars, (bar) => bar.close);
-  const volume = new Series(bars, (bar) => bar.volume ?? 0);
-  
-  // Time series
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  
-  // Bar index
-  const last_bar_index = bars.length - 1;
-  
-  // @version=6
-  // ALMA calculation using taCore.alma (array-based)
-  const closeArray = close.toArray();
-  const almaArray = taCore.alma(closeArray, lengthInput, offsetInput, sigmaInput);
-  const almaValues = new Series(bars, (bar, i) => almaArray[i] ?? NaN);
-  
-  return {
-    metadata: { title: "Arnaud Legoux Moving Average", shorttitle: "ALMA", overlay: true },
-    plots: { 'plot0': almaValues.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN })) },
-  };
 }
 
 // Additional exports for compatibility

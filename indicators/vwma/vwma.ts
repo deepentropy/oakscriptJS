@@ -1,48 +1,17 @@
-import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
-
-// Helper functions
-function na(value: number | null | undefined): boolean {
-  return value === null || value === undefined || Number.isNaN(value);
-}
-
-function nz(value: number | null | undefined, replacement: number = 0): number {
-  return na(value) ? replacement : value as number;
-}
-
-// Plot configuration interface
-interface PlotConfig {
-  id: string;
-  title: string;
-  color: string;
-  lineWidth?: number;
-}
-
-// Input configuration interface
-export interface InputConfig {
-  id: string;
-  type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: string[];
-}
+import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
 
 export interface IndicatorInputs {
   len: number;
   src: "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
-  offset: number;
 }
 
 const defaultInputs: IndicatorInputs = {
   len: 20,
   src: "close",
-  offset: 0,
 };
 
 export function Volume_Weighted_Moving_Average(bars: any[], inputs: Partial<IndicatorInputs> = {}): IndicatorResult {
-  const { len, src, offset } = { ...defaultInputs, ...inputs };
+  const { len, src } = { ...defaultInputs, ...inputs };
   
   // OHLCV Series
   const open = new Series(bars, (bar) => bar.open);
@@ -72,17 +41,6 @@ export function Volume_Weighted_Moving_Average(bars: any[], inputs: Partial<Indi
     }
   })();
   
-  // Time series
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  
-  // Bar index
-  const last_bar_index = bars.length - 1;
-  
   // @version=6
   // VWMA calculation using ta.vwma
   const ma = ta.vwma(srcSeries, len, volume);
@@ -93,10 +51,30 @@ export function Volume_Weighted_Moving_Average(bars: any[], inputs: Partial<Indi
   };
 }
 
+// Plot configuration interface
+interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth?: number;
+}
+
+// Input configuration interface
+export interface InputConfig {
+  id: string;
+  type: 'int' | 'float' | 'bool' | 'source' | 'string';
+  title: string;
+  defval: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+}
+
 // Additional exports for compatibility
 export const metadata = { title: "Volume Weighted Moving Average", shortTitle: "VWMA", overlay: true };
 export { defaultInputs };
-export const inputConfig: InputConfig[] = [{ id: 'len', type: 'int', title: 'Length', defval: 20, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }, { id: 'offset', type: 'int', title: 'Offset', defval: 0, min: -500, max: 500 }];
+export const inputConfig: InputConfig[] = [{ id: 'len', type: 'int', title: 'Length', defval: 20, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close", options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'] }];
 export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'VWMA', color: '#2962FF', lineWidth: 2 }];
 export const calculate = Volume_Weighted_Moving_Average;
 export { Volume_Weighted_Moving_Average as Volume_Weighted_Moving_AverageIndicator };
