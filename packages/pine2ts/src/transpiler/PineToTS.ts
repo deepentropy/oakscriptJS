@@ -5,7 +5,37 @@
  */
 
 import { PineParser, ASTNode } from './PineParser.js';
-import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo, ImportInfo, LibraryInfo } from './types.js';
+import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo, ImportInfo, LibraryInfo, PlotConfig } from './types.js';
+import { InfoCollector, type CollectorContext } from './collectors/index.js';
+import { sanitizeIdentifier, applyIndent, INDENT_SIZE } from './utils/index.js';
+import { 
+  pineTypeToTs, 
+  getDefaultForPineType, 
+  translateFunctionName, 
+  translateIdentifier, 
+  translateMemberExpression,
+  colorToHex,
+  getColorValue
+} from './mappers/index.js';
+import {
+  emitHelperFunctions,
+  emitPlotConfigInterface,
+  emitInputConfigInterface,
+  emitOHLCVSeries,
+  emitCalculatedSources,
+  emitTimeSeries,
+  emitBarIndex,
+  emitMainImport,
+  emitLibraryImports,
+  emitInputsInterface,
+  emitSyminfoInterface,
+  emitTimeframeInterface,
+  generateFunctionParams,
+  generateInputConfigArray,
+  emitSourceInputMapping,
+  getInputTsType,
+  formatDefaultValue
+} from './emitters/index.js';
 
 /**
  * Transpile PineScript source code to TypeScript
@@ -58,9 +88,6 @@ export function transpileWithResult(source: string, options: TranspileOptions = 
  * TypeScript code generator
  */
 class CodeGenerator {
-  /** Number of spaces for each indentation level */
-  private static readonly INDENT_SIZE = 2;
-  
   private options: TranspileOptions;
   private output: string[] = [];
   private indent: number = 0;
@@ -72,7 +99,7 @@ class CodeGenerator {
   private reassignedVariables: Set<string> = new Set();  // Track which variables are reassigned
   private recursiveVariables: Set<string> = new Set();  // Track which variables are recursive
   private plots: string[] = [];
-  private plotConfigs: Array<{ id: string; title: string; color: string; lineWidth: number }> = [];
+  private plotConfigs: PlotConfig[] = [];
   private inputs: InputDefinition[] = [];
   private usesSyminfo: boolean = false;
   private usesTimeframe: boolean = false;
@@ -108,48 +135,65 @@ class CodeGenerator {
     this.isLibrary = false;
     this.libraryInfo = null;
 
-    // First pass: collect information
-    this.collectInfo(ast);
+    // First pass: collect information using InfoCollector
+    const collectorContext: CollectorContext = {
+      indicatorTitle: this.indicatorTitle,
+      indicatorShortTitle: this.indicatorShortTitle,
+      indicatorOverlay: this.indicatorOverlay,
+      variables: this.variables,
+      seriesVariables: this.seriesVariables,
+      reassignedVariables: this.reassignedVariables,
+      recursiveVariables: this.recursiveVariables,
+      types: this.types,
+      methods: this.methods,
+      inputs: this.inputs,
+      imports: this.imports,
+      usesSyminfo: this.usesSyminfo,
+      usesTimeframe: this.usesTimeframe,
+      isLibrary: this.isLibrary,
+      libraryInfo: this.libraryInfo,
+      warnings: this.warnings,
+    };
+    
+    const collector = new InfoCollector(collectorContext, (node) => this.generateExpression(node));
+    collector.collect(ast);
+    
+    // Update instance variables from collector context
+    this.indicatorTitle = collectorContext.indicatorTitle;
+    this.indicatorShortTitle = collectorContext.indicatorShortTitle;
+    this.indicatorOverlay = collectorContext.indicatorOverlay;
+    this.usesSyminfo = collectorContext.usesSyminfo;
+    this.usesTimeframe = collectorContext.usesTimeframe;
+    this.isLibrary = collectorContext.isLibrary;
+    this.libraryInfo = collectorContext.libraryInfo;
 
     // Generate imports
     if (this.options.includeImports !== false) {
-      this.emit("import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';");
+      this.emit(emitMainImport());
       
       // Generate library imports
-      for (const imp of this.imports) {
-        const moduleName = `${imp.publisher}_${imp.libraryName}_v${imp.version}`;
-        this.emit(`import * as ${imp.alias} from './libs/${moduleName}';`);
+      const libImports = emitLibraryImports(this.imports);
+      for (const line of libImports) {
+        this.emit(line);
       }
       
       this.emit('');
     }
 
     // Generate helper functions
-    this.generateHelperFunctions();
+    for (const line of emitHelperFunctions()) {
+      this.output.push(line);
+    }
     
     // Generate PlotConfig interface
-    this.emit('// Plot configuration interface');
-    this.emit('interface PlotConfig {');
-    this.emit('  id: string;');
-    this.emit('  title: string;');
-    this.emit('  color: string;');
-    this.emit('  lineWidth?: number;');
-    this.emit('}');
-    this.emit('');
+    for (const line of emitPlotConfigInterface()) {
+      this.output.push(line);
+    }
     
     // Generate InputConfig interface
-    this.emit('// Input configuration interface');
-    this.emit('export interface InputConfig {');
-    this.emit('  id: string;');
-    this.emit("  type: 'int' | 'float' | 'bool' | 'source' | 'string';");
-    this.emit('  title: string;');
-    this.emit('  defval: number | string | boolean;');
-    this.emit('  min?: number;');
-    this.emit('  max?: number;');
-    this.emit('  step?: number;');
-    this.emit('  options?: string[];');
-    this.emit('}');
-    this.emit('');
+    for (const line of emitInputConfigInterface()) {
+      this.output.push(line);
+    }
 
     // Generate user-defined types (interfaces and namespace objects)
     if (this.types.size > 0) {
@@ -158,22 +202,28 @@ class CodeGenerator {
 
     // Generate interfaces if inputs exist
     if (this.inputs.length > 0) {
-      this.generateInputsInterface();
+      for (const line of emitInputsInterface(this.inputs)) {
+        this.output.push(line);
+      }
     }
 
     // Generate syminfo interface if used
     if (this.usesSyminfo) {
-      this.generateSyminfoInterface();
+      for (const line of emitSyminfoInterface()) {
+        this.output.push(line);
+      }
     }
 
     // Generate timeframe interface if used
     if (this.usesTimeframe) {
-      this.generateTimeframeInterface();
+      for (const line of emitTimeframeInterface()) {
+        this.output.push(line);
+      }
     }
 
     // Generate function
-    const funcName = this.sanitizeIdentifier(this.indicatorTitle);
-    const params = this.generateFunctionParams();
+    const funcName = sanitizeIdentifier(this.indicatorTitle);
+    const params = generateFunctionParams(this.inputs.length > 0, this.usesSyminfo, this.usesTimeframe);
     this.emit(`export function ${funcName}(${params}): IndicatorResult {`);
     this.indent++;
 
@@ -186,22 +236,20 @@ class CodeGenerator {
 
     // Generate syminfo setup if used
     if (this.usesSyminfo) {
-      this.generateSyminfoSetup();
+      this.emit('const syminfo = { ...defaultSyminfo, ...syminfoParam };');
+      this.emit('');
     }
 
     // Generate timeframe setup if used
     if (this.usesTimeframe) {
-      this.generateTimeframeSetup();
+      this.emit('const timeframe = { ...defaultTimeframe, ...timeframeParam };');
+      this.emit('');
     }
 
     // Generate OHLCV series
-    this.emit('// OHLCV Series');
-    this.emit("const open = new Series(bars, (bar) => bar.open);");
-    this.emit("const high = new Series(bars, (bar) => bar.high);");
-    this.emit("const low = new Series(bars, (bar) => bar.low);");
-    this.emit("const close = new Series(bars, (bar) => bar.close);");
-    this.emit("const volume = new Series(bars, (bar) => bar.volume ?? 0);");
-    this.emit('');
+    for (const line of emitOHLCVSeries()) {
+      this.output.push(line);
+    }
     
     // Mark these as Series variables
     this.seriesVariables.add('open');
@@ -211,12 +259,9 @@ class CodeGenerator {
     this.seriesVariables.add('volume');
 
     // Generate calculated price sources
-    this.emit('// Calculated price sources');
-    this.emit('const hl2 = high.add(low).div(2);');
-    this.emit('const hlc3 = high.add(low).add(close).div(3);');
-    this.emit('const ohlc4 = open.add(high).add(low).add(close).div(4);');
-    this.emit('const hlcc4 = high.add(low).add(close).add(close).div(4);');
-    this.emit('');
+    for (const line of emitCalculatedSources()) {
+      this.output.push(line);
+    }
     
     // Mark calculated sources as Series
     this.seriesVariables.add('hl2');
@@ -226,23 +271,20 @@ class CodeGenerator {
 
     // Now map source inputs to Series (after Series are created)
     if (this.inputs.length > 0) {
-      this.generateSourceInputMapping();
+      for (const line of emitSourceInputMapping(this.inputs, this.variables, this.seriesVariables, sanitizeIdentifier)) {
+        this.output.push(line);
+      }
     }
 
     // Generate time series
-    this.emit('// Time series');
-    this.emit('const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());');
-    this.emit('const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);');
-    this.emit('const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());');
-    this.emit('const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);');
-    this.emit('const hour = new Series(bars, (bar) => new Date(bar.time).getHours());');
-    this.emit('const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());');
-    this.emit('');
+    for (const line of emitTimeSeries()) {
+      this.output.push(line);
+    }
 
     // Generate bar_index and last_bar_index
-    this.emit('// Bar index');
-    this.emit('const last_bar_index = bars.length - 1;');
-    this.emit('');
+    for (const line of emitBarIndex()) {
+      this.output.push(line);
+    }
 
     // Generate body
     this.generateStatements(ast);
@@ -277,7 +319,7 @@ class CodeGenerator {
     
     if (this.inputs.length > 0) {
       this.emit('export { defaultInputs };');
-      this.emit(`export const inputConfig: InputConfig[] = ${this.generateInputConfigArray()};`);
+      this.emit(`export const inputConfig: InputConfig[] = ${generateInputConfigArray(this.inputs)};`);
     } else {
       // Export empty objects even when there are no inputs for consistency
       this.emit('export const defaultInputs = {};');
@@ -299,7 +341,7 @@ class CodeGenerator {
     
     // Export with indicator-specific name (e.g., MomentumIndicator)
     // Use the indicator title as the base name
-    const indicatorBaseName = this.sanitizeIdentifier(this.indicatorTitle);
+    const indicatorBaseName = sanitizeIdentifier(this.indicatorTitle);
     const indicatorClassName = `${indicatorBaseName}Indicator`;
     this.emit(`export { ${funcName} as ${indicatorClassName} };`);
     
@@ -316,22 +358,6 @@ class CodeGenerator {
     return this.output.join('\n');
   }
 
-  private generateHelperFunctions(): void {
-    this.emit('// Helper functions');
-    this.emit('function na(value: number | null | undefined): boolean {');
-    this.indent++;
-    this.emit('return value === null || value === undefined || Number.isNaN(value);');
-    this.indent--;
-    this.emit('}');
-    this.emit('');
-    this.emit('function nz(value: number | null | undefined, replacement: number = 0): number {');
-    this.indent++;
-    this.emit('return na(value) ? replacement : value as number;');
-    this.indent--;
-    this.emit('}');
-    this.emit('');
-  }
-
   private generateUserDefinedTypes(): void {
     this.emit('// User-defined types');
     
@@ -342,7 +368,7 @@ class CodeGenerator {
       this.emit(`${exportKeyword}interface ${typeName} {`);
       this.indent++;
       for (const field of typeInfo.fields) {
-        const tsType = this.pineTypeToTs(field.fieldType);
+        const tsType = pineTypeToTs(field.fieldType, this.types);
         this.emit(`${field.name}: ${tsType};`);
       }
       this.indent--;
@@ -355,8 +381,8 @@ class CodeGenerator {
       
       // Generate new() factory function
       const params = typeInfo.fields.map(f => {
-        const tsType = this.pineTypeToTs(f.fieldType);
-        const defaultVal = f.defaultValue || this.getDefaultForPineType(f.fieldType);
+        const tsType = pineTypeToTs(f.fieldType, this.types);
+        const defaultVal = f.defaultValue || getDefaultForPineType(f.fieldType, this.types);
         return `${f.name}: ${tsType} = ${defaultVal}`;
       }).join(', ');
       
@@ -383,7 +409,7 @@ class CodeGenerator {
   private generateMethodInNamespace(method: MethodInfo, typeName: string): void {
     const selfType = typeName;
     const otherParams = method.parameters.map(p => {
-      const tsType = this.pineTypeToTs(p.paramType);
+      const tsType = pineTypeToTs(p.paramType, this.types);
       const defaultVal = p.defaultValue ? ` = ${p.defaultValue}` : '';
       return `${p.name}: ${tsType}${defaultVal}`;
     }).join(', ');
@@ -414,681 +440,7 @@ class CodeGenerator {
     this.emit('},');
   }
 
-  private pineTypeToTs(pineType: string): string {
-    // Map PineScript types to TypeScript types
-    const typeMap: Record<string, string> = {
-      'int': 'number',
-      'float': 'number',
-      'bool': 'boolean',
-      'string': 'string',
-      'color': 'string',
-      'line': 'Line | null',
-      'label': 'Label | null',
-      'box': 'Box | null',
-      'table': 'Table | null',
-      'chart.point': 'ChartPoint',
-    };
-    
-    // Handle generic array types
-    if (pineType.startsWith('array<') && pineType.endsWith('>')) {
-      const innerType = pineType.slice(6, -1);
-      return `${this.pineTypeToTs(innerType)}[]`;
-    }
-    
-    if (typeMap[pineType]) {
-      return typeMap[pineType];
-    }
-    
-    // Check if it's a user-defined type
-    if (this.types.has(pineType)) {
-      return pineType;
-    }
-    
-    // Assume it's a custom type (e.g., user-defined)
-    return pineType;
-  }
-
-  private getDefaultForPineType(pineType: string): string {
-    const defaults: Record<string, string> = {
-      'int': '0',
-      'float': '0.0',
-      'bool': 'false',
-      'string': '""',
-      'color': '"#000000"',
-      'line': 'null',
-      'label': 'null',
-      'box': 'null',
-      'table': 'null',
-      'chart.point': 'null',
-    };
-    
-    // Handle generic array types
-    if (pineType.startsWith('array<')) {
-      return '[]';
-    }
-    
-    if (defaults[pineType]) {
-      return defaults[pineType];
-    }
-    
-    // For user-defined types, use null to avoid potential infinite recursion
-    // (when a type has a field of its own type)
-    // Runtime code should handle this with explicit instantiation
-    if (this.types.has(pineType)) {
-      return 'null';
-    }
-    
-    return 'null';
-  }
-
-  private generateInputsInterface(): void {
-    this.emit('export interface IndicatorInputs {');
-    this.indent++;
-    for (const input of this.inputs) {
-      const tsType = this.getInputTsType(input);
-      this.emit(`${input.name}: ${tsType};`);
-    }
-    this.indent--;
-    this.emit('}');
-    this.emit('');
-
-    // Generate default inputs
-    this.emit('const defaultInputs: IndicatorInputs = {');
-    this.indent++;
-    for (const input of this.inputs) {
-      const defaultValue = this.formatDefaultValue(input);
-      this.emit(`${input.name}: ${defaultValue},`);
-    }
-    this.indent--;
-    this.emit('};');
-    this.emit('');
-  }
-
-  private generateSyminfoInterface(): void {
-    this.emit('export interface SymbolInfo {');
-    this.indent++;
-    this.emit('ticker: string;');
-    this.emit('tickerid: string;');
-    this.emit('currency: string;');
-    this.emit('mintick: number;');
-    this.emit('pointvalue: number;');
-    this.emit('type: string;');
-    this.indent--;
-    this.emit('}');
-    this.emit('');
-
-    this.emit('const defaultSyminfo: SymbolInfo = {');
-    this.indent++;
-    this.emit('ticker: "UNKNOWN",');
-    this.emit('tickerid: "UNKNOWN",');
-    this.emit('currency: "USD",');
-    this.emit('mintick: 0.01,');
-    this.emit('pointvalue: 1,');
-    this.emit('type: "stock",');
-    this.indent--;
-    this.emit('};');
-    this.emit('');
-  }
-
-  private generateTimeframeInterface(): void {
-    this.emit('export interface TimeframeInfo {');
-    this.indent++;
-    this.emit('period: string;');
-    this.emit('multiplier: number;');
-    this.emit('isintraday: boolean;');
-    this.emit('isdaily: boolean;');
-    this.emit('isweekly: boolean;');
-    this.emit('ismonthly: boolean;');
-    this.indent--;
-    this.emit('}');
-    this.emit('');
-
-    this.emit('const defaultTimeframe: TimeframeInfo = {');
-    this.indent++;
-    this.emit('period: "D",');
-    this.emit('multiplier: 1,');
-    this.emit('isintraday: false,');
-    this.emit('isdaily: true,');
-    this.emit('isweekly: false,');
-    this.emit('ismonthly: false,');
-    this.indent--;
-    this.emit('};');
-    this.emit('');
-  }
-
-  private generateFunctionParams(): string {
-    const params: string[] = ['bars: any[]'];
-    
-    if (this.inputs.length > 0) {
-      params.push('inputs: Partial<IndicatorInputs> = {}');
-    }
-    
-    if (this.usesSyminfo) {
-      params.push('syminfoParam?: Partial<SymbolInfo>');
-    }
-    
-    if (this.usesTimeframe) {
-      params.push('timeframeParam?: Partial<TimeframeInfo>');
-    }
-    
-    return params.join(', ');
-  }
-
-  private generateSourceInputMapping(): void {
-    // Map source-type inputs to their corresponding Series
-    const sourceInputs = this.inputs.filter(i => i.inputType === 'source');
-    if (sourceInputs.length > 0) {
-      this.emit('// Map source inputs to Series');
-      for (const input of sourceInputs) {
-        const varName = this.sanitizeIdentifier(input.name);
-        const seriesVarName = `${varName}Series`;
-        this.emit(`const ${seriesVarName} = (() => {`);
-        this.indent++;
-        this.emit(`switch (${varName}) {`);
-        this.indent++;
-        this.emit(`case "open": return open;`);
-        this.emit(`case "high": return high;`);
-        this.emit(`case "low": return low;`);
-        this.emit(`case "close": return close;`);
-        this.emit(`case "hl2": return hl2;`);
-        this.emit(`case "hlc3": return hlc3;`);
-        this.emit(`case "ohlc4": return ohlc4;`);
-        this.emit(`case "hlcc4": return hlcc4;`);
-        this.emit(`default: return close;`);
-        this.indent--;
-        this.emit(`}`);
-        this.indent--;
-        this.emit(`})();`);
-        // Update the variable mapping so references to this variable use the Series version
-        this.variables.set(input.name, seriesVarName);
-        // Mark this as a Series variable
-        this.seriesVariables.add(seriesVarName);
-      }
-      this.emit('');
-    }
-  }
-
-  private generateSyminfoSetup(): void {
-    this.emit('const syminfo = { ...defaultSyminfo, ...syminfoParam };');
-    this.emit('');
-  }
-
-  private generateTimeframeSetup(): void {
-    this.emit('const timeframe = { ...defaultTimeframe, ...timeframeParam };');
-    this.emit('');
-  }
-
-  private getInputTsType(input: InputDefinition): string {
-    switch (input.inputType) {
-      case 'int':
-      case 'float':
-        return 'number';
-      case 'bool':
-        return 'boolean';
-      case 'string':
-        if (input.options && input.options.length > 0) {
-          return input.options.map(o => `"${o}"`).join(' | ');
-        }
-        return 'string';
-      case 'color':
-        return 'string';
-      case 'source':
-        return '"open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4"';
-      default:
-        return 'unknown';
-    }
-  }
-
-  private formatDefaultValue(input: InputDefinition): string {
-    switch (input.inputType) {
-      case 'int':
-      case 'float':
-        return String(input.defval ?? 0);
-      case 'bool':
-        return String(input.defval ?? false);
-      case 'string':
-        return `"${input.defval ?? ''}"`;
-      case 'color':
-        return `"${this.colorToHex(input.defval as string) || '#000000'}"`;
-      case 'source':
-        return `"${input.defval ?? 'close'}"`;
-      default:
-        return 'undefined';
-    }
-  }
-
-  private colorToHex(color: string | undefined): string {
-    if (!color) return '#000000';
-    
-    // Handle color.* constants
-    const colorMap: Record<string, string> = {
-      'color.green': '#00FF00',
-      'color.red': '#FF0000',
-      'color.blue': '#0000FF',
-      'color.white': '#FFFFFF',
-      'color.black': '#000000',
-      'color.yellow': '#FFFF00',
-      'color.orange': '#FFA500',
-      'color.purple': '#800080',
-      'color.gray': '#808080',
-      'color.silver': '#C0C0C0',
-      'color.aqua': '#00FFFF',
-      'color.lime': '#00FF00',
-      'color.maroon': '#800000',
-      'color.navy': '#000080',
-      'color.olive': '#808000',
-      'color.teal': '#008080',
-      'color.fuchsia': '#FF00FF',
-    };
-    
-    return colorMap[color] || color;
-  }
-
-  private generateInputConfigArray(): string {
-    const configs = this.inputs.map(input => {
-      const parts: string[] = [
-        `id: '${input.name}'`,
-        `type: '${input.inputType}'`,
-        `title: '${input.title || input.name}'`,
-        `defval: ${this.formatDefaultValue(input)}`
-      ];
-
-      // Add optional properties
-      if (input.minval !== undefined) {
-        parts.push(`min: ${input.minval}`);
-      }
-      if (input.maxval !== undefined) {
-        parts.push(`max: ${input.maxval}`);
-      }
-      if (input.step !== undefined) {
-        parts.push(`step: ${input.step}`);
-      }
-      if (input.inputType === 'source') {
-        // Always include source options
-        parts.push(`options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4']`);
-      } else if (input.options && input.options.length > 0) {
-        const optionsStr = input.options.map(o => `'${o}'`).join(', ');
-        parts.push(`options: [${optionsStr}]`);
-      }
-
-      return `{ ${parts.join(', ')} }`;
-    });
-
-    return `[${configs.join(', ')}]`;
-  }
-
-  private collectInfo(node: ASTNode): void {
-    if (!node) return;
-
-    if (node.type === 'IndicatorDeclaration') {
-      // Extract indicator title and overlay from arguments
-      if (node.children && node.children.length > 0) {
-        // First check for positional argument (first child might be a StringLiteral)
-        const firstChild = node.children[0];
-        if (firstChild?.type === 'StringLiteral') {
-          this.indicatorTitle = String(firstChild.value || 'Indicator');
-        }
-        
-        // Then check for named arguments (these override positional)
-        for (const arg of node.children) {
-          if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
-            const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
-            const paramValue = arg.children[1];
-            
-            if (paramName === 'title' && paramValue?.type === 'StringLiteral') {
-              this.indicatorTitle = String(paramValue.value || 'Indicator');
-            } else if (paramName === 'shorttitle' && paramValue?.type === 'StringLiteral') {
-              this.indicatorShortTitle = String(paramValue.value || '');
-            } else if (paramName === 'overlay' && paramValue?.type === 'Identifier') {
-              this.indicatorOverlay = String(paramValue.value) === 'true';
-            }
-          }
-        }
-        
-        // If shortTitle not provided, use the title
-        if (!this.indicatorShortTitle) {
-          this.indicatorShortTitle = this.indicatorTitle;
-        }
-      }
-    }
-
-    // Collect library declaration
-    if (node.type === 'LibraryDeclaration') {
-      this.isLibrary = true;
-      if (node.children && node.children.length > 0) {
-        const firstArg = node.children[0];
-        if (firstArg && firstArg.type === 'StringLiteral' && typeof firstArg.value === 'string') {
-          this.indicatorTitle = firstArg.value;
-          this.libraryInfo = {
-            name: firstArg.value,
-            overlay: false,
-          };
-        }
-        // Check for overlay argument
-        for (const arg of node.children) {
-          if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
-            const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
-            if (paramName === 'overlay' && arg.children[1]) {
-              const paramValue = arg.children[1];
-              if (paramValue.type === 'Identifier' && paramValue.value === 'true') {
-                if (this.libraryInfo) {
-                  this.libraryInfo.overlay = true;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Collect import statements
-    if (node.type === 'ImportStatement') {
-      const alias = String(node.value || '');
-      let publisher = '';
-      let libraryName = '';
-      let version = 0;
-      
-      if (node.children) {
-        for (const child of node.children) {
-          if (child.type === 'Publisher') {
-            publisher = String(child.value || '');
-          } else if (child.type === 'LibraryName') {
-            libraryName = String(child.value || '');
-          } else if (child.type === 'Version') {
-            version = typeof child.value === 'number' ? child.value : 0;
-          }
-        }
-      }
-      
-      this.imports.push({
-        publisher,
-        libraryName,
-        version,
-        alias,
-      });
-    }
-
-    // Collect type definitions
-    if (node.type === 'TypeDeclaration') {
-      const typeName = String(node.value || '');
-      const fields: FieldInfo[] = [];
-      
-      if (node.children) {
-        for (const fieldNode of node.children) {
-          if (fieldNode.type === 'FieldDeclaration') {
-            const field: FieldInfo = {
-              name: String(fieldNode.value || ''),
-              fieldType: String(fieldNode.fieldType || 'unknown'),
-              defaultValue: fieldNode.children && fieldNode.children.length > 0 
-                ? this.generateExpression(fieldNode.children[0])
-                : undefined,
-              isOptional: !!(fieldNode.children && fieldNode.children.length > 0),
-            };
-            fields.push(field);
-          }
-        }
-      }
-      
-      this.types.set(typeName, {
-        name: typeName,
-        exported: node.exported || false,
-        fields: fields,
-      });
-    }
-
-    // Collect method definitions
-    if (node.type === 'MethodDeclaration') {
-      const methodName = String(node.value || '');
-      const boundType = String(node.boundType || '');
-      
-      const methodInfo: MethodInfo = {
-        name: methodName,
-        boundType: boundType,
-        exported: node.exported || false,
-        parameters: (node.params || []).map(p => ({
-          name: String(p.value || ''),
-          paramType: String(p.fieldType || 'unknown'),
-          defaultValue: p.children && p.children.length > 0 
-            ? this.generateExpression(p.children[0])
-            : undefined,
-        })),
-        bodyNode: node.children && node.children.length > 0 ? node.children[0] : undefined,
-      };
-      
-      if (!this.methods.has(boundType)) {
-        this.methods.set(boundType, []);
-      }
-      this.methods.get(boundType)!.push(methodInfo);
-    }
-
-    // Collect input definitions from ExpressionStatement containing Assignment
-    // This is the main path - we only check at ExpressionStatement level to avoid duplicates
-    if (node.type === 'ExpressionStatement' && node.children && node.children.length > 0) {
-      const expr = node.children[0];
-      if (expr && expr.type === 'Assignment' && expr.children && expr.children.length >= 2) {
-        const left = expr.children[0];
-        const right = expr.children[1];
-        if (left && left.type === 'Identifier' && right && right.type === 'FunctionCall') {
-          const funcName = String(right.value || '');
-          if (funcName === 'input' || funcName.startsWith('input.')) {
-            const varName = String(left.value || '');
-            // Check if we already have this input to avoid duplicates
-            if (!this.inputs.some(i => i.name === varName)) {
-              const inputDef = this.parseInputFunction(varName, funcName, right.children || []);
-              if (inputDef) {
-                this.inputs.push(inputDef);
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    // Track variables that are reassigned (using := operator)
-    // Also check if they're recursive (reference themselves with history access)
-    if (node.type === 'Reassignment' && node.children && node.children.length >= 2) {
-      const left = node.children[0];
-      const right = node.children[1];
-      if (left && left.type === 'Identifier') {
-        const varName = String(left.value || '');
-        this.reassignedVariables.add(varName);
-        
-        // Check if the right-hand side contains a history access to this variable
-        if (right && this.containsHistoryAccessTo(right, varName)) {
-          this.recursiveVariables.add(varName);
-        }
-      }
-    }
-
-    // Detect syminfo usage
-    if (node.type === 'MemberExpression') {
-      const memberName = String(node.value || '');
-      if (memberName.startsWith('syminfo.')) {
-        this.usesSyminfo = true;
-      }
-      if (memberName.startsWith('timeframe.')) {
-        this.usesTimeframe = true;
-      }
-    }
-
-    if (node.children) {
-      for (const child of node.children) {
-        this.collectInfo(child);
-      }
-    }
-    
-    // Also check params for method declarations
-    if (node.params) {
-      for (const param of node.params) {
-        this.collectInfo(param);
-      }
-    }
-  }
-
-  private parseInputFunction(varName: string, funcName: string, args: ASTNode[]): InputDefinition | null {
-    const inputTypeMap: Record<string, InputDefinition['inputType']> = {
-      'input': 'source',  // Plain input() defaults to source
-      'input.int': 'int',
-      'input.float': 'float',
-      'input.bool': 'bool',
-      'input.string': 'string',
-      'input.color': 'color',
-      'input.source': 'source',
-    };
-
-    let inputType = inputTypeMap[funcName];
-    if (!inputType) return null;
-
-    const input: InputDefinition = {
-      name: varName,
-      inputType,
-      defval: this.getDefaultValueFromArgs(args, inputType),
-    };
-
-    // Parse named arguments
-    for (const arg of args) {
-      if (arg && arg.type === 'Assignment' && arg.children && arg.children.length >= 2) {
-        const paramName = arg.children[0]?.type === 'Identifier' ? String(arg.children[0].value || '') : '';
-        const paramValue = arg.children[1];
-
-        switch (paramName) {
-          case 'title':
-            if (paramValue?.type === 'StringLiteral') {
-              input.title = String(paramValue.value || '');
-            }
-            break;
-          case 'defval':
-            input.defval = this.extractValue(paramValue, inputType);
-            break;
-          case 'minval':
-            if (paramValue?.type === 'NumberLiteral') {
-              input.minval = Number(paramValue.value);
-            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
-              input.minval = -Number(paramValue.children[0].value);
-            }
-            break;
-          case 'maxval':
-            if (paramValue?.type === 'NumberLiteral') {
-              input.maxval = Number(paramValue.value);
-            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
-              input.maxval = -Number(paramValue.children[0].value);
-            }
-            break;
-          case 'step':
-            if (paramValue?.type === 'NumberLiteral') {
-              input.step = Number(paramValue.value);
-            } else if (paramValue?.type === 'UnaryExpression' && paramValue.value === '-' && paramValue.children?.[0]?.type === 'NumberLiteral') {
-              input.step = -Number(paramValue.children[0].value);
-            }
-            break;
-          case 'options':
-            // Handle options array - it's parsed as FunctionCall with array syntax
-            input.options = this.parseOptionsArray(paramValue);
-            break;
-        }
-      }
-    }
-
-    // If title not set from named arg, check second positional argument
-    if (!input.title && args.length > 1 && args[1]?.type === 'StringLiteral') {
-      input.title = String(args[1].value || '');
-    }
-
-    // For plain input(), infer type from defval if it's a number
-    if (funcName === 'input' && typeof input.defval === 'number') {
-      input.inputType = Number.isInteger(input.defval) ? 'int' : 'float';
-    }
-
-    return input;
-  }
-
-  private getDefaultValueFromArgs(args: ASTNode[], inputType: InputDefinition['inputType']): unknown {
-    // First positional argument is typically the default value
-    if (args.length === 0) return this.getDefaultForType(inputType);
-    
-    const firstArg = args[0];
-    if (!firstArg) return this.getDefaultForType(inputType);
-
-    // Skip if first arg is a named argument
-    if (firstArg.type === 'Assignment') {
-      // Check if it's defval=...
-      if (firstArg.children && firstArg.children[0]?.type === 'Identifier') {
-        const paramName = String(firstArg.children[0].value || '');
-        if (paramName === 'defval' && firstArg.children[1]) {
-          return this.extractValue(firstArg.children[1], inputType);
-        }
-      }
-      return this.getDefaultForType(inputType);
-    }
-
-    return this.extractValue(firstArg, inputType);
-  }
-
-  private extractValue(node: ASTNode | undefined, inputType: InputDefinition['inputType']): unknown {
-    if (!node) return this.getDefaultForType(inputType);
-
-    switch (node.type) {
-      case 'NumberLiteral':
-        return Number(node.value);
-      case 'StringLiteral':
-        return String(node.value || '');
-      case 'Identifier':
-        const val = String(node.value || '');
-        // Handle boolean values
-        if (val === 'true') return true;
-        if (val === 'false') return false;
-        // Handle source values
-        if (['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'].includes(val)) {
-          return val;
-        }
-        return val;
-      case 'MemberExpression':
-        // Handle color.green, etc.
-        return String(node.value || '');
-      default:
-        return this.getDefaultForType(inputType);
-    }
-  }
-
-  private getDefaultForType(inputType: InputDefinition['inputType']): unknown {
-    switch (inputType) {
-      case 'int': return 0;
-      case 'float': return 0.0;
-      case 'bool': return false;
-      case 'string': return '';
-      case 'color': return '#000000';
-      case 'source': return 'close';
-      default: return null;
-    }
-  }
-
-  private parseOptionsArray(node: ASTNode | undefined): string[] | undefined {
-    if (!node) return undefined;
-    
-    // Handle ArrayLiteral type from the parser
-    if (node.type === 'ArrayLiteral' && node.children && node.children.length > 0) {
-      const options: string[] = [];
-      for (const child of node.children) {
-        if (child?.type === 'StringLiteral') {
-          options.push(String(child.value || ''));
-        }
-      }
-      if (options.length > 0) return options;
-    }
-    
-    // Fallback: Options might be parsed as other node types with children
-    if (node.children && node.children.length > 0) {
-      const options: string[] = [];
-      for (const child of node.children) {
-        if (child?.type === 'StringLiteral') {
-          options.push(String(child.value || ''));
-        }
-      }
-      if (options.length > 0) return options;
-    }
-    
-    return undefined;
-  }
+  // Note: collectInfo() method has been replaced by InfoCollector class
 
   private generateStatements(node: ASTNode): void {
     if (!node || !node.children) return;
@@ -1209,7 +561,7 @@ class CodeGenerator {
 
   private generateVariableDeclaration(node: ASTNode): void {
     const name = String(node.value || 'unknown');
-    const tsName = this.sanitizeIdentifier(name);
+    const tsName = sanitizeIdentifier(name);
     this.variables.set(name, tsName);
 
     if (node.children && node.children.length > 0) {
@@ -1222,7 +574,7 @@ class CodeGenerator {
 
   private generateFunctionDeclaration(node: ASTNode): void {
     const name = String(node.value || 'unknown');
-    const tsName = this.sanitizeIdentifier(name);
+    const tsName = sanitizeIdentifier(name);
     const paramsStr = String(node.name || '');
     const params = paramsStr ? paramsStr.split(',').map(p => `${p.trim()}: any`).join(', ') : '';
     
@@ -1286,7 +638,7 @@ class CodeGenerator {
 
     if (left.type === 'Identifier') {
       const name = String(left.value || 'unknown');
-      const tsName = this.sanitizeIdentifier(name);
+      const tsName = sanitizeIdentifier(name);
       
       let rightExpr = this.generateExpression(right);
       
@@ -1449,14 +801,14 @@ class CodeGenerator {
         
         // Note: This is a simplification. We should generate this temp variable outside the loop
         // For now, we'll just call the function and get the value at index i
-        return `${this.translateFunctionName(funcName)}(${args}).get(i)`;
+        return `${translateFunctionName(funcName)}(${args}).get(i)`;
       }
       
       // For math.* functions, generate normally but with recursive substitutions
       const args = (node.children || []).map(c => 
         this.generateRecursiveFormulaExpression(c, recursiveVarName, prevValueVar)
       ).join(', ');
-      return `${this.translateFunctionName(funcName)}(${args})`;
+      return `${translateFunctionName(funcName)}(${args})`;
     }
     
     // For identifiers, check if it's a Series variable
@@ -1467,10 +819,10 @@ class CodeGenerator {
       // Check if this is a Series variable (but not the recursive variable itself)
       if (this.seriesVariables.has(mappedName) && name !== recursiveVarName) {
         // Access the value at current bar index
-        return `${this.translateIdentifier(name)}.get(i)`;
+        return `${translateIdentifier(name, this.variables)}.get(i)`;
       }
       
-      return this.translateIdentifier(name);
+      return translateIdentifier(name, this.variables);
     }
     
     // For literals and other simple nodes, generate normally
@@ -1536,7 +888,7 @@ class CodeGenerator {
 
     const condExpr = this.generateExpression(condition);
     const lines: string[] = [];
-    const indent = this.getIndentString();
+    const indent = ' '.repeat(INDENT_SIZE);
     lines.push(`if (${condExpr}) {`);
     
     if (body.type === 'Block' && body.children) {
@@ -1579,7 +931,7 @@ class CodeGenerator {
 
       case 'VariableDeclaration': {
         const name = String(node.value || 'unknown');
-        const tsName = this.sanitizeIdentifier(name);
+        const tsName = sanitizeIdentifier(name);
         this.variables.set(name, tsName);
         if (node.children && node.children.length > 0) {
           const init = this.generateExpression(node.children[0]!);
@@ -1604,7 +956,7 @@ class CodeGenerator {
         const right = node.children[1]!;
         if (left.type === 'Identifier') {
           const name = String(left.value || 'unknown');
-          const tsName = this.sanitizeIdentifier(name);
+          const tsName = sanitizeIdentifier(name);
           if (!this.variables.has(name)) {
             this.variables.set(name, tsName);
             return `const ${tsName} = ${this.generateExpression(right)};`;
@@ -1733,10 +1085,10 @@ class CodeGenerator {
         return `"${String(node.value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
       case 'Identifier':
-        return this.translateIdentifier(String(node.value || ''));
+        return translateIdentifier(String(node.value || ''), this.variables);
 
       case 'MemberExpression':
-        return this.translateMemberExpression(String(node.value || ''));
+        return translateMemberExpression(String(node.value || ''));
 
       case 'FunctionCall':
         return this.generateFunctionCall(node);
@@ -1952,7 +1304,7 @@ class CodeGenerator {
 
     // Generate IIFE-wrapped switch
     const lines: string[] = [];
-    const indent = this.getIndentString();
+    const indent = ' '.repeat(INDENT_SIZE);
     lines.push('(() => {');
     
     if (switchExpr) {
@@ -2021,7 +1373,7 @@ class CodeGenerator {
           title = `Plot ${this.plots.length}`;
         }
         
-        const color = colorArg ? this.getColorValue(colorArg) : '#2962FF';
+        const color = colorArg ? getColorValue(colorArg) : '#2962FF';
         const lineWidth = lineWidthArg ? this.getNumberValue(lineWidthArg) : 2;
         
         // Store plot config
@@ -2058,7 +1410,7 @@ class CodeGenerator {
     }
 
     // Translate common function names
-    const translated = this.translateFunctionName(name);
+    const translated = translateFunctionName(name);
     return `${translated}(${args})`;
   }
 
@@ -2234,68 +1586,6 @@ class CodeGenerator {
     return false;
   }
 
-  private translateIdentifier(name: string): string {
-    // Handle built-in identifiers
-    const builtins: Record<string, string> = {
-      'na': 'NaN',
-      'true': 'true',
-      'false': 'false',
-      'bar_index': 'i',
-      'this': 'self',  // Method context: 'this' becomes 'self'
-    };
-
-    if (builtins[name]) {
-      return builtins[name];
-    }
-
-    // Check if variable has been mapped (e.g., source inputs mapped to Series)
-    if (this.variables.has(name)) {
-      return this.variables.get(name)!;
-    }
-
-    return this.sanitizeIdentifier(name);
-  }
-
-  private translateMemberExpression(name: string): string {
-    // Handle color constants
-    if (name.startsWith('color.')) {
-      return `"${name.replace('color.', '')}"`;
-    }
-
-    // Handle 'this.field' -> 'self.field' for method context
-    if (name.startsWith('this.')) {
-      return name.replace('this.', 'self.');
-    }
-    
-    // Handle barstate variables
-    const barstateMap: Record<string, string> = {
-      'barstate.isfirst': '(i === 0)',
-      'barstate.islast': '(i === bars.length - 1)',
-      'barstate.isconfirmed': 'true',
-      'barstate.islastconfirmedhistory': '(i === bars.length - 1)',
-      'barstate.isrealtime': 'false',
-      'barstate.isnew': 'true',
-    };
-    
-    if (barstateMap[name]) {
-      return barstateMap[name];
-    }
-
-    // Handle syminfo variables
-    if (name.startsWith('syminfo.')) {
-      const prop = name.replace('syminfo.', '');
-      return `syminfo.${prop}`;
-    }
-
-    // Handle timeframe variables
-    if (name.startsWith('timeframe.')) {
-      const prop = name.replace('timeframe.', '');
-      return `timeframe.${prop}`;
-    }
-    
-    return name;
-  }
-
   /**
    * Find a named argument in function call arguments
    */
@@ -2327,56 +1617,6 @@ class CodeGenerator {
   }
 
   /**
-   * Extract color value from an AST node (e.g., color.blue, #2962FF)
-   */
-  private getColorValue(node: ASTNode): string {
-    if (node.type === 'StringLiteral') {
-      // Direct hex color like #2962FF
-      return String(node.value || '#2962FF');
-    }
-    if (node.type === 'MemberExpression') {
-      // color.blue represented as MemberExpression with value "color.blue"
-      const fullPath = String(node.value || '');
-      const parts = fullPath.split('.');
-      if (parts.length === 2 && parts[0] === 'color') {
-        const colorName = parts[1];
-        const colorMap: Record<string, string> = {
-          'blue': '#2962FF',
-          'red': '#FF0000',
-          'green': '#00FF00',
-          'yellow': '#FFFF00',
-          'orange': '#FF6D00',
-          'purple': '#9C27B0',
-          'gray': '#787B86',
-          'white': '#FFFFFF',
-          'black': '#000000',
-        };
-        return colorMap[colorName] || '#2962FF';
-      }
-    }
-    if (node.type === 'MemberAccess' && node.children && node.children.length >= 1) {
-      const obj = node.children[0];
-      const prop = String(node.value || '');
-      if (obj?.type === 'Identifier' && obj.value === 'color') {
-        // Map color.blue to actual hex values
-        const colorMap: Record<string, string> = {
-          'blue': '#2962FF',
-          'red': '#FF0000',
-          'green': '#00FF00',
-          'yellow': '#FFFF00',
-          'orange': '#FF6D00',
-          'purple': '#9C27B0',
-          'gray': '#787B86',
-          'white': '#FFFFFF',
-          'black': '#000000',
-        };
-        return colorMap[prop] || '#2962FF';
-      }
-    }
-    return '#2962FF';
-  }
-
-  /**
    * Extract number value from an AST node
    */
   private getNumberValue(node: ASTNode): number {
@@ -2386,58 +1626,9 @@ class CodeGenerator {
     return 2;
   }
 
-  private translateFunctionName(name: string): string {
-    // PineScript namespace mapping
-    const mappings: Record<string, string> = {
-      'sma': 'ta.sma',
-      'ema': 'ta.ema',
-      'rsi': 'ta.rsi',
-      'macd': 'ta.macd',
-      'bb': 'ta.bb',
-      'atr': 'ta.atr',
-      'stoch': 'ta.stoch',
-      'wma': 'ta.wma',
-      'vwma': 'ta.vwma',
-      'crossover': 'ta.crossover',
-      'crossunder': 'ta.crossunder',
-      'highest': 'ta.highest',
-      'lowest': 'ta.lowest',
-      'sum': 'math.sum',
-      'abs': 'math.abs',
-      'round': 'math.round',
-      'ceil': 'math.ceil',
-      'floor': 'math.floor',
-      'max': 'math.max',
-      'min': 'math.min',
-      'sqrt': 'math.sqrt',
-      'pow': 'math.pow',
-      'log': 'math.log',
-      'exp': 'math.exp',
-    };
-
-    if (mappings[name]) {
-      return mappings[name];
-    }
-
-    return name;
-  }
-
-  private sanitizeIdentifier(name: string): string {
-    // Convert to camelCase and remove invalid characters
-    return name
-      .replace(/[^a-zA-Z0-9_]/g, '_')
-      .replace(/^(\d)/, '_$1')
-      .replace(/__+/g, '_')
-      .replace(/^_|_$/g, '') || 'unnamed';
-  }
-
-  private getIndentString(): string {
-    return ' '.repeat(CodeGenerator.INDENT_SIZE);
-  }
-
   private emit(line: string): void {
-    const indentation = this.getIndentString().repeat(this.indent);
-    this.output.push(indentation + line);
+    const indented = applyIndent(line, this.indent);
+    this.output.push(indented);
   }
 }
 
