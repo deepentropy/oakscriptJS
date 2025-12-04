@@ -24,7 +24,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     vi.restoreAllMocks();
   });
 
-  it('should properly encode filenames with spaces in the URL', async () => {
+  it('should properly encode file paths with spaces in the URL', async () => {
     // Mock successful response
     fetchMock.mockResolvedValue({
       ok: true,
@@ -32,10 +32,10 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filename = 'Simple Moving Average.csv';
+    const filePath = 'data/20251203/Simple Moving Average.csv';
     const token = 'test-token';
 
-    await fetchPineSuiteCSV(filename, token);
+    await fetchPineSuiteCSV(filePath, token);
 
     // Verify fetch was called
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -47,13 +47,13 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     expect(calledUrl).toContain('Simple%20Moving%20Average.csv');
     expect(calledUrl).not.toContain('Simple Moving Average.csv');
     
-    // Verify the full URL structure
+    // Verify the full URL structure with properly encoded path segments
     expect(calledUrl).toBe(
       'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/Simple%20Moving%20Average.csv'
     );
   });
 
-  it('should properly encode filenames with special characters', async () => {
+  it('should properly encode file paths with special characters', async () => {
     // Mock successful response
     fetchMock.mockResolvedValue({
       ok: true,
@@ -61,10 +61,10 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filename = 'Test & File (1).csv';
+    const filePath = 'data/test/Test & File (1).csv';
     const token = 'test-token';
 
-    await fetchPineSuiteCSV(filename, token);
+    await fetchPineSuiteCSV(filePath, token);
 
     // Get the URL that was used
     const calledUrl = fetchMock.mock.calls[0][0];
@@ -74,7 +74,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     expect(calledUrl).not.toContain('Test & File (1).csv');
   });
 
-  it('should not double-encode already encoded filenames', async () => {
+  it('should not encode slashes in the path', async () => {
     // Mock successful response
     fetchMock.mockResolvedValue({
       ok: true,
@@ -82,17 +82,15 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    // This is an edge case - if someone passes an already encoded filename
-    const filename = 'simple.csv';
+    const filePath = 'data/20251203/simple.csv';
     const token = 'test-token';
 
-    await fetchPineSuiteCSV(filename, token);
+    await fetchPineSuiteCSV(filePath, token);
 
     // Get the URL that was used
     const calledUrl = fetchMock.mock.calls[0][0];
 
-    // Verify normal filenames work correctly
-    expect(calledUrl).toContain('simple.csv');
+    // Verify slashes are preserved and not encoded
     expect(calledUrl).toBe(
       'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/simple.csv'
     );
@@ -106,17 +104,18 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filename = 'test.csv';
+    const filePath = 'data/test/test.csv';
     const token = 'my-secret-token';
 
-    await fetchPineSuiteCSV(filename, token);
+    await fetchPineSuiteCSV(filePath, token);
 
     // Verify fetch was called with correct headers
     const [url, options] = fetchMock.mock.calls[0];
     expect(options.headers).toEqual({
-      'Authorization': 'Bearer my-secret-token',
+      'Authorization': 'token my-secret-token',
       'Accept': 'application/vnd.github.v3.raw',
       'User-Agent': 'oakscriptJS-regression-tests',
+      'X-GitHub-Api-Version': '2022-11-28',
     });
   });
 });
