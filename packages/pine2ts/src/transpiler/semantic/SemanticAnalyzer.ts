@@ -621,7 +621,8 @@ export class SemanticAnalyzer {
         break;
       }
       
-      case 'FunctionCall': {
+      case 'FunctionCall':
+      case 'GenericFunctionCall': {
         const funcName = String(node.value || '');
         
         // Skip input.* functions - they're handled specially
@@ -639,7 +640,8 @@ export class SemanticAnalyzer {
         }
         
         // Check argument count if we know the function signature
-        if (symbol && symbol.type.kind === 'function') {
+        // Skip for GenericFunctionCall as they have complex type parameters
+        if (node.type === 'FunctionCall' && symbol && symbol.type.kind === 'function') {
           const expectedParams = symbol.type.params;
           const actualArgs = node.children || [];
           
