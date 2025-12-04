@@ -5,7 +5,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:regression": "cd transpiler && pnpm test tests/regression/indicator-regression.test.ts",
+    "test:regression": "cd packages/pine2ts && pnpm test tests/regression/indicator-regression.test.ts",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean",
     "typecheck": "pnpm -r typecheck",
