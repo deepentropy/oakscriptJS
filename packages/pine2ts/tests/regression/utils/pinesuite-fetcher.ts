@@ -22,14 +22,14 @@ export async function fetchPineSuiteCSV(
   const owner = 'deepentropy';
   const repo = 'pinesuite';
   
-  // Encode each path segment separately (filter out empty segments)
-  const encodedPath = filePath
-    .split('/')
-    .filter(segment => segment.length > 0)
-    .map(segment => encodeURIComponent(segment))
-    .join('/');
+  // Normalize path: remove leading/trailing slashes
+  const trimmedPath = filePath.replace(/^\/+|\/+$/g, '');
   
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}`;
+  // Replace spaces with %20 only if not already encoded
+  // This prevents double encoding if the path is already partially encoded
+  const normalizedPath = trimmedPath.replace(/ /g, '%20');
+  
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${normalizedPath}`;
 
   try {
     const response = await fetch(url, {

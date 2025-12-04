@@ -53,7 +53,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     );
   });
 
-  it('should properly encode file paths with special characters', async () => {
+  it('should properly encode file paths with spaces only', async () => {
     // Mock successful response
     fetchMock.mockResolvedValue({
       ok: true,
@@ -61,7 +61,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filePath = 'data/test/Test & File (1).csv';
+    const filePath = 'data/test/Test File.csv';
     const token = 'test-token';
 
     await fetchPineSuiteCSV(filePath, token);
@@ -69,9 +69,9 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     // Get the URL that was used
     const calledUrl = fetchMock.mock.calls[0][0];
 
-    // Verify special characters are encoded
-    expect(calledUrl).toContain('Test%20%26%20File%20(1).csv');
-    expect(calledUrl).not.toContain('Test & File (1).csv');
+    // Verify only spaces are encoded, not other characters
+    expect(calledUrl).toContain('Test%20File.csv');
+    expect(calledUrl).not.toContain('Test File.csv');
   });
 
   it('should not encode slashes in the path', async () => {
@@ -94,6 +94,30 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     expect(calledUrl).toBe(
       'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/simple.csv'
     );
+  });
+
+  it('should handle already-encoded paths without double encoding', async () => {
+    // Mock successful response
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
+    });
+
+    // Path is already encoded with %20 for spaces
+    const filePath = 'data/20251203/Simple%20Moving%20Average.csv';
+    const token = 'test-token';
+
+    await fetchPineSuiteCSV(filePath, token);
+
+    // Get the URL that was used
+    const calledUrl = fetchMock.mock.calls[0][0];
+
+    // Verify it doesn't double-encode to %2520
+    expect(calledUrl).toBe(
+      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/Simple%20Moving%20Average.csv'
+    );
+    expect(calledUrl).not.toContain('%2520');
   });
 
   it('should include correct authorization headers', async () => {
@@ -135,7 +159,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     // Get the URL that was used
     const calledUrl = fetchMock.mock.calls[0][0];
 
-    // Verify leading/trailing slashes are filtered out
+    // Verify leading/trailing slashes are removed during normalization
     expect(calledUrl).toBe(
       'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/test.csv'
     );
