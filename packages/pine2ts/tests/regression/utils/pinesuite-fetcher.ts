@@ -21,7 +21,7 @@ export async function fetchPineSuiteCSV(
 
   const owner = 'deepentropy';
   const repo = 'pinesuite';
-  const path = `data/20251203/${filename}`;
+  const path = `data/20251203/${encodeURIComponent(filename)}`;
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
   try {
