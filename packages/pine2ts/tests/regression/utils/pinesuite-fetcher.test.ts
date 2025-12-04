@@ -118,4 +118,26 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       'X-GitHub-Api-Version': '2022-11-28',
     });
   });
+
+  it('should handle paths with leading/trailing slashes', async () => {
+    // Mock successful response
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
+    });
+
+    const filePath = '/data/20251203/test.csv/';
+    const token = 'test-token';
+
+    await fetchPineSuiteCSV(filePath, token);
+
+    // Get the URL that was used
+    const calledUrl = fetchMock.mock.calls[0][0];
+
+    // Verify leading/trailing slashes are filtered out
+    expect(calledUrl).toBe(
+      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/test.csv'
+    );
+  });
 });
