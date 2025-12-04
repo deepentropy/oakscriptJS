@@ -666,10 +666,16 @@ export class SemanticAnalyzer {
           }
         }
         
-        // Visit arguments
+        // Visit arguments - but handle named parameters specially
         if (node.children) {
           for (const arg of node.children) {
-            this.visitExpression(arg);
+            // Named parameter: Assignment node where left side is the param name
+            if (arg.type === 'Assignment' && arg.children && arg.children.length === 2) {
+              // Only visit the right side (the value), not the left side (param name)
+              this.visitExpression(arg.children[1]!);
+            } else {
+              this.visitExpression(arg);
+            }
           }
         }
         break;
