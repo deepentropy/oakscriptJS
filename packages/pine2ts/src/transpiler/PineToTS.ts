@@ -466,8 +466,6 @@ class CodeGenerator {
     this.emit('},');
   }
 
-  // Note: collectInfo() method has been replaced by InfoCollector class
-
   private generateStatements(node: ASTNode): void {
     if (!node || !node.children) return;
 
@@ -1574,36 +1572,6 @@ class CodeGenerator {
         const alternateIsFunc = alternateNode.type === 'FunctionCall';
         
         if ((consequentIsNa && alternateIsFunc) || (alternateIsNa && consequentIsFunc)) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  }
-
-  /**
-   * Check if an expression contains a history access to a specific variable
-   * e.g., checking if "mg[1] + ..." contains "mg[1]"
-   */
-  private containsHistoryAccessTo(node: ASTNode, varName: string): boolean {
-    if (!node) return false;
-    
-    // Check if this is a history access node
-    if (node.type === 'HistoryAccess') {
-      // The first child is the base variable
-      if (node.children && node.children.length >= 1) {
-        const base = node.children[0];
-        if (base?.type === 'Identifier' && String(base.value) === varName) {
-          return true;
-        }
-      }
-    }
-    
-    // Recursively check all children
-    if (node.children) {
-      for (const child of node.children) {
-        if (this.containsHistoryAccessTo(child, varName)) {
           return true;
         }
       }
