@@ -50,12 +50,40 @@ export class TypeChecker {
         return PineTypes.unknown();
       }
       
-      case 'FunctionCall': {
+      case 'FunctionCall':
+      case 'GenericFunctionCall': {
         const funcName = String(expr.value || '');
         const symbol = symbolTable.lookupSymbol(funcName);
         
         if (symbol && symbol.type.kind === 'function') {
           return symbol.type.returnType;
+        }
+        
+        // Handle array.new<Type>() specially
+        if (expr.type === 'GenericFunctionCall' && funcName === 'array.new') {
+          // The generic type is in expr.name
+          const genericType = String(expr.name || '');
+          let elementType: PineType = PineTypes.unknown();
+          
+          // Map common type names
+          switch (genericType.toLowerCase()) {
+            case 'float':
+              elementType = PineTypes.float();
+              break;
+            case 'int':
+              elementType = PineTypes.int();
+              break;
+            case 'bool':
+              elementType = PineTypes.bool();
+              break;
+            case 'string':
+              elementType = PineTypes.string();
+              break;
+            default:
+              elementType = PineTypes.unknown();
+          }
+          
+          return PineTypes.array(elementType);
         }
         
         // For unknown functions or user-defined functions without type info,
