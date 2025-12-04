@@ -7,7 +7,7 @@ on:
       # Trigger when PineScript source files change
       - 'example/pinescript/**/*.pine'
       # Or when transpiler changes
-      - 'transpiler/**'
+      - 'packages/pine2ts/**'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -34,7 +34,7 @@ jobs:
         run: pnpm install
       
       - name: Build transpiler
-        run: pnpm --filter @deepentropy/oakscript-engine build
+        run: pnpm --filter @deepentropy/pine2ts build
       
       - name: Generate indicators
         run: |
@@ -54,7 +54,7 @@ jobs:
               mkdir -p "$output_dir"
               
               # Run the transpiler
-              node ./transpiler/bin/pine2ts.js "$pine_file" "$output_file"
+              node ./packages/pine2ts/bin/pine2ts.js "$pine_file" "$output_file"
             fi
           done
       

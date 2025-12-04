@@ -5,8 +5,8 @@
 > **ANY MANUAL CHANGES WILL BE OVERWRITTEN** by the GitHub Action on the next build.
 > 
 > ## To fix an indicator bug:
-> 1. Fix the **transpiler** in `transpiler/src/transpiler/`
-> 2. OR fix **oakscriptjs** runtime in `oakscriptjs/src/`
+> 1. Fix the **transpiler** in `packages/pine2ts/src/transpiler/`
+> 2. OR fix **oakscriptjs** runtime in `packages/oakscriptjs/src/`
 > 3. NEVER edit files in `indicators/` directly
 >
 > ## Regenerating indicators

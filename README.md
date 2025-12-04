@@ -1,42 +1,55 @@
-# OakScript Monorepo
+# OakScriptJS
 
-**PineScript-compatible technical analysis and transpilation for JavaScript/TypeScript**
+PineScript-compatible technical analysis for JavaScript/TypeScript.
 
-This monorepo contains the OakScript ecosystem for running PineScript-like code in JavaScript/TypeScript environments.
+OakScriptJS lets you run TradingView-style indicators in any JavaScript environment — browsers, Node.js, or your trading bot.
 
 ## Packages
 
-| Package | Description | Version |
-|---------|-------------|---------|
-| [`@deepentropy/oakscriptjs`](./oakscriptjs) | Technical analysis library with Series-based API | 0.3.0 |
-| [`@deepentropy/oakscript-engine`](./transpiler) | PineScript to TypeScript transpiler | 0.3.0 |
+| Package | Description |
+|---------|-------------|
+| [@deepentropy/oakscriptjs](./packages/oakscriptjs) | Technical analysis library with Series-based API |
+| [@deepentropy/pine2ts](./packages/pine2ts) | PineScript to TypeScript transpiler |
+| [@deepentropy/indicators](./indicators) | Ready-to-use indicators (SMA, RSI, MACD, etc.) |
 
 ## Quick Start
 
-### Using the Technical Analysis Library
+### Install the library
 
 ```bash
-pnpm add @deepentropy/oakscriptjs
+npm install @deepentropy/oakscriptjs
 ```
+
+### Calculate an indicator
 
 ```typescript
-import { Series, ta, taCore } from '@deepentropy/oakscriptjs';
+import { Series, ta } from '@deepentropy/oakscriptjs';
 
-const bars = [/* OHLCV data */];
-const close = new Series(bars, (bar) => bar.close);
-const rsi = ta.rsi(close, 14);
+const prices = [44, 44.5, 45, 45.5, 46, 46.5, 47, 47.5, 48, 48.5];
+const close = new Series(prices);
+const sma = ta.sma(close, 5);
 
-console.log(rsi.toArray());
+console.log(sma.toArray());
 ```
 
-### Using the Transpiler CLI
+### Transpile PineScript to TypeScript
 
 ```bash
-pnpm add @deepentropy/oakscript-engine
+npm install -g @deepentropy/pine2ts
 
-# Transpile PineScript to TypeScript
-pine2ts script.pine output.ts
+pine2ts my-indicator.pine output.ts
 ```
+
+## Live Demo
+
+See the indicators in action: **[deepentropy.github.io/oakscriptJS](https://deepentropy.github.io/oakscriptJS/)**
+
+## Documentation
+
+- [Guide](./docs/guide.md) — Getting started and core concepts
+- [Function Inventory](./docs/inventory.md) — All available TA functions
+- [Indicator Implementation](./docs/indicator-implementation.md) — How to create indicators
+- [Official Examples](./docs/official/) — PineScript and JavaScript indicator examples
 
 ## Development
 
@@ -50,97 +63,39 @@ This is a [pnpm workspace](https://pnpm.io/workspaces) monorepo.
 ### Setup
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build all packages
-pnpm build
-
-# Run tests
-pnpm test
-
-# Type check
-pnpm typecheck
-
-# Clean build outputs
-pnpm clean
+pnpm install    # Install dependencies
+pnpm build      # Build all packages
+pnpm test       # Run tests
+pnpm typecheck  # Type check
 ```
 
-### Working with Individual Packages
+### Working with packages
 
 ```bash
-# Build only oakscriptjs
 pnpm --filter @deepentropy/oakscriptjs build
-
-# Test only oakscript-engine
-pnpm --filter @deepentropy/oakscript-engine test
-
-# Run lint in oakscriptjs
-pnpm --filter @deepentropy/oakscriptjs lint
+pnpm --filter @deepentropy/pine2ts test
 ```
 
 ## Project Structure
 
 ```
-oakscript/
-├── transpiler/                # @deepentropy/oakscript-engine
-│   ├── src/
-│   │   └── transpiler/        # PineScript parser and code generator
-│   ├── bin/
-│   │   └── pine2ts.js         # CLI tool
-│   └── package.json
-│
-├── oakscriptjs/               # @deepentropy/oakscriptjs
-│   ├── src/
-│   │   ├── ta/                # Technical analysis functions
-│   │   ├── math/              # Math functions
-│   │   ├── array/             # Array functions
-│   │   ├── runtime/           # Series class
-│   │   └── ...
-│   ├── tests/
-│   └── package.json
-│
-├── docs/                      # Shared documentation
-├── .github/workflows/         # CI/CD pipelines
-├── package.json               # Root workspace config
-├── pnpm-workspace.yaml        # pnpm workspace config
-└── tsconfig.base.json         # Shared TypeScript config
+oakscriptJS/
+├── packages/
+│   ├── oakscriptjs/      # Technical analysis library
+│   └── pine2ts/          # PineScript transpiler + CLI
+├── indicators/           # Official converted indicators
+├── example/              # Live demo (GitHub Pages)
+└── docs/                 # Documentation + official examples
 ```
-
-## Features
-
-### @deepentropy/oakscriptjs
-
-- **Series Class**: Lazy evaluation with operator chaining
-- **Technical Analysis**: Complete TA library (`ta.sma`, `ta.rsi`, `ta.macd`, etc.)
-- **Mathematics**: Math functions (`math.abs`, `math.round`, etc.)
-- **Array Operations**: PineScript-compatible array functions
-- **Type Safety**: Full TypeScript support
-- **Babel Plugin**: Native operator support (`close - open`)
-
-### @deepentropy/oakscript-engine
-
-- **Transpiler**: Convert PineScript to TypeScript
-- **CLI Tool**: `pine2ts` command for easy transpilation
-- **Parser**: Full PineScript v6 syntax support (in progress)
-- **Code Generator**: Clean TypeScript output with imports
-
-## Documentation
-
-- [OakScriptJS Guide](./oakscriptjs/README.md)
-- [Transpiler CLI](./transpiler/README.md)
-- [Function Inventory](./INVENTORY.md)
-- [Complete Guide](./GUIDE.md)
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Make your changes
 4. Run tests (`pnpm test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+5. Commit and push
+6. Open a Pull Request
 
 ## License
 
@@ -148,4 +103,4 @@ MIT
 
 ---
 
-**Maintained by [DeepEntropy](https://github.com/deepentropy)**
+Maintained by [DeepEntropy](https://github.com/deepentropy)
