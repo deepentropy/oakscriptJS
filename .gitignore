@@ -5,6 +5,7 @@ yarn.lock
 
 # Build output
 dist/
+!indicators/dist/
 build/
 *.tsbuildinfo
 
@@ -45,3 +46,4 @@ pnpm-debug.log*
 Thumbs.db
 .claude/
 CLAUDE.md
+indicators/tsconfig.build.json
