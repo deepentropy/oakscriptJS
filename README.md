@@ -1,4 +1,8 @@
-# OakScriptJS
+<p align="center">
+  <img src="./logo.png" alt="OakScriptJS Logo" width="150">
+</p>
+
+<h1 align="center">OakScriptJS</h1>
 
 PineScript-compatible technical analysis for JavaScript/TypeScript.
 
