@@ -348,4 +348,94 @@ describe('SemanticAnalyzer', () => {
       expect(result.errors.some(e => e.kind === 'BREAK_OUTSIDE_LOOP')).toBe(true);
     });
   });
+  
+  describe('named parameters', () => {
+    it('should not error on named parameters in indicator()', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Test", shorttitle="T", overlay=true)
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+    
+    it('should not error on named parameters in input functions', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Test")
+        len = input.int(14, title="Length", minval=1, maxval=100)
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+    
+    it('should not error on named parameters in plot()', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Test")
+        plot(close, title="Close", color=color.red, linewidth=2)
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+    
+    it('should still error on actual undefined variables', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Test")
+        x = undefinedVar + 1
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]!.kind).toBe('UNDEFINED_VARIABLE');
+      expect(result.errors[0]!.message).toContain('undefinedVar');
+    });
+    
+    it('should handle complex mixed positional and named parameters', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Average Day Range", shorttitle="ADR", timeframe="", timeframe_gaps=true)
+        lengthInput = input.int(14, title="Length")
+        plot(close, title="ADR", color=color.blue)
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+    
+    it('should validate expressions in named parameter values', () => {
+      const parser = new PineParser();
+      const { ast } = parser.parse(`
+        indicator("Test")
+        plot(close, title="Close", color=undefinedColor)
+      `);
+      
+      const analyzer = new SemanticAnalyzer();
+      const result = analyzer.analyze(ast);
+      
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]!.kind).toBe('UNDEFINED_VARIABLE');
+      expect(result.errors[0]!.message).toContain('undefinedColor');
+    });
+  });
 });
