@@ -186,6 +186,7 @@ for i = 0 to 10 by 2
     it('should transpile for-in loop', () => {
       const source = `indicator("Test")
 var total = 0
+myArray = array.new<float>()
 for item in myArray
     total := total + item`;
       
@@ -207,6 +208,7 @@ for item in myArray
     it('should transpile for-in loop with index destructuring', () => {
       const source = `indicator("Test")
 var total = 0
+myArray = array.new<float>()
 for [index, item] in myArray
     total := total + item`;
       

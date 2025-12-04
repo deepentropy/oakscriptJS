@@ -8,6 +8,7 @@ import { PineParser, ASTNode } from './PineParser.js';
 import type { TranspileOptions, TranspileResult, TranspileError, TranspileWarning, InputDefinition, TypeInfo, MethodInfo, FieldInfo, ImportInfo, LibraryInfo, PlotConfig } from './types.js';
 import { InfoCollector, type CollectorContext } from './collectors/index.js';
 import { sanitizeIdentifier, applyIndent, INDENT_SIZE } from './utils/index.js';
+import { SemanticAnalyzer } from './semantic/index.js';
 import { 
   pineTypeToTs, 
   getDefaultForPineType, 
@@ -41,16 +42,14 @@ import {
  * Transpile PineScript source code to TypeScript
  */
 export function transpile(source: string, options: TranspileOptions = {}): string {
-  const parser = new PineParser();
-  const { ast, errors: parseErrors } = parser.parse(source);
-
-  if (parseErrors.length > 0) {
-    const errorMsg = parseErrors.map(e => `Line ${e.line}: ${e.message}`).join('\n');
-    throw new Error(`Parse errors:\n${errorMsg}`);
+  const result = transpileWithResult(source, options);
+  
+  if (result.errors.length > 0) {
+    const errorMsg = result.errors.map(e => `Line ${e.line}: ${e.message}`).join('\n');
+    throw new Error(`Transpile errors:\n${errorMsg}`);
   }
-
-  const generator = new CodeGenerator(options);
-  return generator.generate(ast);
+  
+  return result.code;
 }
 
 /**
@@ -74,13 +73,40 @@ export function transpileWithResult(source: string, options: TranspileOptions = 
     };
   }
 
+  // Semantic analysis phase
+  const analyzer = new SemanticAnalyzer();
+  const semanticResult = analyzer.analyze(ast);
+  
+  if (!semanticResult.valid) {
+    return {
+      code: '',
+      errors: semanticResult.errors.map(e => ({
+        message: e.message,
+        line: e.line,
+        column: e.column,
+      })),
+      warnings: semanticResult.warnings.map(w => ({
+        message: w.message,
+        line: w.line,
+        column: w.column,
+      })),
+    };
+  }
+
   const generator = new CodeGenerator(options);
   const code = generator.generate(ast);
 
   return {
     code,
     errors: [],
-    warnings: generator.warnings,
+    warnings: [
+      ...semanticResult.warnings.map(w => ({
+        message: w.message,
+        line: w.line,
+        column: w.column,
+      })),
+      ...generator.warnings
+    ],
   };
 }
 
