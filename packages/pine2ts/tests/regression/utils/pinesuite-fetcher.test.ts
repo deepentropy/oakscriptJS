@@ -96,6 +96,30 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     );
   });
 
+  it('should handle already-encoded paths without double encoding', async () => {
+    // Mock successful response
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
+    });
+
+    // Path is already encoded with %20 for spaces
+    const filePath = 'data/20251203/Simple%20Moving%20Average.csv';
+    const token = 'test-token';
+
+    await fetchPineSuiteCSV(filePath, token);
+
+    // Get the URL that was used
+    const calledUrl = fetchMock.mock.calls[0][0];
+
+    // Verify it doesn't double-encode to %2520
+    expect(calledUrl).toBe(
+      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/Simple%20Moving%20Average.csv'
+    );
+    expect(calledUrl).not.toContain('%2520');
+  });
+
   it('should include correct authorization headers', async () => {
     // Mock successful response
     fetchMock.mockResolvedValue({
