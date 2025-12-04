@@ -1,5 +1,4 @@
 packages:
-  - 'transpiler'
-  - 'oakscriptjs'
-  - 'example'
+  - 'packages/*'
   - 'indicators'
+  - 'example'
