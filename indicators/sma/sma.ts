@@ -99,15 +99,15 @@ const last_bar_index = bars.length - 1;
   // Smoothing MA Calculation
   function ma(source: any, length: any, MAtype: any): any {
     return (() => {
-      switch (MAtype) {
-        case "SMA": return ta.sma(source, length);
-        case "SMA + Bollinger Bands": return ta.sma(source, length);
-        case "EMA": return ta.ema(source, length);
-        case "SMMA (RMA)": return ta.rma(source, length);
-        case "WMA": return ta.wma(source, length);
-        case "VWMA": return ta.vwma(source, length, volume);
-      }
-    })();
+    switch (MAtype) {
+      case "SMA": return ta.sma(source, length);
+      case "SMA + Bollinger Bands": return ta.sma(source, length);
+      case "EMA": return ta.ema(source, length);
+      case "SMMA (RMA)": return ta.rma(source, length);
+      case "WMA": return ta.wma(source, length);
+      case "VWMA": return ta.vwma(source, length, volume);
+    }
+  })();
   }
   // Smoothing MA plots
   const smoothingMA = (enableMA ? ma(out, maLengthInput, maTypeInput) : new Series(bars, () => NaN));
