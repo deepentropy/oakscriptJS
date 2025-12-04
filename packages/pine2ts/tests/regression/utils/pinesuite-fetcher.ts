@@ -22,9 +22,10 @@ export async function fetchPineSuiteCSV(
   const owner = 'deepentropy';
   const repo = 'pinesuite';
   
-  // Encode each path segment separately
+  // Encode each path segment separately (filter out empty segments)
   const encodedPath = filePath
     .split('/')
+    .filter(segment => segment.length > 0)
     .map(segment => encodeURIComponent(segment))
     .join('/');
   
