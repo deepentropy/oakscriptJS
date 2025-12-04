@@ -42,12 +42,23 @@ export async function fetchPineSuiteCSV(
     });
 
     if (!response.ok) {
+      // Try to get more details from the response body
+      let errorBody = '';
+      try {
+        errorBody = await response.text();
+      } catch {
+        // ignore
+      }
+      
       if (response.status === 404) {
-        throw new Error(`File not found: ${filePath} (URL: ${url})`);
-      } else if (response.status === 401 || response.status === 403) {
-        throw new Error(`Authentication failed (${response.status}). Check your PINESUITE_TOKEN has access to deepentropy/pinesuite.`);
+        // 404 on private repo could mean no access OR file not found
+        throw new Error(`File not found or no access: ${filePath} (URL: ${url}, Status: ${response.status})`);
+      } else if (response.status === 401) {
+        throw new Error(`Authentication failed: Invalid token or token expired`);
+      } else if (response.status === 403) {
+        throw new Error(`Access forbidden: Token may not have access to deepentropy/pinesuite. Response: ${errorBody}`);
       } else {
-        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}. Response: ${errorBody}`);
       }
     }
 
