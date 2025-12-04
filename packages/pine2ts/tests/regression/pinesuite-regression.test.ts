@@ -5,7 +5,7 @@
  * from the private deepentropy/pinesuite repository.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +16,21 @@ import indicatorMapping from './indicator-mapping.json' with { type: 'json' };
 
 // Static imports for all mapped indicators
 import * as smaIndicator from '../../../../indicators/sma/index.js';
+import * as momentumIndicator from '../../../../indicators/momentum/index.js';
+import * as bopIndicator from '../../../../indicators/bop/index.js';
+import * as demaIndicator from '../../../../indicators/dema/index.js';
+import * as temaIndicator from '../../../../indicators/tema/index.js';
+import * as rocIndicator from '../../../../indicators/roc/index.js';
+import * as adrIndicator from '../../../../indicators/adr/index.js';
+import * as massIndexIndicator from '../../../../indicators/mass-index/index.js';
+import * as mcGinleyIndicator from '../../../../indicators/mc-ginley-dynamic/index.js';
+import * as hmaIndicator from '../../../../indicators/hma/index.js';
+import * as lsmaIndicator from '../../../../indicators/lsma/index.js';
+import * as almaIndicator from '../../../../indicators/alma/index.js';
+import * as obvIndicator from '../../../../indicators/obv/index.js';
+import * as rmaIndicator from '../../../../indicators/rma/index.js';
+import * as vwmaIndicator from '../../../../indicators/vwma/index.js';
+import * as wmaIndicator from '../../../../indicators/wma/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,9 +62,36 @@ interface IndicatorResult {
 
 const mapping = indicatorMapping as IndicatorMapping;
 
+// Test result tracking
+interface TestResult {
+  indicator: string;
+  status: 'passed' | 'failed' | 'skipped';
+  maxDiff?: number;
+  plotCount?: number;
+  csvColumns?: number;
+  failedOutputs?: Array<{ name: string; reason: string }>;
+}
+
+const testResults: TestResult[] = [];
+
 // Static indicator module map for Vitest compatibility
 const indicatorModules: Record<string, IndicatorModule> = {
   'sma': smaIndicator,
+  'momentum': momentumIndicator,
+  'bop': bopIndicator,
+  'dema': demaIndicator,
+  'tema': temaIndicator,
+  'roc': rocIndicator,
+  'adr': adrIndicator,
+  'mass-index': massIndexIndicator,
+  'mc-ginley-dynamic': mcGinleyIndicator,
+  'hma': hmaIndicator,
+  'lsma': lsmaIndicator,
+  'alma': almaIndicator,
+  'obv': obvIndicator,
+  'rma': rmaIndicator,
+  'vwma': vwmaIndicator,
+  'wma': wmaIndicator,
 };
 
 describe('PineSuite Regression Tests', () => {
@@ -68,6 +110,10 @@ describe('PineSuite Regression Tests', () => {
         
         if (!existsSync(indicatorPath)) {
           console.log(`⊘ Skipping ${indicatorFolder}: indicator not yet transpiled`);
+          testResults.push({
+            indicator: indicatorFolder,
+            status: 'skipped',
+          });
           // Skip instead of failing for indicators not yet transpiled
           return;
         }
@@ -109,6 +155,10 @@ describe('PineSuite Regression Tests', () => {
         const indicatorModule = indicatorModules[indicatorFolder];
         if (!indicatorModule) {
           console.log(`⊘ Skipping ${indicatorFolder}: indicator not in import map`);
+          testResults.push({
+            indicator: indicatorFolder,
+            status: 'skipped',
+          });
           return;
         }
 
@@ -135,6 +185,7 @@ describe('PineSuite Regression Tests', () => {
         // Compare each output
         const results: Record<string, any> = {};
         let allPassed = true;
+        let maxDiff = 0;
 
         for (let i = 0; i < Math.min(plotKeys.length, outputColumns.length); i++) {
           const plotKey = plotKeys[i];
@@ -164,6 +215,11 @@ describe('PineSuite Regression Tests', () => {
             allPassed = false;
           }
 
+          // Track max diff
+          if (comparisonResult.maxDiff !== undefined && comparisonResult.maxDiff > maxDiff) {
+            maxDiff = comparisonResult.maxDiff;
+          }
+
           console.log(`  ${formatComparisonResult(`${indicatorFolder}[${columnName}]`, comparisonResult)}`);
         }
 
@@ -171,9 +227,12 @@ describe('PineSuite Regression Tests', () => {
         if (!allPassed) {
           const failedOutputs = Object.entries(results)
             .filter(([, result]) => !result.passed)
-            .map(([name]) => name);
+            .map(([name, result]) => ({
+              name,
+              reason: result.failureCount ? `${result.failureCount} values exceeded tolerance` : 'comparison failed'
+            }));
           
-          console.log(`\n  ❌ ${indicatorFolder}: ${failedOutputs.length} output(s) failed: ${failedOutputs.join(', ')}\n`);
+          console.log(`\n  ❌ ${indicatorFolder}: ${failedOutputs.length} output(s) failed: ${failedOutputs.map(o => o.name).join(', ')}\n`);
           
           // Show detailed diffs for failed outputs
           for (const [name, result] of Object.entries(results)) {
@@ -182,11 +241,56 @@ describe('PineSuite Regression Tests', () => {
             }
           }
           
+          testResults.push({
+            indicator: indicatorFolder,
+            status: 'failed',
+            plotCount: plotKeys.length,
+            csvColumns: outputColumns.length,
+            failedOutputs,
+          });
+          
           expect(allPassed).toBe(true);
         } else {
           console.log(`  ✓ ${indicatorFolder}: All ${outputColumns.length} output(s) passed\n`);
+          
+          testResults.push({
+            indicator: indicatorFolder,
+            status: 'passed',
+            maxDiff,
+            plotCount: plotKeys.length,
+            csvColumns: outputColumns.length,
+          });
         }
       });
     }
+  });
+
+  // Test summary report
+  afterAll(() => {
+    console.log('\n');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('                  PINESUITE REGRESSION TEST SUMMARY             ');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`Total Indicators Tested: ${testResults.length}`);
+    console.log(`Passed: ${testResults.filter(r => r.status === 'passed').length}`);
+    console.log(`Failed: ${testResults.filter(r => r.status === 'failed').length}`);
+    console.log(`Skipped: ${testResults.filter(r => r.status === 'skipped').length}`);
+    console.log('───────────────────────────────────────────────────────────────');
+    
+    // Print each result
+    for (const result of testResults) {
+      const icon = result.status === 'passed' ? '✅' : result.status === 'failed' ? '❌' : '⊘';
+      const details = result.maxDiff !== undefined ? ` (max diff: ${result.maxDiff.toExponential(2)})` : '';
+      const plotInfo = result.plotCount !== undefined ? ` [${result.plotCount} plots, ${result.csvColumns} CSV cols]` : '';
+      console.log(`${icon} ${result.indicator.padEnd(20)} ${result.status.padEnd(8)}${details}${plotInfo}`);
+      
+      if (result.failedOutputs && result.failedOutputs.length > 0) {
+        for (const output of result.failedOutputs) {
+          console.log(`   └─ ${output.name}: ${output.reason}`);
+        }
+      }
+    }
+    
+    console.log('═══════════════════════════════════════════════════════════════');
   });
 });
