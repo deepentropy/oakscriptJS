@@ -29,7 +29,7 @@ export class FunctionGenerator {
    */
   setIndent(indent: number): void {
     this.indent = indent;
-    this.expressionGen = new ExpressionGenerator(this.context, indent);
+    this.expressionGen.setIndent(indent);
   }
 
   /**

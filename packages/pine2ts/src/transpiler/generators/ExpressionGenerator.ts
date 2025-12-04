@@ -25,6 +25,13 @@ export class ExpressionGenerator {
   }
 
   /**
+   * Update indent level for nested structures
+   */
+  setIndent(indent: number): void {
+    this.currentIndent = indent;
+  }
+
+  /**
    * Generate TypeScript code for an expression
    */
   generateExpression(node: ASTNode): string {
