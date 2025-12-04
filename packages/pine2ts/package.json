@@ -24,6 +24,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:pinesuite": "vitest run tests/regression/pinesuite-regression.test.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
