@@ -16,7 +16,7 @@ importers:
     dependencies:
       '@deepentropy/oakscriptjs':
         specifier: workspace:*
-        version: link:../oakscriptjs
+        version: link:../packages/oakscriptjs
       lightweight-charts:
         specifier: ^5.0.0
         version: 5.0.9
@@ -32,13 +32,13 @@ importers:
     dependencies:
       '@deepentropy/oakscriptjs':
         specifier: workspace:*
-        version: link:../oakscriptjs
+        version: link:../packages/oakscriptjs
     devDependencies:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
 
-  oakscriptjs:
+  packages/oakscriptjs:
     devDependencies:
       '@types/jest':
         specifier: ^29.5.11
@@ -77,7 +77,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  transpiler:
+  packages/pine2ts:
     dependencies:
       '@deepentropy/oakscriptjs':
         specifier: workspace:*

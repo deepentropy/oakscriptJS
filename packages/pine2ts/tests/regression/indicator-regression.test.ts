@@ -22,7 +22,7 @@ describe('Indicator Regression Tests', () => {
   
   beforeAll(() => {
     // Load the reference CSV data from the project root tests directory
-    const csvPath = join(__dirname, '../../../tests/SP_SPX, 1D_649c1.csv');
+    const csvPath = join(__dirname, '../../../../tests/SP_SPX, 1D_649c1.csv');
     const csvContent = readFileSync(csvPath, 'utf-8');
     referenceData = parseCSV(csvContent);
     

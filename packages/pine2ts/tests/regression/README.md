@@ -39,7 +39,7 @@ The test suite uses:
 
 ### Run all regression tests:
 ```bash
-cd transpiler
+cd packages/pine2ts
 pnpm test tests/regression/
 ```
 
