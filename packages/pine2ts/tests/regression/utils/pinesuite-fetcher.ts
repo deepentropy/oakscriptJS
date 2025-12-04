@@ -22,12 +22,8 @@ export async function fetchPineSuiteCSV(
   const owner = 'deepentropy';
   const repo = 'pinesuite';
   
-  // Encode each path segment separately (filter out empty segments)
-  const encodedPath = filePath
-    .split('/')
-    .filter(segment => segment.length > 0)
-    .map(segment => encodeURIComponent(segment))
-    .join('/');
+  // Replace spaces with %20 (avoid double encoding)
+  const encodedPath = filePath.replace(/ /g, '%20');
   
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}`;
 
