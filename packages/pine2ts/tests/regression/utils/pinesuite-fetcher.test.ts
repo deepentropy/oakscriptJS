@@ -135,10 +135,9 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     // Get the URL that was used
     const calledUrl = fetchMock.mock.calls[0][0];
 
-    // Note: Simple space replacement doesn't handle leading/trailing slashes
-    // This is acceptable as paths from indicator-mapping.json don't have them
+    // Verify leading/trailing slashes are removed during normalization
     expect(calledUrl).toBe(
-      'https://api.github.com/repos/deepentropy/pinesuite/contents//data/20251203/test.csv/'
+      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/test.csv'
     );
   });
 });

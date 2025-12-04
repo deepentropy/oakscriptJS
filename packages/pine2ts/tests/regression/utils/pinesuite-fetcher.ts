@@ -22,10 +22,12 @@ export async function fetchPineSuiteCSV(
   const owner = 'deepentropy';
   const repo = 'pinesuite';
   
-  // Replace spaces with %20 (avoid double encoding)
-  const encodedPath = filePath.replace(/ /g, '%20');
+  // Normalize path: remove leading/trailing slashes and replace spaces with %20
+  const normalizedPath = filePath
+    .replace(/^\/+|\/+$/g, '')  // Remove leading and trailing slashes
+    .replace(/ /g, '%20');       // Replace spaces with %20
   
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}`;
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${normalizedPath}`;
 
   try {
     const response = await fetch(url, {
