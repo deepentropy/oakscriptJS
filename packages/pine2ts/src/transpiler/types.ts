@@ -162,3 +162,57 @@ export interface LibraryInfo {
   /** Whether the library shows overlay on chart */
   overlay: boolean;
 }
+
+/**
+ * Plot configuration
+ */
+export interface PlotConfig {
+  id: string;
+  title: string;
+  color: string;
+  lineWidth: number;
+}
+
+/**
+ * Shared context for code generation
+ */
+export interface GeneratorContext {
+  /** Transpile options */
+  options: TranspileOptions;
+  /** Indicator title */
+  indicatorTitle: string;
+  /** Indicator short title */
+  indicatorShortTitle: string;
+  /** Whether indicator overlays on main chart */
+  indicatorOverlay: boolean;
+  /** Variable name mappings */
+  variables: Map<string, string>;
+  /** Variables that are Series instances */
+  seriesVariables: Set<string>;
+  /** Variables that are reassigned */
+  reassignedVariables: Set<string>;
+  /** Variables with recursive formulas */
+  recursiveVariables: Set<string>;
+  /** User-defined types */
+  types: Map<string, TypeInfo>;
+  /** User-defined methods */
+  methods: Map<string, MethodInfo[]>;
+  /** Input definitions */
+  inputs: InputDefinition[];
+  /** Library imports */
+  imports: ImportInfo[];
+  /** Plot variable names */
+  plots: string[];
+  /** Plot configurations */
+  plotConfigs: PlotConfig[];
+  /** Whether syminfo is used */
+  usesSyminfo: boolean;
+  /** Whether timeframe is used */
+  usesTimeframe: boolean;
+  /** Whether this is a library */
+  isLibrary: boolean;
+  /** Library information */
+  libraryInfo: LibraryInfo | null;
+  /** Warnings collected during transpilation */
+  warnings: TranspileWarning[];
+}
