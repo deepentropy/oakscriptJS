@@ -10,9 +10,9 @@ import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fetchPineSuiteCSV, hasPineSuiteToken } from './utils/pinesuite-fetcher.js';
-import { parseCSV, getOHLCV, type OHLCVRow } from './utils/csv-parser.js';
+import { parseCSV, type OHLCVRow } from './utils/csv-parser.js';
 import { compareArrays, formatComparisonResult } from './utils/comparison.js';
-import indicatorMapping from './indicator-mapping.json' assert { type: 'json' };
+import indicatorMapping from './indicator-mapping.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,6 +25,21 @@ interface IndicatorMapping {
   [indicatorName: string]: {
     dataFile: string;
   };
+}
+
+interface IndicatorModule {
+  calculate?: (bars: any[], inputs: any) => IndicatorResult;
+  default?: (bars: any[], inputs: any) => IndicatorResult;
+}
+
+interface PlotData {
+  time: string | number;
+  value: number | null | undefined;
+}
+
+interface IndicatorResult {
+  metadata?: any;
+  plots: Record<string, PlotData[]>;
 }
 
 const mapping = indicatorMapping as IndicatorMapping;
@@ -63,8 +78,7 @@ describe('PineSuite Regression Tests', () => {
           throw new Error(`No data found in ${config.dataFile}`);
         }
 
-        // Get OHLCV data
-        const ohlcv = getOHLCV(referenceData);
+        // Convert to bar format
         const bars = referenceData.map(row => ({
           time: row.time,
           open: row.open,
@@ -84,7 +98,7 @@ describe('PineSuite Regression Tests', () => {
         }
 
         // Dynamically import the indicator
-        let indicatorModule: any;
+        let indicatorModule: IndicatorModule;
         try {
           indicatorModule = await import(`../../../../indicators/${indicatorFolder}/index.js`);
         } catch (error) {
@@ -98,7 +112,7 @@ describe('PineSuite Regression Tests', () => {
         }
 
         // Calculate indicator with default inputs
-        const result = calculateFn(bars, {});
+        const result: IndicatorResult = calculateFn(bars, {});
         
         if (!result || !result.plots) {
           throw new Error(`Indicator ${indicatorFolder} did not return valid result with plots`);
@@ -120,8 +134,8 @@ describe('PineSuite Regression Tests', () => {
           const columnName = outputColumns[i];
           
           // Extract actual values from plot
-          const plotData = result.plots[plotKey];
-          const actualValues = plotData.map((p: any) => p.value);
+          const plotData: PlotData[] = result.plots[plotKey];
+          const actualValues = plotData.map((p) => p.value);
           
           // Extract expected values from CSV
           const expectedValues = referenceData.map(row => {
