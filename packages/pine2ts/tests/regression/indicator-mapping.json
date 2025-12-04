@@ -1,50 +1,5 @@
 {
   "sma": {
     "dataFile": "Simple Moving Average.csv"
-  },
-  "alma": {
-    "dataFile": "Arnaud Legoux Moving Average.csv"
-  },
-  "hma": {
-    "dataFile": "Hull Moving Average.csv"
-  },
-  "dema": {
-    "dataFile": "Double EMA.csv"
-  },
-  "tema": {
-    "dataFile": "Triple EMA.csv"
-  },
-  "lsma": {
-    "dataFile": "Least Squares Moving Average.csv"
-  },
-  "vwma": {
-    "dataFile": "Volume Weighted Moving Average.csv"
-  },
-  "wma": {
-    "dataFile": "Moving Average Weighted.csv"
-  },
-  "obv": {
-    "dataFile": "On Balance Volume.csv"
-  },
-  "roc": {
-    "dataFile": "Rate Of Change.csv"
-  },
-  "momentum": {
-    "dataFile": "Momentum.csv"
-  },
-  "mass-index": {
-    "dataFile": "Mass Index.csv"
-  },
-  "mc-ginley-dynamic": {
-    "dataFile": "McGinley Dynamic.csv"
-  },
-  "adr": {
-    "dataFile": "Average Daily Range.csv"
-  },
-  "bop": {
-    "dataFile": "Balance of Power.csv"
-  },
-  "rma": {
-    "dataFile": "Smoothed Moving Average.csv"
   }
 }
