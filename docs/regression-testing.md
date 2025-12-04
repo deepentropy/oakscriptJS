@@ -1,5 +1,7 @@
 # Regression Testing Documentation
 
+> **⚠️ NOTICE**: Regression tests are temporarily disabled pending restoration of the test data file (`tests/SP_SPX, 1D_649c1.csv`). The test file was removed in a previous commit and will be restored in a future update.
+
 ## Overview
 
 This project includes a comprehensive regression test suite that validates indicator calculations against reference data from TradingView/PineScript. The test suite ensures that the oakscriptjs library produces accurate results matching industry-standard implementations.
