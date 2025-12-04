@@ -164,4 +164,92 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/test.csv'
     );
   });
+
+  describe('Error Handling', () => {
+    it('should provide clear error message for 404 with URL and status', async () => {
+      // Mock 404 response
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => '{"message":"Not Found"}',
+      });
+
+      const filePath = 'data/20251203/NonExistent.csv';
+      const token = 'test-token';
+
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
+        'File not found or no access: data/20251203/NonExistent.csv'
+      );
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow('URL:');
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow('Status: 404');
+    });
+
+    it('should provide clear error message for 401 authentication failures', async () => {
+      // Mock 401 response
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: async () => '{"message":"Bad credentials"}',
+      });
+
+      const filePath = 'data/test/test.csv';
+      const token = 'invalid-token';
+
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
+        'Authentication failed: Invalid token or token expired'
+      );
+    });
+
+    it('should provide clear error message for 403 access forbidden', async () => {
+      // Mock 403 response
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: async () => '{"message":"Forbidden"}',
+      });
+
+      const filePath = 'data/test/test.csv';
+      const token = 'limited-token';
+
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
+        'Access forbidden: Token may not have access to deepentropy/pinesuite'
+      );
+    });
+
+    it('should include response body in error messages when available', async () => {
+      // Mock 403 response with detailed error
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: async () => '{"message":"Resource protected by organization SAML enforcement"}',
+      });
+
+      const filePath = 'data/test/test.csv';
+      const token = 'test-token';
+
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
+        'Response: {"message":"Resource protected by organization SAML enforcement"}'
+      );
+    });
+
+    it('should handle errors when reading response body fails', async () => {
+      // Mock 500 response that fails to read body
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => {
+          throw new Error('Failed to read body');
+        },
+      });
+
+      const filePath = 'data/test/test.csv';
+      const token = 'test-token';
+
+      // Should still throw error even if body reading fails
+      await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
+        'GitHub API error: 500 Internal Server Error'
+      );
+    });
+  });
 });
