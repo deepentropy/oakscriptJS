@@ -16,9 +16,14 @@ export function getInputTsType(input: InputDefinition): string {
     case 'bool':
       return 'boolean';
     case 'string':
-    case 'color':
-    case 'source':
+      if (input.options && input.options.length > 0) {
+        return input.options.map(o => `"${o}"`).join(' | ');
+      }
       return 'string';
+    case 'color':
+      return 'string';
+    case 'source':
+      return '"open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4"';
     default:
       return 'any';
   }
