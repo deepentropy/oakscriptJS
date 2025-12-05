@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions for included namespaces.
 
-**Last Updated:** 2025-11-28 (v0.2.0)
+**Last Updated:** December 2025 (v0.2.1)
 
 ## Architecture Overview
 
@@ -10,6 +10,8 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 
 1. **Core Functions** (array-based): Pure calculation functions from `ta.*`, `math.*`, `array.*`, etc.
 2. **Series Class**: Lazy evaluation with operator chaining for native PineScript-like syntax
+   - **BarData**: Versioned wrapper for automatic cache invalidation
+   - **materialize()**: Breaks closure chains for memory efficiency
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
 4. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills)
 

@@ -4,6 +4,8 @@
 
 <h1 align="center">OakScriptJS</h1>
 
+**Live Demo**: [deepentropy.github.io/oakscriptJS](https://deepentropy.github.io/oakscriptJS/)
+
 PineScript-compatible technical analysis for JavaScript/TypeScript.
 
 OakScriptJS lets you run TradingView-style indicators in any JavaScript environment — browsers, Node.js, or your trading bot.
@@ -44,15 +46,10 @@ npm install -g @deepentropy/pine2ts
 pine2ts my-indicator.pine output.ts
 ```
 
-## Live Demo
-
-See the indicators in action: **[deepentropy.github.io/oakscriptJS](https://deepentropy.github.io/oakscriptJS/)**
-
 ## Documentation
 
 - [Guide](./docs/guide.md) — Getting started and core concepts
 - [Function Inventory](./docs/inventory.md) — All available TA functions
-- [Indicator Implementation](./docs/indicator-implementation.md) — How to create indicators
 - [Official Examples](./docs/official/) — PineScript and JavaScript indicator examples
 
 ## Development

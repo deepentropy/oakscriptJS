@@ -104,7 +104,7 @@ const avg = math.avg(...closes);
 const max = math.max(...closes);
 ```
 
-### Using Series
+### Series Class
 
 The Series class enables lazy evaluation and operator chaining:
 
@@ -130,6 +130,61 @@ const rsi = ta.rsi(close, 14);
 const rsiValues = rsi.toArray();
 const lastRSI = rsi.last();
 ```
+
+### BarData for Automatic Cache Invalidation
+
+The `BarData` class wraps bar arrays and tracks version changes for automatic cache invalidation:
+
+```typescript
+import { BarData, Series, ta } from '@deepentropy/oakscriptjs';
+
+// Create BarData wrapper
+const barData = new BarData(bars);
+const close = Series.fromBars(barData, 'close');
+const sma = ta.sma(close, 20);
+
+// First computation - values are cached
+const values1 = sma.toArray();
+
+// Add new bar - version increments automatically
+barData.push({ time: '2024-01-03', open: 106, high: 108, low: 105, close: 107 });
+
+// Series detects version change and recomputes automatically
+const values2 = sma.toArray();  // Fresh computation with new data
+```
+
+**Benefits:**
+- Automatic cache invalidation when data changes
+- No manual cache management required
+- Backward compatible - Series still accepts `Bar[]` directly
+- Efficient for streaming/real-time data updates
+
+### Breaking Closure Chains with materialize()
+
+Complex Series expressions create closure chains that keep intermediate Series in memory. Use `materialize()` to break these chains:
+
+```typescript
+import { Series } from '@deepentropy/oakscriptjs';
+
+const close = Series.fromBars(bars, 'close');
+const open = Series.fromBars(bars, 'open');
+const high = Series.fromBars(bars, 'high');
+const low = Series.fromBars(bars, 'low');
+
+// Without materialize: keeps all intermediate Series in memory
+const complex = close.sub(open).mul(high).div(low).add(volume);
+
+// With materialize: breaks chain after first operations
+const materialized = close.sub(open).mul(high).materialize();
+const result = materialized.div(low).add(volume);
+// Now close, open, high can be garbage collected
+```
+
+**When to use materialize():**
+- Complex expressions with many chained operations
+- Long-running applications where memory is a concern
+- After expensive computations to free intermediate results
+- When you need a "snapshot" of computed values
 
 ### Native Operators with Babel Plugin
 
@@ -532,7 +587,11 @@ ta.bb(source: Series, length: number, mult: number): [Series, Series, Series]
 
 ```typescript
 class Series {
-  constructor(data: Bar[], extractor: SeriesExtractor)
+  constructor(data: Bar[] | BarData, extractor: SeriesExtractor)
+
+  // Access underlying data
+  get bars(): Bar[]
+  get barData(): BarData
 
   // Arithmetic
   add(other: Series | number): Series
@@ -562,6 +621,36 @@ class Series {
 
   // History
   offset(n: number): Series  // Like close[1] in PineScript
+
+  // Memory management
+  materialize(): Series  // Break closure chains for memory efficiency
+}
+```
+
+#### BarData Class
+
+```typescript
+class BarData {
+  constructor(bars: Bar[])
+
+  // Properties
+  get version(): number      // Current version number
+  get bars(): Bar[]          // Underlying bar array
+  get length(): number       // Number of bars
+
+  // Mutation methods (increment version)
+  push(bar: Bar): void
+  pop(): Bar | undefined
+  set(index: number, bar: Bar): void
+  updateLast(bar: Bar): void
+  setAll(bars: Bar[]): void
+  invalidate(): void         // Manual version increment
+
+  // Access
+  at(index: number): Bar | undefined
+
+  // Factory
+  static from(bars: Bar[]): BarData
 }
 ```
 
@@ -708,5 +797,5 @@ import { Series } from '@deepentropy/oakscriptjs';
 
 ---
 
-**Version**: 0.2.0
-**Last Updated**: November 2025
+**Version**: 0.2.1
+**Last Updated**: December 2025
