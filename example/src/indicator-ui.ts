@@ -133,7 +133,6 @@ export class IndicatorUI {
           // Default source options if not provided
           const sourceOptions = input.options || ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'];
           console.log('[IndicatorUI] source input options:', input.options);
-          console.log('[IndicatorUI] sourceOptions being used:', sourceOptions);
           return `
             <div class="input-group">
               <label for="input-${input.id}">${input.title}:</label>
