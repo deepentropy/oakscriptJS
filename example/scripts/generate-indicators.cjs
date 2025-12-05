@@ -3,24 +3,31 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const PINE_DIR = path.join(__dirname, '..', '..', 'example', 'pinescript');
+const SOURCES_JSON = path.join(__dirname, '..', '..', 'indicators', 'sources.json');
 const INDICATORS_DIR = path.join(__dirname, '..', '..', 'indicators');
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
 
-// Find all .pine files
-const pineFiles = fs.readdirSync(PINE_DIR).filter(f => f.endsWith('.pine'));
+// Read sources.json
+if (!fs.existsSync(SOURCES_JSON)) {
+  console.error(`Error: sources.json not found at ${SOURCES_JSON}`);
+  process.exit(1);
+}
 
-console.log(`Found ${pineFiles.length} PineScript files to transpile`);
+const sources = JSON.parse(fs.readFileSync(SOURCES_JSON, 'utf-8'));
 
-for (const pineFile of pineFiles) {
-  const baseName = path.basename(pineFile, '.pine');
-  // Convert to kebab-case: replace spaces first, then handle camelCase
-  const indicatorName = baseName
-    .replace(/\s+/g, '-')                     // Replace spaces with hyphens first
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')  // Insert hyphen between lowercase/digit and uppercase
-    .toLowerCase();
-  const outputDir = path.join(INDICATORS_DIR, indicatorName);
+console.log(`Found ${sources.indicators.length} indicators to transpile`);
+
+for (const indicator of sources.indicators) {
+  const sourcePath = path.join(PROJECT_ROOT, indicator.sourcePath);
+  const outputDir = path.join(INDICATORS_DIR, indicator.id);
+  const outputFile = path.join(outputDir, `${indicator.id}.ts`);
   
-  console.log(`Transpiling ${pineFile} -> ${indicatorName}/`);
+  if (!fs.existsSync(sourcePath)) {
+    console.error(`Source file not found: ${sourcePath}`);
+    continue;
+  }
+  
+  console.log(`Transpiling ${indicator.name} -> ${indicator.id}/`);
   
   try {
     // Create output directory if it doesn't exist
@@ -28,11 +35,11 @@ for (const pineFile of pineFiles) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
     
-    execSync(`node ./transpiler/bin/pine2ts.js "${path.join(PINE_DIR, pineFile)}" "${path.join(outputDir, indicatorName + '.ts')}"`, {
+    execSync(`node ./packages/pine2ts/bin/pine2ts.js "${sourcePath}" "${outputFile}"`, {
       stdio: 'inherit'
     });
   } catch (error) {
-    console.error(`Failed to transpile ${pineFile}:`, error.message);
+    console.error(`Failed to transpile ${indicator.name}:`, error.message);
   }
 }
 
