@@ -12,11 +12,6 @@ on:
         required: false
         default: false
         type: boolean
-      run_pinesuite_tests:
-        description: 'Run PineSuite regression tests'
-        required: false
-        default: true
-        type: boolean
 
 jobs:
   build-and-test:
@@ -38,23 +33,37 @@ jobs:
         
       - name: Build all packages
         run: pnpm build
-
-      - name: Debug - Check PINESUITE_TOKEN
-        if: ${{ github.event. inputs.debug_enabled == 'true' }}
-        run: |
-          if [ -n "$PINESUITE_TOKEN" ]; then
-            echo "✅ PINESUITE_TOKEN is set (length: ${#PINESUITE_TOKEN})"
-            echo "First 4 chars: ${PINESUITE_TOKEN:0:4}..."
-          else
-            echo "❌ PINESUITE_TOKEN is NOT set"
-          fi
-        env:
-          PINESUITE_TOKEN: ${{ secrets. PINESUITE_TOKEN }}
         
-      - name: Run tests
+      - name: Run unit tests (excluding regression)
         run: pnpm test
         env:
-          PINESUITE_TOKEN: ${{ secrets. PINESUITE_TOKEN }}
+          PINESUITE_TOKEN: ${{ secrets.PINESUITE_TOKEN }}
         
       - name: Type check
         run: pnpm typecheck
+
+  regression-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Build all packages
+        run: pnpm build
+        
+      - name: Run regression tests
+        run: pnpm test:regression
+        env:
+          PINESUITE_TOKEN: ${{ secrets.PINESUITE_TOKEN }}

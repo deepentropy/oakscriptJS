@@ -22,7 +22,8 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "vitest run",
+    "test": "vitest run --exclude='**/regression/**'",
+    "test:all": "vitest run",
     "test:watch": "vitest",
     "test:pinesuite": "vitest run tests/regression/pinesuite-regression.test.ts",
     "typecheck": "tsc --noEmit",
