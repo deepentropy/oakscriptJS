@@ -135,9 +135,7 @@ export class ChartManager {
 
     // Set data - filter out NaN, null, and undefined values
     const lineData = data.filter(d => 
-      d.value !== null && 
-      d.value !== undefined && 
-      !Number.isNaN(d.value)
+      d.value != null && !Number.isNaN(d.value)
     ) as LineData<Time>[];
     series.setData(lineData);
   }
