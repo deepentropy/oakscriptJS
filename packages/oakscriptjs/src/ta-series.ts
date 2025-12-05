@@ -164,7 +164,7 @@ export function tr(bars: Bar[]): Series {
  * @returns Series with 1 where crossover, 0 otherwise
  */
 export function crossover(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
@@ -183,7 +183,7 @@ export function crossover(source1: Series, source2: Series | number): Series {
  * @returns Series with 1 where crossunder, 0 otherwise
  */
 export function crossunder(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
@@ -202,7 +202,7 @@ export function crossunder(source1: Series, source2: Series | number): Series {
  * @returns Series with 1 where cross, 0 otherwise
  */
 export function cross(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
