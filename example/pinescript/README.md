@@ -1,26 +1,28 @@
 # PineScript Sources
 
-This directory contains the source PineScript files for indicators.
+Indicator source files are now located in `docs/official/indicators_standard/`.
 
-When you commit changes to files in this directory, a GitHub Action will automatically:
-1. Run the `pine2ts` transpiler
-2. Generate TypeScript indicators in `indicators/`
-3. Commit the generated files
+To add or modify which indicators are generated:
+1. Edit `indicators/sources.json` to add/remove indicator entries
+2. Each entry should have an `id`, `name`, and `sourcePath` pointing to the official .pine file
+3. Commit and push - the GitHub Action will automatically transpile the indicators
 
-## Adding a new indicator
+## Example Entry
 
-1. Create a new `.pine` file in this directory
-2. Use standard PineScript v6 syntax
-3. Commit and push
-4. The indicator will be auto-generated in `indicators/`
-
-## Example
-
-```pine
-//@version=6
-indicator(title="My Custom Indicator", shorttitle="MCI", overlay=true)
-length = input.int(14, minval=1, title="Length")
-src = input(close, title="Source")
-result = ta.sma(src, length)
-plot(result, "MCI", color=color.blue)
+```json
+{
+  "id": "sma",
+  "name": "Simple Moving Average (SMA)",
+  "sourcePath": "docs/official/indicators_standard/Moving Average Simple.pine"
+}
 ```
+
+## Local Development
+
+To generate indicators locally, run:
+
+```bash
+pnpm generate-indicators
+```
+
+This reads from `indicators/sources.json` and transpiles each indicator to TypeScript.
