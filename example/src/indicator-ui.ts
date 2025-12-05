@@ -66,6 +66,8 @@ export class IndicatorUI {
    * Select an indicator
    */
   private selectIndicator(indicatorId: string | null): void {
+    console.log('[IndicatorUI] selectIndicator:', indicatorId);
+    
     // Clear previous indicator
     this.chartManager.clearIndicators();
     this.currentIndicatorId = indicatorId;
@@ -79,6 +81,10 @@ export class IndicatorUI {
     }
 
     const indicator = indicators.find(ind => ind.id === indicatorId);
+    console.log('[IndicatorUI] indicator found:', indicator);
+    console.log('[IndicatorUI] inputConfig:', indicator?.inputConfig);
+    console.log('[IndicatorUI] defaultInputs:', indicator?.defaultInputs);
+    
     if (!indicator) {
       inputsContainer.innerHTML = '';
       return;
@@ -100,6 +106,7 @@ export class IndicatorUI {
   private renderInputs(indicator: IndicatorRegistryEntry, container: HTMLElement): void {
     // Handle inputConfig as either array or object
     const inputConfigArray = Array.isArray(indicator.inputConfig) ? indicator.inputConfig : [];
+    console.log('[IndicatorUI] renderInputs - inputConfigArray:', inputConfigArray);
     
     const inputsHtml = inputConfigArray.map((input: any) => {
       const value = this.currentInputs[input.id] ?? input.defval;
@@ -123,11 +130,15 @@ export class IndicatorUI {
           `;
 
         case 'source':
+          // Default source options if not provided
+          const sourceOptions = input.options || ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'];
+          console.log('[IndicatorUI] source input options:', input.options);
+          console.log('[IndicatorUI] sourceOptions being used:', sourceOptions);
           return `
             <div class="input-group">
               <label for="input-${input.id}">${input.title}:</label>
               <select id="input-${input.id}" data-input-id="${input.id}">
-                ${(input.options || []).map((opt: any) =>
+                ${sourceOptions.map((opt: any) =>
                   `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
                 ).join('')}
               </select>
@@ -224,6 +235,9 @@ export class IndicatorUI {
    * Recalculate and update the indicator display
    */
   private recalculate(): void {
+    console.log('[IndicatorUI] recalculate - bars count:', this.bars.length);
+    console.log('[IndicatorUI] recalculate - currentInputs:', this.currentInputs);
+    
     if (!this.currentIndicatorId || this.bars.length === 0) {
       return;
     }
@@ -236,6 +250,9 @@ export class IndicatorUI {
     try {
       // Calculate indicator
       const result = indicator.calculate(this.bars, this.currentInputs);
+      console.log('[IndicatorUI] recalculate - result:', result);
+      console.log('[IndicatorUI] recalculate - result.plots:', result?.plots);
+      console.log('[IndicatorUI] recalculate - plotConfig:', indicator?.plotConfig);
 
       // Clear previous plots
       this.chartManager.clearIndicators();
@@ -243,6 +260,10 @@ export class IndicatorUI {
       // Add new plots
       for (const plotDef of indicator.plotConfig) {
         const plotData = result.plots[plotDef.id];
+        console.log('[IndicatorUI] plotDef:', plotDef);
+        console.log('[IndicatorUI] plotData:', plotData);
+        console.log('[IndicatorUI] plotData length:', plotData?.length);
+        
         if (plotData && plotData.length > 0) {
           this.chartManager.setIndicatorData(plotDef.id, plotData, {
             color: plotDef.color,

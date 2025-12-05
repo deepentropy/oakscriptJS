@@ -99,6 +99,11 @@ export class ChartManager {
     data: Array<{ time: number; value: number }>,
     config: SeriesConfig = {}
   ): void {
+    console.log('[ChartManager] setIndicatorData - id:', id);
+    console.log('[ChartManager] setIndicatorData - data length:', data.length);
+    console.log('[ChartManager] setIndicatorData - data sample:', data.slice(0, 3));
+    console.log('[ChartManager] setIndicatorData - config:', config);
+    
     let series = this.indicatorSeries.get(id);
 
     if (!series) {
@@ -137,6 +142,7 @@ export class ChartManager {
     const lineData = data.filter(d => 
       d.value != null && !Number.isNaN(d.value)
     ) as LineData<Time>[];
+    console.log('[ChartManager] setIndicatorData - filtered data length:', lineData.length);
     series.setData(lineData);
   }
 
