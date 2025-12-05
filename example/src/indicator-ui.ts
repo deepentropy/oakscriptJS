@@ -252,6 +252,15 @@ export class IndicatorUI {
       console.log('[IndicatorUI] recalculate - result:', result);
       console.log('[IndicatorUI] recalculate - result.plots:', result?.plots);
       console.log('[IndicatorUI] recalculate - plotConfig:', indicator?.plotConfig);
+      
+      // Log first few values of each plot for debugging
+      if (result?.plots) {
+        for (const [plotId, plotData] of Object.entries(result.plots)) {
+          if (Array.isArray(plotData) && plotData.length > 0) {
+            console.log(`[IndicatorUI] ${plotId} first 3 values:`, plotData.slice(0, 3));
+          }
+        }
+      }
 
       // Clear previous plots
       this.chartManager.clearIndicators();

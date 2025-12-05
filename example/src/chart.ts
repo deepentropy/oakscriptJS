@@ -101,7 +101,7 @@ export class ChartManager {
   ): void {
     console.log('[ChartManager] setIndicatorData - id:', id);
     console.log('[ChartManager] setIndicatorData - data length:', data.length);
-    console.log('[ChartManager] setIndicatorData - data sample:', data.slice(0, 3));
+    console.log('[ChartManager] setIndicatorData - first 3 values:', data.slice(0, 3).map(d => ({ time: d.time, value: d.value, valueType: typeof d.value })));
     console.log('[ChartManager] setIndicatorData - config:', config);
     
     let series = this.indicatorSeries.get(id);
