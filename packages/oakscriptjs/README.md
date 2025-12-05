@@ -189,7 +189,7 @@ module.exports = {
 };
 ```
 
-📚 **[See Complete Examples in the Guide →](./docs/guide.md#examples)**
+**[See Complete Examples in the Guide →](./docs/guide.md#examples)**
 
 ## Use Cases
 
@@ -229,7 +229,7 @@ export function myIndicator(bars: any[]): IndicatorResult {
 }
 ```
 
-📚 **[Complete Transpilation Guide →](./docs/guide.md#for-oakscriptengine-developers)**
+**[Complete Transpilation Guide →](./docs/guide.md#for-oakscriptengine-developers)**
 
 ## What's New in v0.2.1
 
