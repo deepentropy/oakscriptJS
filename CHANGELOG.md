@@ -5,6 +5,50 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-12-05
+
+### Added
+
+**Series Enhancements:**
+- **BarData Class**: Versioned wrapper around `Bar[]` array for automatic cache invalidation
+  - Tracks version number that increments on mutations (`push()`, `pop()`, `set()`, `updateLast()`, `setAll()`)
+  - Series automatically detect stale caches when underlying BarData version changes
+  - Backward compatible - Series still accepts `Bar[]` directly
+- **materialize() Method**: Breaks closure chains for memory efficiency
+  - Eagerly computes values and creates new Series without closure dependencies
+  - Useful for complex expressions to free intermediate Series memory
+  - Enables better garbage collection in long-running applications
+- **barData Property**: Access to underlying BarData source from Series instances
+
+**Transpiler Improvements:**
+- Modular architecture with semantic analysis
+- Enhanced PineScript compatibility
+- Better error reporting and diagnostics
+
+### Performance
+
+- Automatic cache invalidation reduces redundant computation
+- Memory-efficient closure chain breaking with `materialize()`
+- Better garbage collection for long-running applications
+
+### Examples
+
+```typescript
+// Automatic cache invalidation with BarData
+const barData = new BarData(bars);
+const close = Series.fromBars(barData, 'close');
+const values1 = close.toArray(); // Computes and caches
+
+barData.push(newBar); // Increments version
+const values2 = close.toArray(); // Detects stale cache, recomputes
+
+// Breaking closure chains for memory efficiency
+const complex = a.add(b).mul(c).div(d).sub(e);
+const materialized = complex.materialize(); // Breaks closure chain, frees memory
+```
+
+---
+
 ## [0.2.0] - 2025-11-10
 
 ### Major Refactoring - Back to Simplicity
