@@ -15,7 +15,7 @@ import type { Bar } from './types';
  * @returns Series with SMA values
  */
 export function sma(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.sma(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -28,7 +28,7 @@ export function sma(source: Series, length: number): Series {
  * @returns Series with EMA values
  */
 export function ema(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.ema(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -41,7 +41,7 @@ export function ema(source: Series, length: number): Series {
  * @returns Series with WMA values
  */
 export function wma(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.wma(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -54,7 +54,7 @@ export function wma(source: Series, length: number): Series {
  * @returns Series with RMA values
  */
 export function rma(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.rma(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -67,7 +67,7 @@ export function rma(source: Series, length: number): Series {
  * @returns Series with RSI values
  */
 export function rsi(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.rsi(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -87,7 +87,7 @@ export function macd(
   slowLength: number,
   signalLength: number
 ): [Series, Series, Series] {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const [macdVals, signalVals, histVals] = taCore.macd(sourceValues, fastLength, slowLength, signalLength);
 
@@ -106,7 +106,7 @@ export function macd(
  * @returns Tuple of [upper, basis, lower] Series
  */
 export function bb(source: Series, length: number, mult: number): [Series, Series, Series] {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const [upperVals, basisVals, lowerVals] = taCore.bb(sourceValues, length, mult);
 
@@ -124,7 +124,7 @@ export function bb(source: Series, length: number, mult: number): [Series, Serie
  * @returns Series with standard deviation values
  */
 export function stdev(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.stdev(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -164,7 +164,7 @@ export function tr(bars: Bar[]): Series {
  * @returns Series with 1 where crossover, 0 otherwise
  */
 export function crossover(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
@@ -183,7 +183,7 @@ export function crossover(source1: Series, source2: Series | number): Series {
  * @returns Series with 1 where crossunder, 0 otherwise
  */
 export function crossunder(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
@@ -202,7 +202,7 @@ export function crossunder(source1: Series, source2: Series | number): Series {
  * @returns Series with 1 where cross, 0 otherwise
  */
 export function cross(source1: Series, source2: Series | number): Series {
-  const bars = (source1 as any).data as Bar[];
+  const bars = source1.bars as Bar[];
   const vals1 = source1.toArray();
   const vals2 = typeof source2 === 'number'
     ? Array(bars.length).fill(source2)
@@ -221,7 +221,7 @@ export function cross(source1: Series, source2: Series | number): Series {
  * @returns Series with change values
  */
 export function change(source: Series, length: number = 1): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.change(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -234,7 +234,7 @@ export function change(source: Series, length: number = 1): Series {
  * @returns Series with momentum values
  */
 export function mom(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.mom(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -247,7 +247,7 @@ export function mom(source: Series, length: number): Series {
  * @returns Series with ROC values
  */
 export function roc(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.roc(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -260,7 +260,7 @@ export function roc(source: Series, length: number): Series {
  * @returns Series with highest values
  */
 export function highest(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.highest(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -273,7 +273,7 @@ export function highest(source: Series, length: number): Series {
  * @returns Series with lowest values
  */
 export function lowest(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.lowest(sourceValues, length);
   return Series.fromArray(bars, result);
@@ -286,7 +286,7 @@ export function lowest(source: Series, length: number): Series {
  * @returns Series with 1 where rising, 0 otherwise
  */
 export function rising(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.rising(sourceValues, length);
   // Convert boolean array to number array
@@ -301,7 +301,7 @@ export function rising(source: Series, length: number): Series {
  * @returns Series with 1 where falling, 0 otherwise
  */
 export function falling(source: Series, length: number): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.falling(sourceValues, length);
   // Convert boolean array to number array
@@ -315,7 +315,7 @@ export function falling(source: Series, length: number): Series {
  * @returns Series with cumulative sum values
  */
 export function cum(source: Series): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.cum(sourceValues);
   return Series.fromArray(bars, result);
@@ -347,7 +347,7 @@ export function supertrend(bars: Bar[], factor: number, atrLength: number): [Ser
  * @returns Series with VWAP values
  */
 export function vwap(source: Series, volume: Series): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const volumeValues = volume.toArray();
   const result = taCore.vwap(sourceValues, volumeValues);
@@ -400,7 +400,7 @@ export function ichimoku(
  * @returns Series with VWMA values
  */
 export function vwma(source: Series, length: number, volume: Series): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const volumeValues = volume.toArray();
   const result = taCore.vwma(sourceValues, length, volumeValues);
@@ -415,7 +415,7 @@ export function vwma(source: Series, length: number, volume: Series): Series {
  * @returns Series with linear regression values
  */
 export function linreg(source: Series, length: number, offset: number = 0): Series {
-  const bars = (source as any).data as Bar[];
+  const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
   const result = taCore.linreg(sourceValues, length, offset);
   return Series.fromArray(bars, result);
