@@ -35,7 +35,7 @@ import * as polyline from './polyline';
 export { taCore, math, array, str, color, time, matrix, line, box, label, linefill, chartPoint, polyline };
 
 // Export Series class (self-contained, no context)
-export { Series } from './runtime/series';
+export { Series, BarData } from './runtime/series';
 export type { SeriesExtractor } from './runtime/series';
 
 // Export TA-Series namespace (Series-based wrappers)
