@@ -125,15 +125,20 @@ export class ChartManager {
         series.moveToPane(paneIndex);
         this.indicatorPanes.set(id, paneIndex);
       } else {
-        // Overlay on main price chart (pane 0)
+        // Explicitly move overlay indicators to main price chart (pane 0)
+        series.moveToPane(0);
         this.indicatorPanes.set(id, 0);
       }
 
       this.indicatorSeries.set(id, series);
     }
 
-    // Set data
-    const lineData = data as LineData<Time>[];
+    // Set data - filter out NaN, null, and undefined values
+    const lineData = data.filter(d => 
+      d.value !== null && 
+      d.value !== undefined && 
+      !Number.isNaN(d.value)
+    ) as LineData<Time>[];
     series.setData(lineData);
   }
 
