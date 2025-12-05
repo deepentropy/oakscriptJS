@@ -1,0 +1,84 @@
+{
+  "indicators": [
+    {
+      "id": "sma",
+      "name": "Simple Moving Average (SMA)",
+      "sourcePath": "docs/official/indicators_standard/Moving Average Simple.pine"
+    },
+    {
+      "id": "momentum",
+      "name": "Momentum (MOM)",
+      "sourcePath": "docs/official/indicators_standard/Momentum.pine"
+    },
+    {
+      "id": "bop",
+      "name": "Balance of Power (BOP)",
+      "sourcePath": "docs/official/indicators_standard/Balance of Power.pine"
+    },
+    {
+      "id": "dema",
+      "name": "Double EMA (DEMA)",
+      "sourcePath": "docs/official/indicators_standard/Double EMA.pine"
+    },
+    {
+      "id": "tema",
+      "name": "Triple EMA (TEMA)",
+      "sourcePath": "docs/official/indicators_standard/Triple EMA.pine"
+    },
+    {
+      "id": "roc",
+      "name": "Rate of Change (ROC)",
+      "sourcePath": "docs/official/indicators_standard/Rate Of Change.pine"
+    },
+    {
+      "id": "adr",
+      "name": "Average Day Range (ADR)",
+      "sourcePath": "docs/official/indicators_standard/Average Day Range.pine"
+    },
+    {
+      "id": "mass-index",
+      "name": "Mass Index",
+      "sourcePath": "docs/official/indicators_standard/Mass Index.pine"
+    },
+    {
+      "id": "mc-ginley-dynamic",
+      "name": "McGinley Dynamic",
+      "sourcePath": "docs/official/indicators_standard/McGinley Dynamic.pine"
+    },
+    {
+      "id": "hma",
+      "name": "Hull Moving Average (HMA)",
+      "sourcePath": "docs/official/indicators_standard/Hull Moving Average.pine"
+    },
+    {
+      "id": "lsma",
+      "name": "Least Squares Moving Average (LSMA)",
+      "sourcePath": "docs/official/indicators_standard/Least Squares Moving Average.pine"
+    },
+    {
+      "id": "rma",
+      "name": "Smoothed Moving Average (RMA)",
+      "sourcePath": "docs/official/indicators_standard/Smoothed Moving Average.pine"
+    },
+    {
+      "id": "wma",
+      "name": "Weighted Moving Average (WMA)",
+      "sourcePath": "docs/official/indicators_standard/Moving Average Weighted.pine"
+    },
+    {
+      "id": "vwma",
+      "name": "Volume Weighted Moving Average (VWMA)",
+      "sourcePath": "docs/official/indicators_standard/Volume Weighted Moving Average.pine"
+    },
+    {
+      "id": "alma",
+      "name": "Arnaud Legoux Moving Average (ALMA)",
+      "sourcePath": "docs/official/indicators_standard/Arnaud Legoux Moving Average.pine"
+    },
+    {
+      "id": "obv",
+      "name": "On Balance Volume (OBV)",
+      "sourcePath": "docs/official/indicators_standard/On Balance Volume.pine"
+    }
+  ]
+}
