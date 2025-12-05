@@ -42,6 +42,7 @@ pnpm-debug.log*
 .cache/
 .temp/
 screenshots/
+tmp/
 
 # OS
 Thumbs.db
