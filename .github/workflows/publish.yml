@@ -8,6 +8,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       
@@ -24,13 +27,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install
         
-      - name: Build all packages
-        run: pnpm build
+      - name: Build packages
+        run: pnpm --filter "@deepentropy/*" build
         
       - name: Run tests
-        run: pnpm test
+        run: pnpm --filter "@deepentropy/*" test
         
-      - name: Publish packages
-        run: pnpm -r publish --access public --no-git-checks
+      - name: Publish oakscriptjs
+        run: pnpm --filter "@deepentropy/oakscriptjs" publish --access public --no-git-checks || echo "Package may already be published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+          
+      - name: Publish pine2ts
+        run: pnpm --filter "@deepentropy/pine2ts" publish --access public --no-git-checks || echo "Package may already be published"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

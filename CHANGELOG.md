@@ -5,6 +5,44 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2025-12-06
+
+### Added
+
+**Series Enhancements:**
+- **BarData Class**: Versioned wrapper around `Bar[]` array for automatic cache invalidation
+- **materialize() Method**: Breaks closure chains for memory efficiency
+- **barData Property**: Access to underlying BarData source from Series instances
+
+**Transpiler Improvements:**
+- Modular architecture with semantic analysis
+- Enhanced PineScript compatibility
+- Better error reporting and diagnostics
+- Fixed builtin function signatures and added missing functions
+
+**Testing:**
+- Added comprehensive Series unit tests (453+ test cases)
+- Added overlay indicators integration tests
+- Added TA-Series integration tests
+
+**Build & CI:**
+- Improved indicator generation workflow
+- Refactored indicator sources to use docs/official
+
+### Fixed
+
+- Fixed ta-series functions accessing non-existent .data property
+- Fixed overlay indicators returning empty plot data
+- Fixed .data to .bars references in crossover/crossunder/cross functions
+
+### Performance
+
+- Automatic cache invalidation reduces redundant computation
+- Memory-efficient closure chain breaking with `materialize()`
+- Better garbage collection for long-running applications
+
+---
+
 ## [0.2.1] - 2025-12-05
 
 ### Added
@@ -178,6 +216,7 @@ All DSL-based code will need to be rewritten. The OakScriptEngine transpiler is 
 - Array-based core functions
 - TypeScript support
 
+[0.1.5]: https://github.com/deepentropy/oakscriptJS/compare/v0.1.4-before-monorepo...v0.1.5
 [0.2.0]: https://github.com/deepentropy/oakscriptJS/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/deepentropy/oakscriptJS/releases/tag/v0.1.3
 [0.1.0]: https://github.com/deepentropy/oakscriptJS/releases/tag/v0.1.0
