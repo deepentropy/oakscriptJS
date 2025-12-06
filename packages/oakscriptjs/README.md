@@ -1,50 +1,16 @@
 # OakScriptJS
 
-**Simplified PineScript-like library for JavaScript - Series + TA functions**
+**PineScript v6 compatible technical analysis library for JavaScript/TypeScript**
 
-OakScriptJS is a TypeScript/JavaScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations** with a clean Series-based approach, leaving indicator structure to the OakScriptEngine transpiler.
-
-**[Read the Complete Guide →](./docs/guide.md)**
+OakScriptJS provides the computational core of PineScript's API. It focuses on **calculations and data transformations** with a clean Series-based approach.
 
 ## Core Features
 
-1. **Series Class**: Lazy evaluation with operator chaining
-2. **BarData**: Versioned wrapper for automatic cache invalidation
-3. **materialize()**: Break closure chains for memory efficiency
-4. **Core Functions**: Pure array-based calculations
-5. **TA-Series Wrappers**: Series-based technical analysis functions
-6. **Metadata Types**: Type definitions for indicator results
-
-## Why OakScriptJS?
-
-**v0.2.0 Refactoring: Back to Simplicity**
-
-We removed the DSL layer (`indicator()`, `plot()`, `compile()`) and context API to focus on what matters: **computational primitives**. The complexity of indicator structure is now handled by OakScriptEngine transpiler where it belongs.
-
-**Before (v0.1.x):**
-```typescript
-// Complex DSL with global state
-indicator("My Indicator");
-const rsi = ta.rsi(close, 14);
-plot(rsi);
-export default compile();
-```
-
-**After (v0.2.0):**
-```typescript
-// Simple, explicit, testable
-import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
-
-export function myIndicator(bars: any[]): IndicatorResult {
-  const close = new Series(bars, (bar) => bar.close);
-  const rsi = ta.rsi(close, 14);
-
-  return {
-    metadata: { title: "My Indicator", overlay: false },
-    plots: [{ data: rsi.toArray().map((v, i) => ({ time: bars[i].time, value: v })) }]
-  };
-}
-```
+- **Series Class**: Lazy evaluation with operator chaining
+- **BarData**: Versioned wrapper for automatic cache invalidation
+- **Core Functions**: Pure array-based calculations (`taCore.*`)
+- **TA-Series Wrappers**: Series-based technical analysis functions (`ta.*`)
+- **Type Safety**: Full TypeScript support with type definitions
 
 ## Scope
 
@@ -52,7 +18,7 @@ export function myIndicator(bars: any[]): IndicatorResult {
 - Technical Analysis (`ta.*`, `taCore.*`) - All indicators and calculations
 - Mathematics (`math.*`) - All mathematical operations
 - Arrays (`array.*`) - Array manipulation and operations
-- Matrices (`matrix.*`) - Matrix operations (minimal, 2%)
+- Matrices (`matrix.*`) - Matrix operations
 - Strings (`str.*`) - String manipulation
 - Time (`time.*`) - Time calculations and conversions
 - Color (`color.*`) - Color data structures and manipulation
@@ -60,46 +26,12 @@ export function myIndicator(bars: any[]): IndicatorResult {
 - Series Class - Lazy evaluation with operator chaining
 
 **This library does NOT include:**
-- DSL functions (`indicator()`, `plot()`, `compile()`) - Removed in v0.2.0
 - UI/Input functions (`input.*`) - Application responsibility
 - Strategy execution (`strategy.*`) - Strategy engine responsibility
 - Data fetching (`request.*`) - Data provider responsibility
 - Alert systems (`alert.*`, `alertcondition.*`) - Application responsibility
 
-## Features
-
-- **Native Operators**: With Babel plugin - write `(close - open) / (high - low)`
-- **Automatic Cache Invalidation**: BarData class tracks changes for efficient recomputation
-- **Memory Efficient**: materialize() method breaks closure chains
-- **Exact API Match**: Function signatures match PineScript exactly
-- **Type Safety**: Full TypeScript support with type definitions
-- **Lazy Evaluation**: Series class evaluates on-demand
-- **Performance Optimized**: Efficient implementations for technical analysis
-- **Zero Runtime Dependencies**: Lightweight with no external runtime dependencies
-- **Well Tested**: Extensive test coverage ensuring accuracy
-
 ## Installation
-
-### JSR (Recommended)
-
-```bash
-# npm
-npx jsr add @deepentropy/oakscriptjs
-
-# pnpm (10.9+)
-pnpm add jsr:@deepentropy/oakscriptjs
-
-# yarn (4.9+)
-yarn add jsr:@deepentropy/oakscriptjs
-
-# Deno
-deno add jsr:@deepentropy/oakscriptjs
-
-# Bun
-bunx jsr add @deepentropy/oakscriptjs
-```
-
-### npm
 
 ```bash
 npm install @deepentropy/oakscriptjs
@@ -107,7 +39,7 @@ npm install @deepentropy/oakscriptjs
 
 ## Quick Start
 
-### Option 1: Array-based Calculations
+### Array-based Calculations
 
 ```typescript
 import { taCore } from '@deepentropy/oakscriptjs';
@@ -117,7 +49,7 @@ const sma = taCore.sma(prices, 3);
 const rsi = taCore.rsi(prices, 14);
 ```
 
-### Option 2: Series-based Calculations
+### Series-based Calculations
 
 ```typescript
 import { Series, ta } from '@deepentropy/oakscriptjs';
@@ -133,7 +65,7 @@ const rsi = ta.rsi(close, 14);
 console.log(rsi.toArray());
 ```
 
-### Option 3: BarData for Automatic Cache Invalidation
+### BarData for Automatic Cache Invalidation
 
 ```typescript
 import { BarData, Series, ta } from '@deepentropy/oakscriptjs';
@@ -151,21 +83,7 @@ barData.push({ time: '2024-01-03', open: 106, high: 108, low: 105, close: 107 })
 const values2 = sma.toArray(); // Detects change, recomputes
 ```
 
-### Option 4: Native Operators (with Babel Plugin)
-
-```typescript
-import { Series } from '@deepentropy/oakscriptjs';
-
-const close = new Series(bars, (bar) => bar.close);
-const open = new Series(bars, (bar) => bar.open);
-const high = new Series(bars, (bar) => bar.high);
-const low = new Series(bars, (bar) => bar.low);
-
-// Native operators
-const bop = (close - open) / (high - low);
-```
-
-### Option 5: Memory-Efficient Closure Breaking
+### Memory-Efficient Closure Breaking
 
 ```typescript
 import { Series } from '@deepentropy/oakscriptjs';
@@ -176,82 +94,6 @@ const complex = a.add(b).mul(c).div(d).sub(e);
 // Break closure chain to free memory
 const materialized = complex.materialize();
 ```
-
-**Setup Babel Plugin:**
-
-```javascript
-// babel.config.js
-module.exports = {
-  presets: ['@babel/preset-typescript'],
-  plugins: [
-    './node_modules/@deepentropy/oakscriptjs/babel-plugin/pinescript-operators.cjs'
-  ]
-};
-```
-
-**[See Complete Examples in the Guide →](./docs/guide.md#examples)**
-
-## Use Cases
-
-- **OakScriptEngine Integration** - Transpile PineScript to JavaScript
-- **Custom Trading Engines** - Build backtesting or execution systems
-- **Analysis Tools** - Create technical analysis applications
-- **Algorithm Development** - Develop trading algorithms
-- **Educational Projects** - Learn technical indicators
-
-## For OakScriptEngine Developers
-
-OakScriptJS makes PineScript transpilation straightforward:
-
-```typescript
-// PineScript
-indicator("My Indicator")
-bop = (close - open) / (high - low)
-plot(bop)
-
-// Transpiles to (with Babel plugin)
-import { Series, type IndicatorResult } from '@deepentropy/oakscriptjs';
-
-export function myIndicator(bars: any[]): IndicatorResult {
-  const close = new Series(bars, (bar) => bar.close);
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-
-  const bop = (close - open) / (high - low);
-
-  return {
-    metadata: { title: "My Indicator", overlay: false },
-    plots: [{
-      data: bop.toArray().map((value, i) => ({ time: bars[i].time, value }))
-    }]
-  };
-}
-```
-
-**[Complete Transpilation Guide →](./docs/guide.md#for-oakscriptengine-developers)**
-
-## What's New in v0.2.1
-
-**Series Enhancements:**
-- **BarData Class**: Versioned wrapper for automatic cache invalidation
-- **materialize() Method**: Breaks closure chains for memory efficiency
-- **barData Property**: Access underlying BarData source from Series
-
-**Transpiler Improvements:**
-- Modular architecture with semantic analysis
-- Enhanced PineScript compatibility
-- Better error reporting and diagnostics
-
-## What Changed in v0.2.0
-
-**Major Refactoring: Back to Simplicity**
-
-- Removed DSL Layer: No more `indicator()`, `plot()`, `compile()`
-- Removed Context API: No more `createContext()`, global state
-- Removed IndicatorController: Complexity moved to transpiler
-- Focus on Core: Series class + computation functions
-- Better Architecture: Transpiler handles structure, library handles calculations
 
 ## Supported Namespaces
 
@@ -359,42 +201,7 @@ class BarData {
 - **Label (`label`)**: `new()`, getters/setters
 - **Linefill (`linefill`)**: `new()`, `set_color()`
 
-## API Documentation
-
-### Series Example
-
-```typescript
-import { Series, ta } from '@deepentropy/oakscriptjs';
-
-const bars = [/* OHLCV data */];
-
-// Create Series
-const close = new Series(bars, (bar) => bar.close);
-const high = new Series(bars, (bar) => bar.high);
-const low = new Series(bars, (bar) => bar.low);
-
-// Calculations
-const range = high.sub(low);  // Or: high - low (with Babel)
-const rsi = ta.rsi(close, 14);
-
-// Extract values
-const values = rsi.toArray();
-const last = rsi.last();
-```
-
-### Core Functions Example
-
-```typescript
-import { taCore, math } from '@deepentropy/oakscriptjs';
-
-const prices = [100, 102, 101, 103, 105];
-const sma = taCore.sma(prices, 3);
-const avg = math.avg(...prices);
-```
-
 ## Examples
-
-Complete working examples:
 
 ```typescript
 // Example 1: Simple Moving Average
@@ -413,28 +220,24 @@ export function smaIndicator(bars: any[]): IndicatorResult {
   };
 }
 
-// Example 2: Balance of Power (with native operators)
-export function bopIndicator(bars: any[]): IndicatorResult {
+// Example 2: RSI
+export function rsiIndicator(bars: any[]): IndicatorResult {
   const close = new Series(bars, (bar) => bar.close);
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-
-  // Native operators!
-  const bop = (close - open) / (high - low);
+  const rsi = ta.rsi(close, 14);
 
   return {
-    metadata: { title: "Balance of Power", overlay: false },
+    metadata: { title: "RSI", overlay: false },
     plots: [{
-      data: bop.toArray().map((v, i) => ({ time: bars[i].time, value: v })),
-      options: { color: '#FF0000', linewidth: 2 }
+      data: rsi.toArray().map((v, i) => ({ time: bars[i].time, value: v })),
+      options: { color: '#FF5722', linewidth: 2 }
     }],
-    hlines: [{ value: 0, options: { color: '#808080' } }]
+    hlines: [
+      { value: 70, options: { color: '#FF0000' } },
+      { value: 30, options: { color: '#00FF00' } }
+    ]
   };
 }
 ```
-
-See `/examples/indicators/` for more examples.
 
 ## Development
 
@@ -458,74 +261,11 @@ npm run test:watch
 npm run test:coverage
 ```
 
-### Lint & Format
-
-```bash
-npm run lint
-npm run format
-```
-
-## Project Structure
-
-```
-oakscriptjs/
-├── src/
-│   ├── ta/              # Technical analysis (array-based)
-│   ├── ta-series.ts     # TA wrappers (Series-based)
-│   ├── math/            # Mathematical functions
-│   ├── array/           # Array operations
-│   ├── str/             # String operations
-│   ├── color/           # Color functions
-│   ├── runtime/
-│   │   └── series.ts    # Series class
-│   ├── types/           # Type definitions
-│   │   └── metadata.ts  # Indicator result types
-│   └── index.ts         # Main entry point
-├── tests/               # Test files
-├── examples/            # Usage examples
-└── dist/                # Built output
-```
-
-## Roadmap
-
-**Current Focus:**
-- [x] Core functions (array-based) - Complete
-- [x] Series class with lazy evaluation - Complete
-- [x] TA-Series wrappers - Complete
-- [x] Metadata types for indicators - Complete
-- [ ] Complete `matrix` namespace (currently 2%)
-- [ ] Performance optimizations
-
-**Explicitly Removed** (handled by transpiler/application):
-- ❌ DSL functions (`indicator()`, `plot()`, `compile()`)
-- ❌ Context API (`createContext()`)
-- ❌ IndicatorController
-- ❌ Built-in series (`close`, `open`, etc.)
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-1. Maintain exact PineScript API signatures
-2. Add tests for new functionality
-3. Follow the existing code style
-4. Update documentation
-
-## License
-
-MIT
-
 ## Documentation
 
-- **[Complete Guide](./docs/guide.md)** - User guide + OakScriptEngine integration
-- **[Function Inventory](./docs/inventory.md)** - Complete function list with status
-- **[API Reference](./docs/guide.md#api-reference)** - Complete API documentation
+- **[Complete Guide](../../docs/guide.md)** - User guide and examples
+- **[Function Inventory](../../docs/inventory.md)** - Complete function list with status
 
 ## Acknowledgments
 
 This library is inspired by TradingView's PineScript language. It is not affiliated with or endorsed by TradingView.
-
----
-
-**Version**: 0.2.1
-**Last Updated**: December 2025
