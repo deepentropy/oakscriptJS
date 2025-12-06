@@ -39,8 +39,8 @@ const data = [/* bar data */];
 const close = new Series(data, (bar) => bar.close);
 const open = new Series(data, (bar) => bar.open);
 
-// With Babel plugin: Native operators!
-const change = close - open;  // Transforms to: close.sub(open)
+// Series method calls for arithmetic
+const change = close.sub(open);
 ```
 
 **Level 3: TA-Series Functions**
@@ -123,7 +123,7 @@ const high = new Series(bars, (bar) => bar.high);
 const low = new Series(bars, (bar) => bar.low);
 
 // Calculate with Series
-const range = high.sub(low);  // Or: high - low (with Babel plugin)
+const range = high.sub(low);
 const rsi = ta.rsi(close, 14);
 
 // Extract values
@@ -185,40 +185,6 @@ const result = materialized.div(low).add(volume);
 - Long-running applications where memory is a concern
 - After expensive computations to free intermediate results
 - When you need a "snapshot" of computed values
-
-### Native Operators with Babel Plugin
-
-Enable PineScript-like syntax with the Babel plugin:
-
-```typescript
-// Without Babel plugin
-const bop = close.sub(open).div(high.sub(low));
-
-// With Babel plugin
-const bop = (close - open) / (high - low);  // Transforms to the above!
-```
-
-**Setup:**
-
-1. Install Babel:
-```bash
-npm install --save-dev @babel/core @babel/cli @babel/preset-typescript
-```
-
-2. Create `babel.config.js`:
-```javascript
-module.exports = {
-  presets: ['@babel/preset-typescript'],
-  plugins: [
-    './node_modules/@deepentropy/oakscriptjs/babel-plugin/pinescript-operators.cjs'
-  ]
-};
-```
-
-3. Build with Babel:
-```bash
-npx babel src --out-dir dist
-```
 
 ### Available Namespaces
 
@@ -291,8 +257,6 @@ This section is for developers transpiling PineScript to JavaScript using OakScr
 PineScript Source
     ↓ (OakScriptEngine Parser)
 Indicator Function (TypeScript)
-    ↓ (Babel Plugin - Optional but Recommended)
-Transformed Indicator with Series Method Calls
     ↓ (TypeScript Compiler)
 JavaScript Module
     ↓ (User's Application)
@@ -331,8 +295,8 @@ export function balanceOfPower(bars: any[]): IndicatorResult {
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
 
-  // Calculate (with Babel plugin)
-  const bop = (close - open) / (high - low);
+  // Calculate using Series methods
+  const bop = close.sub(open).div(high.sub(low));
 
   // Return structured result
   return {
@@ -356,11 +320,6 @@ export function balanceOfPower(bars: any[]): IndicatorResult {
     fills: []
   };
 }
-```
-
-**Without Babel Plugin:**
-```typescript
-const bop = close.sub(open).div(high.sub(low));
 ```
 
 ### Transpilation Mapping
@@ -397,16 +356,16 @@ ta.sma(close, 20)       // OakScriptJS (same!)
 
 #### 3. Operators
 
-With Babel plugin enabled:
+Series arithmetic uses method calls:
 
-| PineScript | OakScriptJS (Before Babel) | Runtime (After Babel) |
-|------------|---------------------------|----------------------|
-| `close - open` | `close - open` | `close.sub(open)` |
-| `high + low` | `high + low` | `high.add(low)` |
-| `close * 2` | `close * 2` | `close.mul(2)` |
-| `a / b` | `a / b` | `a.div(b)` |
-| `rsi > 70` | `rsi > 70` | `rsi.gt(70)` |
-| `a && b` | `a && b` | `a.and(b)` |
+| PineScript | OakScriptJS |
+|------------|-------------|
+| `close - open` | `close.sub(open)` |
+| `high + low` | `high.add(low)` |
+| `close * 2` | `close.mul(2)` |
+| `a / b` | `a.div(b)` |
+| `rsi > 70` | `rsi.gt(70)` |
+| `a && b` | `a.and(b)` |
 
 #### 4. Indicator Result Structure
 
@@ -720,8 +679,8 @@ export function bopIndicator(bars: any[]): IndicatorResult {
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
 
-  // Native operators (requires Babel plugin)
-  const bop = (close - open) / (high - low);
+  // Series method calls for arithmetic
+  const bop = close.sub(open).div(high.sub(low));
 
   return {
     metadata: {
@@ -754,7 +713,11 @@ npm install @deepentropy/oakscriptjs
 
 **Problem**: Operators not working (`close - open` gives error)
 
-**Solution**: Enable Babel plugin (see [Native Operators](#native-operators-with-babel-plugin))
+**Solution**: Use Series method calls instead of native operators:
+```typescript
+// Instead of: close - open
+// Use: close.sub(open)
+```
 
 ### Runtime Issues
 
@@ -785,13 +748,11 @@ import { Series } from '@deepentropy/oakscriptjs';
 - Install OakScriptJS
 - Use core functions for calculations
 - Use Series class for operator chaining
-- Optional: Enable Babel plugin for native operators
 
 ### For OakScriptEngine Developers
 - Generate functions that return `IndicatorResult`
 - Use Series class for calculations
 - Map PineScript functions 1:1 to OakScriptJS equivalents
-- Use Babel plugin for native operators (recommended)
 
 **Result**: Clean, maintainable code that's easy to understand and extend!
 
