@@ -1,6 +1,6 @@
 {
   "name": "@deepentropy/pine2ts",
-  "version": "0.3.0",
+  "version": "0.1.5",
   "type": "module",
   "description": "PineScript to TypeScript transpiler with pine2ts CLI",
   "main": "dist/index.js",
