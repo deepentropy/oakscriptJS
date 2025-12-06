@@ -10,23 +10,23 @@ OakScriptJS is a TypeScript/JavaScript library that provides PineScript v6 compa
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| [@deepentropy/oakscriptjs](./packages/oakscriptjs) | Technical analysis library with Series-based API |
-| [@deepentropy/pine2ts](./packages/pine2ts) | PineScript to TypeScript transpiler |
+| Package                               | Description                                      |
+|---------------------------------------|--------------------------------------------------|
+| [oakscriptjs](./packages/oakscriptjs) | Technical analysis library with Series-based API |
+| [pine2ts](./packages/pine2ts)         | PineScript to TypeScript transpiler              |
 
 ## Quick Start
 
 ### Install the library
 
 ```bash
-npm install @deepentropy/oakscriptjs
+npm install oakscriptjs
 ```
 
 ### Calculate an indicator
 
 ```typescript
-import { Series, ta } from '@deepentropy/oakscriptjs';
+import {Series, ta} from 'oakscriptjs';
 
 const prices = [44, 44.5, 45, 45.5, 46, 46.5, 47, 47.5, 48, 48.5];
 const close = new Series(prices);
@@ -38,7 +38,7 @@ console.log(sma.toArray());
 ### Transpile PineScript to TypeScript
 
 ```bash
-npm install -g @deepentropy/pine2ts
+npm install -g pine2ts
 
 pine2ts my-indicator.pine output.ts
 ```
@@ -70,8 +70,8 @@ pnpm typecheck  # Type check
 ### Working with packages
 
 ```bash
-pnpm --filter @deepentropy/oakscriptjs build
-pnpm --filter @deepentropy/pine2ts test
+pnpm --filter oakscriptjs build
+pnpm --filter pine2ts test
 ```
 
 ## Project Structure

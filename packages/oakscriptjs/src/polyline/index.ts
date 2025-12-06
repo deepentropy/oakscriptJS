@@ -51,7 +51,7 @@ function generateId(): string {
  *
  * @example
  * ```typescript
- * import { chartPoint, polyline } from '@deepentropy/oakscriptjs';
+ * import { chartPoint, polyline } from 'oakscriptjs';
  *
  * // Create points
  * const points = [

@@ -422,6 +422,21 @@ export function linreg(source: Series, length: number, offset: number = 0): Seri
 }
 
 /**
+ * Arnaud Legoux Moving Average
+ * @param source - Source series
+ * @param length - Period length (default: 9)
+ * @param offset - Controls tradeoff between smoothness and responsiveness (default: 0.85)
+ * @param sigma - Standard deviation factor for sharpness (default: 6)
+ * @returns Series with ALMA values
+ */
+export function alma(source: Series, length: number = 9, offset: number = 0.85, sigma: number = 6): Series {
+    const bars = source.bars as Bar[];
+    const sourceValues = source.toArray();
+    const result = taCore.alma(sourceValues, length, offset, sigma);
+    return Series.fromArray(bars, result);
+}
+
+/**
  * ZigZag indicator - identifies significant trend reversals
  * @param bars - Bar data
  * @param deviation - Minimum percentage price change to form a new pivot (default: 5.0)
@@ -482,5 +497,6 @@ export const ta = {
   vwap,
   ichimoku,
   linreg,
+    alma,
   zigzag,
 };

@@ -1,5 +1,5 @@
 // indicators/adr/adr.ts
-import { Series, ta } from "@deepentropy/oakscriptjs";
+import {Series, ta} from "oakscriptjs";
 var defaultInputs = {
   lengthInput: 14
 };

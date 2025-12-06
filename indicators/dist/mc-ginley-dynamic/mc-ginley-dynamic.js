@@ -1,5 +1,5 @@
 // indicators/mc-ginley-dynamic/mc-ginley-dynamic.ts
-import { Series, ta, math } from "@deepentropy/oakscriptjs";
+import {Series, ta, math} from "oakscriptjs";
 function na(value) {
   return value === null || value === void 0 || Number.isNaN(value);
 }

@@ -1,5 +1,5 @@
 // indicators/alma/alma.ts
-import { Series, taCore } from "@deepentropy/oakscriptjs";
+import {Series, taCore} from "oakscriptjs";
 var defaultInputs = {
   lengthInput: 9,
   offsetInput: 0.85,

@@ -46,7 +46,7 @@ Examples:
   pine2ts indicators/rsi.pine        Transpile from a subdirectory
 
 Note:
-  This CLI is part of @deepentropy/pine2ts
+  This CLI is part of pine2ts
   For more information, see: https://github.com/deepentropy/oakscriptJS
 `);
 }

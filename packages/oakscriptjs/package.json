@@ -1,5 +1,5 @@
 {
-  "name": "@deepentropy/oakscriptjs",
+  "name": "oakscriptjs",
   "version": "0.1.5",
   "type": "module",
   "description": "PineScript v6 compatible technical analysis library for JavaScript/TypeScript",

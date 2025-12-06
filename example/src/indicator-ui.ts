@@ -3,7 +3,7 @@
  * Handles indicator selection dropdown and dynamic input generation
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import type {Bar} from 'oakscriptjs';
 import { ChartManager } from './chart';
 import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig } from '../../indicators';
 

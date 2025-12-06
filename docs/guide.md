@@ -23,7 +23,7 @@ OakScriptJS is a simplified JavaScript/TypeScript library that provides the comp
 Pure calculation functions matching PineScript signatures.
 
 ```typescript
-import { taCore } from '@deepentropy/oakscriptjs';
+import {taCore} from 'oakscriptjs';
 
 const prices = [10, 12, 11, 13, 15];
 const sma = taCore.sma(prices, 3);
@@ -33,7 +33,7 @@ const sma = taCore.sma(prices, 3);
 Lazy evaluation with operator chaining.
 
 ```typescript
-import { Series } from '@deepentropy/oakscriptjs';
+import { Series } from 'oakscriptjs';
 
 const data = [/* bar data */];
 const close = new Series(data, (bar) => bar.close);
@@ -47,7 +47,7 @@ const change = close.sub(open);
 Series-based wrappers for technical analysis.
 
 ```typescript
-import { ta, Series } from '@deepentropy/oakscriptjs';
+import {ta, Series} from 'oakscriptjs';
 
 const close = new Series(data, (bar) => bar.close);
 const rsi = ta.rsi(close, 14);  // Returns a Series
@@ -77,19 +77,19 @@ const rsi = ta.rsi(close, 14);  // Returns a Series
 
 ```bash
 # npm
-npm install @deepentropy/oakscriptjs
+npm install oakscriptjs
 
 # pnpm
-pnpm add @deepentropy/oakscriptjs
+pnpm add oakscriptjs
 
 # JSR
-npx jsr add @deepentropy/oakscriptjs
+npx jsr add oakscriptjs
 ```
 
 ### Quick Start: Basic Calculations
 
 ```typescript
-import { taCore, math } from '@deepentropy/oakscriptjs';
+import {taCore, math} from 'oakscriptjs';
 
 // Price data
 const closes = [100, 102, 101, 103, 105, 104, 106];
@@ -109,7 +109,7 @@ const max = math.max(...closes);
 The Series class enables lazy evaluation and operator chaining:
 
 ```typescript
-import { Series, ta } from '@deepentropy/oakscriptjs';
+import {Series, ta} from 'oakscriptjs';
 
 const bars = [
   { time: '2024-01-01', open: 100, high: 105, low: 99, close: 103 },
@@ -136,7 +136,7 @@ const lastRSI = rsi.last();
 The `BarData` class wraps bar arrays and tracks version changes for automatic cache invalidation:
 
 ```typescript
-import { BarData, Series, ta } from '@deepentropy/oakscriptjs';
+import {BarData, Series, ta} from 'oakscriptjs';
 
 // Create BarData wrapper
 const barData = new BarData(bars);
@@ -164,7 +164,7 @@ const values2 = sma.toArray();  // Fresh computation with new data
 Complex Series expressions create closure chains that keep intermediate Series in memory. Use `materialize()` to break these chains:
 
 ```typescript
-import { Series } from '@deepentropy/oakscriptjs';
+import {Series} from 'oakscriptjs';
 
 const close = Series.fromBars(bars, 'close');
 const open = Series.fromBars(bars, 'open');
@@ -191,7 +191,7 @@ const result = materialized.div(low).add(volume);
 #### Technical Analysis (`ta` and `taCore`)
 
 ```typescript
-import { ta, taCore } from '@deepentropy/oakscriptjs';
+import {ta, taCore} from 'oakscriptjs';
 
 // Core (array-based)
 taCore.sma(priceArray, length)
@@ -219,7 +219,7 @@ ta.crossover(), ta.crossunder(), ta.cross()
 #### Mathematics (`math`)
 
 ```typescript
-import { math } from '@deepentropy/oakscriptjs';
+import {math} from 'oakscriptjs';
 
 math.abs(x)
 math.max(...values)
@@ -234,7 +234,7 @@ math.sin(x), math.cos(x), math.tan(x)
 #### Arrays (`array`)
 
 ```typescript
-import { array } from '@deepentropy/oakscriptjs';
+import {array} from 'oakscriptjs';
 
 const arr = array.new_float(10, 0);
 array.push(arr, 5);
@@ -286,7 +286,7 @@ plot(bop, color=color.red)
 
 **Transpiled Output (Recommended):**
 ```typescript
-import { Series, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, type IndicatorResult} from 'oakscriptjs';
 
 export function balanceOfPower(bars: any[]): IndicatorResult {
   // Create Series
@@ -372,7 +372,7 @@ Series arithmetic uses method calls:
 Every indicator function should return an `IndicatorResult`:
 
 ```typescript
-import type { IndicatorResult } from '@deepentropy/oakscriptjs';
+import type {IndicatorResult} from 'oakscriptjs';
 
 export function myIndicator(bars: any[], options?: any): IndicatorResult {
   // ... calculations ...
@@ -418,7 +418,7 @@ hline(50, "Middle", color.gray)
 
 **Transpiled:**
 ```typescript
-import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, type IndicatorResult} from 'oakscriptjs';
 
 export function rsiIndicator(
   bars: any[],
@@ -502,7 +502,7 @@ Features not in OakScriptJS (handle in transpiler):
 #### taCore (Technical Analysis - Array-based)
 
 ```typescript
-import { taCore } from '@deepentropy/oakscriptjs';
+import {taCore} from 'oakscriptjs';
 
 // Moving Averages
 taCore.sma(source: number[], length: number): number[]
@@ -532,7 +532,7 @@ taCore.bb(
 #### ta (Technical Analysis - Series-based)
 
 ```typescript
-import { ta } from '@deepentropy/oakscriptjs';
+import {ta} from 'oakscriptjs';
 
 // All functions accept Series and return Series
 ta.sma(source: Series, length: number): Series
@@ -625,7 +625,7 @@ import type {
   HLineOptions,
   FillData,
   InputMetadata
-} from '@deepentropy/oakscriptjs';
+} from 'oakscriptjs';
 
 interface IndicatorResult {
   metadata: IndicatorMetadata;
@@ -642,7 +642,7 @@ interface IndicatorResult {
 ### Example 1: Simple Moving Average
 
 ```typescript
-import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, type IndicatorResult} from 'oakscriptjs';
 
 export function smaIndicator(
   bars: any[],
@@ -671,7 +671,7 @@ export function smaIndicator(
 ### Example 2: Balance of Power (Native Operators)
 
 ```typescript
-import { Series, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, type IndicatorResult} from 'oakscriptjs';
 
 export function bopIndicator(bars: any[]): IndicatorResult {
   const close = new Series(bars, (bar) => bar.close);
@@ -704,11 +704,11 @@ export function bopIndicator(bars: any[]): IndicatorResult {
 
 ### Build Issues
 
-**Problem**: `Cannot find module '@deepentropy/oakscriptjs'`
+**Problem**: `Cannot find module 'oakscriptjs'`
 
 **Solution**:
 ```bash
-npm install @deepentropy/oakscriptjs
+npm install oakscriptjs
 ```
 
 **Problem**: Operators not working (`close - open` gives error)
@@ -729,7 +729,7 @@ npm install @deepentropy/oakscriptjs
 
 **Solution**: Import Series type:
 ```typescript
-import { Series } from '@deepentropy/oakscriptjs';
+import { Series } from 'oakscriptjs';
 ```
 
 ---

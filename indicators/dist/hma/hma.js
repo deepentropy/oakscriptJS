@@ -1,5 +1,5 @@
 // indicators/hma/hma.ts
-import { Series, ta, math } from "@deepentropy/oakscriptjs";
+import {Series, ta, math} from "oakscriptjs";
 var defaultInputs = {
   length: 9,
   src: "close"

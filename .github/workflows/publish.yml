@@ -34,13 +34,13 @@ jobs:
         run: pnpm --filter "@deepentropy/*" test
         
       - name: Publish oakscriptjs
-        run: pnpm --filter "@deepentropy/oakscriptjs" publish --access public --no-git-checks || echo "Package may already be published"
+        run: pnpm --filter "oakscriptjs" publish --access public --no-git-checks || echo "Package may already be published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
           
       - name: Publish pine2ts
-        run: pnpm --filter "@deepentropy/pine2ts" publish --access public --no-git-checks || echo "Package may already be published"
+        run: pnpm --filter "pine2ts" publish --access public --no-git-checks || echo "Package may already be published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true

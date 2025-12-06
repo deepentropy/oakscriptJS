@@ -1,5 +1,5 @@
 // indicators/lsma/lsma.ts
-import { Series, ta } from "@deepentropy/oakscriptjs";
+import {Series, ta} from "oakscriptjs";
 var defaultInputs = {
   length: 25,
   offset: 0,

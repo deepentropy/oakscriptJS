@@ -8,7 +8,7 @@ import type { ImportInfo } from '../types.js';
  * Emits the main import statement for oakscriptjs
  */
 export function emitMainImport(): string {
-  return "import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';";
+    return "import { Series, ta, taCore, math, array, type IndicatorResult } from 'oakscriptjs';";
 }
 
 /**

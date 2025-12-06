@@ -17,12 +17,12 @@ importers:
 
   example:
     dependencies:
-      '@deepentropy/oakscriptjs':
-        specifier: workspace:*
-        version: link:../packages/oakscriptjs
       lightweight-charts:
         specifier: ^5.0.0
         version: 5.0.9
+      oakscriptjs:
+        specifier: workspace:*
+        version: link:../packages/oakscriptjs
     devDependencies:
       typescript:
         specifier: ^5.3.0
@@ -30,16 +30,6 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1
-
-  indicators:
-    dependencies:
-      '@deepentropy/oakscriptjs':
-        specifier: workspace:*
-        version: link:../packages/oakscriptjs
-    devDependencies:
-      typescript:
-        specifier: ^5.3.0
-        version: 5.9.3
 
   packages/oakscriptjs:
     devDependencies:
@@ -82,7 +72,7 @@ importers:
 
   packages/pine2ts:
     dependencies:
-      '@deepentropy/oakscriptjs':
+      oakscriptjs:
         specifier: workspace:*
         version: link:../oakscriptjs
     devDependencies:

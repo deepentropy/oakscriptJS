@@ -1,5 +1,5 @@
 {
-  "name": "@deepentropy/pine2ts",
+  "name": "pine2ts",
   "version": "0.1.5",
   "type": "module",
   "description": "PineScript to TypeScript transpiler with pine2ts CLI",
@@ -30,7 +30,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@deepentropy/oakscriptjs": "workspace:*"
+    "oakscriptjs": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

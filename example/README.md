@@ -144,7 +144,7 @@ plot(out, color=color.blue, title="MA", offset=offset)
 
 ## Dependencies
 
-- **@deepentropy/oakscriptjs**: Technical analysis library
+- **oakscriptjs**: Technical analysis library
 - **@deepentropy/indicators**: Reusable indicators from the repository root
 - **lightweight-charts**: TradingView's charting library (v5)
 - **vite**: Build tool and dev server
