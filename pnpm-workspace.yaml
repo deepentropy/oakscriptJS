@@ -1,4 +1,3 @@
 packages:
   - 'packages/*'
-  - 'indicators'
   - 'example'
