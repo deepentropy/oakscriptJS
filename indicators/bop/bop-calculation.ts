@@ -3,7 +3,7 @@
  * Contains the core calculation using oakscriptjs
  */
 
-import { Series, type Bar } from '@deepentropy/oakscriptjs';
+import {Series, type Bar} from 'oakscriptjs';
 
 /**
  * Calculate Balance of Power values

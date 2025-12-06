@@ -13,6 +13,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   verbose: true,
   moduleNameMapper: {
-    '^lightweight-charts$': '<rootDir>/tests/__mocks__/lightweight-charts.ts'
+      '^lightweight-charts$': '<rootDir>/tests/__mocks__/lightweight-charts.ts',
+      '^oakscriptjs$': '<rootDir>/src/index.ts'
   },
 };

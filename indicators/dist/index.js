@@ -18,7 +18,7 @@ __export(sma_exports, {
 });
 
 // indicators/sma/sma.ts
-import { Series, ta } from "@deepentropy/oakscriptjs";
+import {Series, ta} from "oakscriptjs";
 var defaultInputs = {
   len: 9,
   src: "close",
@@ -103,7 +103,7 @@ var plotConfig = [{ id: "plot0", title: "MA", color: "#2962FF", lineWidth: 2 }, 
 var calculate = Moving_Average_Simple;
 
 // indicators/sma/sma-calculation.ts
-import { Series as Series2, ta as ta2 } from "@deepentropy/oakscriptjs";
+import {Series as Series2, ta as ta2} from "oakscriptjs";
 function getSourceSeries(bars, sourceName) {
   switch (sourceName) {
     case "open":
@@ -167,7 +167,7 @@ __export(momentum_exports, {
 });
 
 // indicators/momentum/momentum.ts
-import { Series as Series3 } from "@deepentropy/oakscriptjs";
+import {Series as Series3} from "oakscriptjs";
 var defaultInputs2 = {
   len: 10,
   src: "close"
@@ -224,7 +224,7 @@ var plotConfig2 = [{ id: "plot0", title: "MOM", color: "#2962FF", lineWidth: 2 }
 var calculate2 = Momentum;
 
 // indicators/momentum/momentum-calculation.ts
-import { ta as ta4 } from "@deepentropy/oakscriptjs";
+import {ta as ta4} from "oakscriptjs";
 function calculateMomentum(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const momValues = ta4.mom(src, length);
@@ -253,7 +253,7 @@ __export(bop_exports, {
 });
 
 // indicators/bop/bop.ts
-import { Series as Series5 } from "@deepentropy/oakscriptjs";
+import {Series as Series5} from "oakscriptjs";
 function Balance_of_Power(bars) {
   const open = new Series5(bars, (bar) => bar.open);
   const high = new Series5(bars, (bar) => bar.high);
@@ -311,7 +311,7 @@ __export(dema_exports, {
 });
 
 // indicators/dema/dema.ts
-import { Series as Series6, ta as ta6 } from "@deepentropy/oakscriptjs";
+import {Series as Series6, ta as ta6} from "oakscriptjs";
 var defaultInputs4 = {
   length: 9,
   src: "close"
@@ -370,7 +370,7 @@ var plotConfig4 = [{ id: "plot0", title: "dema", color: "#43A047", lineWidth: 2 
 var calculate4 = Double_EMA;
 
 // indicators/dema/dema-calculation.ts
-import { ta as ta7 } from "@deepentropy/oakscriptjs";
+import {ta as ta7} from "oakscriptjs";
 function calculateDEMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const ema1 = ta7.ema(src, length);
@@ -401,7 +401,7 @@ __export(tema_exports, {
 });
 
 // indicators/tema/tema.ts
-import { Series as Series8, ta as ta8 } from "@deepentropy/oakscriptjs";
+import {Series as Series8, ta as ta8} from "oakscriptjs";
 var defaultInputs5 = {
   length: 9
 };
@@ -438,7 +438,7 @@ var plotConfig5 = [{ id: "plot0", title: "out", color: "#2962FF", lineWidth: 2 }
 var calculate5 = Triple_EMA;
 
 // indicators/tema/tema-calculation.ts
-import { ta as ta9 } from "@deepentropy/oakscriptjs";
+import {ta as ta9} from "oakscriptjs";
 function calculateTEMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const ema1 = ta9.ema(src, length);
@@ -470,7 +470,7 @@ __export(roc_exports, {
 });
 
 // indicators/roc/roc.ts
-import { Series as Series10 } from "@deepentropy/oakscriptjs";
+import {Series as Series10} from "oakscriptjs";
 var defaultInputs6 = {
   length: 9,
   source: "close"
@@ -527,7 +527,7 @@ var plotConfig6 = [{ id: "plot0", title: "ROC", color: "#2962FF", lineWidth: 2 }
 var calculate6 = Rate_Of_Change;
 
 // indicators/roc/roc-calculation.ts
-import { ta as ta11 } from "@deepentropy/oakscriptjs";
+import {ta as ta11} from "oakscriptjs";
 function calculateROC(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const rocValues = ta11.roc(src, length);
@@ -556,7 +556,7 @@ __export(adr_exports, {
 });
 
 // indicators/adr/adr.ts
-import { Series as Series12, ta as ta12 } from "@deepentropy/oakscriptjs";
+import {Series as Series12, ta as ta12} from "oakscriptjs";
 var defaultInputs7 = {
   lengthInput: 14
 };
@@ -590,7 +590,7 @@ var plotConfig7 = [{ id: "plot0", title: "ADR", color: "#2962FF", lineWidth: 2 }
 var calculate7 = Average_Day_Range;
 
 // indicators/adr/adr-calculation.ts
-import { Series as Series13, ta as ta13 } from "@deepentropy/oakscriptjs";
+import {Series as Series13, ta as ta13} from "oakscriptjs";
 function calculateADR(bars, length) {
   const high = Series13.fromBars(bars, "high");
   const low = Series13.fromBars(bars, "low");
@@ -621,7 +621,7 @@ __export(mass_index_exports, {
 });
 
 // indicators/mass-index/mass-index.ts
-import { Series as Series14, ta as ta14, math as math8 } from "@deepentropy/oakscriptjs";
+import {Series as Series14, ta as ta14, math as math8} from "oakscriptjs";
 var defaultInputs8 = {
   length: 10
 };
@@ -656,7 +656,7 @@ var plotConfig8 = [{ id: "plot0", title: "mi", color: "#2962FF", lineWidth: 2 }]
 var calculate8 = Mass_Index;
 
 // indicators/mass-index/mass-index-calculation.ts
-import { Series as Series15, ta as ta15 } from "@deepentropy/oakscriptjs";
+import {Series as Series15, ta as ta15} from "oakscriptjs";
 function calculateMassIndex(bars, length) {
   const high = Series15.fromBars(bars, "high");
   const low = Series15.fromBars(bars, "low");
@@ -700,7 +700,7 @@ __export(mc_ginley_dynamic_exports, {
 });
 
 // indicators/mc-ginley-dynamic/mc-ginley-dynamic.ts
-import { Series as Series16, ta as ta16, math as math9 } from "@deepentropy/oakscriptjs";
+import {Series as Series16, ta as ta16, math as math9} from "oakscriptjs";
 function na(value) {
   return value === null || value === void 0 || Number.isNaN(value);
 }
@@ -756,7 +756,7 @@ __export(hma_exports, {
 });
 
 // indicators/hma/hma.ts
-import { Series as Series17, ta as ta17, math as math10 } from "@deepentropy/oakscriptjs";
+import {Series as Series17, ta as ta17, math as math10} from "oakscriptjs";
 var defaultInputs10 = {
   length: 9,
   src: "close"
@@ -813,7 +813,7 @@ var plotConfig10 = [{ id: "plot0", title: "hullma", color: "#2962FF", lineWidth:
 var calculate10 = Hull_Moving_Average;
 
 // indicators/hma/hma-calculation.ts
-import { ta as ta18 } from "@deepentropy/oakscriptjs";
+import {ta as ta18} from "oakscriptjs";
 function calculateHMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const halfLength = Math.max(1, Math.floor(length / 2));
@@ -847,7 +847,7 @@ __export(lsma_exports, {
 });
 
 // indicators/lsma/lsma.ts
-import { Series as Series19, ta as ta19 } from "@deepentropy/oakscriptjs";
+import {Series as Series19, ta as ta19} from "oakscriptjs";
 var defaultInputs11 = {
   length: 25,
   offset: 0,
@@ -905,7 +905,7 @@ var plotConfig11 = [{ id: "plot0", title: "lsma", color: "#2962FF", lineWidth: 2
 var calculate11 = Least_Squares_Moving_Average;
 
 // indicators/lsma/lsma-calculation.ts
-import { taCore as taCore12 } from "@deepentropy/oakscriptjs";
+import {taCore as taCore12} from "oakscriptjs";
 function calculateLSMA(bars, length, offset, source) {
   const src = getSourceSeries(bars, source);
   const srcArray = src.toArray();
@@ -933,7 +933,7 @@ __export(rma_exports, {
 });
 
 // indicators/rma/rma.ts
-import { Series as Series21, ta as ta20 } from "@deepentropy/oakscriptjs";
+import {Series as Series21, ta as ta20} from "oakscriptjs";
 var defaultInputs12 = {
   len: 7,
   src: "close"
@@ -993,7 +993,7 @@ __export(wma_exports, {
 });
 
 // indicators/wma/wma.ts
-import { Series as Series22, ta as ta21 } from "@deepentropy/oakscriptjs";
+import {Series as Series22, ta as ta21} from "oakscriptjs";
 var defaultInputs13 = {
   len: 9,
   src: "close"
@@ -1053,7 +1053,7 @@ __export(vwma_exports, {
 });
 
 // indicators/vwma/vwma.ts
-import { Series as Series23, ta as ta22 } from "@deepentropy/oakscriptjs";
+import {Series as Series23, ta as ta22} from "oakscriptjs";
 var defaultInputs14 = {
   len: 20,
   src: "close"
@@ -1114,7 +1114,7 @@ __export(alma_exports, {
 });
 
 // indicators/alma/alma.ts
-import { Series as Series24, taCore as taCore13 } from "@deepentropy/oakscriptjs";
+import {Series as Series24, taCore as taCore13} from "oakscriptjs";
 var defaultInputs15 = {
   lengthInput: 9,
   offsetInput: 0.85,
@@ -1152,7 +1152,7 @@ __export(obv_exports, {
 });
 
 // indicators/obv/obv.ts
-import { Series as Series25, ta as ta23, math as math12 } from "@deepentropy/oakscriptjs";
+import {Series as Series25, ta as ta23, math as math12} from "oakscriptjs";
 var defaultInputs16 = {};
 function On_Balance_Volume(bars, inputs = {}) {
   const close = new Series25(bars, (bar) => bar.close);

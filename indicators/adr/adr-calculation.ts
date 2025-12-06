@@ -3,7 +3,7 @@
  * Contains the core calculation using oakscriptjs
  */
 
-import { Series, ta, type Bar } from '@deepentropy/oakscriptjs';
+import {Series, ta, type Bar} from 'oakscriptjs';
 
 /**
  * Calculate Average Day Range values using oakscriptjs

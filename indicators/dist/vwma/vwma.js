@@ -1,5 +1,5 @@
 // indicators/vwma/vwma.ts
-import { Series, ta } from "@deepentropy/oakscriptjs";
+import {Series, ta} from "oakscriptjs";
 var defaultInputs = {
   len: 20,
   src: "close"

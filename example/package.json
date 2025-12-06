@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@deepentropy/oakscriptjs": "workspace:*",
+    "oakscriptjs": "workspace:*",
     "lightweight-charts": "^5.0.0"
   },
   "devDependencies": {

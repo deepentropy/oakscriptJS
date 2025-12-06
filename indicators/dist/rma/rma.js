@@ -1,5 +1,5 @@
 // indicators/rma/rma.ts
-import { Series, ta } from "@deepentropy/oakscriptjs";
+import {Series, ta} from "oakscriptjs";
 var defaultInputs = {
   len: 7,
   src: "close"

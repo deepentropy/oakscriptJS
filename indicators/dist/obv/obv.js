@@ -1,5 +1,5 @@
 // indicators/obv/obv.ts
-import { Series, ta, math } from "@deepentropy/oakscriptjs";
+import {Series, ta, math} from "oakscriptjs";
 var defaultInputs = {};
 function On_Balance_Volume(bars, inputs = {}) {
   const close = new Series(bars, (bar) => bar.close);

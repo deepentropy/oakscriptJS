@@ -15,7 +15,7 @@ import {
   ColorType,
   LineStyle,
 } from 'lightweight-charts';
-import type { Bar } from '@deepentropy/oakscriptjs';
+import type {Bar} from 'oakscriptjs';
 import { toCandlestickData } from './data-loader';
 
 /**

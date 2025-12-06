@@ -134,7 +134,7 @@ This version represents a significant architectural simplification, removing the
 
 **Old DSL Approach (v0.1.x):**
 ```typescript
-import { indicator, plot, close, ta, compile } from '@deepentropy/oakscriptjs';
+import { indicator, plot, close, ta, compile } from 'oakscriptjs';
 
 indicator("My Indicator");
 const rsi = ta.rsi(close, 14);
@@ -144,7 +144,7 @@ export default compile();
 
 **New Function-Based Approach (v0.2.0):**
 ```typescript
-import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, type IndicatorResult} from 'oakscriptjs';
 
 export function myIndicator(bars: any[]): IndicatorResult {
   const close = Series.fromBars(bars, 'close');

@@ -3,7 +3,7 @@
  * Reusable technical indicators built with the OakScriptJS library
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import type {Bar} from 'oakscriptjs';
 
 // Export all indicators as namespaces
 export * as sma from './sma';
@@ -21,7 +21,7 @@ export * as rma from './rma';
 export * as wma from './wma';
 export * as vwma from './vwma';
 export * as alma from './alma';
-export * as obv from './obv';
+// export * as obv from './obv'; // Excluded: transpiler bug - invalid generated code
 
 // Import indicators for registry
 import * as smaIndicator from './sma';
@@ -39,7 +39,7 @@ import * as rmaIndicator from './rma';
 import * as wmaIndicator from './wma';
 import * as vwmaIndicator from './vwma';
 import * as almaIndicator from './alma';
-import * as obvIndicator from './obv';
+// import * as obvIndicator from './obv'; // Excluded: transpiler bug
 
 // Export indicator classes using the new indicator() pattern
 export { SMAIndicator } from './sma';
@@ -283,16 +283,5 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     defaultInputs: { ...almaIndicator.defaultInputs },
     calculate: almaIndicator.calculate,
   },
-  {
-    id: 'obv',
-    name: 'On Balance Volume (OBV)',
-    shortName: 'OBV',
-    description: 'A cumulative volume-based indicator that tracks buying and selling pressure.',
-    overlay: false,
-    metadata: obvIndicator.metadata,
-    inputConfig: obvIndicator.inputConfig,
-    plotConfig: obvIndicator.plotConfig,
-    defaultInputs: { ...obvIndicator.defaultInputs },
-    calculate: obvIndicator.calculate,
-  },
+    // OBV excluded due to transpiler bug - invalid generated code
 ];

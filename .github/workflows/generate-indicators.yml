@@ -36,7 +36,7 @@ jobs:
         run: pnpm install
       
       - name: Build transpiler
-        run: pnpm --filter @deepentropy/pine2ts build
+        run: pnpm --filter pine2ts build
       
       - name: Generate indicators
         run: |
@@ -93,7 +93,7 @@ jobs:
               "resolveJsonModule": true,
               "isolatedModules": true,
               "paths": {
-                "@deepentropy/oakscriptjs": ["../packages/oakscriptjs/src/index.ts"]
+                "oakscriptjs": ["../packages/oakscriptjs/src/index.ts"]
               }
             },
             "include": ["./**/*.ts"],
@@ -119,7 +119,7 @@ jobs:
                   --platform=browser \
                   --target=es2022 \
                   --outfile="indicators/dist/$indicator_name/$indicator_name.js" \
-                  --external:@deepentropy/oakscriptjs
+                  --external:oakscriptjs
               fi
             fi
           done
@@ -133,7 +133,7 @@ jobs:
               --platform=browser \
               --target=es2022 \
               --outfile="indicators/dist/index.js" \
-              --external:@deepentropy/oakscriptjs
+              --external:oakscriptjs
           fi
       
       - name: Generate indicator manifest

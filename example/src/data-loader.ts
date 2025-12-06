@@ -3,7 +3,7 @@
  * Loads and parses CSV data files for chart display
  */
 
-import type { Bar } from '@deepentropy/oakscriptjs';
+import type {Bar} from 'oakscriptjs';
 
 /**
  * Candlestick data format for LightweightCharts

@@ -3,7 +3,7 @@
  * These functions replicate the PineScript indicators for validation
  */
 
-import { taCore, math as mathCore } from '@deepentropy/oakscriptjs';
+import {taCore, math as mathCore} from 'oakscriptjs';
 
 export interface Bar {
   time: string | number;

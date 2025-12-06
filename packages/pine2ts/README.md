@@ -2,7 +2,7 @@
 
 **PineScript to TypeScript Transpiler**
 
-Transform PineScript v6 code into TypeScript that runs with `@deepentropy/oakscriptjs`.
+Transform PineScript v6 code into TypeScript that runs with `oakscriptjs`.
 
 ## Installation
 
@@ -56,7 +56,7 @@ plot(rsi_val)
 
 **Output (TypeScript):**
 ```typescript
-import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, taCore, math, array, type IndicatorResult} from 'oakscriptjs';
 
 export function RSI_Indicator(bars: any[]): IndicatorResult {
   // OHLCV Series
@@ -144,7 +144,7 @@ const { ast, errors } = parser.parse(pineSource);
 
 ## Related Packages
 
-- [`@deepentropy/oakscriptjs`](../oakscriptjs) - Runtime library for technical analysis
+- [`oakscriptjs`](../oakscriptjs) - Runtime library for technical analysis
 
 ## License
 

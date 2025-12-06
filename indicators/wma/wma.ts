@@ -1,4 +1,4 @@
-import { Series, ta, taCore, math, array, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, taCore, math, array, type IndicatorResult} from 'oakscriptjs';
 
 // Helper functions
 function na(value: number | null | undefined): boolean {

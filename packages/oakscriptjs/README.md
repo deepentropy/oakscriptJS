@@ -34,7 +34,7 @@ OakScriptJS provides the computational core of PineScript's API. It focuses on *
 ## Installation
 
 ```bash
-npm install @deepentropy/oakscriptjs
+npm install oakscriptjs
 ```
 
 ## Quick Start
@@ -42,7 +42,7 @@ npm install @deepentropy/oakscriptjs
 ### Array-based Calculations
 
 ```typescript
-import { taCore } from '@deepentropy/oakscriptjs';
+import { taCore } from 'oakscriptjs';
 
 const prices = [100, 102, 101, 103, 105];
 const sma = taCore.sma(prices, 3);
@@ -52,7 +52,7 @@ const rsi = taCore.rsi(prices, 14);
 ### Series-based Calculations
 
 ```typescript
-import { Series, ta } from '@deepentropy/oakscriptjs';
+import { Series, ta } from 'oakscriptjs';
 
 const bars = [
   { time: '2024-01-01', open: 100, high: 105, low: 99, close: 103 },
@@ -68,7 +68,7 @@ console.log(rsi.toArray());
 ### BarData for Automatic Cache Invalidation
 
 ```typescript
-import { BarData, Series, ta } from '@deepentropy/oakscriptjs';
+import { BarData, Series, ta } from 'oakscriptjs';
 
 // Create BarData wrapper
 const barData = new BarData(bars);
@@ -86,7 +86,7 @@ const values2 = sma.toArray(); // Detects change, recomputes
 ### Memory-Efficient Closure Breaking
 
 ```typescript
-import { Series } from '@deepentropy/oakscriptjs';
+import { Series } from 'oakscriptjs';
 
 // Complex expression creates closure chain
 const complex = a.add(b).mul(c).div(d).sub(e);
@@ -103,13 +103,13 @@ Complete implementation of PineScript's technical analysis functions:
 
 ```typescript
 // Core (array-based)
-import { taCore } from '@deepentropy/oakscriptjs';
+import { taCore } from 'oakscriptjs';
 taCore.sma(prices, 20)
 taCore.ema(prices, 20)
 taCore.rsi(prices, 14)
 
 // Series (Series-based)
-import { ta } from '@deepentropy/oakscriptjs';
+import { ta } from 'oakscriptjs';
 ta.sma(closeSeries, 20)
 ta.ema(closeSeries, 20)
 ta.rsi(closeSeries, 14)
@@ -205,7 +205,7 @@ class BarData {
 
 ```typescript
 // Example 1: Simple Moving Average
-import { Series, ta, type IndicatorResult } from '@deepentropy/oakscriptjs';
+import {Series, ta, type IndicatorResult} from 'oakscriptjs';
 
 export function smaIndicator(bars: any[]): IndicatorResult {
   const close = new Series(bars, (bar) => bar.close);

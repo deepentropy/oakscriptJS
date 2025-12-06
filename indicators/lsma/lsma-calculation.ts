@@ -3,7 +3,7 @@
  * Contains the core calculation using oakscriptjs
  */
 
-import { Series, taCore, type Bar } from '@deepentropy/oakscriptjs';
+import {Series, taCore, type Bar} from 'oakscriptjs';
 import { getSourceSeries } from '../sma/sma-calculation';
 
 /**
