@@ -1,5 +1,5 @@
 // indicators/bop/bop.ts
-import {Series} from "oakscriptjs";
+import { Series } from "oakscriptjs";
 function Balance_of_Power(bars) {
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);

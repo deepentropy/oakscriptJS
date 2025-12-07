@@ -1,15 +1,17 @@
 // indicators/wma/wma.ts
-import {Series, ta} from "oakscriptjs";
+import { Series, ta } from "oakscriptjs";
 var defaultInputs = {
   len: 9,
-  src: "close"
+  src: "close",
+  offset: 0
 };
 function Moving_Average_Weighted(bars, inputs = {}) {
-  const { len, src } = { ...defaultInputs, ...inputs };
+  const { len, src, offset } = { ...defaultInputs, ...inputs };
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   const hl2 = high.add(low).div(2);
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
@@ -36,6 +38,13 @@ function Moving_Average_Weighted(bars, inputs = {}) {
         return close;
     }
   })();
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  const last_bar_index = bars.length - 1;
   const out = ta.wma(srcSeries, len);
   return {
     metadata: { title: "Moving Average Weighted", shorttitle: "WMA", overlay: true },
@@ -43,7 +52,7 @@ function Moving_Average_Weighted(bars, inputs = {}) {
   };
 }
 var metadata = { title: "Moving Average Weighted", shortTitle: "WMA", overlay: true };
-var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 9, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close", options: ["open", "high", "low", "close", "hl2", "hlc3", "ohlc4", "hlcc4"] }];
+var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 9, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close" }, { id: "offset", type: "int", title: "Offset", defval: 0, min: -500, max: 500 }];
 var plotConfig = [{ id: "plot0", title: "WMA", color: "#2962FF", lineWidth: 2 }];
 var calculate = Moving_Average_Weighted;
 export {

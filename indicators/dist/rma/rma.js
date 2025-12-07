@@ -1,5 +1,8 @@
 // indicators/rma/rma.ts
-import {Series, ta} from "oakscriptjs";
+import { Series, ta } from "oakscriptjs";
+function na(value) {
+  return value === null || value === void 0 || Number.isNaN(value);
+}
 var defaultInputs = {
   len: 7,
   src: "close"
@@ -10,6 +13,7 @@ function Smoothed_Moving_Average(bars, inputs = {}) {
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
   const close = new Series(bars, (bar) => bar.close);
+  const volume = new Series(bars, (bar) => bar.volume ?? 0);
   const hl2 = high.add(low).div(2);
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
@@ -36,15 +40,28 @@ function Smoothed_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-  const smma = ta.rma(srcSeries, len);
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  const last_bar_index = bars.length - 1;
+  let smma = new Series(bars, () => 0);
+  const smmaValues = new Array(bars.length).fill(NaN);
+  for (let i = 0; i < bars.length; i++) {
+    const smmaPrev = i > 0 ? smmaValues[i - 1] : NaN;
+    smmaValues[i] = na(smmaPrev) ? ta.sma(srcSeries, len).get(i) : (smmaPrev * (len - 1) + srcSeries.get(i)) / len;
+  }
+  smma = Series.fromArray(bars, smmaValues);
   return {
     metadata: { title: "Smoothed Moving Average", shorttitle: "SMMA", overlay: true },
     plots: { "plot0": smma.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
   };
 }
 var metadata = { title: "Smoothed Moving Average", shortTitle: "SMMA", overlay: true };
-var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 7, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close", options: ["open", "high", "low", "close", "hl2", "hlc3", "ohlc4", "hlcc4"] }];
-var plotConfig = [{ id: "plot0", title: "SMMA", color: "#673AB7", lineWidth: 2 }];
+var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 7, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close" }];
+var plotConfig = [{ id: "plot0", title: "smma", color: "#673AB7", lineWidth: 2 }];
 var calculate = Smoothed_Moving_Average;
 export {
   Smoothed_Moving_Average,

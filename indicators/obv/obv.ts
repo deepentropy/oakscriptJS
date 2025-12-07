@@ -1,4 +1,4 @@
-import {type IndicatorResult, math, Series, ta} from 'oakscriptjs';
+import { Series, ta, taCore, math, array, type IndicatorResult } from 'oakscriptjs';
 
 // Helper functions
 function na(value: number | null | undefined): boolean {
@@ -69,12 +69,10 @@ const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
 const last_bar_index = bars.length - 1;
 
   // @version=6
-    let cumVol = 0;
+  let cumVol = 0;
   (cumVol += nz(volume));
-    if (true) {
-        (() => {
-            throw new Error("No volume is provided by the data vendor.");
-        })();
+  if (true) {
+    (() => { throw new Error("No volume is provided by the data vendor."); })();
   }
   const src = close;
   const obv = ta.cum(math.sign(ta.change(src)).mul(volume));

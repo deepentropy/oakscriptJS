@@ -1,11 +1,12 @@
 // indicators/vwma/vwma.ts
-import {Series, ta} from "oakscriptjs";
+import { Series, ta } from "oakscriptjs";
 var defaultInputs = {
   len: 20,
-  src: "close"
+  src: "close",
+  offset: 0
 };
 function Volume_Weighted_Moving_Average(bars, inputs = {}) {
-  const { len, src } = { ...defaultInputs, ...inputs };
+  const { len, src, offset } = { ...defaultInputs, ...inputs };
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);
   const low = new Series(bars, (bar) => bar.low);
@@ -37,6 +38,13 @@ function Volume_Weighted_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
+  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
+  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
+  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
+  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
+  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
+  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
+  const last_bar_index = bars.length - 1;
   const ma = ta.vwma(srcSeries, len, volume);
   return {
     metadata: { title: "Volume Weighted Moving Average", shorttitle: "VWMA", overlay: true },
@@ -44,7 +52,7 @@ function Volume_Weighted_Moving_Average(bars, inputs = {}) {
   };
 }
 var metadata = { title: "Volume Weighted Moving Average", shortTitle: "VWMA", overlay: true };
-var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 20, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close", options: ["open", "high", "low", "close", "hl2", "hlc3", "ohlc4", "hlcc4"] }];
+var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 20, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close" }, { id: "offset", type: "int", title: "Offset", defval: 0, min: -500, max: 500 }];
 var plotConfig = [{ id: "plot0", title: "VWMA", color: "#2962FF", lineWidth: 2 }];
 var calculate = Volume_Weighted_Moving_Average;
 export {
