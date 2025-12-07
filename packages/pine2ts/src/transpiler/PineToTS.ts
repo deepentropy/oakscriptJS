@@ -10,9 +10,6 @@ import { InfoCollector, type CollectorContext } from './collectors/index.js';
 import { sanitizeIdentifier, applyIndent } from './utils/index.js';
 import { SemanticAnalyzer } from './semantic/index.js';
 import {
-  emitHelperFunctions,
-  emitPlotConfigInterface,
-  emitInputConfigInterface,
   emitOHLCVSeries,
   emitCalculatedSources,
   emitTimeSeries,
@@ -27,6 +24,7 @@ import {
   emitSourceInputMapping,
 } from './emitters/index.js';
 import { ExpressionGenerator, StatementGenerator, FunctionGenerator } from './generators/index.js';
+import {ImportTracker} from './services/index.js';
 
 /**
  * Transpile PineScript source code to TypeScript
@@ -125,6 +123,12 @@ class CodeGenerator {
   private isLibrary: boolean = false;
   private libraryInfo: LibraryInfo | null = null;
   public warnings: TranspileWarning[] = [];
+    private usesTimeSeries: Set<string> = new Set();
+    private usesBarIndex: boolean = false;
+    private usedImports: Set<string> = new Set();
+    private importTracker: ImportTracker = new ImportTracker();
+    private plotVariables: Map<string, string> = new Map();
+    private fillConfigs: import('./types.js').FillConfig[] = [];
 
   constructor(options: TranspileOptions) {
     this.options = {
@@ -150,6 +154,12 @@ class CodeGenerator {
     this.imports = [];
     this.isLibrary = false;
     this.libraryInfo = null;
+      this.usesTimeSeries.clear();
+      this.usesBarIndex = false;
+      this.usedImports.clear();
+      this.importTracker.clear();
+      this.plotVariables.clear();
+      this.fillConfigs = [];
 
     // Create generator context
     const generatorContext: GeneratorContext = {
@@ -172,6 +182,12 @@ class CodeGenerator {
       isLibrary: this.isLibrary,
       libraryInfo: this.libraryInfo,
       warnings: this.warnings,
+        usesTimeSeries: this.usesTimeSeries,
+        usesBarIndex: this.usesBarIndex,
+        usedImports: this.usedImports,
+        importTracker: this.importTracker,
+        plotVariables: this.plotVariables,
+        fillConfigs: this.fillConfigs,
     };
 
     // First pass: collect information using InfoCollector
@@ -188,33 +204,25 @@ class CodeGenerator {
     this.usesTimeframe = generatorContext.usesTimeframe;
     this.isLibrary = generatorContext.isLibrary;
     this.libraryInfo = generatorContext.libraryInfo;
+      this.usesTimeSeries = generatorContext.usesTimeSeries;
+      this.usesBarIndex = generatorContext.usesBarIndex;
+      this.usedImports = generatorContext.usedImports;
+      this.fillConfigs = generatorContext.fillConfigs;
 
-    // Generate imports
+      // Generate imports - use placeholder, will be replaced at end after body is generated
+      // This ensures importTracker is populated with actual imports used in the code
+      let importLineIndex = -1;
     if (this.options.includeImports !== false) {
-      this.emit(emitMainImport());
-      
+        importLineIndex = this.output.length;
+        this.emit('__IMPORT_PLACEHOLDER__');
+
       // Generate library imports
       const libImports = emitLibraryImports(this.imports);
       for (const line of libImports) {
         this.emit(line);
       }
-      
-      this.emit('');
-    }
 
-    // Generate helper functions
-    for (const line of emitHelperFunctions()) {
-      this.output.push(line);
-    }
-    
-    // Generate PlotConfig interface
-    for (const line of emitPlotConfigInterface()) {
-      this.output.push(line);
-    }
-    
-    // Generate InputConfig interface
-    for (const line of emitInputConfigInterface()) {
-      this.output.push(line);
+      this.emit('');
     }
 
     // Generate user-defined types (interfaces and namespace objects)
@@ -305,14 +313,18 @@ class CodeGenerator {
       }
     }
 
-    // Generate time series
-    for (const line of emitTimeSeries()) {
-      this.output.push(line);
+      // Generate time series only if used
+      if (this.usesTimeSeries.size > 0) {
+          for (const line of emitTimeSeries(this.usesTimeSeries)) {
+              this.output.push(line);
+          }
     }
 
-    // Generate bar_index and last_bar_index
-    for (const line of emitBarIndex()) {
-      this.output.push(line);
+      // Generate bar_index and last_bar_index only if used
+      if (this.usesBarIndex) {
+          for (const line of emitBarIndex()) {
+              this.output.push(line);
+          }
     }
 
     // Generate body using StatementGenerator
@@ -360,15 +372,54 @@ class CodeGenerator {
     
     // Generate plotConfig as PlotConfig[] array
     if (this.plotConfigs.length > 0) {
-      const plotConfigArray = this.plotConfigs.map(p => 
-        `{ id: '${p.id}', title: '${p.title}', color: '${p.color}', lineWidth: ${p.lineWidth} }`
-      ).join(', ');
+        const plotConfigArray = this.plotConfigs.map(p => {
+            const parts = [
+                `id: '${p.id}'`,
+                `title: '${p.title}'`,
+                `color: '${p.color}'`,
+                `lineWidth: ${p.lineWidth}`,
+            ];
+            // Add optional fields if present
+            if (p.display) parts.push(`display: '${p.display}'`);
+            if (p.visible !== undefined) {
+                // visible can be boolean or expression string
+                if (typeof p.visible === 'boolean') {
+                    parts.push(`visible: ${p.visible}`);
+                } else {
+                    parts.push(`visible: '${p.visible}'`);
+                }
+            }
+            if (p.offset !== undefined && p.offset !== 0) parts.push(`offset: ${p.offset}`);
+            return `{ ${parts.join(', ')} }`;
+        }).join(', ');
       this.emit(`export const plotConfig: PlotConfig[] = [${plotConfigArray}];`);
     } else {
       // Export empty array when there are no plots
       this.emit('export const plotConfig: PlotConfig[] = [];');
     }
-    
+
+      // Generate fillConfig as array
+      if (this.fillConfigs.length > 0) {
+          const fillConfigArray = this.fillConfigs.map(f => {
+              const parts = [
+                  `id: '${f.id}'`,
+                  `plot1: '${f.plot1}'`,
+                  `plot2: '${f.plot2}'`,
+                  `color: '${f.color}'`,
+              ];
+              if (f.title) parts.push(`title: '${f.title}'`);
+              if (f.visible !== undefined) {
+                  if (typeof f.visible === 'boolean') {
+                      parts.push(`visible: ${f.visible}`);
+                  } else {
+                      parts.push(`visible: '${f.visible}'`);
+                  }
+              }
+              return `{ ${parts.join(', ')} }`;
+          }).join(', ');
+          this.emit(`export const fillConfig = [${fillConfigArray}];`);
+      }
+
     this.emit(`export const calculate = ${funcName};`);
     
     // Export with indicator-specific name (e.g., MomentumIndicator)
@@ -386,6 +437,12 @@ class CodeGenerator {
       const inputsTypeName = `${indicatorBaseName}Inputs`;
       this.emit(`export type ${inputsTypeName} = Record<string, never>;`);
     }
+
+      // Replace import placeholder with actual imports from importTracker
+      // This is done AFTER the body is generated so importTracker has all imports
+      if (importLineIndex >= 0 && importLineIndex < this.output.length) {
+          this.output[importLineIndex] = emitMainImport(this.importTracker.getImports());
+      }
 
     return this.output.join('\n');
   }

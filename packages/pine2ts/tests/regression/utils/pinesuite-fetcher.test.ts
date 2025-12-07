@@ -32,7 +32,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filePath = 'data/20251203/Simple Moving Average.csv';
+      const filePath = 'data/20251207/Simple Moving Average.csv';
     const token = 'test-token';
 
     await fetchPineSuiteCSV(filePath, token);
@@ -49,7 +49,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     
     // Verify the full URL structure with properly encoded path segments
     expect(calledUrl).toBe(
-      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/Simple%20Moving%20Average.csv'
+        'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251207/Simple%20Moving%20Average.csv'
     );
   });
 
@@ -82,7 +82,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filePath = 'data/20251203/simple.csv';
+      const filePath = 'data/20251207/simple.csv';
     const token = 'test-token';
 
     await fetchPineSuiteCSV(filePath, token);
@@ -92,7 +92,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
 
     // Verify slashes are preserved and not encoded
     expect(calledUrl).toBe(
-      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/simple.csv'
+        'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251207/simple.csv'
     );
   });
 
@@ -105,7 +105,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
     });
 
     // Path is already encoded with %20 for spaces
-    const filePath = 'data/20251203/Simple%20Moving%20Average.csv';
+      const filePath = 'data/20251207/Simple%20Moving%20Average.csv';
     const token = 'test-token';
 
     await fetchPineSuiteCSV(filePath, token);
@@ -115,7 +115,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
 
     // Verify it doesn't double-encode to %2520
     expect(calledUrl).toBe(
-      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/Simple%20Moving%20Average.csv'
+        'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251207/Simple%20Moving%20Average.csv'
     );
     expect(calledUrl).not.toContain('%2520');
   });
@@ -151,7 +151,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
       text: async () => 'time,open,high,low,close,volume\n1,2,3,4,5,6',
     });
 
-    const filePath = '/data/20251203/test.csv/';
+      const filePath = '/data/20251207/test.csv/';
     const token = 'test-token';
 
     await fetchPineSuiteCSV(filePath, token);
@@ -161,7 +161,7 @@ describe('PineSuite Fetcher - URL Encoding', () => {
 
     // Verify leading/trailing slashes are removed during normalization
     expect(calledUrl).toBe(
-      'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251203/test.csv'
+        'https://api.github.com/repos/deepentropy/pinesuite/contents/data/20251207/test.csv'
     );
   });
 
@@ -174,11 +174,11 @@ describe('PineSuite Fetcher - URL Encoding', () => {
         text: async () => '{"message":"Not Found"}',
       });
 
-      const filePath = 'data/20251203/NonExistent.csv';
+        const filePath = 'data/20251207/NonExistent.csv';
       const token = 'test-token';
 
       await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow(
-        'File not found or no access: data/20251203/NonExistent.csv'
+          'File not found or no access: data/20251207/NonExistent.csv'
       );
       await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow('URL:');
       await expect(fetchPineSuiteCSV(filePath, token)).rejects.toThrow('Status: 404');

@@ -34,6 +34,10 @@ export interface CollectorContext {
   isLibrary: boolean;
   libraryInfo: LibraryInfo | null;
   warnings: TranspileWarning[];
+    // Usage tracking for conditional code generation
+    usesTimeSeries: Set<string>;  // Track: 'year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute'
+    usesBarIndex: boolean;        // Track if bar_index or last_bar_index is used
+    usedImports: Set<string>;     // Track: 'ta', 'taCore', 'math', 'array', 'na', 'nz'
 }
 
 /**
@@ -94,6 +98,9 @@ export class InfoCollector {
     if (node.type === 'MemberExpression') {
       this.collectMemberExpressionInfo(node);
     }
+
+      // Track usage of time series, bar_index, and imports
+      this.collectUsageInfo(node);
 
     if (node.children) {
       for (const child of node.children) {
@@ -459,7 +466,7 @@ export class InfoCollector {
 
   private containsHistoryAccessTo(node: ASTNode, varName: string): boolean {
     if (!node) return false;
-    
+
     // Check if this is a history access node
     if (node.type === 'HistoryAccess') {
       // The first child is the base variable
@@ -470,8 +477,8 @@ export class InfoCollector {
         }
       }
     }
-    
-    // Recursively check all children
+
+      // Recursively check all children
     if (node.children) {
       for (const child of node.children) {
         if (this.containsHistoryAccessTo(child, varName)) {
@@ -479,7 +486,30 @@ export class InfoCollector {
         }
       }
     }
-    
-    return false;
+
+      return false;
   }
+
+    /**
+     * Track usage of time series and bar_index for conditional code emission
+     *
+     * NOTE: Import tracking is NOT done here. It's done in ExpressionGenerator
+     * during code emission, so transformations like 'na' -> 'NaN' are properly
+     * handled (na as value doesn't need an import, only na() as function does).
+     */
+    private collectUsageInfo(node: ASTNode): void {
+        const timeSeriesNames = new Set(['year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute']);
+        const barIndexNames = new Set(['bar_index', 'last_bar_index']);
+
+        // Check identifiers for time series and bar_index usage
+        if (node.type === 'Identifier') {
+            const name = String(node.value || '');
+            if (timeSeriesNames.has(name)) {
+                this.context.usesTimeSeries.add(name);
+            }
+            if (barIndexNames.has(name)) {
+                this.context.usesBarIndex = true;
+            }
+        }
+    }
 }

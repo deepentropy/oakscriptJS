@@ -59,8 +59,8 @@ export { LSMAIndicator } from './lsma';
 export interface InputConfig {
   id: string;
   type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
+    title?: string;
+    defval: unknown;
   min?: number;
   max?: number;
   step?: number;
@@ -75,6 +75,9 @@ export interface PlotConfig {
   title: string;
   color: string;
   lineWidth?: number;
+    visible?: boolean | string;
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    offset?: number;
 }
 
 /**

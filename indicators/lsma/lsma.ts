@@ -1,33 +1,4 @@
-import { Series, ta, taCore, math, array, type IndicatorResult } from 'oakscriptjs';
-
-// Helper functions
-function na(value: number | null | undefined): boolean {
-  return value === null || value === undefined || Number.isNaN(value);
-}
-
-function nz(value: number | null | undefined, replacement: number = 0): number {
-  return na(value) ? replacement : value as number;
-}
-
-// Plot configuration interface
-interface PlotConfig {
-  id: string;
-  title: string;
-  color: string;
-  lineWidth?: number;
-}
-
-// Input configuration interface
-export interface InputConfig {
-  id: string;
-  type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: string[];
-}
+import {Series, ta, type IndicatorResult, type InputConfig, type PlotConfig} from 'oakscriptjs';
 
 export interface IndicatorInputs {
   length: number;
@@ -71,17 +42,6 @@ const srcSeries = (() => {
     default: return close;
   }
 })();
-
-// Time series
-const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-
-// Bar index
-const last_bar_index = bars.length - 1;
 
   // @version=6
   const lsma = ta.linreg(srcSeries, length, offset);

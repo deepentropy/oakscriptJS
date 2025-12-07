@@ -271,8 +271,11 @@ export class IndicatorUI {
         console.log('[IndicatorUI] plotDef:', plotDef);
         console.log('[IndicatorUI] plotData:', plotData);
         console.log('[IndicatorUI] plotData length:', plotData?.length);
-        
-        if (plotData && plotData.length > 0) {
+
+          // Check visibility - evaluate against current inputs or computed state
+          const isVisible = this.evaluatePlotVisibility(plotDef, result);
+
+          if (plotData && plotData.length > 0 && isVisible) {
           this.chartManager.setIndicatorData(plotDef.id, plotData, {
             color: plotDef.color,
             lineWidth: plotDef.lineWidth,
@@ -284,4 +287,57 @@ export class IndicatorUI {
       console.error('Error calculating indicator:', error);
     }
   }
+
+    /**
+     * Evaluate plot visibility based on plotConfig.visible and current inputs
+     *
+     * The `visible` property can be:
+     * - undefined: always visible
+     * - boolean: directly visible/hidden
+     * - string: variable name that needs evaluation
+     *
+     * For string visibility, we check:
+     * 1. If it's a direct input name, use that value
+     * 2. If it's a computed variable (like 'enableMA'), check if result has computed state
+     * 3. Check if plot data is all NaN (effectively hidden)
+     */
+    private evaluatePlotVisibility(plotDef: any, result: any): boolean {
+        // No visibility constraint - always visible
+        if (plotDef.visible === undefined) {
+            return true;
+        }
+
+        // Direct boolean
+        if (typeof plotDef.visible === 'boolean') {
+            return plotDef.visible;
+        }
+
+        // String variable reference
+        if (typeof plotDef.visible === 'string') {
+            const visibleVar = plotDef.visible;
+
+            // Check if it's a direct input
+            if (this.currentInputs[visibleVar] !== undefined) {
+                return Boolean(this.currentInputs[visibleVar]);
+            }
+
+            // Check if result includes computed visibility state
+            if (result.visibility && result.visibility[visibleVar] !== undefined) {
+                return Boolean(result.visibility[visibleVar]);
+            }
+
+            // Fallback: check if plot data has any non-NaN values
+            // If all values are NaN, the plot is effectively invisible
+            const plotData = result.plots[plotDef.id];
+            if (plotData && Array.isArray(plotData)) {
+                const hasValidData = plotData.some((p: any) =>
+                    p.value !== undefined && p.value !== null && !Number.isNaN(p.value)
+                );
+                console.log(`[IndicatorUI] Plot ${plotDef.id} visibility fallback (hasValidData): ${hasValidData}`);
+                return hasValidData;
+            }
+        }
+
+        return true;
+    }
 }

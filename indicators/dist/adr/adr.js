@@ -14,13 +14,6 @@ function Average_Day_Range(bars, inputs = {}) {
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   const adr = ta.sma(high.sub(low), lengthInput);
   return {
     metadata: { title: "Average Day Range", shorttitle: "ADR", overlay: false },

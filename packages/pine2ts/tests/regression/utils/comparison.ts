@@ -13,16 +13,44 @@ export interface ComparisonResult {
 }
 
 /**
+ * Normalize an array by subtracting its first valid value
+ * Used for cumulative indicators like OBV where absolute values depend on history
+ */
+function normalizeArray(arr: (number | null | undefined)[]): (number | null | undefined)[] {
+    // Find first valid value
+    let firstValid: number | null = null;
+    for (const val of arr) {
+        if (val != null && !Number.isNaN(val)) {
+            firstValid = val;
+            break;
+        }
+    }
+
+    if (firstValid === null) return arr;
+
+    return arr.map(val => {
+        if (val == null || Number.isNaN(val)) return val;
+        return val - firstValid;
+    });
+}
+
+/**
  * Compare two arrays of values with a tolerance
  * Handles null/undefined values gracefully
+ * When normalize=true, both arrays are normalized by subtracting their first valid value
+ * (useful for cumulative indicators like OBV)
  */
 export function compareArrays(
   actual: (number | null | undefined)[],
   expected: (number | null | undefined)[],
   tolerance: number = 1e-4,
-  skipInitialValues: number = 0
+  skipInitialValues: number = 0,
+  normalize: boolean = false
 ): ComparisonResult {
-  const totalValues = Math.min(actual.length, expected.length);
+    // Normalize arrays if requested (for cumulative indicators)
+    const actualValues = normalize ? normalizeArray(actual) : actual;
+    const expectedValues = normalize ? normalizeArray(expected) : expected;
+    const totalValues = Math.min(actualValues.length, expectedValues.length);
   let validComparisons = 0;
   let mismatches = 0;
   let sumDifference = 0;
@@ -30,8 +58,8 @@ export function compareArrays(
   const failedIndices: number[] = [];
 
   for (let i = skipInitialValues; i < totalValues; i++) {
-    const actualVal = actual[i];
-    const expectedVal = expected[i];
+      const actualVal = actualValues[i];
+      const expectedVal = expectedValues[i];
 
     // Skip if either value is null/undefined
     if (actualVal == null || expectedVal == null) {

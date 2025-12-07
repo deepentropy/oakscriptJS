@@ -10,7 +10,7 @@ import {
     translateIdentifier,
     translateMemberExpression
 } from '../mappers/index.js';
-import {INDENT_SIZE} from '../utils/index.js';
+import {INDENT_SIZE, sanitizeIdentifier} from '../utils/index.js';
 
 /**
  * Generates TypeScript code for PineScript expressions
@@ -491,12 +491,14 @@ export class ExpressionGenerator {
       if (seriesArg) {
         const seriesName = this.generateExpression(seriesArg);
         const plotId = `plot${this.context.plots.length}`;
-        
+
         // Extract plot metadata from named arguments
         const titleArg = this.findNamedArg(node, 'title');
         const colorArg = this.findNamedArg(node, 'color');
         const lineWidthArg = this.findNamedArg(node, 'linewidth');
-        
+          const displayArg = this.findNamedArg(node, 'display');
+          const offsetArg = this.findNamedArg(node, 'offset');
+
         // Determine title - use title arg if present, otherwise use series name
         let title = titleArg ? this.getStringValue(titleArg) : seriesName;
         // Clean up title: remove quotes and simplify Series expressions
@@ -505,21 +507,132 @@ export class ExpressionGenerator {
           // If it's a complex expression, use a simple name
           title = `Plot ${this.context.plots.length}`;
         }
-        
+
         const color = colorArg ? getColorValue(colorArg) : '#2962FF';
         const lineWidth = lineWidthArg ? this.getNumberValue(lineWidthArg) : 2;
-        
-        // Store plot config
-        this.context.plotConfigs.push({ id: plotId, title, color, lineWidth });
-        
-        // Generate plot data
+
+          // Extract display parameter (controls visibility)
+          // PineScript: display = enableMA ? display.all : display.none
+          let display: 'all' | 'none' | 'data_window' | 'status_line' | 'pane' | undefined;
+          let visible: boolean | string | undefined;
+          if (displayArg) {
+              const displayExpr = this.generateExpression(displayArg);
+              // Check for ternary expressions first (condition ? display.all : display.none)
+              // The expression may be wrapped in parentheses: (enableMA ? display.all : display.none)
+              const ternaryMatch = displayExpr.match(/^\(?([^?]+)\s*\?\s*display\.all\s*:\s*display\.none\)?$/);
+              if (ternaryMatch) {
+                  visible = ternaryMatch[1].trim();
+                  display = 'all'; // Base display is 'all', visibility controls it
+              } else if (displayExpr === 'display.all') {
+                  display = 'all';
+              } else if (displayExpr === 'display.none') {
+                  display = 'none';
+              } else if (displayExpr === 'display.data_window') {
+                  display = 'data_window';
+              } else if (displayExpr === 'display.status_line') {
+                  display = 'status_line';
+              } else if (displayExpr === 'display.pane') {
+                  display = 'pane';
+              } else if (displayExpr.includes('?')) {
+                  // Complex ternary - store the expression as visible condition
+                  visible = displayExpr.replace(/display\.(all|none)/g, (_, v) => v === 'all' ? 'true' : 'false');
+                  display = 'all';
+              } else if (displayExpr.includes('display.all')) {
+                  display = 'all';
+              } else if (displayExpr.includes('display.none')) {
+                  display = 'none';
+              }
+          }
+
+          // Extract offset parameter
+          let offset: number | undefined;
+          if (offsetArg) {
+              if (offsetArg.type === 'NumberLiteral') {
+                  offset = Number(offsetArg.value) || 0;
+              } else if (offsetArg.type === 'Identifier') {
+                  // If it's a variable reference, try to get its value
+                  // For now, we'll store the variable name - but this would need runtime resolution
+                  const offsetVarName = String(offsetArg.value || '');
+                  // We can't resolve variable values at transpile time, so we'll skip for now
+                  // In the future, we could add offset as string and handle it at runtime
+              }
+          }
+
+          // Store plot config with new fields
+          const plotConfig: any = {id: plotId, title, color, lineWidth};
+          if (display) plotConfig.display = display;
+          if (visible !== undefined) plotConfig.visible = visible;
+          if (offset !== undefined && offset !== 0) plotConfig.offset = offset;
+          this.context.plotConfigs.push(plotConfig);
+
+          // Generate plot data (offset would be applied at runtime by the chart library)
         this.context.plots.push(`${seriesName}.toArray().map((v: number | undefined, i: number) => ({ time: bars[i]!.time, value: v ?? NaN }))`);
       }
       return '';
     }
 
     // Handle unsupported display functions - skip them
-    const unsupportedDisplayFunctions = ['hline', 'bgcolor', 'fill', 'barcolor', 'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar'];
+      // Handle fill() function - creates a fill between two plots
+      if (name === 'fill') {
+          const plot1Arg = node.children?.[0];
+          const plot2Arg = node.children?.[1];
+          const colorArg = this.findNamedArg(node, 'color');
+          const titleArg = this.findNamedArg(node, 'title');
+          const displayArg = this.findNamedArg(node, 'display');
+
+          if (plot1Arg && plot2Arg) {
+              const plot1Name = plot1Arg.type === 'Identifier' ? String(plot1Arg.value || '') : '';
+              const plot2Name = plot2Arg.type === 'Identifier' ? String(plot2Arg.value || '') : '';
+
+              // Look up the plot IDs from the variable names
+              const plot1Id = this.context.plotVariables.get(sanitizeIdentifier(plot1Name)) || plot1Name;
+              const plot2Id = this.context.plotVariables.get(sanitizeIdentifier(plot2Name)) || plot2Name;
+
+              // Extract color (handle ternary expressions like: isBB ? color.new(color.green, 90) : na)
+              let color = '#00FF00'; // Default green
+              let visible: boolean | string | undefined;
+              if (colorArg) {
+                  const colorExpr = this.generateExpression(colorArg);
+                  // Check for ternary with na (conditional color = conditional visibility)
+                  const ternaryNaMatch = colorExpr.match(/^\(?([^?]+)\s*\?\s*(.+)\s*:\s*na\)?$/);
+                  if (ternaryNaMatch) {
+                      visible = ternaryNaMatch[1].trim();
+                      // Try to extract color from the true branch
+                      const trueExpr = ternaryNaMatch[2].trim();
+                      const extractedColor = getColorValue({type: 'StringLiteral', value: trueExpr});
+                      color = extractedColor || '#00FF00';
+                  } else {
+                      color = getColorValue(colorArg) || '#00FF00';
+                  }
+              }
+
+              // Also check display parameter for visibility
+              if (displayArg && visible === undefined) {
+                  const displayExpr = this.generateExpression(displayArg);
+                  const ternaryMatch = displayExpr.match(/^\(?([^?]+)\s*\?\s*display\.all\s*:\s*display\.none\)?$/);
+                  if (ternaryMatch) {
+                      visible = ternaryMatch[1].trim();
+                  }
+              }
+
+              const title = titleArg ? this.getStringValue(titleArg).replace(/^["']|["']$/g, '') : undefined;
+
+              const fillId = `fill${this.context.fillConfigs.length}`;
+              const fillConfig: any = {
+                  id: fillId,
+                  plot1: plot1Id,
+                  plot2: plot2Id,
+                  color,
+              };
+              if (title) fillConfig.title = title;
+              if (visible !== undefined) fillConfig.visible = visible;
+
+              this.context.fillConfigs.push(fillConfig);
+          }
+          return '';
+      }
+
+      const unsupportedDisplayFunctions = ['hline', 'bgcolor', 'barcolor', 'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar'];
     if (unsupportedDisplayFunctions.includes(name)) {
       // Add a warning comment
       this.context.warnings.push({
@@ -539,6 +652,7 @@ export class ExpressionGenerator {
     // Handle ta.vwma specially - it needs volume parameter
     if (name === 'ta.vwma') {
       // ta.vwma(source, length) should become ta.vwma(source, length, volume)
+        this.context.importTracker.trackNamespace('ta');
       return `ta.vwma(${args}, volume)`;
     }
 
@@ -547,8 +661,27 @@ export class ExpressionGenerator {
           return `(() => { throw new Error(${args}); })()`;
       }
 
+      // Handle nz() function call - needs to be imported
+      if (name === 'nz') {
+          this.context.importTracker.trackFunction('nz');
+          return `nz(${args})`;
+      }
+
+      // Handle na() as function call (checks if value is na)
+      // Note: 'na' as identifier (value) is transformed to NaN by translateIdentifier
+      // and should NOT be tracked since it doesn't need an import
+      if (name === 'na') {
+          this.context.importTracker.trackFunction('na');
+          return `na(${args})`;
+      }
+
     // Translate common function names
     const translated = translateFunctionName(name);
+
+      // Track namespace imports based on the translated function name
+      // If translated starts with 'ta.', 'math.', 'array.', etc., track that namespace
+      this.context.importTracker.trackNamespace(translated);
+
     return `${translated}(${args})`;
   }
 }
