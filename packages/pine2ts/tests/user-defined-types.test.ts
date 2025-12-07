@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { PineParser } from '../src/transpiler/PineParser';
-import { transpile } from '../src/transpiler/PineToTS';
+import {describe, expect, it} from 'vitest';
+import {PineParser} from '../src/transpiler/PineParser';
+import {transpile} from '../src/transpiler/PineToTS';
 
-describe('Phase 3: User-Defined Types and Methods', () => {
+describe('User-Defined Types and Methods', () => {
   describe('Type Declarations', () => {
     describe('Basic type parsing', () => {
       it('should parse simple type declaration', () => {

@@ -2,15 +2,15 @@
  * Expression generation logic
  */
 
-import type { ASTNode } from '../PineParser.js';
-import type { GeneratorContext, MethodInfo, PlotConfig } from '../types.js';
-import { 
-  translateFunctionName, 
-  translateIdentifier, 
-  translateMemberExpression,
-  getColorValue
+import type {ASTNode} from '../PineParser.js';
+import type {GeneratorContext} from '../types.js';
+import {
+    getColorValue,
+    translateFunctionName,
+    translateIdentifier,
+    translateMemberExpression
 } from '../mappers/index.js';
-import { INDENT_SIZE } from '../utils/index.js';
+import {INDENT_SIZE} from '../utils/index.js';
 
 /**
  * Generates TypeScript code for PineScript expressions
@@ -541,6 +541,11 @@ export class ExpressionGenerator {
       // ta.vwma(source, length) should become ta.vwma(source, length, volume)
       return `ta.vwma(${args}, volume)`;
     }
+
+      // Handle runtime.error - throw an error with the given message
+      if (name === 'runtime.error') {
+          return `(() => { throw new Error(${args}); })()`;
+      }
 
     // Translate common function names
     const translated = translateFunctionName(name);

@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { PineParser } from '../src/transpiler/PineParser';
-import { transpile } from '../src/transpiler/PineToTS';
-import { LibraryResolver, FileSystemInterface } from '../src/transpiler/LibraryResolver';
+import {describe, expect, it} from 'vitest';
+import {PineParser} from '../src/transpiler/PineParser';
+import {transpile} from '../src/transpiler/PineToTS';
+import {FileSystemInterface, LibraryResolver} from '../src/transpiler/LibraryResolver';
 
-describe('Phase 4: Library Import System', () => {
+describe('Library Import System', () => {
   describe('Import Statement Parsing', () => {
     describe('Basic import parsing', () => {
       it('should parse import statement with alias', () => {

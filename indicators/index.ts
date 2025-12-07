@@ -4,6 +4,22 @@
  */
 
 import type {Bar} from 'oakscriptjs';
+// Import indicators for registry
+import * as smaIndicator from './sma';
+import * as momentumIndicator from './momentum';
+import * as bopIndicator from './bop';
+import * as demaIndicator from './dema';
+import * as temaIndicator from './tema';
+import * as rocIndicator from './roc';
+import * as adrIndicator from './adr';
+import * as massIndexIndicator from './mass-index';
+import * as mcginleyDynamicIndicator from './mc-ginley-dynamic';
+import * as hmaIndicator from './hma';
+import * as lsmaIndicator from './lsma';
+import * as rmaIndicator from './rma';
+import * as wmaIndicator from './wma';
+import * as vwmaIndicator from './vwma';
+import * as almaIndicator from './alma';
 
 // Export all indicators as namespaces
 export * as sma from './sma';
@@ -21,25 +37,8 @@ export * as rma from './rma';
 export * as wma from './wma';
 export * as vwma from './vwma';
 export * as alma from './alma';
-// export * as obv from './obv'; // Excluded: transpiler bug - invalid generated code
-
-// Import indicators for registry
-import * as smaIndicator from './sma';
-import * as momentumIndicator from './momentum';
-import * as bopIndicator from './bop';
-import * as demaIndicator from './dema';
-import * as temaIndicator from './tema';
-import * as rocIndicator from './roc';
-import * as adrIndicator from './adr';
-import * as massIndexIndicator from './mass-index';
-import * as mcginleyDynamicIndicator from './mc-ginley-dynamic';
-import * as hmaIndicator from './hma';
-import * as lsmaIndicator from './lsma';
-import * as rmaIndicator from './rma';
-import * as wmaIndicator from './wma';
-import * as vwmaIndicator from './vwma';
-import * as almaIndicator from './alma';
-// import * as obvIndicator from './obv'; // Excluded: transpiler bug
+// export * as obv from './obv'; // Excluded: requires bar-by-bar loop support for 'var' persistence
+// import * as obvIndicator from './obv'; // Excluded: requires bar-by-bar loop support
 
 // Export indicator classes using the new indicator() pattern
 export { SMAIndicator } from './sma';
@@ -283,5 +282,5 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     defaultInputs: { ...almaIndicator.defaultInputs },
     calculate: almaIndicator.calculate,
   },
-    // OBV excluded due to transpiler bug - invalid generated code
+    // OBV excluded: requires bar-by-bar loop support for 'var' variable persistence
 ];

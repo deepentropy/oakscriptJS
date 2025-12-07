@@ -2,7 +2,7 @@
  * Identifier mapping utilities for PineScript to TypeScript
  */
 
-import { sanitizeIdentifier } from '../utils/index.js';
+import {sanitizeIdentifier} from '../utils/index.js';
 
 /**
  * Translate PineScript identifiers to TypeScript equivalents
@@ -44,13 +44,20 @@ export function translateMemberExpression(name: string): string {
   }
   
   // Handle barstate variables
+    // Note: In batch mode (processing all bars at once), barstate variables have fixed values:
+    // - isfirst: false (we've processed past the first bar)
+    // - islast: true (we're at the end of available data)
+    // - isconfirmed: true (all historical bars are confirmed)
+    // - islastconfirmedhistory: true (same as islast for historical data)
+    // - isrealtime: false (we're processing historical data)
+    // - isnew: false (not in a real-time streaming context)
   const barstateMap: Record<string, string> = {
-    'barstate.isfirst': '(i === 0)',
-    'barstate.islast': '(i === bars.length - 1)',
+      'barstate.isfirst': 'false',
+      'barstate.islast': 'true',
     'barstate.isconfirmed': 'true',
-    'barstate.islastconfirmedhistory': '(i === bars.length - 1)',
+      'barstate.islastconfirmedhistory': 'true',
     'barstate.isrealtime': 'false',
-    'barstate.isnew': 'true',
+      'barstate.isnew': 'false',
   };
   
   if (barstateMap[name]) {
