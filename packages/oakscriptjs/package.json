@@ -1,6 +1,6 @@
 {
   "name": "oakscriptjs",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "PineScript v6 compatible technical analysis library for JavaScript/TypeScript",
   "main": "dist/index.js",
@@ -24,6 +24,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:runtime:esm && npm run build:runtime:cjs && npm run build:types",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.js --platform=neutral --external:@types/* --external:lightweight-charts",
