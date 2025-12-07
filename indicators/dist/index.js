@@ -730,7 +730,7 @@ function McGinley_Dynamic(bars, inputs = {}) {
   const mgValues = new Array(bars.length).fill(NaN);
   for (let i = 0; i < bars.length; i++) {
     const mgPrev = i > 0 ? mgValues[i - 1] : NaN;
-    mgValues[i] = na(mgPrev) ? ta16.ema(source, length).get(i) : (mgPrev + (source.get(i) - mgPrev)) / (length * math9.pow(source.get(i) / mgPrev, 4));
+    mgValues[i] = na(mgPrev) ? ta16.ema(source, length).get(i) : mgPrev + (source.get(i) - mgPrev) / (length * math9.pow(source.get(i) / mgPrev, 4));
   }
   mg = Series16.fromArray(bars, mgValues);
   return {
