@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { transpile } from '../src/transpiler/PineToTS';
+import {describe, expect, it} from 'vitest';
+import {transpile} from '../src/transpiler/PineToTS';
 
 describe('Recursive Formulas', () => {
   it('should generate bar-by-bar iteration for recursive formulas', () => {
@@ -33,9 +33,11 @@ plot(mg)`;
     expect(result).toContain('// Recursive formula for mg');
     expect(result).toContain('const mgValues: number[]');
     expect(result).toContain('const mgPrev = i > 0 ? mgValues[i - 1] : NaN');
-    
-    // Check the formula includes the correct structure
-    expect(result).toContain('mgPrev + (source.get(i) - mgPrev)');
+
+      // Check the formula includes the correct structure with proper operator precedence
+      // The formula should be: mgPrev + ((source - mgPrev) / (length * pow(...)))
+      // NOT: (mgPrev + (source - mgPrev)) / (length * pow(...))
+      expect(result).toContain('mgPrev + ((source.get(i) - mgPrev) /');
     expect(result).toContain('math.pow');
   });
 

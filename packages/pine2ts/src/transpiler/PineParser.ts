@@ -1130,16 +1130,46 @@ export class PineParser {
     return condition;
   }
 
-  private parseBinary(): ASTNode {
+    /**
+     * Get operator precedence (higher = binds tighter)
+     */
+    private getOperatorPrecedence(op: string): number {
+        const precedence: Record<string, number> = {
+            'or': 1,
+            'and': 2,
+            '==': 3, '!=': 3,
+            '>': 4, '<': 4, '>=': 4, '<=': 4,
+            '+': 5, '-': 5,
+            '*': 6, '/': 6, '%': 6,
+            '+=': 0, '-=': 0, '*=': 0, '/=': 0, // Compound assignments have lowest precedence
+        };
+        return precedence[op] ?? 0;
+    }
+
+    /**
+     * Parse binary expression with operator precedence (precedence climbing)
+     */
+    private parseBinary(minPrecedence: number = 0): ASTNode {
     let left = this.parseUnary();
 
     while (true) {
       this.skipWhitespace();
+
+        // Peek at the operator without consuming it
+        const savedPos = this.position;
       const op = this.parseOperator();
       if (!op) break;
 
+        const prec = this.getOperatorPrecedence(op);
+        if (prec < minPrecedence) {
+            // Operator has lower precedence, put it back and return
+            this.position = savedPos;
+            break;
+        }
+
       this.skipWhitespace();
-      const right = this.parseUnary();
+        // Parse right side with higher precedence to ensure right-associativity for same-precedence ops
+        const right = this.parseBinary(prec + 1);
       left = {
         type: 'BinaryExpression',
         value: op,
