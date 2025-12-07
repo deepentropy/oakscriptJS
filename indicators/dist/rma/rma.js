@@ -1,5 +1,5 @@
 // indicators/rma/rma.ts
-import {Series, ta, na} from "oakscriptjs";
+import { Series, ta, na } from "oakscriptjs";
 var defaultInputs = {
   len: 7,
   src: "close"
