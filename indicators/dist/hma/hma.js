@@ -37,13 +37,6 @@ function Hull_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   const hullma = ta.wma(ta.wma(srcSeries, length / 2).mul(2).sub(ta.wma(srcSeries, length)), math.floor(math.sqrt(length)));
   return {
     metadata: { title: "Hull Moving Average", shorttitle: "HMA", overlay: true },

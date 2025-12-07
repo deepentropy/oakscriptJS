@@ -1,8 +1,5 @@
 // indicators/rma/rma.ts
-import { Series, ta } from "oakscriptjs";
-function na(value) {
-  return value === null || value === void 0 || Number.isNaN(value);
-}
+import {Series, ta, na} from "oakscriptjs";
 var defaultInputs = {
   len: 7,
   src: "close"
@@ -40,13 +37,6 @@ function Smoothed_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   let smma = new Series(bars, () => 0);
   const smmaValues = new Array(bars.length).fill(NaN);
   for (let i = 0; i < bars.length; i++) {

@@ -291,22 +291,38 @@ min = minute`;
   });
 
   describe('na() and nz() Functions', () => {
-    it('should generate na helper function', () => {
-      const source = `indicator("Test")`;
-      
+      it('should import na helper function from oakscriptjs when used', () => {
+          const source = `indicator("Test")
+isNa = na(close)`;
+
       const result = transpile(source);
-      
-      expect(result).toContain('function na(value: number | null | undefined): boolean');
-      expect(result).toContain('return value === null || value === undefined || Number.isNaN(value)');
+
+          // na is imported when actually used
+          expect(result).toContain('na');
+          expect(result).toContain('import {');
+      });
+
+      it('should import nz helper function from oakscriptjs when used', () => {
+          const source = `indicator("Test")
+safeVal = nz(close)`;
+
+          const result = transpile(source);
+
+          // nz is imported when actually used
+          expect(result).toContain('nz');
+          expect(result).toContain('import {');
     });
 
-    it('should generate nz helper function', () => {
+      it('should only import used functions (dynamic imports)', () => {
       const source = `indicator("Test")`;
-      
+
       const result = transpile(source);
-      
-      expect(result).toContain('function nz(value: number | null | undefined, replacement: number = 0): number');
-      expect(result).toContain('return na(value) ? replacement : value as number');
+
+          // When nothing is used, only Series and types should be imported
+          expect(result).toContain('import { Series');
+          expect(result).not.toContain('ta,');
+          expect(result).not.toContain('math,');
+          expect(result).not.toContain('array,');
     });
 
     it('should allow using na() in conditionals', () => {

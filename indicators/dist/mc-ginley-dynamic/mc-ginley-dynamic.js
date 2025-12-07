@@ -1,8 +1,5 @@
 // indicators/mc-ginley-dynamic/mc-ginley-dynamic.ts
-import { Series, ta, math } from "oakscriptjs";
-function na(value) {
-  return value === null || value === void 0 || Number.isNaN(value);
-}
+import {Series, ta, math, na} from "oakscriptjs";
 var defaultInputs = {
   length: 14
 };
@@ -17,13 +14,6 @@ function McGinley_Dynamic(bars, inputs = {}) {
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   const source = close;
   let mg = new Series(bars, () => 0);
   const mgValues = new Array(bars.length).fill(NaN);

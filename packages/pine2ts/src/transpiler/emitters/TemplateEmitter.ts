@@ -95,21 +95,34 @@ export function emitCalculatedSources(): string[] {
 }
 
 /**
- * Emits time series
+ * Emits time series - only those that are actually used
  */
-export function emitTimeSeries(): string[] {
+export function emitTimeSeries(usedSeries?: Set<string>): string[] {
   const lines: string[] = [];
-  
+
+    // If no filter provided or empty, return empty (nothing used)
+    if (!usedSeries || usedSeries.size === 0) {
+        return lines;
+    }
+
+    const allSeries: Record<string, string> = {
+        year: 'const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());',
+        month: 'const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);',
+        dayofmonth: 'const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());',
+        dayofweek: 'const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);',
+        hour: 'const hour = new Series(bars, (bar) => new Date(bar.time).getHours());',
+        minute: 'const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());',
+    };
+
   lines.push('// Time series');
-  lines.push('const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());');
-  lines.push('const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);');
-  lines.push('const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());');
-  lines.push('const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);');
-  lines.push('const hour = new Series(bars, (bar) => new Date(bar.time).getHours());');
-  lines.push('const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());');
+    for (const [name, code] of Object.entries(allSeries)) {
+        if (usedSeries.has(name)) {
+            lines.push(code);
+        }
+    }
   lines.push('');
-  
-  return lines;
+
+    return lines;
 }
 
 /**

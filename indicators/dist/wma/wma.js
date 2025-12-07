@@ -38,13 +38,6 @@ function Moving_Average_Weighted(bars, inputs = {}) {
         return close;
     }
   })();
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   const out = ta.wma(srcSeries, len);
   return {
     metadata: { title: "Moving Average Weighted", shorttitle: "WMA", overlay: true },

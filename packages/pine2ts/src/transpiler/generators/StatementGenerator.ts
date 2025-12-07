@@ -193,9 +193,20 @@ export class StatementGenerator {
     if (left.type === 'Identifier') {
       const name = String(left.value || 'unknown');
       const tsName = sanitizeIdentifier(name);
-      
+
+        // Track plot count before generating expression
+        const plotCountBefore = this.context.plots.length;
+
       let rightExpr = this.expressionGen.generateExpression(right);
-      
+
+        // Check if a plot() was called during expression generation
+        const plotCountAfter = this.context.plots.length;
+        if (plotCountAfter > plotCountBefore && right.type === 'FunctionCall' && String(right.value || '') === 'plot') {
+            // Map this variable name to the plot ID
+            const plotId = `plot${plotCountBefore}`;
+            this.context.plotVariables.set(tsName, plotId);
+        }
+
       // Skip assignment if right side is empty (e.g., unsupported functions)
       if (!rightExpr || rightExpr.trim() === '') {
         // Comment it out instead
@@ -343,7 +354,29 @@ export class StatementGenerator {
     // For function calls, we need to convert Series arguments to point values
     if (node.type === 'FunctionCall') {
       const funcName = String(node.value || '');
-      
+        const translated = translateFunctionName(funcName);
+
+        // Track imports for the translated function name
+        this.context.importTracker.trackNamespace(translated);
+
+        // Handle na() function - needs special import tracking
+        if (funcName === 'na') {
+            this.context.importTracker.trackFunction('na');
+            const args = (node.children || []).map(c =>
+                this.generateRecursiveFormulaExpression(c, recursiveVarName, prevValueVar)
+            ).join(', ');
+            return `na(${args})`;
+        }
+
+        // Handle nz() function
+        if (funcName === 'nz') {
+            this.context.importTracker.trackFunction('nz');
+            const args = (node.children || []).map(c =>
+                this.generateRecursiveFormulaExpression(c, recursiveVarName, prevValueVar)
+            ).join(', ');
+            return `nz(${args})`;
+        }
+
       // For ta.* functions that operate on Series, we need special handling
       // For now, we'll need to extract values at current bar
       if (funcName.startsWith('ta.')) {
@@ -352,17 +385,17 @@ export class StatementGenerator {
         // and access it by index
         const args = (node.children || []).map(c => this.expressionGen.generateExpression(c)).join(', ');
         const tempVarName = `_${funcName.replace('.', '_')}_temp`;
-        
+
         // Note: This is a simplification. We should generate this temp variable outside the loop
         // For now, we'll just call the function and get the value at index i
-        return `${translateFunctionName(funcName)}(${args}).get(i)`;
+          return `${translated}(${args}).get(i)`;
       }
-      
+
       // For math.* functions, generate normally but with recursive substitutions
-      const args = (node.children || []).map(c => 
+        const args = (node.children || []).map(c =>
         this.generateRecursiveFormulaExpression(c, recursiveVarName, prevValueVar)
       ).join(', ');
-      return `${translateFunctionName(funcName)}(${args})`;
+        return `${translated}(${args})`;
     }
     
     // For identifiers, check if it's a Series variable

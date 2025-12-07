@@ -32,16 +32,18 @@ import { series_float, series_bool, series_int, int, Source, simple_int, simple_
  */
 export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+      if (i < len - 1) {
       result.push(NaN);
     } else {
       let sum = 0;
-      for (let j = 0; j < length; j++) {
+          for (let j = 0; j < len; j++) {
         sum += source[i - j]!;
       }
-      result.push(sum / length);
+          result.push(sum / len);
     }
   }
 
@@ -72,14 +74,16 @@ export function sma(source: Source, length: simple_int): series_float {
  */
 export function ema(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-  const multiplier = 2 / (length + 1);
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
+    const multiplier = 2 / (len + 1);
 
   // First value is SMA
   let ema = 0;
-  for (let i = 0; i < Math.min(length, source.length); i++) {
+    for (let i = 0; i < Math.min(len, source.length); i++) {
     ema += source[i]!;
   }
-  ema = ema / Math.min(length, source.length);
+    ema = ema / Math.min(len, source.length);
 
   for (let i = 0; i < source.length; i++) {
     if (i === 0) {
@@ -259,18 +263,20 @@ export function bb(
  */
 export function stdev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-  const avg = sma(source, length);
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
+    const avg = sma(source, len);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+      if (i < len - 1) {
       result.push(NaN);
     } else {
       let sumSquares = 0;
-      for (let j = 0; j < length; j++) {
+          for (let j = 0; j < len; j++) {
         const diff = source[i - j]! - avg[i]!;
         sumSquares += diff * diff;
       }
-      result.push(Math.sqrt(sumSquares / length));
+          result.push(Math.sqrt(sumSquares / len));
     }
   }
 
@@ -635,14 +641,16 @@ export function supertrend(
  */
 export function rma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-  const alpha = 1 / length;
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
+    const alpha = 1 / len;
 
   // Initialize with SMA for the first value
   let rmaValue = 0;
-  for (let i = 0; i < Math.min(length, source.length); i++) {
+    for (let i = 0; i < Math.min(len, source.length); i++) {
     rmaValue += source[i]!;
   }
-  rmaValue = rmaValue / Math.min(length, source.length);
+    rmaValue = rmaValue / Math.min(len, source.length);
 
   for (let i = 0; i < source.length; i++) {
     if (i === 0) {
@@ -681,16 +689,18 @@ export function rma(source: Source, length: simple_int): series_float {
  */
 export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+      if (i < len - 1) {
       result.push(NaN);
     } else {
       let sum = 0;
       let weightSum = 0;
 
-      for (let j = 0; j < length; j++) {
-        const weight = length - j;
+          for (let j = 0; j < len; j++) {
+              const weight = len - j;
         sum += source[i - j]! * weight;
         weightSum += weight;
       }
@@ -1302,14 +1312,16 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
  */
 export function linreg(source: Source, length: simple_int, offset: simple_int = 0): series_float {
   const result: series_float = [];
+    // Floor the length to match PineScript's auto-truncation of float to int
+    const len = Math.floor(length);
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+      if (i < len - 1) {
       result.push(NaN);
     } else {
       // Check for NaN values in window
       let hasNaN = false;
-      for (let j = 0; j < length; j++) {
+          for (let j = 0; j < len; j++) {
         if (isNaN(source[i - j]!)) {
           hasNaN = true;
           break;
@@ -1325,20 +1337,20 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
         let sumXY = 0;
         let sumX2 = 0;
 
-        for (let j = 0; j < length; j++) {
+          for (let j = 0; j < len; j++) {
           const x = j;
-          const y = source[i - (length - 1 - j)]!;
+              const y = source[i - (len - 1 - j)]!;
           sumX += x;
           sumY += y;
           sumXY += x * y;
           sumX2 += x * x;
         }
 
-        const slope = (length * sumXY - sumX * sumY) / (length * sumX2 - sumX * sumX);
-        const intercept = (sumY - slope * sumX) / length;
+          const slope = (len * sumXY - sumX * sumY) / (len * sumX2 - sumX * sumX);
+          const intercept = (sumY - slope * sumX) / len;
 
         // Calculate linreg value at offset
-        const x = length - 1 - offset;
+          const x = len - 1 - offset;
         result.push(intercept + slope * x);
       }
     }
@@ -2503,10 +2515,11 @@ export function alma(
   source: Source,
   length: simple_int = 9,
   offset: simple_float = 0.85,
-  sigma: simple_float = 6
+  sigma: simple_float = 6,
+  floor: boolean = false
 ): series_float {
   const result: series_float = [];
-  const m = Math.floor(offset * (length - 1));
+    const m = floor ? Math.floor(offset * (length - 1)) : offset * (length - 1);
   const s = length / sigma;
 
   // Pre-calculate weights

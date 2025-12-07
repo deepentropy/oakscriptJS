@@ -4,7 +4,7 @@
 
 /**
  * Fetch CSV data from the private deepentropy/pinesuite repository
- * @param filePath - Full path to CSV file (e.g., "data/20251203/Simple Moving Average.csv")
+ * @param filePath - Full path to CSV file (e.g., "data/20251207/Simple Moving Average.csv")
  * @param token - GitHub personal access token (defaults to PINESUITE_TOKEN env var)
  * @returns Raw CSV content as string
  * @throws Error if token is missing, network fails, or file not found

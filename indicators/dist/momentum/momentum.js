@@ -37,13 +37,6 @@ function Momentum(bars, inputs = {}) {
         return close;
     }
   })();
-  const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-  const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-  const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-  const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-  const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-  const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-  const last_bar_index = bars.length - 1;
   const mom = srcSeries.sub(srcSeries.offset(len));
   return {
     metadata: { title: "Momentum", shorttitle: "Mom", overlay: false },

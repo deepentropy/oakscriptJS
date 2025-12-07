@@ -40,6 +40,7 @@ export type {
   InputConfig,
   InputOptions,
   OhlcvData,
+    PlotConfig,
 } from './types';
 
 // Adapter exports

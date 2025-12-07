@@ -427,12 +427,13 @@ export function linreg(source: Series, length: number, offset: number = 0): Seri
  * @param length - Period length (default: 9)
  * @param offset - Controls tradeoff between smoothness and responsiveness (default: 0.85)
  * @param sigma - Standard deviation factor for sharpness (default: 6)
+ * @param floor - Whether to floor the offset calculation (default: false)
  * @returns Series with ALMA values
  */
-export function alma(source: Series, length: number = 9, offset: number = 0.85, sigma: number = 6): Series {
+export function alma(source: Series, length: number = 9, offset: number = 0.85, sigma: number = 6, floor: boolean = false): Series {
     const bars = source.bars as Bar[];
     const sourceValues = source.toArray();
-    const result = taCore.alma(sourceValues, length, offset, sigma);
+    const result = taCore.alma(sourceValues, length, offset, sigma, floor);
     return Series.fromArray(bars, result);
 }
 

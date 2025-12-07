@@ -2,6 +2,8 @@
  * PineScript to TypeScript transpiler types
  */
 
+import type {ImportTracker} from './services/ImportTracker.js';
+
 export interface TranspileOptions {
   /** Source filename for error messages */
   filename?: string;
@@ -171,6 +173,30 @@ export interface PlotConfig {
   title: string;
   color: string;
   lineWidth: number;
+    /** Whether the plot is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
+    /** Display mode: 'all', 'none', 'data_window', 'status_line', 'pane' */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /** Offset in bars (positive = future, negative = past) */
+    offset?: number;
+}
+
+/**
+ * Fill configuration - fills area between two plots
+ */
+export interface FillConfig {
+    /** Unique identifier for the fill */
+    id: string;
+    /** ID of the first plot */
+    plot1: string;
+    /** ID of the second plot */
+    plot2: string;
+    /** Fill color */
+    color: string;
+    /** Display title */
+    title?: string;
+    /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
 }
 
 /**
@@ -215,4 +241,16 @@ export interface GeneratorContext {
   libraryInfo: LibraryInfo | null;
   /** Warnings collected during transpilation */
   warnings: TranspileWarning[];
+    /** Time series variables used (year, month, etc.) */
+    usesTimeSeries: Set<string>;
+    /** Whether bar_index or last_bar_index is used */
+    usesBarIndex: boolean;
+    /** Import namespaces used (ta, math, array, na, nz) - DEPRECATED: Use importTracker instead */
+    usedImports: Set<string>;
+    /** Import tracker for tracking imports during code generation */
+    importTracker: ImportTracker;
+    /** Map of plot variable names to their plot IDs (e.g., 'bbUpperBand' -> 'plot2') */
+    plotVariables: Map<string, string>;
+    /** Fill configurations */
+    fillConfigs: FillConfig[];
 }

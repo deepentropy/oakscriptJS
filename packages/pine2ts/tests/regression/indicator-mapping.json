@@ -1,50 +1,52 @@
 {
   "sma": {
-    "dataFile": "data/20251203/Simple Moving Average.csv"
+    "dataFile": "data/20251207/Simple Moving Average.csv"
   },
   "momentum": {
-    "dataFile": "data/20251203/Momentum.csv"
-  },
-  "bop": {
-    "dataFile": "data/20251203/Balance of Power.csv"
-  },
-  "dema": {
-    "dataFile": "data/20251203/Double EMA.csv"
-  },
-  "tema": {
-    "dataFile": "data/20251203/Triple EMA.csv"
-  },
-  "roc": {
-    "dataFile": "data/20251203/Rate Of Change.csv"
-  },
-  "adr": {
-    "dataFile": "data/20251203/Average Daily Range.csv"
-  },
-  "mass-index": {
-    "dataFile": "data/20251203/Mass Index.csv"
-  },
-  "mc-ginley-dynamic": {
-    "dataFile": "data/20251203/McGinley Dynamic.csv"
-  },
-  "hma": {
-    "dataFile": "data/20251203/Hull Moving Average.csv"
-  },
-  "lsma": {
-    "dataFile": "data/20251203/Least Squares Moving Average.csv"
-  },
-  "alma": {
-    "dataFile": "data/20251203/Arnaud Legoux Moving Average.csv"
+    "dataFile": "data/20251207/Momentum.csv"
   },
   "obv": {
-    "dataFile": "data/20251203/On Balance Volume.csv"
+    "dataFile": "data/20251207/On Balance Volume.csv",
+    "normalize": true
+  },
+  "mc-ginley-dynamic": {
+    "dataFile": "data/20251207/McGinley Dynamic.csv",
+    "skipInitial": 200
+  },
+  "bop": {
+    "dataFile": "data/20251207/Balance of Power.csv"
+  },
+  "dema": {
+    "dataFile": "data/20251207/Double EMA.csv"
+  },
+  "tema": {
+    "dataFile": "data/20251207/Triple EMA.csv"
+  },
+  "roc": {
+    "dataFile": "data/20251207/Rate Of Change.csv"
+  },
+  "adr": {
+    "dataFile": "data/20251207/Average Daily Range.csv"
+  },
+  "mass-index": {
+    "dataFile": "data/20251207/Mass Index.csv"
+  },
+  "hma": {
+    "dataFile": "data/20251207/Hull Moving Average.csv"
+  },
+  "lsma": {
+    "dataFile": "data/20251207/Least Squares Moving Average.csv"
+  },
+  "alma": {
+    "dataFile": "data/20251207/Arnaud Legoux Moving Average.csv"
   },
   "rma": {
-    "dataFile": "data/20251203/Smoothed Moving Average.csv"
+    "dataFile": "data/20251207/Smoothed Moving Average.csv"
   },
   "vwma": {
-    "dataFile": "data/20251203/Volume Weighted Moving Average.csv"
+    "dataFile": "data/20251207/Volume Weighted Moving Average.csv"
   },
   "wma": {
-    "dataFile": "data/20251203/Moving Average Weighted.csv"
+    "dataFile": "data/20251207/Moving Average Weighted.csv"
   }
 }

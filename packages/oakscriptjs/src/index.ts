@@ -70,6 +70,9 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 // Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
 
+// Export helper functions for generated indicators (PineScript compatibility)
+export {isNA as na, nz} from './utils';
+
 // Export indicator infrastructure
 export {
   indicator,
@@ -129,6 +132,7 @@ export type {
   InputConfig,
   InputOptions,
   OhlcvData,
+    PlotConfig,
 } from './runtime/types';
 
 export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';

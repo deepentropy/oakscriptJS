@@ -1,33 +1,4 @@
-import { Series, ta, taCore, math, array, type IndicatorResult } from 'oakscriptjs';
-
-// Helper functions
-function na(value: number | null | undefined): boolean {
-  return value === null || value === undefined || Number.isNaN(value);
-}
-
-function nz(value: number | null | undefined, replacement: number = 0): number {
-  return na(value) ? replacement : value as number;
-}
-
-// Plot configuration interface
-interface PlotConfig {
-  id: string;
-  title: string;
-  color: string;
-  lineWidth?: number;
-}
-
-// Input configuration interface
-export interface InputConfig {
-  id: string;
-  type: 'int' | 'float' | 'bool' | 'source' | 'string';
-  title: string;
-  defval: number | string | boolean;
-  min?: number;
-  max?: number;
-  step?: number;
-  options?: string[];
-}
+import {Series, ta, type IndicatorResult, type InputConfig, type PlotConfig} from 'oakscriptjs';
 
 export interface IndicatorInputs {
   len: number;
@@ -78,17 +49,6 @@ const srcSeries = (() => {
   }
 })();
 
-// Time series
-const year = new Series(bars, (bar) => new Date(bar.time).getFullYear());
-const month = new Series(bars, (bar) => new Date(bar.time).getMonth() + 1);
-const dayofmonth = new Series(bars, (bar) => new Date(bar.time).getDate());
-const dayofweek = new Series(bars, (bar) => new Date(bar.time).getDay() + 1);
-const hour = new Series(bars, (bar) => new Date(bar.time).getHours());
-const minute = new Series(bars, (bar) => new Date(bar.time).getMinutes());
-
-// Bar index
-const last_bar_index = bars.length - 1;
-
   // @version=6
   const out = ta.sma(srcSeries, len);
   // Smoothing MA inputs
@@ -125,7 +85,29 @@ const last_bar_index = bars.length - 1;
 export const metadata = { title: "Moving Average Simple", shortTitle: "SMA", overlay: true };
 export { defaultInputs };
 export const inputConfig: InputConfig[] = [{ id: 'len', type: 'int', title: 'Length', defval: 9, min: 1 }, { id: 'src', type: 'source', title: 'Source', defval: "close" }, { id: 'offset', type: 'int', title: 'Offset', defval: 0, min: -500, max: 500 }, { id: 'maTypeInput', type: 'string', title: 'Type', defval: "None", options: ['None', 'SMA', 'SMA + Bollinger Bands', 'EMA', 'SMMA (RMA)', 'WMA', 'VWMA'] }, { id: 'maLengthInput', type: 'int', title: 'Length', defval: 14 }, { id: 'bbMultInput', type: 'float', title: 'BB StdDev', defval: 2, min: 0.001, max: 50, step: 0.5 }];
-export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'MA', color: '#2962FF', lineWidth: 2 }, { id: 'plot1', title: 'smoothingMA', color: '#FFFF00', lineWidth: 2 }, { id: 'plot2', title: 'Upper Bollinger Band', color: '#00FF00', lineWidth: 2 }, { id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2 }];
+export const plotConfig: PlotConfig[] = [{id: 'plot0', title: 'MA', color: '#2962FF', lineWidth: 2}, {
+    id: 'plot1',
+    title: 'smoothingMA',
+    color: '#FFFF00',
+    lineWidth: 2,
+    display: 'all',
+    visible: 'enableMA'
+}, {
+    id: 'plot2',
+    title: 'Upper Bollinger Band',
+    color: '#00FF00',
+    lineWidth: 2,
+    display: 'all',
+    visible: 'isBB'
+}, {id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2, display: 'all', visible: 'isBB'}];
+export const fillConfig = [{
+    id: 'fill0',
+    plot1: 'plot2',
+    plot2: 'plot3',
+    color: '#2962FF',
+    title: 'Bollinger Bands Background Fill',
+    visible: 'isBB'
+}];
 export const calculate = Moving_Average_Simple;
 export { Moving_Average_Simple as Moving_Average_SimpleIndicator };
 export type Moving_Average_SimpleInputs = IndicatorInputs;

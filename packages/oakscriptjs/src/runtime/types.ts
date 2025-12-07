@@ -67,6 +67,26 @@ export interface InputConfig {
 }
 
 /**
+ * Configuration for plot outputs in generated indicators
+ */
+export interface PlotConfig {
+    /** Unique identifier for the plot */
+    id: string;
+    /** Display title */
+    title: string;
+    /** Plot color */
+    color: string;
+    /** Line width in pixels */
+    lineWidth?: number;
+    /** Whether the plot is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
+    /** Display mode: 'all', 'none', 'data_window', 'status_line', 'pane' */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /** Offset in bars (positive = future, negative = past) */
+    offset?: number;
+}
+
+/**
  * Options for numeric inputs
  */
 export interface InputOptions {
