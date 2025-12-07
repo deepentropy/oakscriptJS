@@ -1,4 +1,4 @@
-import {type IndicatorResult, math, Series, ta} from 'oakscriptjs';
+import {Series, ta, taCore, math, array, type IndicatorResult} from 'oakscriptjs';
 
 // Helper functions
 function na(value: number | null | undefined): boolean {

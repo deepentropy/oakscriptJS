@@ -1,5 +1,5 @@
 // indicators/mass-index/mass-index.ts
-import {Series, ta, math} from "oakscriptjs";
+import { Series, ta, math } from "oakscriptjs";
 var defaultInputs = {
   length: 10
 };
