@@ -2,11 +2,11 @@
  * Statement generation logic
  */
 
-import type { ASTNode } from '../PineParser.js';
-import type { GeneratorContext } from '../types.js';
-import { ExpressionGenerator } from './ExpressionGenerator.js';
-import { sanitizeIdentifier, applyIndent, INDENT_SIZE } from '../utils/index.js';
-import { translateFunctionName, translateIdentifier } from '../mappers/index.js';
+import type {ASTNode} from '../PineParser.js';
+import type {GeneratorContext} from '../types.js';
+import {ExpressionGenerator} from './ExpressionGenerator.js';
+import {applyIndent, INDENT_SIZE, sanitizeIdentifier} from '../utils/index.js';
+import {translateFunctionName, translateIdentifier} from '../mappers/index.js';
 
 /**
  * Generates TypeScript code for PineScript statements
@@ -160,9 +160,12 @@ export class StatementGenerator {
     const tsName = sanitizeIdentifier(name);
     this.context.variables.set(name, tsName);
 
+      // Use 'let' if this variable will be reassigned (including compound assignments like +=)
+      const declKeyword = this.context.reassignedVariables.has(name) ? 'let' : 'const';
+
     if (node.children && node.children.length > 0) {
       const init = this.expressionGen.generateExpression(node.children[0]!);
-      this.emit(`const ${tsName} = ${init};`);
+        this.emit(`${declKeyword} ${tsName} = ${init};`);
     } else {
       this.emit(`let ${tsName};`);
     }

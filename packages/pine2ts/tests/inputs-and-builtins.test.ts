@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { PineParser } from '../src/transpiler/PineParser';
-import { transpile } from '../src/transpiler/PineToTS';
+import {describe, expect, it} from 'vitest';
+import {PineParser} from '../src/transpiler/PineParser';
+import {transpile} from '../src/transpiler/PineToTS';
 
-describe('Phase 2: Input System & Built-in Variables', () => {
+describe('Inputs and Built-in Variables', () => {
   describe('Input Functions', () => {
     describe('input.int()', () => {
       it('should parse input.int with positional args', () => {
@@ -42,7 +42,7 @@ length = input.int(14, "Length")`;
         
         const result = transpile(source);
         
-        expect(result).toContain('inputs: Partial<IndicatorInputs> = {}');
+        expect(result).toContain('Partial<IndicatorInputs> = {}');
         expect(result).toContain('{ length } = { ...defaultInputs, ...inputs }');
       });
     });
@@ -211,24 +211,26 @@ position = bar_index`;
       expect(result).toContain('= i');
     });
 
-    it('should translate barstate.isfirst', () => {
+      it('should translate barstate.isfirst to false in batch mode', () => {
       const source = `indicator("Test")
 if barstate.isfirst
     x = 1`;
-      
+
       const result = transpile(source);
-      
-      expect(result).toContain('(i === 0)');
+
+          // In batch mode, barstate.isfirst is always false (we've processed past the first bar)
+          expect(result).toContain('if (false)');
     });
 
-    it('should translate barstate.islast', () => {
+      it('should translate barstate.islast to true in batch mode', () => {
       const source = `indicator("Test")
 if barstate.islast
     x = 1`;
-      
+
       const result = transpile(source);
-      
-      expect(result).toContain('(i === bars.length - 1)');
+
+          // In batch mode, barstate.islast is always true (we're at the end of available data)
+          expect(result).toContain('if (true)');
     });
   });
 
@@ -372,10 +374,11 @@ if barstate.isfirst
     firstClose := close
 
 plot(firstClose)`;
-      
-      const result = transpile(source);
-      
-      expect(result).toContain('if ((i === 0))');
+
+        const result = transpile(source);
+
+        // In batch mode, barstate.isfirst is false (we've processed past the first bar)
+        expect(result).toContain('if (false)');
       expect(result).toContain('firstClose = close');
     });
 

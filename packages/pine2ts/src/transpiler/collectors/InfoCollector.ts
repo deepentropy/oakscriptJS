@@ -3,15 +3,15 @@
  * Collects inputs, types, methods, and other metadata
  */
 
-import type { ASTNode } from '../PineParser.js';
-import type { 
-  InputDefinition, 
-  TypeInfo, 
-  MethodInfo, 
-  FieldInfo, 
-  ImportInfo, 
-  LibraryInfo,
-  TranspileWarning
+import type {ASTNode} from '../PineParser.js';
+import type {
+    FieldInfo,
+    ImportInfo,
+    InputDefinition,
+    LibraryInfo,
+    MethodInfo,
+    TranspileWarning,
+    TypeInfo
 } from '../types.js';
 
 /**
@@ -81,6 +81,15 @@ export class InfoCollector {
     if (node.type === 'Reassignment') {
       this.collectReassignmentInfo(node);
     }
+
+      // Handle compound assignments (+=, -=, *=, /=) which are parsed as BinaryExpression
+      // but semantically behave like reassignments
+      if (node.type === 'BinaryExpression') {
+          const op = String(node.value || '');
+          if (['+=', '-=', '*=', '/='].includes(op)) {
+              this.collectReassignmentInfo(node);
+          }
+      }
 
     if (node.type === 'MemberExpression') {
       this.collectMemberExpressionInfo(node);

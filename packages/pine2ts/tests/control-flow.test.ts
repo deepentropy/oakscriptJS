@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { PineParser } from '../src/transpiler/PineParser';
-import { transpile } from '../src/transpiler/PineToTS';
+import {describe, expect, it} from 'vitest';
+import {PineParser} from '../src/transpiler/PineParser';
+import {transpile} from '../src/transpiler/PineToTS';
 
-describe('Phase 1: Core Language Features', () => {
+describe('Control Flow and Operators', () => {
   describe('Reassignment Operator `:=`', () => {
     it('should parse `:=` reassignment', () => {
       const parser = new PineParser();
@@ -19,8 +19,8 @@ var counter = 0
 counter := counter + 1`;
       
       const result = transpile(source);
-      
-      expect(result).toContain('const counter = 0');
+
+        expect(result).toContain('let counter = 0');  // 'let' because counter is reassigned with :=
       expect(result).toContain('counter = (counter + 1)');  // Expression has parentheses
     });
   });
