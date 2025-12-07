@@ -1,4 +1,4 @@
-import {Series, ta, math, nz, type IndicatorResult, type InputConfig, type PlotConfig} from 'oakscriptjs';
+import { Series, ta, math, nz, type IndicatorResult, type InputConfig, type PlotConfig } from 'oakscriptjs';
 
 export interface IndicatorInputs {
   maTypeInput: "None" | "SMA" | "SMA + Bollinger Bands" | "EMA" | "SMMA (RMA)" | "WMA" | "VWMA";
@@ -29,7 +29,11 @@ const ohlc4 = open.add(high).add(low).add(close).div(4);
 const hlcc4 = high.add(low).add(close).add(close).div(4);
 
   // @version=6
-    // Note: Volume check removed - runtime.error not supported in transpiled code
+  let cumVol = 0;
+  (cumVol += nz(volume));
+  if (true) {
+    (() => { throw new Error("No volume is provided by the data vendor."); })();
+  }
   const src = close;
   const obv = ta.cum(math.sign(ta.change(src)).mul(volume));
   // Smoothing MA inputs
@@ -66,34 +70,8 @@ const hlcc4 = high.add(low).add(close).add(close).div(4);
 export const metadata = { title: "On Balance Volume", shortTitle: "OBV", overlay: false };
 export { defaultInputs };
 export const inputConfig: InputConfig[] = [{ id: 'maTypeInput', type: 'string', title: 'Type', defval: "None", options: ['None', 'SMA', 'SMA + Bollinger Bands', 'EMA', 'SMMA (RMA)', 'WMA', 'VWMA'] }, { id: 'maLengthInput', type: 'int', title: 'Length', defval: 14 }, { id: 'bbMultInput', type: 'float', title: 'BB StdDev', defval: 2, min: 0.001, max: 50, step: 0.5 }];
-export const plotConfig: PlotConfig[] = [{
-    id: 'plot0',
-    title: 'OnBalanceVolume',
-    color: '#2962FF',
-    lineWidth: 2
-}, {
-    id: 'plot1',
-    title: 'smoothingMA',
-    color: '#FFFF00',
-    lineWidth: 2,
-    display: 'all',
-    visible: 'enableMA'
-}, {
-    id: 'plot2',
-    title: 'Upper Bollinger Band',
-    color: '#00FF00',
-    lineWidth: 2,
-    display: 'all',
-    visible: 'isBB'
-}, {id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2, display: 'all', visible: 'isBB'}];
-export const fillConfig = [{
-    id: 'fill0',
-    plot1: 'plot2',
-    plot2: 'plot3',
-    color: '#2962FF',
-    title: 'Bollinger Bands Background Fill',
-    visible: 'isBB'
-}];
+export const plotConfig: PlotConfig[] = [{ id: 'plot0', title: 'OnBalanceVolume', color: '#2962FF', lineWidth: 2 }, { id: 'plot1', title: 'smoothingMA', color: '#FFFF00', lineWidth: 2, display: 'all', visible: 'enableMA' }, { id: 'plot2', title: 'Upper Bollinger Band', color: '#00FF00', lineWidth: 2, display: 'all', visible: 'isBB' }, { id: 'plot3', title: 'Lower Bollinger Band', color: '#00FF00', lineWidth: 2, display: 'all', visible: 'isBB' }];
+export const fillConfig = [{ id: 'fill0', plot1: 'plot2', plot2: 'plot3', color: '#2962FF', title: 'Bollinger Bands Background Fill', visible: 'isBB' }];
 export const calculate = On_Balance_Volume;
 export { On_Balance_Volume as On_Balance_VolumeIndicator };
 export type On_Balance_VolumeInputs = IndicatorInputs;

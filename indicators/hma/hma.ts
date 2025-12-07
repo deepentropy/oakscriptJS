@@ -1,4 +1,4 @@
-import {Series, ta, math, type IndicatorResult, type InputConfig, type PlotConfig} from 'oakscriptjs';
+import { Series, ta, math, type IndicatorResult, type InputConfig, type PlotConfig } from 'oakscriptjs';
 
 export interface IndicatorInputs {
   length: number;
