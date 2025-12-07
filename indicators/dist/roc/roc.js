@@ -1,5 +1,5 @@
 // indicators/roc/roc.ts
-import {Series} from "oakscriptjs";
+import { Series } from "oakscriptjs";
 var defaultInputs = {
   length: 9,
   source: "close"

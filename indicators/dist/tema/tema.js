@@ -1,5 +1,5 @@
 // indicators/tema/tema.ts
-import {Series, ta} from "oakscriptjs";
+import { Series, ta } from "oakscriptjs";
 var defaultInputs = {
   length: 9
 };

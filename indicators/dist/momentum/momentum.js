@@ -1,5 +1,5 @@
 // indicators/momentum/momentum.ts
-import {Series} from "oakscriptjs";
+import { Series } from "oakscriptjs";
 var defaultInputs = {
   len: 10,
   src: "close"
