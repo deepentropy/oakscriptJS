@@ -501,6 +501,22 @@ export function cci(source: Series, length: number): Series {
   return Series.fromArray(bars, result);
 }
 
+/**
+ * Parabolic SAR (Stop and Reverse)
+ * @param bars - Bar data
+ * @param start - Initial acceleration factor (default: 0.02)
+ * @param inc - Acceleration factor increment (default: 0.02)
+ * @param max - Maximum acceleration factor (default: 0.2)
+ * @returns Series with SAR values
+ */
+export function sar(bars: Bar[], start: number = 0.02, inc: number = 0.02, max: number = 0.2): Series {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const result = taCore.sar(start, inc, max, high, low, close);
+  return Series.fromArray(bars, result);
+}
+
 // Export as namespace object to match PineScript ta.* syntax
 export const ta = {
   sma,
@@ -533,4 +549,5 @@ export const ta = {
   alma,
   zigzag,
   cci,
+  sar,
 };
