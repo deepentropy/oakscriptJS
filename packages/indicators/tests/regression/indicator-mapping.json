@@ -313,7 +313,8 @@
   },
   "supertrend": {
     "dataFile": "data/20251207/Supertrend.csv",
-    "exportName": "Supertrend"
+    "exportName": "Supertrend",
+    "skipInitial": 200
   },
   "tech-ratings": {
     "dataFile": "data/20251207/Technical Ratings.csv",

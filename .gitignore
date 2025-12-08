@@ -2,7 +2,7 @@
 node_modules/
 yarn.lock
 .pnpm-store/
-
+nul
 # Build output
 dist/
 !indicators/dist/

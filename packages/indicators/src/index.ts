@@ -49,6 +49,11 @@ import * as demaIndicator from './dema';
 export { DEMA, calculate as calculateDEMA } from './dema';
 export type { DEMAInputs } from './dema';
 
+// Donchian Channels
+import * as donchianIndicator from './donchian';
+export { DonchianChannels, calculate as calculateDonchian } from './donchian';
+export type { DonchianInputs } from './donchian';
+
 // EMA - Exponential Moving Average
 import * as emaIndicator from './ema';
 export { EMA, calculate as calculateEMA } from './ema';
@@ -58,6 +63,11 @@ export type { EMAInputs } from './ema';
 import * as hmaIndicator from './hma';
 export { HMA, calculate as calculateHMA } from './hma';
 export type { HMAInputs } from './hma';
+
+// Ichimoku Cloud
+import * as ichimokuIndicator from './ichimoku';
+export { IchimokuCloud, calculate as calculateIchimoku } from './ichimoku';
+export type { IchimokuInputs } from './ichimoku';
 
 // Keltner Channels
 import * as keltnerIndicator from './keltner';
@@ -94,6 +104,11 @@ import * as obvIndicator from './obv';
 export { OBV, calculate as calculateOBV } from './obv';
 export type { OBVInputs } from './obv';
 
+// Parabolic SAR
+import * as parabolicSarIndicator from './parabolic-sar';
+export { ParabolicSAR, calculate as calculateParabolicSAR } from './parabolic-sar';
+export type { ParabolicSARInputs } from './parabolic-sar';
+
 // RMA - Smoothed Moving Average
 import * as rmaIndicator from './rma';
 export { RMA, calculate as calculateRMA } from './rma';
@@ -113,6 +128,136 @@ export type { RSIInputs } from './rsi';
 import * as stochIndicator from './stoch';
 export { Stochastic, calculate as calculateStochastic } from './stoch';
 export type { StochasticInputs } from './stoch';
+
+// Supertrend
+import * as supertrendIndicator from './supertrend';
+export { Supertrend, calculate as calculateSupertrend } from './supertrend';
+export type { SupertrendInputs } from './supertrend';
+
+// ADX - Average Directional Index
+import * as adxIndicator from './adx';
+export { ADX, calculate as calculateADX } from './adx';
+export type { ADXInputs } from './adx';
+
+// Awesome Oscillator
+import * as awesomeOscIndicator from './awesome-oscillator';
+export { AwesomeOscillator, calculate as calculateAwesomeOscillator } from './awesome-oscillator';
+export type { AwesomeOscillatorInputs } from './awesome-oscillator';
+
+// BBTrend
+import * as bbtrendIndicator from './bbtrend';
+export { BBTrend, calculate as calculateBBTrend } from './bbtrend';
+export type { BBTrendInputs } from './bbtrend';
+
+// Bull Bear Power
+import * as bullBearPowerIndicator from './bull-bear-power';
+export { BullBearPower, calculate as calculateBullBearPower } from './bull-bear-power';
+export type { BullBearPowerInputs } from './bull-bear-power';
+
+// Chande Momentum Oscillator
+import * as chandeMOIndicator from './chande-mo';
+export { ChandeMO, calculate as calculateChandeMO } from './chande-mo';
+export type { ChandeMOInputs } from './chande-mo';
+
+// DPO - Detrended Price Oscillator
+import * as dpoIndicator from './dpo';
+export { DPO, calculate as calculateDPO } from './dpo';
+export type { DPOInputs } from './dpo';
+
+// Elder Force Index
+import * as elderForceIndicator from './elder-force';
+export { ElderForceIndex, calculate as calculateElderForce } from './elder-force';
+export type { ElderForceInputs } from './elder-force';
+
+// Historical Volatility
+import * as histVolIndicator from './historical-volatility';
+export { HistoricalVolatility, calculate as calculateHistoricalVolatility } from './historical-volatility';
+export type { HistoricalVolatilityInputs } from './historical-volatility';
+
+// MA Cross
+import * as maCrossIndicator from './ma-cross';
+export { MACross, calculate as calculateMACross } from './ma-cross';
+export type { MACrossInputs } from './ma-cross';
+
+// Median
+import * as medianIndicator from './median';
+export { Median, calculate as calculateMedian } from './median';
+export type { MedianInputs } from './median';
+
+// MFI - Money Flow Index
+import * as mfiIndicator from './mfi';
+export { MFI, calculate as calculateMFI } from './mfi';
+export type { MFIInputs } from './mfi';
+
+// PVT - Price Volume Trend
+import * as pvtIndicator from './pvt';
+export { PVT, calculate as calculatePVT } from './pvt';
+export type { PVTInputs } from './pvt';
+
+// RVI - Relative Vigor Index
+import * as rviIndicator from './rvi';
+export { RVI, calculate as calculateRVI } from './rvi';
+export type { RVIInputs } from './rvi';
+
+// SMI Ergodic
+import * as smiErgodicIndicator from './smi-ergodic';
+export { SMIErgodic, calculate as calculateSMIErgodic } from './smi-ergodic';
+export type { SMIErgodicInputs } from './smi-ergodic';
+
+// SMI Ergodic Oscillator
+import * as smiErgodicOscIndicator from './smi-ergodic-oscillator';
+export { SMIErgodicOscillator, calculate as calculateSMIErgodicOsc } from './smi-ergodic-oscillator';
+export type { SMIErgodicOscInputs } from './smi-ergodic-oscillator';
+
+// SMMA - Smoothed Moving Average
+import * as smmaIndicator from './smma';
+export { SMMA, calculate as calculateSMMA } from './smma';
+export type { SMMAInputs } from './smma';
+
+// Standard Deviation
+import * as stdevIndicator from './stdev';
+export { StandardDeviation, calculate as calculateStDev } from './stdev';
+export type { StDevInputs } from './stdev';
+
+// Stochastic RSI
+import * as stochRsiIndicator from './stoch-rsi';
+export { StochRSI, calculate as calculateStochRSI } from './stoch-rsi';
+export type { StochRSIInputs } from './stoch-rsi';
+
+// Trend Strength Index
+import * as trendStrengthIndicator from './trend-strength';
+export { TrendStrengthIndex, calculate as calculateTrendStrength } from './trend-strength';
+export type { TrendStrengthInputs } from './trend-strength';
+
+// TSI - True Strength Index
+import * as tsiIndicator from './tsi';
+export { TSI, calculate as calculateTSI } from './tsi';
+export type { TSIInputs } from './tsi';
+
+// Volume Oscillator
+import * as volumeOscIndicator from './volume-oscillator';
+export { VolumeOscillator, calculate as calculateVolumeOsc } from './volume-oscillator';
+export type { VolumeOscillatorInputs } from './volume-oscillator';
+
+// Vortex Indicator
+import * as vortexIndicator from './vortex';
+export { VortexIndicator, calculate as calculateVortex } from './vortex';
+export type { VortexInputs } from './vortex';
+
+// Williams Alligator
+import * as williamsAlligatorIndicator from './williams-alligator';
+export { WilliamsAlligator, calculate as calculateWilliamsAlligator } from './williams-alligator';
+export type { WilliamsAlligatorInputs } from './williams-alligator';
+
+// Williams %R
+import * as williamsRIndicator from './williams-r';
+export { WilliamsPercentRange, calculate as calculateWilliamsR } from './williams-r';
+export type { WilliamsRInputs } from './williams-r';
+
+// Woodies CCI
+import * as woodiesCCIIndicator from './woodies-cci';
+export { WoodiesCCI, calculate as calculateWoodiesCCI } from './woodies-cci';
+export type { WoodiesCCIInputs } from './woodies-cci';
 
 // TEMA - Triple Exponential Moving Average
 import * as temaIndicator from './tema';
@@ -302,6 +447,18 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     calculate: hmaIndicator.calculate,
   },
   {
+    id: 'ichimoku',
+    name: 'Ichimoku Cloud',
+    shortName: 'Ichimoku',
+    description: 'Comprehensive trend system showing support/resistance and momentum.',
+    overlay: true,
+    metadata: ichimokuIndicator.metadata,
+    inputConfig: ichimokuIndicator.inputConfig as InputConfig[],
+    plotConfig: ichimokuIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...ichimokuIndicator.defaultInputs },
+    calculate: ichimokuIndicator.calculate,
+  },
+  {
     id: 'keltner',
     name: 'Keltner Channels (KC)',
     shortName: 'KC',
@@ -468,6 +625,342 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     plotConfig: wmaIndicator.plotConfig as PlotConfig[],
     defaultInputs: { ...wmaIndicator.defaultInputs },
     calculate: wmaIndicator.calculate,
+  },
+  {
+    id: 'donchian',
+    name: 'Donchian Channels (DC)',
+    shortName: 'DC',
+    description: 'Shows the highest high and lowest low over a period, used for breakout trading.',
+    overlay: true,
+    metadata: donchianIndicator.metadata,
+    inputConfig: donchianIndicator.inputConfig as InputConfig[],
+    plotConfig: donchianIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...donchianIndicator.defaultInputs },
+    calculate: donchianIndicator.calculate,
+  },
+  {
+    id: 'parabolic-sar',
+    name: 'Parabolic SAR',
+    shortName: 'SAR',
+    description: 'A trend-following indicator that provides potential entry and exit points.',
+    overlay: true,
+    metadata: parabolicSarIndicator.metadata,
+    inputConfig: parabolicSarIndicator.inputConfig as InputConfig[],
+    plotConfig: parabolicSarIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...parabolicSarIndicator.defaultInputs },
+    calculate: parabolicSarIndicator.calculate,
+  },
+  {
+    id: 'supertrend',
+    name: 'Supertrend',
+    shortName: 'ST',
+    description: 'A trend-following overlay that uses ATR to calculate dynamic support/resistance.',
+    overlay: true,
+    metadata: supertrendIndicator.metadata,
+    inputConfig: supertrendIndicator.inputConfig as InputConfig[],
+    plotConfig: supertrendIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...supertrendIndicator.defaultInputs },
+    calculate: supertrendIndicator.calculate,
+  },
+  {
+    id: 'adx',
+    name: 'Average Directional Index (ADX)',
+    shortName: 'ADX',
+    description: 'Measures trend strength regardless of direction.',
+    overlay: false,
+    metadata: adxIndicator.metadata,
+    inputConfig: adxIndicator.inputConfig as InputConfig[],
+    plotConfig: adxIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...adxIndicator.defaultInputs },
+    calculate: adxIndicator.calculate,
+  },
+  {
+    id: 'awesome-oscillator',
+    name: 'Awesome Oscillator',
+    shortName: 'AO',
+    description: 'Shows market momentum using SMA difference.',
+    overlay: false,
+    metadata: awesomeOscIndicator.metadata,
+    inputConfig: awesomeOscIndicator.inputConfig as InputConfig[],
+    plotConfig: awesomeOscIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...awesomeOscIndicator.defaultInputs },
+    calculate: awesomeOscIndicator.calculate,
+  },
+  {
+    id: 'bbtrend',
+    name: 'BBTrend',
+    shortName: 'BBT',
+    description: 'Measures trend using Bollinger Bands.',
+    overlay: false,
+    metadata: bbtrendIndicator.metadata,
+    inputConfig: bbtrendIndicator.inputConfig as InputConfig[],
+    plotConfig: bbtrendIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...bbtrendIndicator.defaultInputs },
+    calculate: bbtrendIndicator.calculate,
+  },
+  {
+    id: 'bull-bear-power',
+    name: 'Bull Bear Power',
+    shortName: 'BBP',
+    description: 'Measures buying/selling pressure relative to EMA.',
+    overlay: false,
+    metadata: bullBearPowerIndicator.metadata,
+    inputConfig: bullBearPowerIndicator.inputConfig as InputConfig[],
+    plotConfig: bullBearPowerIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...bullBearPowerIndicator.defaultInputs },
+    calculate: bullBearPowerIndicator.calculate,
+  },
+  {
+    id: 'chande-mo',
+    name: 'Chande Momentum Oscillator',
+    shortName: 'CMO',
+    description: 'Measures momentum on a scale of -100 to +100.',
+    overlay: false,
+    metadata: chandeMOIndicator.metadata,
+    inputConfig: chandeMOIndicator.inputConfig as InputConfig[],
+    plotConfig: chandeMOIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...chandeMOIndicator.defaultInputs },
+    calculate: chandeMOIndicator.calculate,
+  },
+  {
+    id: 'dpo',
+    name: 'Detrended Price Oscillator',
+    shortName: 'DPO',
+    description: 'Removes trend to identify cycles.',
+    overlay: false,
+    metadata: dpoIndicator.metadata,
+    inputConfig: dpoIndicator.inputConfig as InputConfig[],
+    plotConfig: dpoIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...dpoIndicator.defaultInputs },
+    calculate: dpoIndicator.calculate,
+  },
+  {
+    id: 'elder-force',
+    name: 'Elder Force Index',
+    shortName: 'EFI',
+    description: 'Combines price and volume for force measurement.',
+    overlay: false,
+    metadata: elderForceIndicator.metadata,
+    inputConfig: elderForceIndicator.inputConfig as InputConfig[],
+    plotConfig: elderForceIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...elderForceIndicator.defaultInputs },
+    calculate: elderForceIndicator.calculate,
+  },
+  {
+    id: 'hist-volatility',
+    name: 'Historical Volatility',
+    shortName: 'HV',
+    description: 'Annualized standard deviation of log returns.',
+    overlay: false,
+    metadata: histVolIndicator.metadata,
+    inputConfig: histVolIndicator.inputConfig as InputConfig[],
+    plotConfig: histVolIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...histVolIndicator.defaultInputs },
+    calculate: histVolIndicator.calculate,
+  },
+  {
+    id: 'ma-cross',
+    name: 'MA Cross',
+    shortName: 'MAC',
+    description: 'Two moving averages for crossover signals.',
+    overlay: true,
+    metadata: maCrossIndicator.metadata,
+    inputConfig: maCrossIndicator.inputConfig as InputConfig[],
+    plotConfig: maCrossIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...maCrossIndicator.defaultInputs },
+    calculate: maCrossIndicator.calculate,
+  },
+  {
+    id: 'median',
+    name: 'Median',
+    shortName: 'MED',
+    description: 'Median price with ATR bands.',
+    overlay: true,
+    metadata: medianIndicator.metadata,
+    inputConfig: medianIndicator.inputConfig as InputConfig[],
+    plotConfig: medianIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...medianIndicator.defaultInputs },
+    calculate: medianIndicator.calculate,
+  },
+  {
+    id: 'mfi',
+    name: 'Money Flow Index',
+    shortName: 'MFI',
+    description: 'Volume-weighted RSI measuring buying/selling pressure.',
+    overlay: false,
+    metadata: mfiIndicator.metadata,
+    inputConfig: mfiIndicator.inputConfig as InputConfig[],
+    plotConfig: mfiIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...mfiIndicator.defaultInputs },
+    calculate: mfiIndicator.calculate,
+  },
+  {
+    id: 'pvt',
+    name: 'Price Volume Trend',
+    shortName: 'PVT',
+    description: 'Cumulative volume weighted by price changes.',
+    overlay: false,
+    metadata: pvtIndicator.metadata,
+    inputConfig: pvtIndicator.inputConfig as InputConfig[],
+    plotConfig: pvtIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...pvtIndicator.defaultInputs },
+    calculate: pvtIndicator.calculate,
+  },
+  {
+    id: 'rvi',
+    name: 'Relative Vigor Index',
+    shortName: 'RVI',
+    description: 'Measures conviction of price action.',
+    overlay: false,
+    metadata: rviIndicator.metadata,
+    inputConfig: rviIndicator.inputConfig as InputConfig[],
+    plotConfig: rviIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...rviIndicator.defaultInputs },
+    calculate: rviIndicator.calculate,
+  },
+  {
+    id: 'smi-ergodic',
+    name: 'SMI Ergodic Indicator',
+    shortName: 'SMII',
+    description: 'TSI-based momentum oscillator with signal line.',
+    overlay: false,
+    metadata: smiErgodicIndicator.metadata,
+    inputConfig: smiErgodicIndicator.inputConfig as InputConfig[],
+    plotConfig: smiErgodicIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...smiErgodicIndicator.defaultInputs },
+    calculate: smiErgodicIndicator.calculate,
+  },
+  {
+    id: 'smi-ergodic-osc',
+    name: 'SMI Ergodic Oscillator',
+    shortName: 'SMIO',
+    description: 'Difference between SMI and signal as histogram.',
+    overlay: false,
+    metadata: smiErgodicOscIndicator.metadata,
+    inputConfig: smiErgodicOscIndicator.inputConfig as InputConfig[],
+    plotConfig: smiErgodicOscIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...smiErgodicOscIndicator.defaultInputs },
+    calculate: smiErgodicOscIndicator.calculate,
+  },
+  {
+    id: 'smma',
+    name: 'Smoothed Moving Average',
+    shortName: 'SMMA',
+    description: 'Wilder smoothing moving average.',
+    overlay: true,
+    metadata: smmaIndicator.metadata,
+    inputConfig: smmaIndicator.inputConfig as InputConfig[],
+    plotConfig: smmaIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...smmaIndicator.defaultInputs },
+    calculate: smmaIndicator.calculate,
+  },
+  {
+    id: 'stdev',
+    name: 'Standard Deviation',
+    shortName: 'StDev',
+    description: 'Measures price volatility.',
+    overlay: false,
+    metadata: stdevIndicator.metadata,
+    inputConfig: stdevIndicator.inputConfig as InputConfig[],
+    plotConfig: stdevIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...stdevIndicator.defaultInputs },
+    calculate: stdevIndicator.calculate,
+  },
+  {
+    id: 'stoch-rsi',
+    name: 'Stochastic RSI',
+    shortName: 'StochRSI',
+    description: 'Stochastic applied to RSI values.',
+    overlay: false,
+    metadata: stochRsiIndicator.metadata,
+    inputConfig: stochRsiIndicator.inputConfig as InputConfig[],
+    plotConfig: stochRsiIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...stochRsiIndicator.defaultInputs },
+    calculate: stochRsiIndicator.calculate,
+  },
+  {
+    id: 'trend-strength',
+    name: 'Trend Strength Index',
+    shortName: 'TSI',
+    description: 'Measures trend strength based on directional movement.',
+    overlay: false,
+    metadata: trendStrengthIndicator.metadata,
+    inputConfig: trendStrengthIndicator.inputConfig as InputConfig[],
+    plotConfig: trendStrengthIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...trendStrengthIndicator.defaultInputs },
+    calculate: trendStrengthIndicator.calculate,
+  },
+  {
+    id: 'tsi',
+    name: 'True Strength Index',
+    shortName: 'TSI',
+    description: 'Double-smoothed momentum oscillator.',
+    overlay: false,
+    metadata: tsiIndicator.metadata,
+    inputConfig: tsiIndicator.inputConfig as InputConfig[],
+    plotConfig: tsiIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...tsiIndicator.defaultInputs },
+    calculate: tsiIndicator.calculate,
+  },
+  {
+    id: 'volume-osc',
+    name: 'Volume Oscillator',
+    shortName: 'VO',
+    description: 'Percentage difference between volume EMAs.',
+    overlay: false,
+    metadata: volumeOscIndicator.metadata,
+    inputConfig: volumeOscIndicator.inputConfig as InputConfig[],
+    plotConfig: volumeOscIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...volumeOscIndicator.defaultInputs },
+    calculate: volumeOscIndicator.calculate,
+  },
+  {
+    id: 'vortex',
+    name: 'Vortex Indicator',
+    shortName: 'VI',
+    description: 'Identifies trend start and direction.',
+    overlay: false,
+    metadata: vortexIndicator.metadata,
+    inputConfig: vortexIndicator.inputConfig as InputConfig[],
+    plotConfig: vortexIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...vortexIndicator.defaultInputs },
+    calculate: vortexIndicator.calculate,
+  },
+  {
+    id: 'williams-alligator',
+    name: 'Williams Alligator',
+    shortName: 'Alligator',
+    description: 'Three smoothed moving averages for trend detection.',
+    overlay: true,
+    metadata: williamsAlligatorIndicator.metadata,
+    inputConfig: williamsAlligatorIndicator.inputConfig as InputConfig[],
+    plotConfig: williamsAlligatorIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...williamsAlligatorIndicator.defaultInputs },
+    calculate: williamsAlligatorIndicator.calculate,
+  },
+  {
+    id: 'williams-r',
+    name: 'Williams %R',
+    shortName: '%R',
+    description: 'Momentum indicator showing overbought/oversold levels.',
+    overlay: false,
+    metadata: williamsRIndicator.metadata,
+    inputConfig: williamsRIndicator.inputConfig as InputConfig[],
+    plotConfig: williamsRIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...williamsRIndicator.defaultInputs },
+    calculate: williamsRIndicator.calculate,
+  },
+  {
+    id: 'woodies-cci',
+    name: 'Woodies CCI',
+    shortName: 'WCCI',
+    description: 'CCI with turbo for faster signals.',
+    overlay: false,
+    metadata: woodiesCCIIndicator.metadata,
+    inputConfig: woodiesCCIIndicator.inputConfig as InputConfig[],
+    plotConfig: woodiesCCIIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...woodiesCCIIndicator.defaultInputs },
+    calculate: woodiesCCIIndicator.calculate,
   },
 ];
 

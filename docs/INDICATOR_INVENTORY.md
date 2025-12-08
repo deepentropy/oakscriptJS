@@ -8,8 +8,8 @@ ranked by complexity. It tracks implementation status in OakScriptJS.
 | Category               | Count |
 |------------------------|-------|
 | **Total Indicators**   | 134   |
-| **Implemented**        | 23    |
-| **Pending**            | 111   |
+| **Implemented**        | 27    |
+| **Pending**            | 107   |
 | **Very Complex (25+)** | 3     |
 | **Complex (15-24)**    | 29    |
 | **Medium (5-14)**      | 43    |
@@ -195,7 +195,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | Elder Force Index              | 1        | Pending         |
 | Historical Volatility          | 1        | Pending         |
 | Hull Moving Average            | 1        | **Implemented** |
-| Ichimoku Cloud                 | 1        | Pending         |
+| Ichimoku Cloud                 | 1        | **Implemented** |
 | Least Squares Moving Average   | 1        | **Implemented** |
 | MA Cross                       | 1        | Pending         |
 | Mass Index                     | 1        | **Implemented** |
@@ -204,7 +204,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | Money Flow Index               | 1        | Pending         |
 | Moving Average Weighted        | 1        | **Implemented** |
 | Net Volume                     | 1        | Pending         |
-| Parabolic SAR                  | 1        | Pending         |
+| Parabolic SAR                  | 1        | **Implemented** |
 | Price Volume Trend             | 1        | Pending         |
 | RCI Ribbon                     | 1        | Pending         |
 | Relative Vigor Index           | 1        | Pending         |
@@ -214,7 +214,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | SMI Ergodic Oscillator         | 1        | Pending         |
 | Standard Deviation             | 1        | Pending         |
 | Stochastic RSI                 | 1        | Pending         |
-| Supertrend                     | 1        | Pending         |
+| Supertrend                     | 1        | **Implemented** |
 | Trend Strength Index           | 1        | Pending         |
 | Triple EMA                     | 1        | **Implemented** |
 | True Strength Indicator        | 1        | Pending         |
@@ -240,7 +240,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | Connors RSI                           | 3     | 3        | Pending         |
 | Coppock Curve                         | 2     | 2        | Pending         |
 | Directional Movement Index            | 4     | 4        | Pending         |
-| Donchian Channels                     | 2     | 2        | Pending         |
+| Donchian Channels                     | 2     | 2        | **Implemented** |
 | Ease of Movement                      | 2     | 2        | Pending         |
 | Envelope                              | 2     | 2        | Pending         |
 | Fisher Transform                      | 2     | 2        | Pending         |
@@ -272,12 +272,47 @@ These are frequently used indicators with simple implementations:
 ### Tier 2: Medium Complexity, High Utility
 
 1. ~~**Keltner Channels**~~ - **IMPLEMENTED**
-2. **Ichimoku Cloud** - Comprehensive trend system
-3. **Parabolic SAR** - Trend following
-4. **Supertrend** - Popular overlay
-5. **Donchian Channels** - Breakout system
+2. ~~**Ichimoku Cloud**~~ - **IMPLEMENTED**
+3. ~~**Parabolic SAR**~~ - **IMPLEMENTED**
+4. ~~**Supertrend**~~ - **IMPLEMENTED**
+5. ~~**Donchian Channels**~~ - **IMPLEMENTED**
 
-### Tier 3: Advanced Features (Requires Infrastructure)
+### Tier 3: Score 1 Indicators with Regression Data
+
+These are simple indicators (Score 1) that have PineSuite regression data available for testing:
+
+| # | Indicator | Mapping ID | Export Name |
+|---|-----------|------------|-------------|
+| 1 | Average Directional Index (ADX) | `adx` | `ADX` |
+| 2 | Awesome Oscillator | `awesome-oscillator` | `AwesomeOscillator` |
+| 3 | BBTrend | `bb-trend` | `BBTrend` |
+| 4 | Bull Bear Power | `bull-bear-power` | `BullBearPower` |
+| 5 | Chande Momentum Oscillator | `chande-mo` | `ChandeMomentumOscillator` |
+| 6 | Cumulative Volume Delta | `cvd` | `CumulativeVolumeDelta` |
+| 7 | Detrended Price Oscillator (DPO) | `dpo` | `DetrendedPriceOscillator` |
+| 8 | Elder Force Index | `elder-force` | `ElderForceIndex` |
+| 9 | Historical Volatility | `hist-volatility` | `HistoricalVolatility` |
+| 10 | MA Cross | `ma-cross` | `MACross` |
+| 11 | Median | `median` | `Median` |
+| 12 | Money Flow Index (MFI) | `mfi` | `MoneyFlowIndex` |
+| 13 | Net Volume | `net-volume` | `NetVolume` |
+| 14 | Price Volume Trend (PVT) | `pvt` | `PriceVolumeTrend` |
+| 15 | RCI Ribbon | `rci-ribbon` | `RCIRibbon` |
+| 16 | Relative Vigor Index (RVI) | `rvi` | `RelativeVigorIndex` |
+| 17 | Relative Volume at Time | `rvol-at-time` | `RelativeVolumeAtTime` |
+| 18 | SMI Ergodic Indicator | `smi-ergodic` | `SMIErgodic` |
+| 19 | SMI Ergodic Oscillator | `smi-ergodic-osc` | `SMIErgodicOscillator` |
+| 20 | Stochastic RSI | `stoch-rsi` | `StochasticRSI` |
+| 21 | Trend Strength Index | `trend-strength` | `TrendStrengthIndex` |
+| 22 | True Strength Index (TSI) | `tsi` | `TrueStrengthIndex` |
+| 23 | Volume Delta | `volume-delta` | `VolumeDelta` |
+| 24 | Volume Oscillator | `volume-osc` | `VolumeOscillator` |
+| 25 | Vortex Indicator | `vortex` | `VortexIndicator` |
+| 26 | Williams Alligator | `williams-alligator` | `WilliamsAlligator` |
+| 27 | Williams %R | `williams-r` | `WilliamsPercentRange` |
+| 28 | Woodies CCI | `woodies-cci` | `WoodiesCCI` |
+
+### Tier 4: Advanced Features (Requires Infrastructure)
 
 These need additional OakScriptJS capabilities:
 
@@ -304,4 +339,4 @@ indicators/
 
 ---
 
-*Last updated: December 2024*
+*Last updated: December 2025*
