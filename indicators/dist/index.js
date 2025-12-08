@@ -92,21 +92,7 @@ function Moving_Average_Simple(bars, inputs = {}) {
 }
 var metadata = { title: "Moving Average Simple", shortTitle: "SMA", overlay: true };
 var inputConfig = [{ id: "len", type: "int", title: "Length", defval: 9, min: 1 }, { id: "src", type: "source", title: "Source", defval: "close" }, { id: "offset", type: "int", title: "Offset", defval: 0, min: -500, max: 500 }, { id: "maTypeInput", type: "string", title: "Type", defval: "None", options: ["None", "SMA", "SMA + Bollinger Bands", "EMA", "SMMA (RMA)", "WMA", "VWMA"] }, { id: "maLengthInput", type: "int", title: "Length", defval: 14 }, { id: "bbMultInput", type: "float", title: "BB StdDev", defval: 2, min: 1e-3, max: 50, step: 0.5 }];
-var plotConfig = [{id: "plot0", title: "MA", color: "#2962FF", lineWidth: 2}, {
-    id: "plot1",
-    title: "smoothingMA",
-    color: "#FFFF00",
-    lineWidth: 2,
-    display: "all",
-    visible: "enableMA"
-}, {
-    id: "plot2",
-    title: "Upper Bollinger Band",
-    color: "#00FF00",
-    lineWidth: 2,
-    display: "all",
-    visible: "isBB"
-}, {id: "plot3", title: "Lower Bollinger Band", color: "#00FF00", lineWidth: 2, display: "all", visible: "isBB"}];
+var plotConfig = [{ id: "plot0", title: "MA", color: "#2962FF", lineWidth: 2 }, { id: "plot1", title: "smoothingMA", color: "#FFFF00", lineWidth: 2, display: "all", visible: "enableMA" }, { id: "plot2", title: "Upper Bollinger Band", color: "#00FF00", lineWidth: 2, display: "all", visible: "isBB" }, { id: "plot3", title: "Lower Bollinger Band", color: "#00FF00", lineWidth: 2, display: "all", visible: "isBB" }];
 var calculate = Moving_Average_Simple;
 
 // indicators/sma/sma-calculation.ts
@@ -224,10 +210,10 @@ var plotConfig2 = [{ id: "plot0", title: "MOM", color: "#2962FF", lineWidth: 2 }
 var calculate2 = Momentum;
 
 // indicators/momentum/momentum-calculation.ts
-import {ta as ta3} from "oakscriptjs";
+import { ta as ta3 } from "oakscriptjs";
 function calculateMomentum(bars, length, source) {
   const src = getSourceSeries(bars, source);
-    const momValues = ta3.mom(src, length);
+  const momValues = ta3.mom(src, length);
   const momArray = momValues.toArray();
   const data = [];
   for (let i = 0; i < bars.length; i++) {
@@ -304,7 +290,7 @@ __export(dema_exports, {
 });
 
 // indicators/dema/dema.ts
-import {Series as Series6, ta as ta4} from "oakscriptjs";
+import { Series as Series6, ta as ta4 } from "oakscriptjs";
 var defaultInputs4 = {
   length: 9,
   src: "close"
@@ -342,8 +328,8 @@ function Double_EMA(bars, inputs = {}) {
         return close;
     }
   })();
-    const e1 = ta4.ema(srcSeries, length);
-    const e2 = ta4.ema(e1, length);
+  const e1 = ta4.ema(srcSeries, length);
+  const e2 = ta4.ema(e1, length);
   const dema = e1.mul(2).sub(e2);
   return {
     metadata: { title: "Double EMA", shorttitle: "DEMA", overlay: true },
@@ -356,11 +342,11 @@ var plotConfig4 = [{ id: "plot0", title: "dema", color: "#43A047", lineWidth: 2 
 var calculate4 = Double_EMA;
 
 // indicators/dema/dema-calculation.ts
-import {ta as ta5} from "oakscriptjs";
+import { ta as ta5 } from "oakscriptjs";
 function calculateDEMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
-    const ema1 = ta5.ema(src, length);
-    const ema2 = ta5.ema(ema1, length);
+  const ema1 = ta5.ema(src, length);
+  const ema2 = ta5.ema(ema1, length);
   const dema = ema1.mul(2).sub(ema2);
   const demaArray = dema.toArray();
   const data = [];
@@ -387,7 +373,7 @@ __export(tema_exports, {
 });
 
 // indicators/tema/tema.ts
-import {Series as Series8, ta as ta6} from "oakscriptjs";
+import { Series as Series8, ta as ta6 } from "oakscriptjs";
 var defaultInputs5 = {
   length: 9
 };
@@ -402,9 +388,9 @@ function Triple_EMA(bars, inputs = {}) {
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
-    const ema1 = ta6.ema(close, length);
-    const ema2 = ta6.ema(ema1, length);
-    const ema3 = ta6.ema(ema2, length);
+  const ema1 = ta6.ema(close, length);
+  const ema2 = ta6.ema(ema1, length);
+  const ema3 = ta6.ema(ema2, length);
   const out = ema1.sub(ema2).mul(3).add(ema3);
   return {
     metadata: { title: "Triple EMA", shorttitle: "TEMA", overlay: true },
@@ -417,12 +403,12 @@ var plotConfig5 = [{ id: "plot0", title: "out", color: "#2962FF", lineWidth: 2 }
 var calculate5 = Triple_EMA;
 
 // indicators/tema/tema-calculation.ts
-import {ta as ta7} from "oakscriptjs";
+import { ta as ta7 } from "oakscriptjs";
 function calculateTEMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
-    const ema1 = ta7.ema(src, length);
-    const ema2 = ta7.ema(ema1, length);
-    const ema3 = ta7.ema(ema2, length);
+  const ema1 = ta7.ema(src, length);
+  const ema2 = ta7.ema(ema1, length);
+  const ema3 = ta7.ema(ema2, length);
   const tema = ema1.sub(ema2).mul(3).add(ema3);
   const temaArray = tema.toArray();
   const data = [];
@@ -499,10 +485,10 @@ var plotConfig6 = [{ id: "plot0", title: "ROC", color: "#2962FF", lineWidth: 2 }
 var calculate6 = Rate_Of_Change;
 
 // indicators/roc/roc-calculation.ts
-import {ta as ta8} from "oakscriptjs";
+import { ta as ta8 } from "oakscriptjs";
 function calculateROC(bars, length, source) {
   const src = getSourceSeries(bars, source);
-    const rocValues = ta8.roc(src, length);
+  const rocValues = ta8.roc(src, length);
   const rocArray = rocValues.toArray();
   const data = [];
   for (let i = 0; i < bars.length; i++) {
@@ -528,7 +514,7 @@ __export(adr_exports, {
 });
 
 // indicators/adr/adr.ts
-import {Series as Series12, ta as ta9} from "oakscriptjs";
+import { Series as Series12, ta as ta9 } from "oakscriptjs";
 var defaultInputs7 = {
   lengthInput: 14
 };
@@ -543,7 +529,7 @@ function Average_Day_Range(bars, inputs = {}) {
   const hlc3 = high.add(low).add(close).div(3);
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
-    const adr = ta9.sma(high.sub(low), lengthInput);
+  const adr = ta9.sma(high.sub(low), lengthInput);
   return {
     metadata: { title: "Average Day Range", shorttitle: "ADR", overlay: false },
     plots: { "plot0": adr.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -555,12 +541,12 @@ var plotConfig7 = [{ id: "plot0", title: "ADR", color: "#2962FF", lineWidth: 2 }
 var calculate7 = Average_Day_Range;
 
 // indicators/adr/adr-calculation.ts
-import {Series as Series13, ta as ta10} from "oakscriptjs";
+import { Series as Series13, ta as ta10 } from "oakscriptjs";
 function calculateADR(bars, length) {
   const high = Series13.fromBars(bars, "high");
   const low = Series13.fromBars(bars, "low");
   const range = high.sub(low);
-    const adrValues = ta10.sma(range, length);
+  const adrValues = ta10.sma(range, length);
   const adrArray = adrValues.toArray();
   const data = [];
   for (let i = 0; i < bars.length; i++) {
@@ -586,7 +572,7 @@ __export(mass_index_exports, {
 });
 
 // indicators/mass-index/mass-index.ts
-import {Series as Series14, ta as ta11, math} from "oakscriptjs";
+import { Series as Series14, ta as ta11, math } from "oakscriptjs";
 var defaultInputs8 = {
   length: 10
 };
@@ -602,7 +588,7 @@ function Mass_Index(bars, inputs = {}) {
   const ohlc4 = open.add(high).add(low).add(close).div(4);
   const hlcc4 = high.add(low).add(close).add(close).div(4);
   const span = high.sub(low);
-    const mi = math.sum(ta11.ema(span, 9).div(ta11.ema(ta11.ema(span, 9), 9)), length);
+  const mi = math.sum(ta11.ema(span, 9).div(ta11.ema(ta11.ema(span, 9), 9)), length);
   return {
     metadata: { title: "Mass Index", shorttitle: "Mass Index", overlay: false },
     plots: { "plot0": mi.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -614,13 +600,13 @@ var plotConfig8 = [{ id: "plot0", title: "mi", color: "#2962FF", lineWidth: 2 }]
 var calculate8 = Mass_Index;
 
 // indicators/mass-index/mass-index-calculation.ts
-import {Series as Series15, ta as ta12} from "oakscriptjs";
+import { Series as Series15, ta as ta12 } from "oakscriptjs";
 function calculateMassIndex(bars, length) {
   const high = Series15.fromBars(bars, "high");
   const low = Series15.fromBars(bars, "low");
   const span = high.sub(low);
-    const ema1 = ta12.ema(span, 9);
-    const ema2 = ta12.ema(ema1, 9);
+  const ema1 = ta12.ema(span, 9);
+  const ema2 = ta12.ema(ema1, 9);
   const ratio = ema1.div(ema2);
   const ratioArray = ratio.toArray();
   const data = [];
@@ -658,7 +644,7 @@ __export(mc_ginley_dynamic_exports, {
 });
 
 // indicators/mc-ginley-dynamic/mc-ginley-dynamic.ts
-import {Series as Series16, ta as ta13, math as math2, na} from "oakscriptjs";
+import { Series as Series16, ta as ta13, math as math2, na } from "oakscriptjs";
 var defaultInputs9 = {
   length: 14
 };
@@ -678,7 +664,7 @@ function McGinley_Dynamic(bars, inputs = {}) {
   const mgValues = new Array(bars.length).fill(NaN);
   for (let i = 0; i < bars.length; i++) {
     const mgPrev = i > 0 ? mgValues[i - 1] : NaN;
-      mgValues[i] = na(mgPrev) ? ta13.ema(source, length).get(i) : mgPrev + (source.get(i) - mgPrev) / (length * math2.pow(source.get(i) / mgPrev, 4));
+    mgValues[i] = na(mgPrev) ? ta13.ema(source, length).get(i) : mgPrev + (source.get(i) - mgPrev) / (length * math2.pow(source.get(i) / mgPrev, 4));
   }
   mg = Series16.fromArray(bars, mgValues);
   return {
@@ -704,7 +690,7 @@ __export(hma_exports, {
 });
 
 // indicators/hma/hma.ts
-import {Series as Series17, ta as ta14, math as math3} from "oakscriptjs";
+import { Series as Series17, ta as ta14, math as math3 } from "oakscriptjs";
 var defaultInputs10 = {
   length: 9,
   src: "close"
@@ -742,7 +728,7 @@ function Hull_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-    const hullma = ta14.wma(ta14.wma(srcSeries, length / 2).mul(2).sub(ta14.wma(srcSeries, length)), math3.floor(math3.sqrt(length)));
+  const hullma = ta14.wma(ta14.wma(srcSeries, length / 2).mul(2).sub(ta14.wma(srcSeries, length)), math3.floor(math3.sqrt(length)));
   return {
     metadata: { title: "Hull Moving Average", shorttitle: "HMA", overlay: true },
     plots: { "plot0": hullma.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -754,15 +740,15 @@ var plotConfig10 = [{ id: "plot0", title: "hullma", color: "#2962FF", lineWidth:
 var calculate10 = Hull_Moving_Average;
 
 // indicators/hma/hma-calculation.ts
-import {ta as ta15} from "oakscriptjs";
+import { ta as ta15 } from "oakscriptjs";
 function calculateHMA(bars, length, source) {
   const src = getSourceSeries(bars, source);
   const halfLength = Math.max(1, Math.floor(length / 2));
   const sqrtLength = Math.max(1, Math.floor(Math.sqrt(length)));
-    const wmaHalf = ta15.wma(src, halfLength);
-    const wmaFull = ta15.wma(src, length);
+  const wmaHalf = ta15.wma(src, halfLength);
+  const wmaFull = ta15.wma(src, length);
   const diff = wmaHalf.mul(2).sub(wmaFull);
-    const hma = ta15.wma(diff, sqrtLength);
+  const hma = ta15.wma(diff, sqrtLength);
   const hmaArray = hma.toArray();
   const data = [];
   for (let i = 0; i < bars.length; i++) {
@@ -788,7 +774,7 @@ __export(lsma_exports, {
 });
 
 // indicators/lsma/lsma.ts
-import {Series as Series19, ta as ta16} from "oakscriptjs";
+import { Series as Series19, ta as ta16 } from "oakscriptjs";
 var defaultInputs11 = {
   length: 25,
   offset: 0,
@@ -827,7 +813,7 @@ function Least_Squares_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-    const lsma = ta16.linreg(srcSeries, length, offset);
+  const lsma = ta16.linreg(srcSeries, length, offset);
   return {
     metadata: { title: "Least Squares Moving Average", shorttitle: "LSMA", overlay: true },
     plots: { "plot0": lsma.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -839,11 +825,11 @@ var plotConfig11 = [{ id: "plot0", title: "lsma", color: "#2962FF", lineWidth: 2
 var calculate11 = Least_Squares_Moving_Average;
 
 // indicators/lsma/lsma-calculation.ts
-import {taCore} from "oakscriptjs";
+import { taCore } from "oakscriptjs";
 function calculateLSMA(bars, length, offset, source) {
   const src = getSourceSeries(bars, source);
   const srcArray = src.toArray();
-    const lsmaValues = taCore.linreg(srcArray, length, offset);
+  const lsmaValues = taCore.linreg(srcArray, length, offset);
   const data = [];
   for (let i = 0; i < bars.length; i++) {
     const value = lsmaValues[i];
@@ -867,7 +853,7 @@ __export(rma_exports, {
 });
 
 // indicators/rma/rma.ts
-import {Series as Series21, ta as ta17, na as na2} from "oakscriptjs";
+import { Series as Series21, ta as ta17, na as na2 } from "oakscriptjs";
 var defaultInputs12 = {
   len: 7,
   src: "close"
@@ -909,7 +895,7 @@ function Smoothed_Moving_Average(bars, inputs = {}) {
   const smmaValues = new Array(bars.length).fill(NaN);
   for (let i = 0; i < bars.length; i++) {
     const smmaPrev = i > 0 ? smmaValues[i - 1] : NaN;
-      smmaValues[i] = na2(smmaPrev) ? ta17.sma(srcSeries, len).get(i) : (smmaPrev * (len - 1) + srcSeries.get(i)) / len;
+    smmaValues[i] = na2(smmaPrev) ? ta17.sma(srcSeries, len).get(i) : (smmaPrev * (len - 1) + srcSeries.get(i)) / len;
   }
   smma = Series21.fromArray(bars, smmaValues);
   return {
@@ -934,7 +920,7 @@ __export(wma_exports, {
 });
 
 // indicators/wma/wma.ts
-import {Series as Series22, ta as ta18} from "oakscriptjs";
+import { Series as Series22, ta as ta18 } from "oakscriptjs";
 var defaultInputs13 = {
   len: 9,
   src: "close",
@@ -973,7 +959,7 @@ function Moving_Average_Weighted(bars, inputs = {}) {
         return close;
     }
   })();
-    const out = ta18.wma(srcSeries, len);
+  const out = ta18.wma(srcSeries, len);
   return {
     metadata: { title: "Moving Average Weighted", shorttitle: "WMA", overlay: true },
     plots: { "plot0": out.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -996,7 +982,7 @@ __export(vwma_exports, {
 });
 
 // indicators/vwma/vwma.ts
-import {Series as Series23, ta as ta19} from "oakscriptjs";
+import { Series as Series23, ta as ta19 } from "oakscriptjs";
 var defaultInputs14 = {
   len: 20,
   src: "close",
@@ -1035,7 +1021,7 @@ function Volume_Weighted_Moving_Average(bars, inputs = {}) {
         return close;
     }
   })();
-    const ma = ta19.vwma(srcSeries, len, volume);
+  const ma = ta19.vwma(srcSeries, len, volume);
   return {
     metadata: { title: "Volume Weighted Moving Average", shorttitle: "VWMA", overlay: true },
     plots: { "plot0": ma.toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
@@ -1058,7 +1044,7 @@ __export(alma_exports, {
 });
 
 // indicators/alma/alma.ts
-import {Series as Series24, ta as ta20} from "oakscriptjs";
+import { Series as Series24, ta as ta20 } from "oakscriptjs";
 var defaultInputs15 = {
   lengthInput: 9,
   offsetInput: 0.85,
@@ -1080,12 +1066,7 @@ function Arnaud_Legoux_Moving_Average(bars, inputs = {}) {
   const source = close;
   return {
     metadata: { title: "Arnaud Legoux Moving Average", shorttitle: "ALMA", overlay: true },
-      plots: {
-          "plot0": ta20.alma(source, lengthInput, offsetInput, sigmaInput).toArray().map((v, i) => ({
-              time: bars[i].time,
-              value: v ?? NaN
-          }))
-      }
+    plots: { "plot0": ta20.alma(source, lengthInput, offsetInput, sigmaInput).toArray().map((v, i) => ({ time: bars[i].time, value: v ?? NaN })) }
   };
 }
 var metadata15 = { title: "Arnaud Legoux Moving Average", shortTitle: "ALMA", overlay: true };

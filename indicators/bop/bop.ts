@@ -1,4 +1,4 @@
-import {Series, type IndicatorResult, type InputConfig, type PlotConfig} from 'oakscriptjs';
+import { Series, type IndicatorResult, type InputConfig, type PlotConfig } from 'oakscriptjs';
 
 export function Balance_of_Power(bars: any[]): IndicatorResult {
 // OHLCV Series

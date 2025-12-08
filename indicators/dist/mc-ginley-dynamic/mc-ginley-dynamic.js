@@ -1,5 +1,5 @@
 // indicators/mc-ginley-dynamic/mc-ginley-dynamic.ts
-import {Series, ta, math, na} from "oakscriptjs";
+import { Series, ta, math, na } from "oakscriptjs";
 var defaultInputs = {
   length: 14
 };
