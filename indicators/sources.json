@@ -79,6 +79,31 @@
       "id": "obv",
       "name": "On Balance Volume (OBV)",
       "sourcePath": "docs/official/indicators_standard/On Balance Volume.pine"
+    },
+    {
+      "id": "rsi",
+      "name": "Relative Strength Index (RSI)",
+      "sourcePath": "docs/official/indicators_standard/Relative Strength Index.pine"
+    },
+    {
+      "id": "macd",
+      "name": "Moving Average Convergence Divergence (MACD)",
+      "sourcePath": "docs/official/indicators_standard/Moving Average Convergence Divergence.pine"
+    },
+    {
+      "id": "bb",
+      "name": "Bollinger Bands (BB)",
+      "sourcePath": "docs/official/indicators_standard/Bollinger Bands.pine"
+    },
+    {
+      "id": "stoch",
+      "name": "Stochastic",
+      "sourcePath": "docs/official/indicators_standard/Stochastic.pine"
+    },
+    {
+      "id": "atr",
+      "name": "Average True Range (ATR)",
+      "sourcePath": "docs/official/indicators_standard/Average True Range.pine"
     }
   ]
 }
