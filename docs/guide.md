@@ -15,7 +15,7 @@
 
 ## Introduction
 
-OakScriptJS is a simplified JavaScript/TypeScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations** while leaving indicator structure and rendering to the OakScriptEngine transpiler.
+OakScriptJS is a simplified JavaScript/TypeScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations**. For pre-built indicators, see the `@oakscript/indicators` package.
 
 ### Core Capabilities
 
@@ -67,7 +67,7 @@ const rsi = ta.rsi(close, 14);  // Returns a Series
 - ✅ TA-Series wrappers (Series-based)
 - ✅ Metadata types for indicator results
 
-**Why?** Simplicity. The transpiler (OakScriptEngine) handles the complexity of indicator structure. OakScriptJS focuses on what it does best: calculations.
+**Why?** Simplicity. OakScriptJS focuses on what it does best: calculations. For ready-to-use indicators, use `@oakscript/indicators`.
 
 ---
 

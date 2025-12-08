@@ -17,6 +17,9 @@ importers:
 
   example:
     dependencies:
+      '@oakscript/indicators':
+        specifier: workspace:*
+        version: link:../packages/indicators
       lightweight-charts:
         specifier: ^5.0.0
         version: 5.0.9
@@ -30,6 +33,28 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1
+
+  packages/indicators:
+    dependencies:
+      oakscriptjs:
+        specifier: ^0.1.0
+        version: link:../oakscriptjs
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.6
+        version: 20.19.25
+      esbuild:
+        specifier: ^0.19.11
+        version: 0.19.12
+      rimraf:
+        specifier: ^6.1.0
+        version: 6.1.2
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.25)
 
   packages/oakscriptjs:
     devDependencies:
@@ -87,7 +112,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1
+        version: 1.6.1(@types/node@20.19.25)
 
 packages:
 
@@ -4968,7 +4993,7 @@ packages:
       convert-source-map: 2.0.0
     dev: true
 
-  /vite-node@1.6.1:
+  /vite-node@1.6.1(@types/node@20.19.25):
     resolution: {integrity: sha512-YAXkfvGtuTzwWbDSACdJSg4A4DZiAqckWe90Zapc/sEX3XvHcw1NdurM/6od8J207tSDqNbSsgdCacBgvJKFuA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
@@ -4977,7 +5002,7 @@ packages:
       debug: 4.4.3
       pathe: 1.1.2
       picocolors: 1.1.1
-      vite: 5.4.21
+      vite: 5.4.21(@types/node@20.19.25)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -4990,7 +5015,7 @@ packages:
       - terser
     dev: true
 
-  /vite@5.4.21:
+  /vite@5.4.21(@types/node@20.19.25):
     resolution: {integrity: sha512-o5a9xKjbtuhY6Bi5S3+HvbRERmouabWbyUcpXXUA1u+GNUKoROi9byOJ8M0nHbHYHkYICiMlqxkg1KkYmm25Sw==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
@@ -5021,6 +5046,7 @@ packages:
       terser:
         optional: true
     dependencies:
+      '@types/node': 20.19.25
       esbuild: 0.21.5
       postcss: 8.5.6
       rollup: 4.53.3
@@ -5078,7 +5104,7 @@ packages:
       fsevents: 2.3.3
     dev: true
 
-  /vitest@1.6.1:
+  /vitest@1.6.1(@types/node@20.19.25):
     resolution: {integrity: sha512-Ljb1cnSJSivGN0LqXd/zmDbWEM0RNNg2t1QW/XUhYl/qPqyu7CsqeWtqQXHVaJsecLPuDoak2oJcZN2QoRIOag==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
@@ -5103,6 +5129,7 @@ packages:
       jsdom:
         optional: true
     dependencies:
+      '@types/node': 20.19.25
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
       '@vitest/snapshot': 1.6.1
@@ -5120,8 +5147,8 @@ packages:
       strip-literal: 2.1.1
       tinybench: 2.9.0
       tinypool: 0.8.4
-      vite: 5.4.21
-      vite-node: 1.6.1
+      vite: 5.4.21(@types/node@20.19.25)
+      vite-node: 1.6.1(@types/node@20.19.25)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - less

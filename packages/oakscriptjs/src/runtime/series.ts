@@ -444,6 +444,42 @@ export class Series {
   }
 
   // ============================================
+  // Conditional Selection
+  // ============================================
+
+  /**
+   * Bar-by-bar conditional selection (ternary operator for Series)
+   * Uses this Series as the condition (truthy = nonzero, falsy = zero/NaN)
+   *
+   * @param trueValue - Value or Series to use when condition is truthy
+   * @param falseValue - Value or Series to use when condition is falsy
+   * @returns New Series with bar-by-bar selected values
+   *
+   * @example
+   * ```typescript
+   * // PineScript: result = condition ? trueVal : falseVal
+   * const result = condition.iff(trueVal, falseVal);
+   *
+   * // Example: RSI formula uses ternary for edge cases
+   * // rsi = down == 0 ? 100 : up == 0 ? 0 : formula
+   * const rsi = down.eq(0).iff(100, up.eq(0).iff(0, formula));
+   * ```
+   */
+  iff(trueValue: Series | number, falseValue: Series | number): Series {
+    return new Series(this.dataSource, (bar, i, data) => {
+      const condition = this.extractor(bar, i, data);
+      // Truthy: nonzero and not NaN
+      const isTruthy = condition !== 0 && !Number.isNaN(condition);
+
+      if (isTruthy) {
+        return typeof trueValue === 'number' ? trueValue : trueValue.extractor(bar, i, data);
+      } else {
+        return typeof falseValue === 'number' ? falseValue : falseValue.extractor(bar, i, data);
+      }
+    });
+  }
+
+  // ============================================
   // Offset/History
   // ============================================
 

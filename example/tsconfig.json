@@ -13,15 +13,13 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "oakscriptjs": [
-        "../packages/oakscriptjs/src/index.ts"
-      ]
+      "oakscriptjs": ["../packages/oakscriptjs/src/index.ts"],
+      "@oakscript/indicators": ["../packages/indicators/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "../indicators/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
-    "dist",
-    "../indicators/obv/**"
+    "dist"
   ]
 }

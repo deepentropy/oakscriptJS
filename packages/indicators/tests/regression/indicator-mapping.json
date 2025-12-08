@@ -1,0 +1,95 @@
+{
+  "sma": {
+    "dataFile": "data/20251207/Simple Moving Average.csv",
+    "exportName": "SMA"
+  },
+  "ema": {
+    "dataFile": "data/20251207/Moving Average Exponential.csv",
+    "exportName": "EMA"
+  },
+  "momentum": {
+    "dataFile": "data/20251207/Momentum.csv",
+    "exportName": "Momentum"
+  },
+  "obv": {
+    "dataFile": "data/20251207/On Balance Volume.csv",
+    "exportName": "OBV",
+    "normalize": true
+  },
+  "mc-ginley-dynamic": {
+    "dataFile": "data/20251207/McGinley Dynamic.csv",
+    "exportName": "McGinleyDynamic",
+    "skipInitial": 200
+  },
+  "bop": {
+    "dataFile": "data/20251207/Balance of Power.csv",
+    "exportName": "BOP"
+  },
+  "dema": {
+    "dataFile": "data/20251207/Double EMA.csv",
+    "exportName": "DEMA"
+  },
+  "tema": {
+    "dataFile": "data/20251207/Triple EMA.csv",
+    "exportName": "TEMA"
+  },
+  "roc": {
+    "dataFile": "data/20251207/Rate Of Change.csv",
+    "exportName": "ROC"
+  },
+  "adr": {
+    "dataFile": "data/20251207/Average Daily Range.csv",
+    "exportName": "ADR"
+  },
+  "mass-index": {
+    "dataFile": "data/20251207/Mass Index.csv",
+    "exportName": "MassIndex"
+  },
+  "hma": {
+    "dataFile": "data/20251207/Hull Moving Average.csv",
+    "exportName": "HMA"
+  },
+  "lsma": {
+    "dataFile": "data/20251207/Least Squares Moving Average.csv",
+    "exportName": "LSMA"
+  },
+  "alma": {
+    "dataFile": "data/20251207/Arnaud Legoux Moving Average.csv",
+    "exportName": "ALMA"
+  },
+  "rma": {
+    "dataFile": "data/20251207/Smoothed Moving Average.csv",
+    "exportName": "RMA"
+  },
+  "vwma": {
+    "dataFile": "data/20251207/Volume Weighted Moving Average.csv",
+    "exportName": "VWMA"
+  },
+  "wma": {
+    "dataFile": "data/20251207/Moving Average Weighted.csv",
+    "exportName": "WMA"
+  },
+  "rsi": {
+    "dataFile": "data/20251207/Relative Strength Index.csv",
+    "exportName": "RSI",
+    "skipInitial": 210
+  },
+  "macd": {
+    "dataFile": "data/20251207/Moving Average Convergence Divergence.csv",
+    "exportName": "MACD",
+    "skipInitial": 250
+  },
+  "bb": {
+    "dataFile": "data/20251207/Bollinger Bands.csv",
+    "exportName": "BollingerBands"
+  },
+  "stoch": {
+    "dataFile": "data/20251207/Stochastic.csv",
+    "exportName": "Stochastic"
+  },
+  "atr": {
+    "dataFile": "data/20251207/Average True Range.csv",
+    "exportName": "ATR",
+    "skipInitial": 250
+  }
+}

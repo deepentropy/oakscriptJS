@@ -15,7 +15,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
 4. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills)
 
-**No DSL Layer**: The complexity of DSL functions (`indicator()`, `plot()`, `compile()`) is now handled by the OakScriptEngine transpiler. This library focuses on the computational core.
+**No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the `@oakscript/indicators` package.
 
 ## Summary
 
