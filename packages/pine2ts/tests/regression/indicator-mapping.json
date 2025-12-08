@@ -48,5 +48,23 @@
   },
   "wma": {
     "dataFile": "data/20251207/Moving Average Weighted.csv"
+  },
+  "rsi": {
+    "dataFile": "data/20251207/Relative Strength Index.csv",
+    "skipInitial": 210
+  },
+  "macd": {
+    "dataFile": "data/20251207/Moving Average Convergence Divergence.csv",
+    "skipInitial": 250
+  },
+  "bb": {
+    "dataFile": "data/20251207/Bollinger Bands.csv"
+  },
+  "stoch": {
+    "dataFile": "data/20251207/Stochastic.csv"
+  },
+  "atr": {
+    "dataFile": "data/20251207/Average True Range.csv",
+    "skipInitial": 250
   }
 }

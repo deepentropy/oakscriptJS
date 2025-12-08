@@ -5,14 +5,14 @@
  * from the private deepentropy/pinesuite repository.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { fetchPineSuiteCSV, hasPineSuiteToken } from './utils/pinesuite-fetcher.js';
-import { parseCSV, type OHLCVRow } from './utils/csv-parser.js';
-import { compareArrays, formatComparisonResult } from './utils/comparison.js';
-import indicatorMapping from './indicator-mapping.json' with { type: 'json' };
+import {afterAll, describe, expect, it} from 'vitest';
+import {existsSync} from 'fs';
+import {dirname, join} from 'path';
+import {fileURLToPath} from 'url';
+import {fetchPineSuiteCSV, hasPineSuiteToken} from './utils/pinesuite-fetcher.js';
+import {parseCSV} from './utils/csv-parser.js';
+import {compareArrays, formatComparisonResult} from './utils/comparison.js';
+import indicatorMapping from './indicator-mapping.json' with {type: 'json'};
 
 // Static imports for all mapped indicators
 import * as smaIndicator from '../../../../indicators/sma/index.js';
@@ -31,6 +31,11 @@ import * as obvIndicator from '../../../../indicators/obv/index.js';
 import * as rmaIndicator from '../../../../indicators/rma/index.js';
 import * as vwmaIndicator from '../../../../indicators/vwma/index.js';
 import * as wmaIndicator from '../../../../indicators/wma/index.js';
+import * as rsiIndicator from '../../../../indicators/rsi/index.js';
+import * as macdIndicator from '../../../../indicators/macd/index.js';
+import * as bbIndicator from '../../../../indicators/bb/index.js';
+import * as stochIndicator from '../../../../indicators/stoch/index.js';
+import * as atrIndicator from '../../../../indicators/atr/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,6 +102,11 @@ const indicatorModules: Record<string, IndicatorModule> = {
   'rma': rmaIndicator,
   'vwma': vwmaIndicator,
   'wma': wmaIndicator,
+    'rsi': rsiIndicator,
+    'macd': macdIndicator,
+    'bb': bbIndicator,
+    'stoch': stochIndicator,
+    'atr': atrIndicator,
 };
 
 describe('PineSuite Regression Tests', () => {
