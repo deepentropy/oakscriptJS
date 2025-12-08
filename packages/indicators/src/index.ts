@@ -59,6 +59,11 @@ import * as hmaIndicator from './hma';
 export { HMA, calculate as calculateHMA } from './hma';
 export type { HMAInputs } from './hma';
 
+// Keltner Channels
+import * as keltnerIndicator from './keltner';
+export { KeltnerChannels, calculate as calculateKeltner } from './keltner';
+export type { KeltnerInputs } from './keltner';
+
 // LSMA - Least Squares Moving Average
 import * as lsmaIndicator from './lsma';
 export { LSMA, calculate as calculateLSMA } from './lsma';
@@ -295,6 +300,18 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     plotConfig: hmaIndicator.plotConfig as PlotConfig[],
     defaultInputs: { ...hmaIndicator.defaultInputs },
     calculate: hmaIndicator.calculate,
+  },
+  {
+    id: 'keltner',
+    name: 'Keltner Channels (KC)',
+    shortName: 'KC',
+    description: 'Volatility-based envelope using EMA and ATR.',
+    overlay: true,
+    metadata: keltnerIndicator.metadata,
+    inputConfig: keltnerIndicator.inputConfig as InputConfig[],
+    plotConfig: keltnerIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...keltnerIndicator.defaultInputs },
+    calculate: keltnerIndicator.calculate,
   },
   {
     id: 'lsma',

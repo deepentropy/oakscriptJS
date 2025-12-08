@@ -153,7 +153,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | Rob Booker - Ziv Ghost Pivots | 5     | 0        | Drawing          | Pending         |
 | Open Interest                 | 5     | 0        | ReqSec           | Pending         |
 | Moving Average Ribbon         | 5     | 5        | -                | Pending         |
-| Keltner Channels              | 5     | 5        | -                | Pending         |
+| Keltner Channels              | 5     | 5        | -                | **Implemented** |
 | Average True Range            | 5     | 5        | -                | **Implemented** |
 | Advance Decline Ratio         | 5     | 1        | ReqSec           | Pending         |
 | Advance_Decline Ratio (Bars)  | 5     | 1        | ReqSec           | Pending         |
@@ -271,7 +271,7 @@ These are frequently used indicators with simple implementations:
 
 ### Tier 2: Medium Complexity, High Utility
 
-1. **Keltner Channels** - Volatility channels
+1. ~~**Keltner Channels**~~ - **IMPLEMENTED**
 2. **Ichimoku Cloud** - Comprehensive trend system
 3. **Parabolic SAR** - Trend following
 4. **Supertrend** - Popular overlay
