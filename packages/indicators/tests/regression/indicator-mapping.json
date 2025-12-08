@@ -168,7 +168,8 @@
   },
   "keltner": {
     "dataFile": "data/20251207/Keltner Channels.csv",
-    "exportName": "KeltnerChannels"
+    "exportName": "KeltnerChannels",
+    "skipInitial": 160
   },
   "klinger": {
     "dataFile": "data/20251207/Klinger Oscillator.csv",
