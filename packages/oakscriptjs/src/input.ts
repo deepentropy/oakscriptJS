@@ -83,7 +83,7 @@ export interface StringInputOptions {
 /**
  * Source type for price data
  */
-export type SourceType = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4';
+export type SourceType = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4';
 
 /**
  * Input helper functions for creating indicator parameters
@@ -155,7 +155,7 @@ export const input = {
       defaultValue,
       value: defaultValue,
       title: options.title,
-      options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4'],
+      options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'],
     };
   },
 

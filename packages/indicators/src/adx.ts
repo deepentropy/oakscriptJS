@@ -2,7 +2,7 @@
  * Average Directional Index (ADX) Indicator
  *
  * Measures trend strength regardless of direction.
- * Uses +DI and -DI to calculate directional movement.
+ * Uses Series-based ta functions from oakscriptjs for consistency.
  */
 
 import { Series, ta, type IndicatorResult, type InputConfig, type PlotConfig, type Bar } from 'oakscriptjs';
@@ -36,70 +36,82 @@ export const metadata = {
 
 export function calculate(bars: Bar[], inputs: Partial<ADXInputs> = {}): IndicatorResult {
   const { adxSmoothing, diLength } = { ...defaultInputs, ...inputs };
+  const len = bars.length;
 
-  const high = new Series(bars, b => b.high);
-  const low = new Series(bars, b => b.low);
-
-  // Calculate True Range
-  const trValues = ta.tr(bars, true);
-  const trRma = ta.rma(trValues, diLength);
-  const trRmaArr = trRma.toArray();
+  // Calculate True Range using oakscriptjs ta.tr
+  const trSeries = ta.tr(bars, true);
 
   // Calculate +DM and -DM
-  const plusDM: number[] = [];
-  const minusDM: number[] = [];
+  const plusDMArr: number[] = [];
+  const minusDMArr: number[] = [];
 
-  for (let i = 0; i < bars.length; i++) {
+  for (let i = 0; i < len; i++) {
     if (i === 0) {
-      plusDM.push(0);
-      minusDM.push(0);
-      continue;
+      plusDMArr.push(0);
+      minusDMArr.push(0);
+    } else {
+      const upMove = bars[i].high - bars[i - 1].high;
+      const downMove = bars[i - 1].low - bars[i].low;
+
+      let plusDMVal = 0;
+      let minusDMVal = 0;
+
+      if (upMove > downMove && upMove > 0) {
+        plusDMVal = upMove;
+      }
+      if (downMove > upMove && downMove > 0) {
+        minusDMVal = downMove;
+      }
+
+      plusDMArr.push(plusDMVal);
+      minusDMArr.push(minusDMVal);
     }
-    const up = high.get(i) - high.get(i - 1);
-    const down = low.get(i - 1) - low.get(i);
-    plusDM.push(up > down && up > 0 ? up : 0);
-    minusDM.push(down > up && down > 0 ? down : 0);
   }
 
-  // Create Series from arrays for RMA
-  const plusDMSeries = new Series(bars, (_, i) => plusDM[i]);
-  const minusDMSeries = new Series(bars, (_, i) => minusDM[i]);
+  // Create Series for RMA calculations
+  const plusDMSeries = new Series(bars, (_, i) => plusDMArr[i]);
+  const minusDMSeries = new Series(bars, (_, i) => minusDMArr[i]);
 
-  // Smooth +DM and -DM
-  const plusDMRma = ta.rma(plusDMSeries, diLength);
-  const minusDMRma = ta.rma(minusDMSeries, diLength);
-  const plusDMRmaArr = plusDMRma.toArray();
-  const minusDMRmaArr = minusDMRma.toArray();
+  // Smooth +DM, -DM, and TR using RMA
+  const smoothedPlusDM = ta.rma(plusDMSeries, diLength);
+  const smoothedMinusDM = ta.rma(minusDMSeries, diLength);
+  const smoothedTR = ta.rma(trSeries, diLength);
+
+  // Get arrays from Series
+  const smoothedPlusDMArr = smoothedPlusDM.toArray();
+  const smoothedMinusDMArr = smoothedMinusDM.toArray();
+  const smoothedTRArr = smoothedTR.toArray();
 
   // Calculate +DI and -DI
   const plusDI: number[] = [];
   const minusDI: number[] = [];
 
-  for (let i = 0; i < bars.length; i++) {
-    const tr = trRmaArr[i] ?? 0;
-    if (tr === 0 || isNaN(tr)) {
-      plusDI.push(NaN);
-      minusDI.push(NaN);
+  for (let i = 0; i < len; i++) {
+    const tr = smoothedTRArr[i];
+    if (tr === 0 || tr == null) {
+      plusDI.push(0);
+      minusDI.push(0);
     } else {
-      plusDI.push(100 * (plusDMRmaArr[i] ?? 0) / tr);
-      minusDI.push(100 * (minusDMRmaArr[i] ?? 0) / tr);
+      plusDI.push(((smoothedPlusDMArr[i] ?? 0) / tr) * 100);
+      minusDI.push(((smoothedMinusDMArr[i] ?? 0) / tr) * 100);
     }
   }
 
-  // Calculate DX and ADX
+  // Calculate DX
   const dx: number[] = [];
-  for (let i = 0; i < bars.length; i++) {
+  for (let i = 0; i < len; i++) {
     const sum = plusDI[i] + minusDI[i];
-    if (isNaN(plusDI[i]) || isNaN(minusDI[i]) || sum === 0) {
-      dx.push(NaN);
+    if (sum === 0) {
+      dx.push(0);
     } else {
-      dx.push(100 * Math.abs(plusDI[i] - minusDI[i]) / sum);
+      dx.push((Math.abs(plusDI[i] - minusDI[i]) / sum) * 100);
     }
   }
 
+  // Calculate ADX (smoothed DX) using RMA
   const dxSeries = new Series(bars, (_, i) => dx[i]);
-  const adxValues = ta.rma(dxSeries, adxSmoothing);
-  const adxArr = adxValues.toArray();
+  const adxSeries = ta.rma(dxSeries, adxSmoothing);
+  const adxArr = adxSeries.toArray();
 
   const adxData = adxArr.map((value: number | null, i: number) => ({
     time: bars[i].time,
