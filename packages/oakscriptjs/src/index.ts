@@ -132,7 +132,9 @@ export type {
   InputConfig,
   InputOptions,
   OhlcvData,
-    PlotConfig,
+  PlotConfig,
+  HLineConfig,
+  FillConfig,
 } from './runtime/types';
 
 export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';
@@ -163,3 +165,16 @@ export const info = {
     indicator: ['indicator', 'input', 'plotHelper', 'createPlot']
   }
 };
+
+// PineScript compatibility stubs - functions that have no runtime effect
+// These are no-ops that allow transpiled code to run without modification
+
+/**
+ * alertcondition() - Stub for TradingView alert configuration
+ * In PineScript, this registers an alert condition. In oakscriptjs, it's a no-op
+ * since alert configuration is handled by the host application.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function alertcondition(_condition: unknown, _title?: string, _message?: string): void {
+  // No-op: Alert conditions are handled by the host application
+}

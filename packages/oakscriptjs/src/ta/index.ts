@@ -645,19 +645,41 @@ export function rma(source: Source, length: simple_int): series_float {
     const len = Math.floor(length);
     const alpha = 1 / len;
 
-  // Initialize with SMA for the first value
-  let rmaValue = 0;
-    for (let i = 0; i < Math.min(len, source.length); i++) {
-    rmaValue += source[i]!;
-  }
-    rmaValue = rmaValue / Math.min(len, source.length);
+  // Find the first index where we have enough non-NaN values for SMA initialization
+  let firstValidIndex = -1;
+  let validCount = 0;
+  let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
-    if (i === 0) {
+    const val = source[i];
+    if (val !== undefined && !isNaN(val)) {
+      initSum += val;
+      validCount++;
+      if (validCount === len) {
+        firstValidIndex = i;
+        break;
+      }
+    }
+  }
+
+  // Initialize RMA value with SMA of first `length` non-NaN values
+  let rmaValue = validCount > 0 ? initSum / validCount : NaN;
+  let rmaInitialized = firstValidIndex >= 0;
+
+  for (let i = 0; i < source.length; i++) {
+    if (!rmaInitialized || i < firstValidIndex) {
+      // Not enough data yet for RMA
+      result.push(NaN);
+    } else if (i === firstValidIndex) {
+      // First valid RMA value
       result.push(rmaValue);
     } else {
-      // RMA formula: alpha * source + (1 - alpha) * RMA[1]
-      rmaValue = alpha * source[i]! + (1 - alpha) * rmaValue;
+      const val = source[i];
+      if (val !== undefined && !isNaN(val)) {
+        // RMA formula: alpha * source + (1 - alpha) * RMA[1]
+        rmaValue = alpha * val + (1 - alpha) * rmaValue;
+      }
+      // If current value is NaN, rmaValue stays the same (carry forward)
       result.push(rmaValue);
     }
   }

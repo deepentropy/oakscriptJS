@@ -8,8 +8,8 @@ ranked by complexity. It tracks implementation status in OakScriptJS.
 | Category               | Count |
 |------------------------|-------|
 | **Total Indicators**   | 134   |
-| **Implemented**        | 21    |
-| **Pending**            | 113   |
+| **Implemented**        | 23    |
+| **Pending**            | 111   |
 | **Very Complex (25+)** | 3     |
 | **Complex (15-24)**    | 29    |
 | **Medium (5-14)**      | 43    |
@@ -35,6 +35,7 @@ Complexity is calculated based on:
 | Indicator               | Folder               | Complexity | Notes               |
 |-------------------------|----------------------|------------|---------------------|
 | Simple Moving Average   | `sma/`               | Simple     | Core TA function    |
+| Exponential Moving Avg  | `ema/`               | Simple     | Core TA function    |
 | Double EMA              | `dema/`              | Simple     | EMA-based           |
 | Triple EMA              | `tema/`              | Simple     | EMA-based           |
 | Hull Moving Average     | `hma/`               | Simple     | WMA-based           |
@@ -50,6 +51,7 @@ Complexity is calculated based on:
 | Mass Index              | `mass-index/`        | Simple     | Range expansion     |
 | McGinley Dynamic        | `mc-ginley-dynamic/` | Simple     | Adaptive MA         |
 | On Balance Volume       | `obv/`               | Medium     | Volume flow         |
+| Accum/Distribution      | `ad/`                | Simple     | Volume flow         |
 | Relative Strength Index | `rsi/`               | Medium     | Momentum oscillator |
 | MACD                    | `macd/`              | Simple     | Trend/momentum      |
 | Bollinger Bands         | `bb/`                | Medium     | Volatility bands    |
@@ -140,7 +142,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 | Rank Correlation Index        | 7     | 7        | -                | Pending         |
 | Commodity Channel Index       | 7     | 7        | -                | Pending         |
 | Moving Average Simple         | 6     | 6        | -                | **Implemented** |
-| Moving Average Exponential    | 6     | 6        | -                | Pending         |
+| Moving Average Exponential    | 6     | 6        | -                | **Implemented** |
 | Moon Phases                   | 6     | 1        | Arrays           | Pending         |
 | Cumulative Volume Index       | 6     | 1        | ReqSec           | Pending         |
 | Correlation Coefficient       | 6     | 1        | ReqSec           | Pending         |
@@ -179,7 +181,7 @@ These indicators use multiple advanced features (strategies, drawings, tables, a
 
 | Indicator                      | TA Funcs | Status          |
 |--------------------------------|----------|-----------------|
-| Accumulation_Distribution      | 1        | Pending         |
+| Accumulation_Distribution      | 1        | **Implemented** |
 | Arnaud Legoux Moving Average   | 1        | **Implemented** |
 | Average Day Range              | 1        | **Implemented** |
 | Average Directional Index      | 1        | Pending         |
@@ -263,8 +265,8 @@ These are frequently used indicators with simple implementations:
 3. ~~**Bollinger Bands**~~ - **IMPLEMENTED**
 4. ~~**Stochastic**~~ - **IMPLEMENTED**
 5. ~~**Average True Range (ATR)**~~ - **IMPLEMENTED**
-6. **Exponential Moving Average (EMA)** - Core MA variant (ta.ema exists, needs wrapper)
-7. **Accumulation/Distribution** - Volume indicator
+6. ~~**Exponential Moving Average (EMA)**~~ - **IMPLEMENTED**
+7. ~~**Accumulation/Distribution**~~ - **IMPLEMENTED**
 8. **CCI (Commodity Channel Index)** - Mean reversion
 
 ### Tier 2: Medium Complexity, High Utility

@@ -1,189 +1,41 @@
-name: Generate Indicators
+name: Build Indicators
 
 on:
   push:
     branches: [main]
     paths:
-      # Trigger when indicator sources config changes
-      - 'indicators/sources.json'
-      # Or when official PineScript files change
-      - 'docs/official/indicators_standard/**/*.pine'
-      # Or when transpiler changes
-      - 'packages/pine2ts/**'
+      # Trigger when indicator source files change
+      - 'packages/indicators/src/**'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
-  contents: write  # Need write access to commit generated files
+  contents: read
 
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-      
+
       - name: Install dependencies
         run: pnpm install
-      
-      - name: Build transpiler
-        run: pnpm --filter pine2ts build
-      
-      - name: Generate indicators
-        run: |
-          # Read the sources.json and transpile each indicator
-          node << 'EOF'
-          const fs = require('fs');
-          const { execSync } = require('child_process');
-          const path = require('path');
-          
-          const sources = JSON.parse(fs.readFileSync('indicators/sources.json', 'utf-8'));
-          
-          for (const indicator of sources.indicators) {
-            const sourcePath = indicator.sourcePath;
-            const outputDir = `indicators/${indicator.id}`;
-            const outputFile = `${outputDir}/${indicator.id}.ts`;
-            
-            if (!fs.existsSync(sourcePath)) {
-              console.error(`Source file not found: ${sourcePath}`);
-              continue;
-            }
-            
-            console.log(`Transpiling ${indicator.name} -> ${outputFile}`);
-            
-            // Create output directory
-            fs.mkdirSync(outputDir, { recursive: true });
-            
-            // Run transpiler
-            execSync(`node ./packages/pine2ts/bin/pine2ts.js "${sourcePath}" "${outputFile}"`, {
-              stdio: 'inherit'
-            });
-          }
-          EOF
-      
-      - name: Compile indicators to JavaScript
-        run: |
-          # Create dist directory structure
-          mkdir -p indicators/dist
-          
-          # Create a tsconfig for indicator compilation
-          cat > indicators/tsconfig.build.json << 'EOF'
-          {
-            "compilerOptions": {
-              "target": "ES2022",
-              "module": "ESNext",
-              "moduleResolution": "bundler",
-              "declaration": true,
-              "declarationMap": true,
-              "outDir": "./dist",
-              "rootDir": ".",
-              "strict": true,
-              "esModuleInterop": true,
-              "skipLibCheck": true,
-              "forceConsistentCasingInFileNames": true,
-              "resolveJsonModule": true,
-              "isolatedModules": true,
-              "paths": {
-                "oakscriptjs": ["../packages/oakscriptjs/src/index.ts"]
-              }
-            },
-            "include": ["./**/*.ts"],
-            "exclude": ["node_modules", "dist", "tsconfig.build.json"]
-          }
-          EOF
-          
-          # Compile TypeScript to JavaScript using esbuild for each indicator
-          for indicator_dir in indicators/*/; do
-            if [ -d "$indicator_dir" ] && [ "$indicator_dir" != "indicators/dist/" ]; then
-              indicator_name=$(basename "$indicator_dir")
-              ts_file="$indicator_dir$indicator_name.ts"
-              
-              if [ -f "$ts_file" ]; then
-                echo "Compiling $ts_file to JavaScript..."
-                
-                mkdir -p "indicators/dist/$indicator_name"
-                
-                # Use esbuild for fast compilation with bundling
-                npx esbuild "$ts_file" \
-                  --bundle \
-                  --format=esm \
-                  --platform=browser \
-                  --target=es2022 \
-                  --outfile="indicators/dist/$indicator_name/$indicator_name.js" \
-                  --external:oakscriptjs
-              fi
-            fi
-          done
-          
-          # Also compile the index.ts
-          if [ -f "indicators/index.ts" ]; then
-            echo "Compiling indicators/index.ts..."
-            npx esbuild indicators/index.ts \
-              --bundle \
-              --format=esm \
-              --platform=browser \
-              --target=es2022 \
-              --outfile="indicators/dist/index.js" \
-              --external:oakscriptjs
-          fi
-      
-      - name: Generate indicator manifest
-        run: |
-          node << 'EOF'
-          const fs = require('fs');
-          const path = require('path');
-          
-          const indicatorsDir = 'indicators';
-          const distDir = path.join(indicatorsDir, 'dist');
-          const manifest = {
-            version: '1.0.0',
-            generatedAt: new Date().toISOString(),
-            baseUrl: 'https://deepentropy.github.io/oakscriptJS/indicators/dist',
-            indicators: []
-          };
-          
-          // Read each indicator directory
-          const entries = fs.readdirSync(indicatorsDir, { withFileTypes: true });
-          for (const entry of entries) {
-            if (entry.isDirectory() && entry.name !== 'dist' && entry.name !== 'node_modules') {
-              const jsFile = path.join(distDir, entry.name, `${entry.name}.js`);
-              if (fs.existsSync(jsFile)) {
-                manifest.indicators.push({
-                  id: entry.name,
-                  name: entry.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-                  url: `${entry.name}/${entry.name}.js`
-                });
-              }
-            }
-          }
-          
-          fs.writeFileSync(path.join(distDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-          console.log(`Generated manifest with ${manifest.indicators.length} indicators`);
-          EOF
-      
-      - name: Check for changes
-        id: git-check
-        run: |
-          git diff --quiet indicators/ || echo "changes=true" >> $GITHUB_OUTPUT
-      
-      - name: Commit generated indicators
-        if: steps.git-check.outputs.changes == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add indicators/
-          git commit -m "chore: auto-generate indicators from PineScript sources
 
-          - Generated TypeScript indicators
-          - Compiled JavaScript ES modules to indicators/dist/
-          - Updated indicator manifest"
-          git push
+      - name: Build oakscriptjs
+        run: pnpm --filter oakscriptjs build
+
+      - name: Build indicators package
+        run: pnpm --filter @oakscript/indicators build
+
+      - name: Run indicator tests
+        run: pnpm --filter @oakscript/indicators test
+        env:
+          PINESUITE_TOKEN: ${{ secrets.PINESUITE_TOKEN }}

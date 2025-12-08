@@ -87,6 +87,46 @@ export interface PlotConfig {
 }
 
 /**
+ * Configuration for horizontal line outputs in generated indicators
+ * Matches PineScript hline() function parameters
+ */
+export interface HLineConfig {
+    /** Unique identifier for the hline */
+    id: string;
+    /** Price level for the horizontal line */
+    price: number;
+    /** Display title */
+    title?: string;
+    /** Line color */
+    color?: string;
+    /** Line style: solid, dashed, or dotted */
+    linestyle?: 'solid' | 'dashed' | 'dotted';
+    /** Line width in pixels */
+    linewidth?: number;
+    /** Display mode */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+}
+
+/**
+ * Configuration for fill between plots or hlines in generated indicators
+ * Matches PineScript fill() function parameters
+ */
+export interface FillConfig {
+    /** Unique identifier for the fill */
+    id: string;
+    /** ID of the first plot or hline */
+    plot1: string;
+    /** ID of the second plot or hline */
+    plot2: string;
+    /** Fill color */
+    color?: string;
+    /** Display title */
+    title?: string;
+    /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
+}
+
+/**
  * Options for numeric inputs
  */
 export interface InputOptions {

@@ -39,8 +39,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
           
-      - name: Publish pine2ts
-        run: pnpm --filter "pine2ts" publish --access public --no-git-checks || echo "Package may already be published"
+      - name: Publish @oakscript/indicators
+        run: pnpm --filter "@oakscript/indicators" publish --access public --no-git-checks || echo "Package may already be published"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true

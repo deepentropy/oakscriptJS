@@ -5,11 +5,10 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:regression": "cd packages/pine2ts && pnpm test:pinesuite",
+    "test:regression": "cd packages/indicators && pnpm test",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean",
-    "typecheck": "pnpm -r typecheck",
-    "generate-indicators": "node example/scripts/generate-indicators.cjs"
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "typescript": "^5.3.0",

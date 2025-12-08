@@ -179,6 +179,26 @@ export class ChartManager {
     }
     this.indicatorSeries.clear();
     this.indicatorPanes.clear();
+
+    // Remove empty panes (keep pane 0 which is the main price chart)
+    this.removeEmptyPanes();
+  }
+
+  /**
+   * Remove any empty panes except the main chart (pane 0)
+   */
+  private removeEmptyPanes(): void {
+    const panes = this.chart.panes();
+    // Iterate in reverse to avoid index shifting issues when removing
+    for (let i = panes.length - 1; i > 0; i--) {
+      const pane = panes[i];
+      // Check if the pane has no series (empty)
+      const seriesInPane = pane.getSeries();
+      if (seriesInPane.length === 0) {
+        // Remove the empty pane using v5 API
+        this.chart.removePane(i);
+      }
+    }
   }
 
   /**

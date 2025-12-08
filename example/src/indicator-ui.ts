@@ -5,7 +5,7 @@
 
 import type {Bar} from 'oakscriptjs';
 import { ChartManager } from './chart';
-import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig } from '../../indicators';
+import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig } from '@oakscript/indicators';
 
 /**
  * Use the indicator registry from indicators/index.ts
@@ -265,6 +265,10 @@ export class IndicatorUI {
       // Clear previous plots
       this.chartManager.clearIndicators();
 
+      // For non-overlay indicators, all plots should share the same pane
+      // Get a single pane index for this indicator
+      const indicatorPaneIndex = indicator.overlay ? 0 : 1;
+
       // Add new plots
       for (const plotDef of indicator.plotConfig) {
         const plotData = result.plots[plotDef.id];
@@ -279,7 +283,8 @@ export class IndicatorUI {
           this.chartManager.setIndicatorData(plotDef.id, plotData, {
             color: plotDef.color,
             lineWidth: plotDef.lineWidth,
-            overlay: indicator.overlay, // Pass overlay setting for pane placement
+            overlay: indicator.overlay,
+            paneIndex: indicatorPaneIndex, // All plots of same indicator share the same pane
           });
         }
       }
@@ -289,7 +294,11 @@ export class IndicatorUI {
   }
 
     /**
-     * Evaluate plot visibility based on plotConfig.visible and current inputs
+     * Evaluate plot visibility based on plotConfig.visible and plotConfig.display
+     *
+     * The `display` property can be:
+     * - 'none': never display
+     * - 'all', 'pane', etc.: display normally
      *
      * The `visible` property can be:
      * - undefined: always visible
@@ -302,6 +311,11 @@ export class IndicatorUI {
      * 3. Check if plot data is all NaN (effectively hidden)
      */
     private evaluatePlotVisibility(plotDef: any, result: any): boolean {
+        // Check display property first - 'none' means hidden
+        if (plotDef.display === 'none') {
+            return false;
+        }
+
         // No visibility constraint - always visible
         if (plotDef.visible === undefined) {
             return true;

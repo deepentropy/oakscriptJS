@@ -13,7 +13,7 @@ OakScriptJS is a TypeScript/JavaScript library that provides PineScript v6 compa
 | Package                               | Description                                      |
 |---------------------------------------|--------------------------------------------------|
 | [oakscriptjs](./packages/oakscriptjs) | Technical analysis library with Series-based API |
-| [pine2ts](./packages/pine2ts)         | PineScript to TypeScript transpiler              |
+| [@oakscript/indicators](./packages/indicators) | Pre-built technical indicators (SMA, EMA, RSI, MACD, BB, etc.) |
 
 ## Quick Start
 
@@ -35,12 +35,14 @@ const sma = ta.sma(close, 5);
 console.log(sma.toArray());
 ```
 
-### Transpile PineScript to TypeScript
+### Use pre-built indicators
 
-```bash
-npm install -g pine2ts
+```typescript
+import { SMA, RSI, MACD } from '@oakscript/indicators';
 
-pine2ts my-indicator.pine output.ts
+const bars = [...]; // OHLCV data
+const smaResult = SMA.calculate(bars, { len: 20 });
+const rsiResult = RSI.calculate(bars, { length: 14 });
 ```
 
 ## Documentation
@@ -71,7 +73,7 @@ pnpm typecheck  # Type check
 
 ```bash
 pnpm --filter oakscriptjs build
-pnpm --filter pine2ts test
+pnpm --filter @oakscript/indicators test
 ```
 
 ## Project Structure
@@ -80,8 +82,7 @@ pnpm --filter pine2ts test
 oakscriptJS/
 ├── packages/
 │   ├── oakscriptjs/      # Technical analysis library
-│   └── pine2ts/          # PineScript transpiler + CLI
-├── indicators/           # Converted indicator examples
+│   └── indicators/       # Pre-built indicators package
 ├── example/              # Live demo (GitHub Pages)
 └── docs/                 # Documentation + official examples
 ```

@@ -147,13 +147,31 @@ export function atr(bars: Bar[], length: number): Series {
 /**
  * True Range
  * @param bars - Bar data
+ * @param handle_na - How NaN values are handled (default: false)
  * @returns Series with TR values
  */
-export function tr(bars: Bar[]): Series {
+export function tr(bars: Bar[], handle_na: boolean = false): Series {
   const high = bars.map(b => b.high);
   const low = bars.map(b => b.low);
   const close = bars.map(b => b.close);
-  const result = taCore.tr(false, high, low, close);
+  const result = taCore.tr(handle_na, high, low, close);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Stochastic %K
+ * @param source - Source series (typically close)
+ * @param high - High series
+ * @param low - Low series
+ * @param length - Period length
+ * @returns Series with stochastic values
+ */
+export function stoch(source: Series, high: Series, low: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const sourceValues = source.toArray();
+  const highValues = high.toArray();
+  const lowValues = low.toArray();
+  const result = taCore.stoch(sourceValues, highValues, lowValues, length);
   return Series.fromArray(bars, result);
 }
 
@@ -483,6 +501,7 @@ export const ta = {
   stdev,
   atr,
   tr,
+  stoch,
   crossover,
   crossunder,
   cross,
@@ -498,6 +517,6 @@ export const ta = {
   vwap,
   ichimoku,
   linreg,
-    alma,
+  alma,
   zigzag,
 };
