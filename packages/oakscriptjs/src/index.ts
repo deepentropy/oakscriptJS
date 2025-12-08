@@ -68,7 +68,7 @@ export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, 
 export { rgb, from_hex as color_from_hex, new_color } from './color';
 
 // Export chart data utilities
-export { ohlcFromBars, getClose, getHigh, getLow, getOpen } from './utils';
+export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSourceSeries } from './utils';
 
 // Export helper functions for generated indicators (PineScript compatibility)
 export {isNA as na, nz} from './utils';

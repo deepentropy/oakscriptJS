@@ -5,7 +5,7 @@
  * Volatility bands placed above and below a moving average, using standard deviation.
  */
 
-import { Series, ta, type IndicatorResult, type InputConfig, type PlotConfig, type Bar } from 'oakscriptjs';
+import { Series, ta, getSourceSeries, type IndicatorResult, type InputConfig, type PlotConfig, type Bar, type SourceType } from 'oakscriptjs';
 
 /**
  * BB indicator input parameters
@@ -16,7 +16,7 @@ export interface BBInputs {
   /** Moving average type for basis */
   maType: 'SMA' | 'EMA' | 'SMMA (RMA)' | 'WMA' | 'VWMA';
   /** Price source */
-  src: 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4';
+  src: SourceType;
   /** Standard deviation multiplier */
   mult: number;
   /** Plot offset */
@@ -62,28 +62,6 @@ export const metadata = {
   shortTitle: 'BB',
   overlay: true,
 };
-
-/**
- * Get source series based on input selection
- */
-function getSourceSeries(bars: Bar[], src: BBInputs['src']): Series {
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-  const close = new Series(bars, (bar) => bar.close);
-
-  switch (src) {
-    case 'open': return open;
-    case 'high': return high;
-    case 'low': return low;
-    case 'close': return close;
-    case 'hl2': return high.add(low).div(2);
-    case 'hlc3': return high.add(low).add(close).div(3);
-    case 'ohlc4': return open.add(high).add(low).add(close).div(4);
-    case 'hlcc4': return high.add(low).add(close).add(close).div(4);
-    default: return close;
-  }
-}
 
 /**
  * Calculate BB indicator

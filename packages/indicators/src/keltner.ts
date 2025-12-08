@@ -6,7 +6,7 @@
  * Uses ATR (Average True Range) to set channel distance.
  */
 
-import { Series, ta, type IndicatorResult, type InputConfig, type PlotConfig, type Bar } from 'oakscriptjs';
+import { Series, ta, getSourceSeries, type IndicatorResult, type InputConfig, type PlotConfig, type Bar, type SourceType } from 'oakscriptjs';
 
 /**
  * Keltner Channels indicator input parameters
@@ -17,7 +17,7 @@ export interface KeltnerInputs {
   /** ATR multiplier */
   mult: number;
   /** Price source */
-  src: 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4';
+  src: SourceType;
   /** Use exponential MA (true) or simple MA (false) */
   useEMA: boolean;
   /** Bands style: ATR, True Range, or Range */
@@ -67,28 +67,6 @@ export const metadata = {
   shortTitle: 'KC',
   overlay: true,
 };
-
-/**
- * Get source series based on input selection
- */
-function getSourceSeries(bars: Bar[], src: KeltnerInputs['src']): Series {
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-  const close = new Series(bars, (bar) => bar.close);
-
-  switch (src) {
-    case 'open': return open;
-    case 'high': return high;
-    case 'low': return low;
-    case 'close': return close;
-    case 'hl2': return high.add(low).div(2);
-    case 'hlc3': return high.add(low).add(close).div(3);
-    case 'ohlc4': return open.add(high).add(low).add(close).div(4);
-    case 'hlcc4': return high.add(low).add(close).add(close).div(4);
-    default: return close;
-  }
-}
 
 /**
  * Calculate Keltner Channels indicator

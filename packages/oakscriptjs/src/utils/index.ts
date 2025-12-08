@@ -5,6 +5,7 @@
 
 import { series_float, int, float, Source, Bar, OHLC } from '../types';
 import { sma, ema, wma, rma } from '../ta';
+import { Series } from '../runtime/series';
 
 /**
  * Validates that a series has sufficient data for a given length
@@ -157,6 +158,44 @@ export function getSource(
       case 'ohlc4': return bars.map(b => (b.open + b.high + b.low + b.close) / 4);
       case 'hlcc4': return bars.map(b => (b.high + b.low + b.close + b.close) / 4);
     }
+  }
+}
+
+/**
+ * Creates a Series from bars based on the specified source type.
+ * Unlike getSource() which returns number[], this returns a Series
+ * with chainable methods like .add(), .sub(), .mul(), .div()
+ *
+ * @param bars - Array of bar data
+ * @param source - Source type (default: 'close')
+ * @returns Series object for the requested source
+ *
+ * @example
+ * ```typescript
+ * const bars = [{ time: 1, open: 100, high: 105, low: 98, close: 102, volume: 1000 }, ...];
+ * const source = getSourceSeries(bars, 'hlc3');
+ * const smaResult = ta.sma(source, 14);
+ * ```
+ */
+export function getSourceSeries(
+  bars: Bar[],
+  source: 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4' = 'close'
+): Series {
+  const open = new Series(bars, (bar) => bar.open);
+  const high = new Series(bars, (bar) => bar.high);
+  const low = new Series(bars, (bar) => bar.low);
+  const close = new Series(bars, (bar) => bar.close);
+
+  switch (source) {
+    case 'open': return open;
+    case 'high': return high;
+    case 'low': return low;
+    case 'close': return close;
+    case 'hl2': return high.add(low).div(2);
+    case 'hlc3': return high.add(low).add(close).div(3);
+    case 'ohlc4': return open.add(high).add(low).add(close).div(4);
+    case 'hlcc4': return high.add(low).add(close).add(close).div(4);
+    default: return close;
   }
 }
 

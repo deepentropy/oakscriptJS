@@ -77,12 +77,12 @@ function cci(typicalPrice: number[], length: number): number[] {
 export function calculate(bars: Bar[], inputs: Partial<WoodiesCCIInputs> = {}): IndicatorResult {
   const { turboLength, cciLength } = { ...defaultInputs, ...inputs };
 
-  // Typical price = (high + low + close) / 3
-  const typicalPrice = bars.map(b => (b.high + b.low + b.close) / 3);
+  // TradingView's Woodies CCI uses close as source (not hlc3)
+  const source = bars.map(b => b.close);
 
   // Calculate both CCIs
-  const cciTurbo = cci(typicalPrice, turboLength);
-  const cci14Values = cci(typicalPrice, cciLength);
+  const cciTurbo = cci(source, turboLength);
+  const cci14Values = cci(source, cciLength);
 
   // CCI Turbo Histogram = CCI 14 (displayed as histogram)
   const histogramData = cci14Values.map((value, i) => ({

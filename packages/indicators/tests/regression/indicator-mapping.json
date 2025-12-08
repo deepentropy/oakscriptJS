@@ -27,7 +27,8 @@
   },
   "adx": {
     "dataFile": "data/20251207/Average Directional Index.csv",
-    "exportName": "ADX"
+    "exportName": "ADX",
+    "skipInitial": 260
   },
   "alma": {
     "dataFile": "data/20251207/Arnaud Legoux Moving Average.csv",
@@ -207,7 +208,8 @@
   },
   "median": {
     "dataFile": "data/20251207/Median.csv",
-    "exportName": "Median"
+    "exportName": "Median",
+    "skipInitial": 210
   },
   "mfi": {
     "dataFile": "data/20251207/Money Flow Index.csv",
@@ -326,7 +328,8 @@
   },
   "trend-strength": {
     "dataFile": "data/20251207/Trend Strength Index.csv",
-    "exportName": "TrendStrengthIndex"
+    "exportName": "TrendStrengthIndex",
+    "skipInitial": 150
   },
   "trix": {
     "dataFile": "data/20251207/TRIX.csv",
@@ -374,7 +377,8 @@
   },
   "williams-alligator": {
     "dataFile": "data/20251207/Williams Alligator.csv",
-    "exportName": "WilliamsAlligator"
+    "exportName": "WilliamsAlligator",
+    "skipInitial": 200
   },
   "williams-fractals": {
     "dataFile": "data/20251207/Williams Fractals.csv",
@@ -390,7 +394,8 @@
   },
   "woodies-cci": {
     "dataFile": "data/20251207/Woodies CCI.csv",
-    "exportName": "WoodiesCCI"
+    "exportName": "WoodiesCCI",
+    "skipInitial": 100
   },
   "ziv-ghost-pivots": {
     "dataFile": "data/20251207/Rob Booker - Ziv Ghost Pivots.csv",
