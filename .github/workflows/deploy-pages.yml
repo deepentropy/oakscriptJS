@@ -34,7 +34,10 @@ jobs:
         
       - name: Build oakscriptjs
         run: pnpm --filter oakscriptjs build
-        
+
+      - name: Build indicators
+        run: pnpm --filter @oakscript/indicators build
+
       - name: Build example for GitHub Pages
         run: pnpm --filter oakscriptjs-example build:pages
         
