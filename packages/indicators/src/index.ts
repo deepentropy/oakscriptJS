@@ -39,6 +39,11 @@ import * as bopIndicator from './bop';
 export { BOP, calculate as calculateBOP } from './bop';
 export type { BOPInputs } from './bop';
 
+// CCI - Commodity Channel Index
+import * as cciIndicator from './cci';
+export { CCI, calculate as calculateCCI } from './cci';
+export type { CCIInputs } from './cci';
+
 // DEMA - Double Exponential Moving Average
 import * as demaIndicator from './dema';
 export { DEMA, calculate as calculateDEMA } from './dema';
@@ -242,6 +247,18 @@ export const indicatorRegistry: IndicatorRegistryEntry[] = [
     plotConfig: bopIndicator.plotConfig as PlotConfig[],
     defaultInputs: { ...bopIndicator.defaultInputs },
     calculate: bopIndicator.calculate,
+  },
+  {
+    id: 'cci',
+    name: 'Commodity Channel Index (CCI)',
+    shortName: 'CCI',
+    description: 'Measures the variation of a security\'s price from its statistical mean.',
+    overlay: false,
+    metadata: cciIndicator.metadata,
+    inputConfig: cciIndicator.inputConfig as InputConfig[],
+    plotConfig: cciIndicator.plotConfig as PlotConfig[],
+    defaultInputs: { ...cciIndicator.defaultInputs },
+    calculate: cciIndicator.calculate,
   },
   {
     id: 'dema',
