@@ -267,7 +267,7 @@ These are frequently used indicators with simple implementations:
 5. ~~**Average True Range (ATR)**~~ - **IMPLEMENTED**
 6. ~~**Exponential Moving Average (EMA)**~~ - **IMPLEMENTED**
 7. ~~**Accumulation/Distribution**~~ - **IMPLEMENTED**
-8. **CCI (Commodity Channel Index)** - Mean reversion
+8. ~~**CCI (Commodity Channel Index)**~~ - **IMPLEMENTED**
 
 ### Tier 2: Medium Complexity, High Utility
 

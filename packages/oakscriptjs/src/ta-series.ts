@@ -488,6 +488,19 @@ export function zigzag(
   ];
 }
 
+/**
+ * Commodity Channel Index
+ * @param source - Source series (typically hlc3)
+ * @param length - Period length
+ * @returns Series with CCI values
+ */
+export function cci(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const sourceValues = source.toArray();
+  const result = taCore.cci(sourceValues, length);
+  return Series.fromArray(bars, result);
+}
+
 // Export as namespace object to match PineScript ta.* syntax
 export const ta = {
   sma,
@@ -519,4 +532,5 @@ export const ta = {
   linreg,
   alma,
   zigzag,
+  cci,
 };
