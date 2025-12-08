@@ -6,8 +6,14 @@ describe('ta.rma', () => {
     const rma5 = ta.rma(source, 5);
 
     expect(rma5.length).toBe(source.length);
-    // RMA should be smoother than SMA
-    expect(rma5[4]).toBeCloseTo(12.43, 1);
+    // First 4 values should be NaN (need 5 values to start)
+    expect(isNaN(rma5[0])).toBe(true);
+    expect(isNaN(rma5[3])).toBe(true);
+    // Index 4 should be SMA of first 5 values: (10+12+11+13+14)/5 = 12
+    expect(rma5[4]).toBeCloseTo(12, 1);
+    // RMA continues with alpha = 1/5 = 0.2
+    // Index 5: 0.2*12 + 0.8*12 = 12
+    expect(rma5[5]).toBeCloseTo(12, 1);
   });
 
   it('should use alpha = 1 / length', () => {
@@ -15,17 +21,21 @@ describe('ta.rma', () => {
     const length = 3;
     const rma3 = ta.rma(source, length);
 
-    // First value should be SMA
+    // First 2 values should be NaN
+    expect(isNaN(rma3[0])).toBe(true);
+    expect(isNaN(rma3[1])).toBe(true);
+    // Index 2 should be SMA of first 3 values
     const expectedFirst = (100 + 110 + 105) / 3;
-    expect(rma3[0]).toBeCloseTo(expectedFirst, 2);
+    expect(rma3[2]).toBeCloseTo(expectedFirst, 2);
   });
 
-  it('should handle single value', () => {
+  it('should handle insufficient data', () => {
     const source = [42];
     const rma5 = ta.rma(source, 5);
 
     expect(rma5.length).toBe(1);
-    expect(rma5[0]).toBe(42);
+    // Not enough data for length=5, should be NaN
+    expect(isNaN(rma5[0])).toBe(true);
   });
 });
 
