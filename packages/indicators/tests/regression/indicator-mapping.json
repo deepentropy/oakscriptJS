@@ -3,6 +3,10 @@
     "dataFile": "data/20251207/Simple Moving Average.csv",
     "exportName": "SMA"
   },
+  "cci": {
+    "dataFile": "data/20251207/Commodity Channel Index.csv",
+    "exportName": "CCI"
+  },
   "ema": {
     "dataFile": "data/20251207/Moving Average Exponential.csv",
     "exportName": "EMA"
