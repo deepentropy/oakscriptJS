@@ -25,8 +25,11 @@ const SKIP_INITIAL_VALUES = 100;
 interface IndicatorConfig {
   dataFile: string;
   exportName: string;
-  normalize?: boolean;
+  normalize?: boolean | 'offset' | 'pctChange';
   skipInitial?: number;
+  tolerance?: number;
+  skipTest?: boolean;
+  skipReason?: string;
 }
 
 interface IndicatorMapping {
@@ -116,6 +119,18 @@ describe('PineSuite Regression Tests - Optimized Indicators', () => {
     }
 
     for (const [indicatorId, config] of implementedIndicators) {
+      // Skip tests marked with skipTest flag
+      if (config.skipTest) {
+        it.skip(`${indicatorId} (${config.exportName}) should match PineSuite reference data - ${config.skipReason || 'skipped'}`, () => {
+          testResults.push({
+            indicator: indicatorId,
+            status: 'skipped',
+            skipReason: config.skipReason || 'skipTest flag set',
+          });
+        });
+        continue;
+      }
+
       it(`${indicatorId} (${config.exportName}) should match PineSuite reference data`, async () => {
         // Re-fetch indicator inside the test to avoid closure issues
         const indicatorMod = getIndicator(config.exportName)!;
@@ -197,10 +212,11 @@ describe('PineSuite Regression Tests - Optimized Indicators', () => {
           });
 
           const skipCount = config.skipInitial ?? SKIP_INITIAL_VALUES;
+          const tolerance = config.tolerance ?? TOLERANCE;
           const comparisonResult = compareArrays(
             actualValues,
             expectedValues,
-            TOLERANCE,
+            tolerance,
             skipCount,
             config.normalize ?? false
           );

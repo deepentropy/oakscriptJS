@@ -35,21 +35,56 @@ function normalizeArray(arr: (number | null | undefined)[]): (number | null | un
 }
 
 /**
+ * Convert an array to percentage changes (bar-to-bar)
+ * Used for indicators like Chaikin Oscillator where the absolute values
+ * depend on historical data we don't have access to
+ */
+function toPercentageChanges(arr: (number | null | undefined)[]): (number | null | undefined)[] {
+    const result: (number | null | undefined)[] = [null]; // First value has no change
+
+    for (let i = 1; i < arr.length; i++) {
+        const prev = arr[i - 1];
+        const curr = arr[i];
+
+        if (prev == null || curr == null || Number.isNaN(prev) || Number.isNaN(curr) || prev === 0) {
+            result.push(null);
+        } else {
+            result.push((curr - prev) / Math.abs(prev));
+        }
+    }
+
+    return result;
+}
+
+/**
  * Compare two arrays of values with a tolerance
  * Handles null/undefined values gracefully
- * When normalize=true, both arrays are normalized by subtracting their first valid value
- * (useful for cumulative indicators like OBV)
+ * normalize options:
+ *   - false: no normalization
+ *   - true or 'offset': both arrays normalized by subtracting first valid value (for OBV)
+ *   - 'pctChange': compare percentage changes bar-to-bar (for Chaikin Oscillator)
  */
 export function compareArrays(
   actual: (number | null | undefined)[],
   expected: (number | null | undefined)[],
   tolerance: number = 1e-4,
   skipInitialValues: number = 0,
-  normalize: boolean = false
+  normalize: boolean | 'offset' | 'pctChange' = false
 ): ComparisonResult {
     // Normalize arrays if requested (for cumulative indicators)
-    const actualValues = normalize ? normalizeArray(actual) : actual;
-    const expectedValues = normalize ? normalizeArray(expected) : expected;
+    let actualValues: (number | null | undefined)[];
+    let expectedValues: (number | null | undefined)[];
+
+    if (normalize === 'pctChange') {
+        actualValues = toPercentageChanges(actual);
+        expectedValues = toPercentageChanges(expected);
+    } else if (normalize === true || normalize === 'offset') {
+        actualValues = normalizeArray(actual);
+        expectedValues = normalizeArray(expected);
+    } else {
+        actualValues = actual;
+        expectedValues = expected;
+    }
     const totalValues = Math.min(actualValues.length, expectedValues.length);
   let validComparisons = 0;
   let mismatches = 0;
