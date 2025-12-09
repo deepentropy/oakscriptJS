@@ -70,6 +70,9 @@ export { rgb, from_hex as color_from_hex, new_color } from './color';
 // Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSourceSeries } from './utils';
 
+// Export libraries (ZigZag, etc.)
+export * from './lib';
+
 // Export helper functions for generated indicators (PineScript compatibility)
 export {isNA as na, nz} from './utils';
 

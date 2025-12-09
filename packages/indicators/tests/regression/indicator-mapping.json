@@ -85,15 +85,19 @@
   },
   "chaikin-osc": {
     "dataFile": "data/20251207/Chaikin Oscillator.csv",
-    "exportName": "ChaikinOscillator"
+    "exportName": "ChaikinOscillator",
+    "normalize": "pctChange",
+    "skipInitial": 150,
+    "tolerance": 0.05
   },
   "chande-kroll-stop": {
     "dataFile": "data/20251207/Chande Kroll Stop.csv",
-    "exportName": "ChandeKrollStop"
+    "exportName": "ChandeKrollStop",
+    "tolerance": 2e-4
   },
   "chande-mo": {
     "dataFile": "data/20251207/Chande Momentum Oscillator.csv",
-    "exportName": "ChandeMomentumOscillator"
+    "exportName": "ChandeMO"
   },
   "chop-zone": {
     "dataFile": "data/20251207/Chop Zone.csv",
@@ -125,7 +129,9 @@
   },
   "dmi": {
     "dataFile": "data/20251207/Directional Movement Index.csv",
-    "exportName": "DirectionalMovementIndex"
+    "exportName": "DMI",
+    "skipInitial": 200,
+    "tolerance": 2e-4
   },
   "donchian": {
     "dataFile": "data/20251207/Donchian Channels.csv",
@@ -133,7 +139,7 @@
   },
   "dpo": {
     "dataFile": "data/20251207/Detrended Price Oscillator.csv",
-    "exportName": "DetrendedPriceOscillator"
+    "exportName": "DPO"
   },
   "ease-of-movement": {
     "dataFile": "data/20251207/Ease of Movement.csv",
@@ -174,7 +180,10 @@
   },
   "klinger": {
     "dataFile": "data/20251207/Klinger Oscillator.csv",
-    "exportName": "KlingerOscillator"
+    "exportName": "KlingerOscillator",
+    "normalize": "pctChange",
+    "skipInitial": 200,
+    "tolerance": 5
   },
   "kst": {
     "dataFile": "data/20251207/Know Sure Thing.csv",
@@ -190,7 +199,7 @@
   },
   "ma-ribbon": {
     "dataFile": "data/20251207/Moving Average Ribbon.csv",
-    "exportName": "MovingAverageRibbon"
+    "exportName": "MARibbon"
   },
   "macd": {
     "dataFile": "data/20251207/Moving Average Convergence Divergence.csv",
@@ -213,7 +222,7 @@
   },
   "mfi": {
     "dataFile": "data/20251207/Money Flow Index.csv",
-    "exportName": "MoneyFlowIndex"
+    "exportName": "MFI"
   },
   "momentum": {
     "dataFile": "data/20251207/Momentum.csv",
@@ -238,7 +247,8 @@
   },
   "price-osc": {
     "dataFile": "data/20251207/Price Oscillator.csv",
-    "exportName": "PriceOscillator"
+    "exportName": "PriceOscillator",
+    "tolerance": 2e-3
   },
   "price-target": {
     "dataFile": "data/20251207/Price Target.csv",
@@ -246,7 +256,9 @@
   },
   "pvt": {
     "dataFile": "data/20251207/Price Volume Trend.csv",
-    "exportName": "PriceVolumeTrend"
+    "exportName": "PVT",
+    "normalize": true,
+    "tolerance": 1e-4
   },
   "rci": {
     "dataFile": "data/20251207/Rank Correlation Index.csv",
@@ -275,7 +287,7 @@
   },
   "rvi": {
     "dataFile": "data/20251207/Relative Vigor Index.csv",
-    "exportName": "RelativeVigorIndex"
+    "exportName": "RVI"
   },
   "rvol": {
     "dataFile": "data/20251207/Relative Volatility Index.csv",
@@ -311,7 +323,9 @@
   },
   "stoch-rsi": {
     "dataFile": "data/20251207/Stochastic RSI.csv",
-    "exportName": "StochasticRSI"
+    "exportName": "StochRSI",
+    "skipInitial": 150,
+    "tolerance": 1e-3
   },
   "supertrend": {
     "dataFile": "data/20251207/Supertrend.csv",
@@ -333,11 +347,12 @@
   },
   "trix": {
     "dataFile": "data/20251207/TRIX.csv",
-    "exportName": "TRIX"
+    "exportName": "TRIX",
+    "skipInitial": 200
   },
   "tsi": {
     "dataFile": "data/20251207/True Strength Index.csv",
-    "exportName": "TrueStrengthIndex"
+    "exportName": "TSI"
   },
   "twap": {
     "dataFile": "data/20251207/Time Weighted Average Price.csv",

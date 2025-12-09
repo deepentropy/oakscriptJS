@@ -50,41 +50,14 @@ export function calculate(bars: Bar[], inputs: Partial<StochRSIInputs> = {}): In
 
   // Calculate RSI
   const rsiSeries = ta.rsi(close, lengthRSI);
-  const rsiValues = rsiSeries.toArray();
 
   // Apply Stochastic to RSI: stoch(rsi, rsi, rsi, lengthStoch)
   // stoch = 100 * (src - lowest(low, len)) / (highest(high, len) - lowest(low, len))
   // Here src = high = low = rsi
-  const stochValues: number[] = [];
-  for (let i = 0; i < bars.length; i++) {
-    const rsiVal = rsiValues[i];
-    if (i < lengthStoch - 1 || rsiVal == null || isNaN(rsiVal)) {
-      stochValues.push(NaN);
-      continue;
-    }
-
-    let highest = -Infinity;
-    let lowest = Infinity;
-
-    for (let j = i - lengthStoch + 1; j <= i; j++) {
-      const val = rsiValues[j];
-      if (val != null && !isNaN(val)) {
-        if (val > highest) highest = val;
-        if (val < lowest) lowest = val;
-      }
-    }
-
-    const range = highest - lowest;
-    if (range === 0) {
-      stochValues.push(50); // Midpoint when no range
-    } else {
-      stochValues.push(100 * (rsiVal - lowest) / range);
-    }
-  }
+  const stochRsi = ta.stoch(rsiSeries, rsiSeries, rsiSeries, lengthStoch);
 
   // K = SMA(stoch, smoothK)
-  const stochSeries = new Series(bars, (_, i) => stochValues[i]);
-  const kSeries = ta.sma(stochSeries, smoothK);
+  const kSeries = ta.sma(stochRsi, smoothK);
 
   // D = SMA(K, smoothD)
   const dSeries = ta.sma(kSeries, smoothD);

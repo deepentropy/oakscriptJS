@@ -5,13 +5,54 @@
 
 import type {Bar} from 'oakscriptjs';
 import { ChartManager } from './chart';
-import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig } from '@oakscript/indicators';
+import { indicatorRegistry, type IndicatorRegistryEntry, type InputConfig, type IndicatorCategory } from '@oakscript/indicators';
 
 /**
  * Use the indicator registry from indicators/index.ts
  * Adding new indicators to the registry will automatically make them available in the UI
  */
 const indicators: IndicatorRegistryEntry[] = indicatorRegistry;
+
+/**
+ * Category display order
+ */
+const categoryOrder: IndicatorCategory[] = [
+  'Moving Averages',
+  'Momentum',
+  'Oscillators',
+  'Trend',
+  'Volatility',
+  'Volume',
+  'Channels & Bands',
+];
+
+/**
+ * Group indicators by category and sort alphabetically within each group
+ */
+function groupIndicatorsByCategory(indicators: IndicatorRegistryEntry[]): Map<IndicatorCategory, IndicatorRegistryEntry[]> {
+  const groups = new Map<IndicatorCategory, IndicatorRegistryEntry[]>();
+
+  // Initialize groups in order
+  for (const category of categoryOrder) {
+    groups.set(category, []);
+  }
+
+  // Group indicators
+  for (const indicator of indicators) {
+    const category = indicator.category;
+    const group = groups.get(category);
+    if (group) {
+      group.push(indicator);
+    }
+  }
+
+  // Sort each group alphabetically by name
+  for (const [, group] of groups) {
+    group.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return groups;
+}
 
 /**
  * Indicator UI Manager class
@@ -41,6 +82,18 @@ export class IndicatorUI {
    * Render the UI
    */
   private render(): void {
+    // Group and sort indicators by category
+    const groupedIndicators = groupIndicatorsByCategory(indicators);
+
+    // Build optgroup HTML
+    const optgroupsHtml = Array.from(groupedIndicators.entries())
+      .filter(([, group]) => group.length > 0)
+      .map(([category, group]) => `
+        <optgroup label="${category}">
+          ${group.map(ind => `<option value="${ind.id}">${ind.name}</option>`).join('')}
+        </optgroup>
+      `).join('');
+
     this.container.innerHTML = `
       <div class="indicator-panel">
         <h3>Indicators</h3>
@@ -48,7 +101,7 @@ export class IndicatorUI {
           <label for="indicator-select">Select Indicator:</label>
           <select id="indicator-select">
             <option value="">-- None --</option>
-            ${indicators.map(ind => `<option value="${ind.id}">${ind.name}</option>`).join('')}
+            ${optgroupsHtml}
           </select>
         </div>
         <div id="indicator-inputs" class="indicator-inputs"></div>
