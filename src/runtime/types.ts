@@ -78,6 +78,8 @@ export interface PlotConfig {
     color: string;
     /** Line width in pixels */
     lineWidth?: number;
+    /** Plot style */
+    style?: 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr';
     /** Whether the plot is visible (can be boolean or expression string for dynamic visibility) */
     visible?: boolean | string;
     /** Display mode: 'all', 'none', 'data_window', 'status_line', 'pane' */
