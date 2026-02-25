@@ -77,21 +77,25 @@ export function ema(source: Source, length: simple_int): series_float {
   const len = Math.floor(length);
   const multiplier = 2 / (len + 1);
 
-  // SMA seed: fixed window of first `len` bars, averaging only non-NaN values
-  let initSum = 0;
+  // SMA seed: slide past leading NaN, then collect `len` valid values
+  let firstValidIndex = -1;
   let validCount = 0;
+  let initSum = 0;
 
-  for (let i = 0; i < len && i < source.length; i++) {
+  for (let i = 0; i < source.length; i++) {
     const val = source[i];
     if (val !== undefined && !isNaN(val)) {
       initSum += val;
       validCount++;
+      if (validCount === len) {
+        firstValidIndex = i;
+        break;
+      }
     }
   }
 
-  const firstValidIndex = len - 1;
   let emaValue = validCount > 0 ? initSum / validCount : NaN;
-  let emaInitialized = validCount > 0 && source.length >= len;
+  let emaInitialized = firstValidIndex >= 0;
 
   for (let i = 0; i < source.length; i++) {
     if (!emaInitialized || i < firstValidIndex) {
