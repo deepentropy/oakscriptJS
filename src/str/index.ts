@@ -537,6 +537,30 @@ export function match(source: simple_string, regex: simple_string): bool {
  *
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_str.format_time | PineScript str.format_time}
  */
+/**
+ * Constructs a new string containing the source string repeated N times with an optional separator.
+ *
+ * @param source - The string to repeat
+ * @param count - Number of times to repeat (must be >= 0)
+ * @param separator - String to inject between repeated instances. Optional, defaults to empty string.
+ * @returns The repeated string, or null if source is null/undefined
+ *
+ * @example
+ * ```typescript
+ * str.repeat("ab", 3) // Returns: "ababab"
+ * str.repeat("?", 3, ",") // Returns: "?,?,?"
+ * str.repeat("hello", 0) // Returns: ""
+ * str.repeat("x", 1) // Returns: "x"
+ * ```
+ *
+ * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_str.repeat | PineScript str.repeat}
+ */
+export function repeat(source: simple_string, count: simple_int, separator: simple_string = ''): string | null {
+  if (source == null) return null;
+  if (count <= 0) return '';
+  return Array(count).fill(source).join(separator);
+}
+
 export function format_time(time: simple_int, format: simple_string): string {
   const date = new Date(time);
 
