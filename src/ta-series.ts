@@ -517,6 +517,387 @@ export function sar(bars: Bar[], start: number = 0.02, inc: number = 0.02, max: 
   return Series.fromArray(bars, result);
 }
 
+/**
+ * Deviation
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with deviation values
+ */
+export function dev(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.dev(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Variance
+ * @param source - Source series
+ * @param length - Period length
+ * @param biased - Use biased estimation (default: true)
+ * @returns Series with variance values
+ */
+export function variance(source: Series, length: number, biased: boolean = true): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.variance(source.toArray(), length, biased);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Median
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with median values
+ */
+export function median(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.median(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Symmetrically Weighted Moving Average
+ * @param source - Source series
+ * @returns Series with SWMA values
+ */
+export function swma(source: Series): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.swma(source.toArray());
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Correlation
+ * @param source1 - First source series
+ * @param source2 - Second source series
+ * @param length - Period length
+ * @returns Series with correlation values
+ */
+export function correlation(source1: Series, source2: Series, length: number): Series {
+  const bars = source1.bars as Bar[];
+  const result = taCore.correlation(source1.toArray(), source2.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Percent Rank
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with percent rank values
+ */
+export function percentrank(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.percentrank(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Money Flow Index
+ * @param source - Source series (typically hlc3)
+ * @param length - Period length
+ * @param volume - Volume series
+ * @returns Series with MFI values
+ */
+export function mfi(source: Series, length: number, volume: Series): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.mfi(source.toArray(), length, volume.toArray());
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Hull Moving Average
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with HMA values
+ */
+export function hma(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.hma(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Pivot High
+ * @param source - Source series
+ * @param leftbars - Number of bars to the left of the pivot
+ * @param rightbars - Number of bars to the right of the pivot
+ * @returns Series with pivot high values (NaN where no pivot)
+ */
+export function pivothigh(source: Series, leftbars: number, rightbars: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.pivothigh(source.toArray(), leftbars, rightbars);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Pivot Low
+ * @param source - Source series
+ * @param leftbars - Number of bars to the left of the pivot
+ * @param rightbars - Number of bars to the right of the pivot
+ * @returns Series with pivot low values (NaN where no pivot)
+ */
+export function pivotlow(source: Series, leftbars: number, rightbars: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.pivotlow(source.toArray(), leftbars, rightbars);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Bars Since condition was true
+ * @param condition - Boolean series (1/0 values)
+ * @returns Series with bar count since condition was last true
+ */
+export function barssince(condition: Series): Series {
+  const bars = condition.bars as Bar[];
+  const boolValues = condition.toArray().map(v => v === 1);
+  const result = taCore.barssince(boolValues);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Value When condition was true
+ * @param condition - Boolean series (1/0 values)
+ * @param source - Source series to extract values from
+ * @param occurrence - Which occurrence to use (0 = most recent)
+ * @returns Series with values from source when condition was true
+ */
+export function valuewhen(condition: Series, source: Series, occurrence: number): Series {
+  const bars = condition.bars as Bar[];
+  const boolValues = condition.toArray().map(v => v === 1);
+  const result = taCore.valuewhen(boolValues, source.toArray(), occurrence);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Directional Movement Index
+ * @param bars - Bar data
+ * @param diLength - DI period length
+ * @param adxSmoothing - ADX smoothing period
+ * @returns Tuple of [plusDI, minusDI, adx] Series
+ */
+export function dmi(bars: Bar[], diLength: number, adxSmoothing: number): [Series, Series, Series] {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const [plusDI, minusDI, adx] = taCore.dmi(diLength, adxSmoothing, high, low, close);
+  return [
+    Series.fromArray(bars, plusDI),
+    Series.fromArray(bars, minusDI),
+    Series.fromArray(bars, adx),
+  ];
+}
+
+/**
+ * True Strength Index
+ * @param source - Source series
+ * @param shortLength - Short smoothing period
+ * @param longLength - Long smoothing period
+ * @returns Series with TSI values
+ */
+export function tsi(source: Series, shortLength: number, longLength: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.tsi(source.toArray(), shortLength, longLength);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Chande Momentum Oscillator
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with CMO values
+ */
+export function cmo(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.cmo(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Keltner Channel
+ * @param bars - Bar data
+ * @param source - Source series
+ * @param length - Period length
+ * @param mult - Multiplier
+ * @param useTrueRange - Use true range (default: true)
+ * @returns Tuple of [middle, upper, lower] Series
+ */
+export function kc(bars: Bar[], source: Series, length: number, mult: number, useTrueRange: boolean = true): [Series, Series, Series] {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const [middle, upper, lower] = taCore.kc(source.toArray(), length, mult, useTrueRange, high, low, close);
+  return [
+    Series.fromArray(bars, middle),
+    Series.fromArray(bars, upper),
+    Series.fromArray(bars, lower),
+  ];
+}
+
+/**
+ * Bollinger Bands Width
+ * @param source - Source series
+ * @param length - Period length
+ * @param mult - Standard deviation multiplier
+ * @returns Series with BBW values
+ */
+export function bbw(source: Series, length: number, mult: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.bbw(source.toArray(), length, mult);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Williams %R
+ * @param bars - Bar data
+ * @param length - Period length (default: 14)
+ * @returns Series with Williams %R values
+ */
+export function wpr(bars: Bar[], length: number = 14): Series {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const result = taCore.wpr(high, low, close, length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Keltner Channel Width
+ * @param bars - Bar data
+ * @param source - Source series
+ * @param length - Period length (default: 20)
+ * @param mult - Multiplier (default: 2)
+ * @param useTrueRange - Use true range (default: true)
+ * @returns Series with KCW values
+ */
+export function kcw(bars: Bar[], source: Series, length: number = 20, mult: number = 2, useTrueRange: boolean = true): Series {
+  const high = bars.map(b => b.high);
+  const low = bars.map(b => b.low);
+  const close = bars.map(b => b.close);
+  const result = taCore.kcw(source.toArray(), length, mult, useTrueRange, high, low, close);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Range (high - low)
+ * @param high - High series
+ * @param low - Low series
+ * @returns Series with range values
+ */
+export function range(high: Series, low: Series): Series {
+  const bars = high.bars as Bar[];
+  const result = taCore.range(high.toArray(), low.toArray());
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Highest Bars - offset to the highest value
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with bar offsets to highest value
+ */
+export function highestbars(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.highestbars(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Lowest Bars - offset to the lowest value
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with bar offsets to lowest value
+ */
+export function lowestbars(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.lowestbars(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Element-wise maximum
+ * @param source1 - First series
+ * @param source2 - Second series
+ * @returns Series with max of each pair
+ */
+export function max(source1: Series, source2: Series): Series {
+  const bars = source1.bars as Bar[];
+  const result = taCore.max(source1.toArray(), source2.toArray());
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Element-wise minimum
+ * @param source1 - First series
+ * @param source2 - Second series
+ * @returns Series with min of each pair
+ */
+export function min(source1: Series, source2: Series): Series {
+  const bars = source1.bars as Bar[];
+  const result = taCore.min(source1.toArray(), source2.toArray());
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Center of Gravity
+ * @param source - Source series
+ * @param length - Period length (default: 10)
+ * @returns Series with COG values
+ */
+export function cog(source: Series, length: number = 10): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.cog(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Mode (most frequent value)
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with mode values
+ */
+export function mode(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.mode(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Percentile (linear interpolation)
+ * @param source - Source series
+ * @param length - Period length
+ * @param percentage - Percentile percentage
+ * @returns Series with percentile values
+ */
+export function percentile_linear_interpolation(source: Series, length: number, percentage: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.percentile_linear_interpolation(source.toArray(), length, percentage);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Percentile (nearest rank)
+ * @param source - Source series
+ * @param length - Period length
+ * @param percentage - Percentile percentage
+ * @returns Series with percentile values
+ */
+export function percentile_nearest_rank(source: Series, length: number, percentage: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.percentile_nearest_rank(source.toArray(), length, percentage);
+  return Series.fromArray(bars, result);
+}
+
+/**
+ * Rank Correlation Index
+ * @param source - Source series
+ * @param length - Period length
+ * @returns Series with RCI values
+ */
+export function rci(source: Series, length: number): Series {
+  const bars = source.bars as Bar[];
+  const result = taCore.rci(source.toArray(), length);
+  return Series.fromArray(bars, result);
+}
+
 // Export as namespace object to match PineScript ta.* syntax
 export const ta = {
   sma,
@@ -550,4 +931,33 @@ export const ta = {
   zigzag,
   cci,
   sar,
+  dev,
+  variance,
+  median,
+  swma,
+  correlation,
+  percentrank,
+  mfi,
+  hma,
+  pivothigh,
+  pivotlow,
+  barssince,
+  valuewhen,
+  dmi,
+  tsi,
+  cmo,
+  kc,
+  bbw,
+  wpr,
+  kcw,
+  range,
+  highestbars,
+  lowestbars,
+  max,
+  min,
+  cog,
+  mode,
+  percentile_linear_interpolation,
+  percentile_nearest_rank,
+  rci,
 };
