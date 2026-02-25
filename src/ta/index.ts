@@ -1504,12 +1504,16 @@ export function percentrank(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+    if (i < length) {
       result.push(NaN);
     } else {
-      // Check for NaN values
+      // Check for NaN in current value or any of the previous length values
+      if (isNaN(source[i]!)) {
+        result.push(NaN);
+        continue;
+      }
       let hasNaN = false;
-      for (let j = 0; j < length; j++) {
+      for (let j = 1; j <= length; j++) {
         if (isNaN(source[i - j]!)) {
           hasNaN = true;
           break;
@@ -1522,16 +1526,14 @@ export function percentrank(source: Source, length: simple_int): series_float {
         const currentValue = source[i]!;
         let countLessOrEqual = 0;
 
-        // Count how many values are less than or equal to current
-        for (let j = 0; j < length; j++) {
+        // Count how many of the previous length values are <= current value
+        for (let j = 1; j <= length; j++) {
           if (source[i - j]! <= currentValue) {
             countLessOrEqual++;
           }
         }
 
-        // Calculate percent rank
-        const percentRank = ((countLessOrEqual - 1) / (length - 1)) * 100;
-        result.push(percentRank);
+        result.push((countLessOrEqual / length) * 100);
       }
     }
   }
@@ -3192,21 +3194,41 @@ export function rci(source: Source, length: simple_int): series_float {
       currentRank += tieCount;
     }
 
-    // Calculate Spearman's rank correlation
-    // Formula: 1 - (6 * sum(d^2)) / (n * (n^2 - 1))
-    // where d is the difference between time rank and value rank
+    // Calculate D² = sum of (price_rank - time_rank)²
     let sumSquaredDiff = 0;
     for (let j = 0; j < length; j++) {
-      const timeRank = j + 1; // Time rank: 1, 2, 3, ..., length
-      const valueRank = ranks[j];
-      const diff = timeRank - valueRank;
+      const timeRank = j + 1;
+      const diff = ranks[j] - timeRank;
       sumSquaredDiff += diff * diff;
     }
 
     const n = length;
-    const rho = 1 - (6 * sumSquaredDiff) / (n * (n * n - 1));
+    const base = (n * n * n - n) / 12;
 
-    // Scale to -100 to 100
+    // Compute tie correction for price ranks
+    // Count tied groups from the sorted array
+    let tieCorrection = 0;
+    for (let j = 0; j < sorted.length; ) {
+      let tieCount = 1;
+      while (j + tieCount < sorted.length && sorted[j]!.value === sorted[j + tieCount]!.value) {
+        tieCount++;
+      }
+      if (tieCount > 1) {
+        tieCorrection += (tieCount * tieCount * tieCount - tieCount) / 12;
+      }
+      j += tieCount;
+    }
+
+    const A = base - tieCorrection; // Corrected for tied price ranks
+    const B = base;                 // Time ranks have no ties
+
+    let rho: number;
+    if (A === 0 || B === 0) {
+      rho = 0;
+    } else {
+      rho = (A + B - sumSquaredDiff) / (2 * Math.sqrt(A * B));
+    }
+
     result.push(rho * 100);
   }
 
