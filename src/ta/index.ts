@@ -74,24 +74,40 @@ export function sma(source: Source, length: simple_int): series_float {
  */
 export function ema(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-    // Floor the length to match PineScript's auto-truncation of float to int
-    const len = Math.floor(length);
-    const multiplier = 2 / (len + 1);
+  const len = Math.floor(length);
+  const multiplier = 2 / (len + 1);
 
-  // First value is SMA
-  let ema = 0;
-    for (let i = 0; i < Math.min(len, source.length); i++) {
-    ema += source[i]!;
-  }
-    ema = ema / Math.min(len, source.length);
+  // Find the first index where we have enough non-NaN values for SMA seed
+  let firstValidIndex = -1;
+  let validCount = 0;
+  let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
-    if (i === 0) {
-      result.push(source[i]!);
-      ema = source[i]!;
+    const val = source[i];
+    if (val !== undefined && !isNaN(val)) {
+      initSum += val;
+      validCount++;
+      if (validCount === len) {
+        firstValidIndex = i;
+        break;
+      }
+    }
+  }
+
+  let emaValue = validCount > 0 ? initSum / validCount : NaN;
+  let emaInitialized = firstValidIndex >= 0;
+
+  for (let i = 0; i < source.length; i++) {
+    if (!emaInitialized || i < firstValidIndex) {
+      result.push(NaN);
+    } else if (i === firstValidIndex) {
+      result.push(emaValue);
     } else {
-      ema = (source[i]! - ema) * multiplier + ema;
-      result.push(ema);
+      const val = source[i];
+      if (val !== undefined && !isNaN(val)) {
+        emaValue = (val - emaValue) * multiplier + emaValue;
+      }
+      result.push(emaValue);
     }
   }
 
