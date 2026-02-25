@@ -207,76 +207,62 @@ describe('ta.correlation', () => {
 });
 
 describe('ta.percentrank', () => {
-  it('should return 100 for highest value in period', () => {
-    const source = [1, 2, 3, 4, 5];
+  // PineScript percentrank: count of previous `length` values <= current / length * 100
+  // Current value is NOT in the comparison window. First valid at index `length`.
+
+  it('should return 100 when current is higher than all previous values', () => {
+    const source = [1, 2, 3, 4, 5, 6];
     const prank = ta.percentrank(source, 5);
 
-    // Last value (5) is highest, should be 100
-    expect(prank[4]).toBe(100);
+    // i=5, previous 5 = [1,2,3,4,5], current=6. All 5 <= 6. 5/5*100 = 100
+    expect(prank[5]).toBe(100);
   });
 
-  it('should return 0 for lowest value in period', () => {
-    const source = [5, 4, 3, 2, 1];
+  it('should return 0 when current is lower than all previous values', () => {
+    const source = [6, 5, 4, 3, 2, 1];
     const prank = ta.percentrank(source, 5);
 
-    // Last value (1) is lowest, should be 0
-    expect(prank[4]).toBe(0);
+    // i=5, previous 5 = [6,5,4,3,2], current=1. 0 <= 1. 0/5*100 = 0
+    expect(prank[5]).toBe(0);
   });
 
-  it('should calculate median percentrank correctly', () => {
-    const source = [1, 2, 3, 4, 5, 6, 7, 8];
+  it('should calculate partial percentrank correctly', () => {
+    const source = [1, 2, 3, 4, 5, 3];
     const prank = ta.percentrank(source, 5);
 
-    // At index 6, window is [3,4,5,6,7], current=7
-    // All 5 values <= 7, so (5-1)/(5-1) * 100 = 100%
-    expect(prank[6]).toBe(100);
-
-    // At index 4, window is [1,2,3,4,5], current=5
-    // All 5 values <= 5, so (5-1)/(5-1) * 100 = 100%
-    expect(prank[4]).toBe(100);
+    // i=5, previous 5 = [1,2,3,4,5], current=3. {1,2,3} <= 3 = 3. 3/5*100 = 60
+    expect(prank[5]).toBe(60);
   });
 
   it('should handle duplicate values', () => {
-    const source = [1, 2, 2, 2, 3];
+    const source = [1, 2, 2, 2, 3, 2];
     const prank = ta.percentrank(source, 5);
 
-    // At index 4, value is 3 (highest), all 5 values <= 3
-    // (5-1)/(5-1) * 100 = 100%
-    expect(prank[4]).toBe(100);
-
-    // Test with a value that's not the highest
-    const source2 = [1, 2, 3, 4, 5, 6];
-    const prank2 = ta.percentrank(source2, 5);
-
-    // At index 4, window is [1,2,3,4,5], value is 5 (highest)
-    // All 5 values <= 5, so (5-1)/(5-1) * 100 = 100%
-    expect(prank2[4]).toBe(100);
-
-    // At index 5, window is [2,3,4,5,6], value is 6 (highest)
-    // All 5 values <= 6, so (5-1)/(5-1) * 100 = 100%
-    expect(prank2[5]).toBe(100);
+    // i=5, previous 5 = [1,2,2,2,3], current=2. {1,2,2,2} <= 2 = 4. 4/5*100 = 80
+    expect(prank[5]).toBe(80);
   });
 
   it('should return NaN for insufficient data', () => {
-    const source = [1, 2, 3];
+    const source = [1, 2, 3, 4, 5];
     const prank = ta.percentrank(source, 5);
 
-    // First 4 should be NaN
-    expect(prank[0]).toBeNaN();
-    expect(prank[1]).toBeNaN();
-    expect(prank[2]).toBeNaN();
+    // First valid at index 5, so indices 0-4 are NaN
+    for (let i = 0; i < 5; i++) {
+      expect(prank[i]).toBeNaN();
+    }
   });
 
-  it('should calculate percentile correctly in middle of data', () => {
+  it('should calculate correctly in a rolling window', () => {
     const source = [10, 20, 30, 40, 50, 60, 70, 80];
     const prank = ta.percentrank(source, 5);
 
-    // At index 4, last 5 values are [10,20,30,40,50], current=50
-    // 5 values <= 50, so 5/5 = 100%
-    expect(prank[4]).toBe(100);
-
-    // At index 5, last 5 values are [20,30,40,50,60], current=60
-    // 5 values <= 60, so 5/5 = 100%
+    // i=5, previous 5 = [10,20,30,40,50], current=60. All 5 <= 60. 100
     expect(prank[5]).toBe(100);
+
+    // i=6, previous 5 = [20,30,40,50,60], current=70. All 5 <= 70. 100
+    expect(prank[6]).toBe(100);
+
+    // i=7, previous 5 = [30,40,50,60,70], current=80. All 5 <= 80. 100
+    expect(prank[7]).toBe(100);
   });
 });
