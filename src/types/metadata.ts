@@ -75,6 +75,8 @@ export interface FillOptions {
   title?: string;
   /** User can edit */
   editable?: boolean;
+  /** Fill gaps in data */
+  fillgaps?: boolean;
 }
 
 /**
