@@ -18,20 +18,20 @@ import { SimpleInputAdapter } from '../../src/runtime/adapters/SimpleInputAdapte
 
 // Mock chart adapter
 function createMockChartAdapter(): ChartAdapter & { 
-  addedSeries: Array<{ type: string; options?: SeriesOptions; data: Array<{ time: number; value: number }> }>;
+  addedSeries: Array<{ type: string; options?: SeriesOptions; data: Array<{ time: number; value: number; color?: string }> }>;
   removedSeries: SeriesHandle[];
 } {
-  const addedSeries: Array<{ type: string; options?: SeriesOptions; data: Array<{ time: number; value: number }> }> = [];
+  const addedSeries: Array<{ type: string; options?: SeriesOptions; data: Array<{ time: number; value: number; color?: string }> }> = [];
   const removedSeries: SeriesHandle[] = [];
 
   return {
     addedSeries,
     removedSeries,
     addSeries(type: string, options?: SeriesOptions): SeriesHandle {
-      const seriesRecord = { type, options, data: [] as Array<{ time: number; value: number }> };
+      const seriesRecord = { type, options, data: [] as Array<{ time: number; value: number; color?: string }> };
       addedSeries.push(seriesRecord);
       return {
-        setData(data: Array<{ time: number; value: number }>) {
+        setData(data: Array<{ time: number; value: number; color?: string }>) {
           seriesRecord.data = data;
         },
       };

@@ -144,7 +144,8 @@ export function plot(
   title?: string,
   color?: string,
   linewidth?: number,
-  style?: string
+  style?: string,
+  colors?: string[]
 ): string {
   if (!context) {
     throw new Error('OakScript context not set. Call setContext() before plotting.');
@@ -163,12 +164,16 @@ export function plot(
   const seriesHandle = context.chart.addSeries(seriesType, options);
   
   // Convert series data to time-value pairs
-  const data: Array<{ time: number; value: number }> = [];
+  const data: Array<{ time: number; value: number; color?: string }> = [];
   for (let index = 0; index < series.length; index++) {
     const value = series[index];
     const time = context.ohlcv.time[index];
     if (time !== undefined && value !== undefined && !Number.isNaN(value)) {
-      data.push({ time, value });
+      const point: { time: number; value: number; color?: string } = { time, value };
+      if (colors && colors[index]) {
+        point.color = colors[index];
+      }
+      data.push(point);
     }
   }
 
