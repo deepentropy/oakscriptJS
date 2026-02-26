@@ -10,7 +10,7 @@
  */
 export interface SeriesHandle {
   /** Set the data for this series */
-  setData(data: Array<{ time: number; value: number }>): void;
+  setData(data: Array<{ time: number; value: number; color?: string }>): void;
 }
 
 /**
@@ -124,6 +124,8 @@ export interface FillConfig {
     plot2: string;
     /** Fill color */
     color?: string;
+    /** Per-bar fill colors (overrides static color) */
+    colors?: string[];
     /** Display title */
     title?: string;
     /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */

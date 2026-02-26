@@ -162,6 +162,8 @@ export interface TimeValue {
   time: any;
   /** Value */
   value: number;
+  /** Per-bar color override */
+  color?: string;
 }
 
 /**
@@ -194,6 +196,8 @@ export interface FillData {
   plot2: number | string;
   /** Fill options */
   options?: FillOptions;
+  /** Per-bar fill colors (overrides static options.color) */
+  colors?: string[];
 }
 
 /**

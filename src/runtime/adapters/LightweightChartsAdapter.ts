@@ -29,6 +29,7 @@ interface LightweightSeries<T> {
 interface TimeValueData {
   time: number;
   value: number;
+  color?: string;
 }
 
 /**
@@ -59,7 +60,7 @@ export class LightweightChartsAdapter implements ChartAdapter {
    */
   private wrapSeries(lwcSeries: LightweightSeries<TimeValueData>): SeriesHandle {
     return {
-      setData: (data: Array<{ time: number; value: number }>) => {
+      setData: (data: Array<{ time: number; value: number; color?: string }>) => {
         lwcSeries.setData(data);
       },
       // Store reference for removal
