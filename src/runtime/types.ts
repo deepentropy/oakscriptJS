@@ -51,7 +51,7 @@ export interface InputConfig {
   /** Unique identifier for the input */
   id: string;
   /** Type of input */
-  type: 'int' | 'float' | 'bool' | 'string' | 'source';
+  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color';
   /** Default value */
   defval: unknown;
   /** Display title */
@@ -86,6 +86,8 @@ export interface PlotConfig {
     display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
     /** Offset in bars (positive = future, negative = past) */
     offset?: number;
+    /** Histogram base value */
+    histbase?: number;
 }
 
 /**
