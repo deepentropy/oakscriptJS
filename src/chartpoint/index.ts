@@ -9,7 +9,7 @@
  * @version 6
  */
 
-import { ChartPoint } from '../types';
+import type { ChartPoint } from '../types';
 
 // Re-export the ChartPoint type for convenience
 export type { ChartPoint };

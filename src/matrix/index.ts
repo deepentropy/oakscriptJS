@@ -3,7 +3,7 @@
  * Mirrors PineScript's matrix.* functions
  */
 
-import { PineMatrix, PineArray, simple_int, int, bool, float } from '../types';
+import type { PineMatrix, PineArray, simple_int, int, bool, float } from '../types';
 
 /**
  * Creates a new matrix

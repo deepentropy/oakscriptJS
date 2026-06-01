@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { ChartPoint, Polyline, color } from '../types';
+import type { ChartPoint, Polyline, color } from '../types';
 
 // Re-export the Polyline type for convenience
 export type { Polyline };

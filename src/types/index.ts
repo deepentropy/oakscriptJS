@@ -43,9 +43,8 @@ export type const_color = color;
 export type Source = series_float;
 
 // Array types
-export interface PineArray<T> extends Array<T> {
-  // PineScript arrays have specific methods
-}
+// PineScript arrays are JS arrays; aliased for API parity and future extension.
+export type PineArray<T> = Array<T>;
 
 // Matrix types
 export interface PineMatrix<T> {

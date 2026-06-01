@@ -9,7 +9,7 @@
  * @version 6
  */
 
-import { int, bool, float, simple_int, simple_string } from '../types';
+import type { int, bool, float, simple_int, simple_string } from '../types';
 
 /**
  * Returns the length of a string.

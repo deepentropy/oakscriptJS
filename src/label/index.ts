@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { Label, color } from '../types';
+import type { Label, color } from '../types';
 
 /**
  * Creates a new label object.

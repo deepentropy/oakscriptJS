@@ -12,7 +12,7 @@
  * @version 6
  */
 
-import { Box, color } from '../types';
+import type { Box, color } from '../types';
 
 /**
  * Creates a new box object.
