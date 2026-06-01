@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { Line, color } from '../types';
+import type { Line, color } from '../types';
 
 /**
  * Creates a new line object.

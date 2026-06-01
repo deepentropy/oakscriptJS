@@ -8,7 +8,7 @@
  * @version 6
  */
 
-import { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
+import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -95,7 +95,7 @@ export function ema(source: Source, length: simple_int): series_float {
   }
 
   let emaValue = validCount > 0 ? initSum / validCount : NaN;
-  let emaInitialized = firstValidIndex >= 0;
+  const emaInitialized = firstValidIndex >= 0;
 
   for (let i = 0; i < source.length; i++) {
     if (!emaInitialized || i < firstValidIndex) {
@@ -680,7 +680,7 @@ export function rma(source: Source, length: simple_int): series_float {
 
   // Initialize RMA value with SMA of first `length` non-NaN values
   let rmaValue = validCount > 0 ? initSum / validCount : NaN;
-  let rmaInitialized = firstValidIndex >= 0;
+  const rmaInitialized = firstValidIndex >= 0;
 
   for (let i = 0; i < source.length; i++) {
     if (!rmaInitialized || i < firstValidIndex) {
@@ -3422,7 +3422,7 @@ function calculatePivotLevels(
       levels[10] = levels[8] - (h - l);  // S5
       break;
 
-    case 'DM':
+    case 'DM': {
       // DM (Demark) only calculates P, R1, S1
       const x = h + l + (c * 2) + (isNaN(o) ? c : o);
       const newP = x / (isNaN(o) ? 4 : 5);
@@ -3431,8 +3431,9 @@ function calculatePivotLevels(
       levels[2] = x / 2 - h;  // S1
       // R2-S5 remain NaN
       break;
+    }
 
-    case 'Camarilla':
+    case 'Camarilla': {
       const range = h - l;
       levels[1] = c + range * 1.1 / 12;  // R1
       levels[2] = c - range * 1.1 / 12;  // S1
@@ -3445,6 +3446,7 @@ function calculatePivotLevels(
       levels[9] = h;  // R5 (high)
       levels[10] = l; // S5 (low)
       break;
+    }
   }
 
   return levels;
@@ -3659,7 +3661,7 @@ export function zigzag(
   const confirmedPivots: Pivot[] = [];
 
   // First pass: Find initial pivot to start
-  let startIndex = -1;
+  let startIndex: number;
   let initialHighest = -Infinity;
   let initialLowest = Infinity;
   let initialHighIndex = -1;

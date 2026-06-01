@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { color, int, float, simple_int, simple_float } from '../types';
+import type { color, int, float, simple_int, simple_float } from '../types';
 
 /**
  * Creates a color from RGB values with optional transparency.

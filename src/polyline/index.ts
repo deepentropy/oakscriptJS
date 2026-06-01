@@ -11,7 +11,7 @@
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#fun_polyline.new | PineScript polyline.new}
  */
 
-import { ChartPoint, Polyline, color } from '../types';
+import type { ChartPoint, Polyline, color } from '../types';
 
 // Re-export the Polyline type for convenience
 export type { Polyline };

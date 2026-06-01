@@ -9,7 +9,7 @@
  * @version 6
  */
 
-import { float, int, simple_int, series_float } from '../types';
+import type { float, int, simple_int, series_float } from '../types';
 import { Series } from '../runtime/series';
 
 /**

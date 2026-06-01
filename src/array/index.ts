@@ -3,7 +3,7 @@
  * Mirrors PineScript's array.* functions
  */
 
-import { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill } from '../types';
+import type { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill } from '../types';
 import * as ta from '../ta';
 
 /**

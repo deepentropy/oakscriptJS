@@ -177,7 +177,6 @@ export const info = {
  * In PineScript, this registers an alert condition. In oakscriptjs, it's a no-op
  * since alert configuration is handled by the host application.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function alertcondition(_condition: unknown, _title?: string, _message?: string): void {
   // No-op: Alert conditions are handled by the host application
 }

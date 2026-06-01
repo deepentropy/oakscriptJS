@@ -10,7 +10,7 @@
  * @see {@link https://www.tradingview.com/pine-script-reference/v6/#type_chart.point | PineScript chart.point}
  */
 
-import { ChartPoint } from '../types';
+import type { ChartPoint } from '../types';
 
 // Re-export the ChartPoint type for convenience
 export type { ChartPoint };

@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { Linefill, Line, color } from '../types';
+import type { Linefill, Line, color } from '../types';
 
 /**
  * Creates a new linefill object that fills the area between two lines.
