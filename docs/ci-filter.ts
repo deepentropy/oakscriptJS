@@ -120,20 +120,19 @@ function isShallow()
 	
 function hasReliableMergeBase() 
 	let base;
-	try {l
+	try 
 		base = execSync('git merge-base FETCH_HEAD HEAD', { encoding: 'utf-8' }).trim();
-	} catch 
+	  catch 
 		return false; // no common ancestor reachable yet
 	
 	if (!base) return false;
 	return !readShallowBoundaries().has(base);
-}
 
-function readShallowBoundaries() {
-	try {
+function readShallowBoundaries() 
+	try 
 		const shallowPath = execSync('git rev-parse --git-path shallow', {
 			encoding: 'utf-8',
-		}).trim();
+		 ).trim();
 		const content = readFileSync(shallowPath, 'utf-8');
 		return new Set(
 			content
@@ -141,27 +140,12 @@ function readShallowBoundaries() {
 				.map((l) => l.trim())
 				.filter(Boolean),
 		);
-	} catch {
+	  catch 
 		return new Set(); // no shallow file => complete repo
-	}
-}
-
-/**
- * Resolve the merge-base SHA between FETCH_HEAD and HEAD.
- * Used to give downstream tools (e.g. janitor's AST diff) a stable, PR-only
- * comparison point that doesn't drift when the base branch moves forward.
- */
+	
 export function getMergeBase() {
 	return execSync('git merge-base FETCH_HEAD HEAD', { encoding: 'utf-8' }).trim();
-}
 
-// --- Filter evaluation ---
-
-/**
- * Evaluate a single filter against changed files using gitignore semantics.
- * Patterns evaluated in order, last match wins. ! prefix excludes.
- * Filter triggers if ANY changed file passes.
- */
 export function evaluateFilter(changedFiles, patterns) {
 	for (const file of changedFiles) {
 		let included = false;
@@ -169,43 +153,27 @@ export function evaluateFilter(changedFiles, patterns) {
 			if (pattern.startsWith('!')) {
 				if (matchGlob(file, pattern.slice(1))) {
 					included = false;
-				}
-			} else {
+				
+			  else 
 				if (matchGlob(file, pattern)) {
 					included = true;
-				}
-			}
-		}
+				
 		if (included) return true;
-	}
+	
 	return false;
-}
-
-// --- Mode: filter ---
 
 function setOutput(name, value) {
 	const outputFile = process.env.GITHUB_OUTPUT;
 	if (outputFile) {
 		const delimiter = `ghadelimiter_${Date.now()}`;
 		appendFileSync(outputFile, `${name}<<${delimiter}\n${value}\n${delimiter}\n`);
-	}
-}
+	
 
-/**
- * Cap the changed-files list before it leaves the action.
- *
- * The list is consumed downstream as a step `env:` value and as a CLI argument
- * (`--files=...`). On a PR that touches thousands of files the joined string
- * blows past the kernel's argv/env size limit, so the runner can't even spawn
- * the step's shell ("Argument list too long" on execve). A change set that
- * large affects essentially every package anyway, so the per-file test scoping
- * is moot: emit an empty list, which every consumer already reads as "no
- * signal → run the full suite / all packages" — the safe, correct fallback.
- */
+
 export function formatChangedFilesOutput(
 	changedFiles,
 	maxCount = Number(process.env.CI_FILTER_MAX_CHANGED_FILES) || 1000,
-) {
+) 
 	if (changedFiles.length > maxCount) {
 		console.log(
 			`Changed file count (${changedFiles.length}) exceeds CI_FILTER_MAX_CHANGED_FILES (${maxCount}); ` +
@@ -213,9 +181,9 @@ export function formatChangedFilesOutput(
 				'This keeps the value small enough to pass through the step environment and CLI args.',
 		);
 		return '';
-	}
+	
 	return changedFiles.join('\n');
-}
+
 
 export function runFilter() {
 	const filtersInput = process.env.INPUT_FILTERS;
@@ -223,10 +191,10 @@ export function runFilter() {
 
 	if (!filtersInput) {
 		throw new Error('INPUT_FILTERS is required in filter mode');
-	}
+	
 	if (!baseRef) {
 		throw new Error('INPUT_BASE_REF is required in filter mode');
-	}
+	
 
 	const filters = parseFilters(filtersInput);
 	const changedFiles = getChangedFiles(baseRef);
