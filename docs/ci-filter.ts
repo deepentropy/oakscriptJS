@@ -64,102 +64,67 @@ export function parseFilters(input) {
 		throw new Error(`Malformed filter input at: "${rawLine}"`);
 	
 
-	for (const [name, patterns] of filters) {
-		if (patterns.length === 0) {
+	for (const [name, patterns] of filters) 
+		if (patterns.length === 0) 
 			throw new Error(`Filter "${name}" has no patterns`);
-		}
-	}
-
+		
 	return filters;
-}
-
-
 
 const SAFE_REF = /^[a-zA-Z0-9_./-]+$/;
 
-export function getChangedFiles(baseRef) {
-	if (!SAFE_REF.test(baseRef)) {
+export function getChangedFiles(baseRef) 
+	if (!SAFE_REF.test(baseRef)) 
 		throw new Error(`Unsafe base ref: "${baseRef}"`);
 
 	fetchUntilMergeBase(baseRef);
 	const output = execSync('git diff --name-only --merge-base FETCH_HEAD HEAD', {
 		encoding: 'utf-8',
 
-	return output
+	return 
 		.split('\n')
 		.map((f) => f.trim())
 		.filter(Boolean);
-}
 
-// Files added (not merely modified) in this PR. Same merge-base scoping as
-// getChangedFiles; assumes the fetch it performs has already run.
-export function getAddedFiles(baseRef) {
-	if (!SAFE_REF.test(baseRef)) {
+export function getAddedFiles(baseRef) 
+	if (!SAFE_REF.test(baseRef)) 
 		throw new Error(`Unsafe base ref: "${baseRef}"`);
-	}
+	
 	const output = execSync('git diff --name-only --diff-filter=A --merge-base FETCH_HEAD HEAD', {
 		encoding: 'utf-8',
-	});
-	return output
+	
+	return 
 		.split('\n')
 		.map((f) => f.trim())
 		.filter(Boolean);
-}
 
-/**
- * Deepen the shallow clone until the merge base between the fetched base ref
- * (FETCH_HEAD) and HEAD is reliably reachable.
- *
- * A single fixed deepen is not enough for stale PRs whose divergence point is
- * older than the shallow boundary. We fetch with an exponentially growing
- * window (doubling each round) until the merge base resolves, or until the full
- * history has been fetched — at which point no common ancestor means the
- * histories are unrelated.
- *
- * Once the doubled step grows past the repo's history (capped well under
- * git's signed int32 `--deepen` limit), switch to `--unshallow` instead of
- * passing an ever-larger integer that git would reject.
- */
-function fetchUntilMergeBase(baseRef) {
+function fetchUntilMergeBase(baseRef) 
 	let step = Number(process.env.CI_FILTER_DEEPEN_STEP) || 200;
 	const maxDeepen = Number(process.env.CI_FILTER_MAX_DEEPEN) || 20_000;
 	deepenFetch(baseRef, step, maxDeepen);
 
-	while (!hasReliableMergeBase()) {
-		if (!isShallow()) {
+	while (!hasReliableMergeBase()) 
+		if (!isShallow()) 
 			throw new Error(
-				`No merge base between FETCH_HEAD and HEAD after fetching the full history of "${baseRef}" (unrelated histories).`,
-			);
-		}
-		step *= 2;
+				
+		    step *= 2;
 		deepenFetch(baseRef, step, maxDeepen);
-	}
-}
-
-function deepenFetch(baseRef, step, maxDeepen) {
+	
+function deepenFetch(baseRef, step, maxDeepen) 
 	const flag = step > maxDeepen ? '--unshallow' : `--deepen=${step}`;
 	execSync(`git fetch --no-tags --prune ${flag} origin ${baseRef}`, { stdio: 'pipe' });
-}
 
-function isShallow() {
+
+function isShallow() 
 	return (
 		execSync('git rev-parse --is-shallow-repository', { encoding: 'utf-8' }).trim() === 'true'
-	);
-}
-
-/**
- * True when a merge base exists AND does not sit on the shallow boundary.
- * In a shallow repo `git merge-base` can return a grafted boundary commit whose
- * sub-history is truncated; that result is unreliable, so we must deepen further
- * before trusting it.
- */
-function hasReliableMergeBase() {
+	
+function hasReliableMergeBase() 
 	let base;
-	try {
+	try {l
 		base = execSync('git merge-base FETCH_HEAD HEAD', { encoding: 'utf-8' }).trim();
-	} catch {
+	} catch 
 		return false; // no common ancestor reachable yet
-	}
+	
 	if (!base) return false;
 	return !readShallowBoundaries().has(base);
 }
