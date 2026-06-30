@@ -1,8 +1,8 @@
 # Function Inventory - OakScriptJS
 
-This document tracks the implementation status of all PineScript v6 functions for included namespaces.
+This document tracks the implementation status of all PineScript v6 functions against the official language reference (`docs/official/language-reference/functions/`).
 
-**Last Updated:** 2025-11-28 (v0.2.0)
+**Last Updated:** February 2026 (v0.2.1)
 
 ## Architecture Overview
 
@@ -10,107 +10,130 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 
 1. **Core Functions** (array-based): Pure calculation functions from `ta.*`, `math.*`, `array.*`, etc.
 2. **Series Class**: Lazy evaluation with operator chaining for native PineScript-like syntax
+   - **BarData**: Versioned wrapper for automatic cache invalidation
+   - **materialize()**: Breaks closure chains for memory efficiency
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
 4. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills)
 
-**No DSL Layer**: The complexity of DSL functions (`indicator()`, `plot()`, `compile()`) is now handled by the OakScriptEngine transpiler. This library focuses on the computational core.
+**No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the `@oakscript/indicators` package.
 
 ## Summary
 
-| Namespace | Total Functions | Implemented | Not Implemented | Completion % |
-|-----------|----------------|-------------|-----------------|--------------|
-| **ta** | 61 | 61 | 0 | 100% |
+**Official PineScript v6 reference:** 457 function doc files across ~20 namespaces.
+
+### In-Scope Namespaces
+
+| Namespace | Official Functions | Implemented | Not Implemented | Completion % |
+|-----------|-------------------|-------------|-----------------|--------------|
+| **ta** | 59 | 59 (+2 custom) | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
-| **array** | 63 | 62 | 1 | 98.4% |
-| **matrix** | 50 | 50 | 0 | 100% |
-| **str** | 20 | 20 | 0 | 100% |
-| **time** | 1 | 1 | 0 | 100% |
-| **color** | 8 | 8 | 0 | 100% |
-| **line** | 20 | 20 | 0 | 100% |
-| **box** | 28 | 28 | 0 | 100% |
-| **label** | 17 | 17 | 0 | 100% |
+| **array** | 55 | 54 (+1 custom) | 1 | 98.2% |
+| **matrix** | 50 | 50 (+1 custom) | 0 | 100% |
+| **str** | 18 | 18 (+4 custom) | 0 | 100% |
+| **time + timeframe** | 5 | 1 (+2 custom) | 4 | 20% |
+| **color** | 7 | 7 (+1 custom) | 0 | 100% |
+| **line** | 21 | 19 | 2 | 90.5% |
+| **box** | 29 | 27 | 2 | 93.1% |
+| **label** | 21 | 19 | 2 | 90.5% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **chartPoint** | 4 | 4 | 0 | 100% |
-| **polyline** | 3 | 3 | 0 | 100% |
-| **TOTAL** | **304** | **303** | **1** | **99.7%** |
+| **chartPoint** | 5 | 4 | 1 | 80% |
+| **polyline** | 2 | 2 (+1 custom) | 0 | 100% |
+| **map** | 11 | 0 | 11 | 0% |
+| **TOTAL** | **312** | **289** | **23** | **92.6%** |
+
+### Out-of-Scope Namespaces (Platform/Rendering/Data)
+
+These namespaces exist in the official PineScript v6 reference but are outside the library's computational scope:
+
+| Namespace | Official Functions | Reason |
+|-----------|-------------------|--------|
+| **strategy** | 47 | Trading execution engine |
+| **table** | 22 | Rendering-only (no getters) |
+| **input** | 13 | UI/platform interaction |
+| **request** | 10 | External data fetching |
+| **ticker** | 9 | Symbol/ticker construction |
+| **log** | 3 | Runtime logging |
+| **syminfo** | 2 | Platform symbol metadata |
+| **Standalone** | ~34 | Mixed: `plot`, `indicator`, `alert`, `na`, `nz`, `fill`, time helpers, type constructors, etc. |
+| **TOTAL** | **~140** | -- |
 
 ---
 
 ## ta (Technical Analysis)
 
-### ✅ Implemented (61 functions)
+### Implemented (59 official + 2 custom = 61 functions)
 
-1. `atr()` - Average True Range
-2. `barssince()` - Number of bars since condition was true ✨ NEW
-3. `bb()` - Bollinger Bands
-4. `bbw()` - Bollinger Bands Width ✨ NEW
-5. `cci()` - Commodity Channel Index ✨ NEW
-6. `change()` - Difference between current and previous value
-7. `cmo()` - Chande Momentum Oscillator ✨ NEW
-8. `correlation()` - Correlation coefficient between two series
-9. `cross()` - Detects when two series cross
-10. `crossover()` - Detects when series1 crosses over series2
-11. `crossunder()` - Detects when series1 crosses under series2
-12. `cum()` - Cumulative sum
-13. `dev()` - Mean absolute deviation
-14. `dmi()` - Directional Movement Index ✨ NEW
-15. `ema()` - Exponential Moving Average
-16. `falling()` - Tests if series is falling
-17. `highest()` - Highest value over a period
-18. `hma()` - Hull Moving Average ✨ NEW
-19. `ichimoku()` - Ichimoku Kinko Hyo (Ichimoku Cloud) ✨ NEW
-20. `kc()` - Keltner Channels ✨ NEW
-21. `linreg()` - Linear regression
-22. `lowest()` - Lowest value over a period
-23. `macd()` - Moving Average Convergence Divergence
-24. `median()` - Median value over a period
-25. `mfi()` - Money Flow Index ✨ NEW
-26. `mom()` - Momentum
-27. `percentrank()` - Percent rank over a period
-28. `pivothigh()` - Detects pivot high points ✨ NEW
-29. `pivotlow()` - Detects pivot low points ✨ NEW
-30. `rising()` - Tests if series is rising
-31. `rma()` - Relative Moving Average (exponential moving average with alpha = 1 / length)
-32. `roc()` - Rate of Change
-33. `rsi()` - Relative Strength Index
-34. `sar()` - Parabolic SAR ✨ NEW
-35. `sma()` - Simple Moving Average
-36. `stdev()` - Standard deviation
-37. `stoch()` - Stochastic oscillator ✨ NEW
-38. `supertrend()` - SuperTrend indicator
-39. `swma()` - Symmetrically Weighted Moving Average
-40. `tr()` - True Range
-41. `tsi()` - True Strength Index ✨ NEW
-42. `valuewhen()` - Returns value when condition was true ✨ NEW
-43. `variance()` - Variance
-44. `vwap()` - Volume Weighted Average Price ✨ NEW
-45. `vwma()` - Volume Weighted Moving Average
-46. `wma()` - Weighted Moving Average
-47. `wpr()` - Williams %R ✨ NEW
-48. `alma()` - Arnaud Legoux Moving Average ✨ NEW
-49. `kcw()` - Keltner Channels Width ✨ NEW
-50. `range()` - High-Low Range ✨ NEW
-51. `highestbars()` - Offset to the highest value ✨ NEW
-52. `lowestbars()` - Offset to the lowest value ✨ NEW
-53. `max()` - Maximum of two values ✨ NEW
-54. `min()` - Minimum of two values ✨ NEW
-55. `cog()` - Center of Gravity ✨ NEW
-56. `mode()` - Mode (most frequently occurring value) ✨ NEW
-57. `percentile_linear_interpolation()` - Percentile using linear interpolation ✨ NEW
-58. `percentile_nearest_rank()` - Percentile using nearest rank ✨ NEW
-59. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla) ✨ NEW
-60. `rci()` - Rank Correlation Index (Spearman's rank correlation) ✨ NEW
-61. `zigzag()` - ZigZag indicator for trend reversal identification ✨ NEW
+1. `alma()` - Arnaud Legoux Moving Average
+2. `atr()` - Average True Range
+3. `barssince()` - Number of bars since condition was true
+4. `bb()` - Bollinger Bands
+5. `bbw()` - Bollinger Bands Width
+6. `cci()` - Commodity Channel Index
+7. `change()` - Difference between current and previous value
+8. `cmo()` - Chande Momentum Oscillator
+9. `cog()` - Center of Gravity
+10. `correlation()` - Correlation coefficient between two series
+11. `cross()` - Detects when two series cross
+12. `crossover()` - Detects when series1 crosses over series2
+13. `crossunder()` - Detects when series1 crosses under series2
+14. `cum()` - Cumulative sum
+15. `dev()` - Mean absolute deviation
+16. `dmi()` - Directional Movement Index
+17. `ema()` - Exponential Moving Average
+18. `falling()` - Tests if series is falling
+19. `highest()` - Highest value over a period
+20. `highestbars()` - Offset to the highest value
+21. `hma()` - Hull Moving Average
+22. `ichimoku()` - Ichimoku Kinko Hyo (custom, not in official PineScript v6)
+23. `kc()` - Keltner Channels
+24. `kcw()` - Keltner Channels Width
+25. `linreg()` - Linear regression
+26. `lowest()` - Lowest value over a period
+27. `lowestbars()` - Offset to the lowest value
+28. `macd()` - Moving Average Convergence Divergence
+29. `max()` - Maximum of two values
+30. `median()` - Median value over a period
+31. `mfi()` - Money Flow Index
+32. `min()` - Minimum of two values
+33. `mode()` - Mode (most frequently occurring value)
+34. `mom()` - Momentum
+35. `percentile_linear_interpolation()` - Percentile using linear interpolation
+36. `percentile_nearest_rank()` - Percentile using nearest rank
+37. `percentrank()` - Percent rank over a period
+38. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla)
+39. `pivothigh()` - Detects pivot high points
+40. `pivotlow()` - Detects pivot low points
+41. `range()` - High-Low Range
+42. `rci()` - Rank Correlation Index (Spearman's rank correlation)
+43. `rising()` - Tests if series is rising
+44. `rma()` - Relative Moving Average (exponential moving average with alpha = 1 / length)
+45. `roc()` - Rate of Change
+46. `rsi()` - Relative Strength Index
+47. `sar()` - Parabolic SAR
+48. `sma()` - Simple Moving Average
+49. `stdev()` - Standard deviation
+50. `stoch()` - Stochastic oscillator
+51. `supertrend()` - SuperTrend indicator
+52. `swma()` - Symmetrically Weighted Moving Average
+53. `tr()` - True Range
+54. `tsi()` - True Strength Index
+55. `valuewhen()` - Returns value when condition was true
+56. `variance()` - Variance
+57. `vwap()` - Volume Weighted Average Price
+58. `vwma()` - Volume Weighted Moving Average
+59. `wma()` - Weighted Moving Average
+60. `wpr()` - Williams %R
+61. `zigzag()` - ZigZag indicator (custom, not in official PineScript v6)
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (0 official functions)
 
-**All ta functions are now implemented!** 🎉
+All 59 official ta functions are implemented. `ichimoku()` and `zigzag()` are custom additions beyond the official API.
 
 ---
 
 ## math (Mathematics)
 
-### ✅ Implemented (24 functions)
+### Implemented (24 functions)
 
 1. `abs()` - Absolute value
 2. `acos()` - Arc cosine (inverse cosine)
@@ -128,7 +151,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 14. `pow()` - Power (x^y)
 15. `random()` - Random number (NOTE: seed parameter not implemented)
 16. `round()` - Round to nearest integer or precision
-17. `round_to_mintick()` - Round to nearest tick size ✨ NEW
+17. `round_to_mintick()` - Round to nearest tick size
 18. `sign()` - Sign of number (-1, 0, 1)
 19. `sin()` - Sine
 20. `sqrt()` - Square root
@@ -137,21 +160,17 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 23. `todegrees()` - Convert radians to degrees
 24. `toradians()` - Convert degrees to radians
 
-**Constants:**
-- `pi` - π (3.14159...)
-- `e` - Euler's number (2.71828...)
-- `phi` - Golden ratio (1.618...)
-- `rphi` - Reciprocal of golden ratio (0.618...)
+**Constants:** `pi`, `e`, `phi`, `rphi`
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (0 functions)
 
-**All math functions are now implemented!** 🎉
+All 24 official math functions are implemented.
 
 ---
 
 ## array (Array Operations)
 
-### ✅ Implemented (62 functions)
+### Implemented (54 official + 1 custom = 55 functions)
 
 1. `abs()` - Absolute values of elements
 2. `avg()` - Average of array elements
@@ -177,15 +196,15 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 22. `median()` - Median value in array
 23. `min()` - Minimum value in array
 24. `mode()` - Most frequent value in array
-25. `new_array()` - Create new array (generic type)
+25. `new_array()` - Create new array (custom generic wrapper, not in official API)
 26. `new_bool()` - Create new boolean array
-27. `new_box()` - Create new box array 🎨 PHASE 5
+27. `new_box()` - Create new box array
 28. `new_color()` - Create new color array
 29. `new_float()` - Create new float array
 30. `new_int()` - Create new int array
-31. `new_label()` - Create new label array 🎨 PHASE 5
-32. `new_line()` - Create new line array 🎨 PHASE 5
-33. `new_linefill()` - Create new linefill array 🎨 PHASE 5
+31. `new_label()` - Create new label array
+32. `new_line()` - Create new line array
+33. `new_linefill()` - Create new linefill array
 34. `new_string()` - Create new string array
 35. `newtype()` - Create array of user-defined type (placeholder)
 36. `percentile_linear_interpolation()` - Percentile using linear interpolation
@@ -209,23 +228,18 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 54. `unshift()` - Add element to beginning
 55. `variance()` - Variance of array
 
-### ❌ Not Implemented (1 function)
-
-**⚠️ Design Constraint - No Computational Value:**
+### Not Implemented (1 function)
 
 1. `new_table()` - Create new table array (no computational value - tables have no getters in PineScript)
-
-**Note on Drawing Object Arrays:**
-The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` were previously excluded as "rendering functions" but are now **implemented (Phase 5)** following the implementation of drawing objects (Phases 1-4). These arrays enable systematic management of drawing object collections for gap tracking, trend line management, and pattern recognition.
 
 ---
 
 ## matrix (Matrix Operations)
 
-### ✅ Implemented (50 functions)
+### Implemented (50 official + 1 custom = 51 functions)
 
 **Phase 1 - Foundation:**
-1. `new_matrix()` - Create new matrix (basic implementation)
+1. `new_matrix()` - Create new matrix (custom wrapper, official API uses `matrix.newtype`)
 2. `get()` - Get element at position
 3. `set()` - Set element at position
 4. `rows()` - Get number of rows
@@ -276,167 +290,98 @@ The functions `new_line()`, `new_box()`, `new_label()`, and `new_linefill()` wer
 39. `is_antidiagonal()` - Test if antidiagonal
 40. `is_stochastic()` - Test if stochastic
 
-**Phase 3 - Linear Algebra (High Complexity):** ✨ NEW
-41. `mult()` - Matrix multiplication (matrix × matrix, matrix × scalar, matrix × vector)
-42. `pow()` - Matrix power using repeated squaring (O(n³ log p))
-43. `det()` - Determinant using LU decomposition with partial pivoting (O(n³))
-44. `inv()` - Matrix inverse using Gauss-Jordan elimination (O(n³))
+**Phase 3 - Linear Algebra:**
+41. `mult()` - Matrix multiplication (matrix x matrix, matrix x scalar, matrix x vector)
+42. `pow()` - Matrix power using repeated squaring
+43. `det()` - Determinant using LU decomposition with partial pivoting
+44. `inv()` - Matrix inverse using Gauss-Jordan elimination
 45. `pinv()` - Moore-Penrose pseudo-inverse for any matrix shape
-46. `rank()` - Matrix rank via row echelon form (O(n³))
+46. `rank()` - Matrix rank via row echelon form
 47. `eigenvalues()` - Eigenvalues using QR algorithm
 48. `eigenvectors()` - Eigenvectors using inverse iteration
 49. `kron()` - Kronecker (tensor) product
 50. `newtype()` - Create matrix of user-defined type
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (0 official functions)
 
-**All matrix functions are now implemented!** 🎉
+All 50 official matrix functions are implemented. `new_matrix()` is a custom convenience wrapper.
 
 ---
 
 ## str (String Operations)
 
-### ✅ Implemented (20 functions)
+### Implemented (18 official + 4 custom = 22 functions)
 
 1. `charAt()` - Get character at index (custom addition)
 2. `concat()` - Concatenate strings (custom addition)
 3. `contains()` - Check if string contains substring
 4. `endswith()` - Check if string ends with suffix
 5. `format()` - Format string with arguments
-6. `format_time()` - Format timestamp with PineScript format specifiers ✨ NEW
+6. `format_time()` - Format timestamp with PineScript format specifiers
 7. `length()` - Get string length
 8. `lower()` - Convert to lowercase
 9. `match()` - Match regular expression
 10. `pos()` - Find position of substring
-11. `replace()` - Replace first occurrence (custom - PineScript has replace_all)
-12. `replace_all()` - Replace all occurrences ✨ NEW
-13. `split()` - Split string into array
-14. `startswith()` - Check if string starts with prefix
-15. `substring()` - Extract substring
-16. `tonumber()` - Convert string to number
-17. `tostring()` - Convert value to string
-18. `trim()` - Remove whitespace from both ends
-19. `trimLeft()` - Remove whitespace from left (custom addition)
-20. `trimRight()` - Remove whitespace from right (custom addition)
-21. `upper()` - Convert to uppercase
+11. `repeat()` - Repeat string N times with optional separator
+12. `replace()` - Replace first occurrence
+13. `replace_all()` - Replace all occurrences
+14. `split()` - Split string into array
+15. `startswith()` - Check if string starts with prefix
+16. `substring()` - Extract substring
+17. `tonumber()` - Convert string to number
+18. `tostring()` - Convert value to string
+19. `trim()` - Remove whitespace from both ends
+20. `trimLeft()` - Remove whitespace from left (custom addition)
+21. `trimRight()` - Remove whitespace from right (custom addition)
+22. `upper()` - Convert to uppercase
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (0 functions)
 
-**All PineScript v6 string functions are now implemented!** 🎉
-
-**Note:** All PineScript v6 string functions are implemented, including `format_time()` and `replace_all()`. Some custom additions (charAt, concat, trimLeft, trimRight) are included for developer convenience beyond the PineScript API.
-
-The only missing PineScript string function is:
-- `repeat()` - Repeat string n times (not commonly used in indicators)
+All 18 official str functions are implemented.
 
 ---
 
-## time (Time Operations)
+## time + timeframe (Time Operations)
 
-### ✅ Implemented (1 function)
+### Implemented (1 official + 2 custom = 3 functions)
 
 1. `time()` - Convert time components to timestamp (basic implementation)
+2. `timestamp()` - Custom addition for convenience
+3. `now()` - Custom addition for convenience
 
-**Note:** The `time` namespace in PineScript v6 has only 1 function. We also implemented:
-- `timestamp()` - Custom addition for convenience
-- `now()` - Custom addition for convenience
+### Not Implemented (4 functions)
 
-### ❌ Not Implemented (0 functions)
-
-All core time functions are implemented. Extended time operations are typically done through the `time()` built-in function in PineScript (not in the `time` namespace).
+1. `time_close()` - Returns UNIX time of the current bar's close for a given timeframe/session
+2. `timeframe.change()` - Detects changes in a specified timeframe (returns bool on first bar of new timeframe)
+3. `timeframe.from_seconds()` - Converts a number of seconds into a valid timeframe string
+4. `timeframe.in_seconds()` - Converts a timeframe string into seconds
 
 ---
 
 ## color (Color Operations)
 
-### ✅ Implemented (8 functions)
+### Implemented (7 official + 1 custom = 8 functions)
 
 1. `b()` - Extract blue component
-2. `from_gradient()` - Create color from gradient between two colors ✨ NEW
-3. `from_hex()` - Create color from hex string
+2. `from_gradient()` - Create color from gradient between two colors
+3. `from_hex()` - Create color from hex string (custom addition, not in official API)
 4. `g()` - Extract green component
-5. `new_color()` - Create new color with transparency (aliased as `color()` and `new`) ✨ NEW
+5. `new()` - Create new color with transparency (aliased as `new_color`)
 6. `r()` - Extract red component
 7. `rgb()` - Create RGB color
 8. `t()` - Extract transparency component
 
 **Constants:** All standard PineScript color constants are implemented (red, green, blue, yellow, etc.)
 
-**Note:** The `color.new()` alias is now available to match PineScript v6 syntax.
+### Not Implemented (0 official functions)
 
-### ❌ Not Implemented (0 functions)
-
-**All color functions are now implemented!** 🎉
+All 7 official color functions are implemented.
 
 ---
 
-## Priority Recommendations
+## line (Line Drawing Objects)
 
-Based on the inventory, here are recommended priorities for implementation:
-
-### High Priority (Common & Essential)
-
-**ta namespace:**
-1. ~~`cci()` - Commodity Channel Index - widely used oscillator~~ ✅ IMPLEMENTED
-2. ~~`stoch()` - Stochastic oscillator - essential indicator~~ ✅ IMPLEMENTED
-3. ~~`mfi()` - Money Flow Index - volume-based indicator~~ ✅ IMPLEMENTED
-4. ~~`sar()` - Parabolic SAR - popular trend indicator~~ ✅ IMPLEMENTED
-5. ~~`hma()` - Hull Moving Average - modern MA variant~~ ✅ IMPLEMENTED
-6. ~~`vwap()` - Volume Weighted Average Price - institutional favorite~~ ✅ IMPLEMENTED
-7. ~~`pivothigh()` / `pivotlow()` - Pivot detection - very useful for trading~~ ✅ IMPLEMENTED
-8. ~~`barssince()` - Bar counting - useful for many strategies~~ ✅ IMPLEMENTED
-9. ~~`valuewhen()` - Historical value lookup - very useful utility~~ ✅ IMPLEMENTED
-
-**array namespace:**
-10. ~~`first()` / `last()` - Common array accessors~~ ✅ IMPLEMENTED
-11. ~~`some()` / `every()` - Logical tests on arrays~~ ✅ IMPLEMENTED
-12. `binary_search()` - Efficient searching
-13. `range()` - Quick max-min calculation
-
-**matrix namespace:**
-14. `mult()` - Matrix multiplication - fundamental operation
-15. `transpose()` - Matrix transpose - fundamental operation
-16. `add()` / `diff()` - Basic matrix arithmetic
-17. `get()` / `set()` - Element access
-
-### Medium Priority (Useful)
-
-**ta namespace:**
-1. ~~`dmi()` - Directional Movement Index~~ ✅ IMPLEMENTED
-2. ~~`tsi()` - True Strength Index~~ ✅ IMPLEMENTED
-3. ~~`cmo()` - Chande Momentum Oscillator~~ ✅ IMPLEMENTED
-4. ~~`kc()` - Keltner Channels~~ ✅ IMPLEMENTED / ~~`kcw()` - Keltner Channels Width~~ ✅ IMPLEMENTED
-5. ~~`bbw()` - Bollinger Bands Width~~ ✅ IMPLEMENTED
-6. ~~`wpr()` - Williams %R~~ ✅ IMPLEMENTED
-7. ~~`alma()` - Arnaud Legoux Moving Average~~ ✅ IMPLEMENTED
-8. ~~`range()` - High-Low Range~~ ✅ IMPLEMENTED
-
-**array namespace:**
-6. `covariance()` - Statistical analysis
-7. `percentile_*()` - Percentile calculations
-8. `standardize()` - Data normalization
-
-**math namespace:**
-9. ~~`round_to_mintick()` - Trading-specific rounding~~ ✅ IMPLEMENTED
-
-### Low Priority (Specialized)
-
-**ta namespace:**
-1. ~~`cog()` - Center of Gravity - niche~~ ✅ IMPLEMENTED
-2. ~~`rci()` - Rank Correlation Index - niche~~ ✅ IMPLEMENTED
-3. ~~`pivot_point_levels()` - Can be calculated manually~~ ✅ IMPLEMENTED
-4. ~~`mode()` - Mode (most frequently occurring value)~~ ✅ IMPLEMENTED
-5. ~~`percentile_linear_interpolation()` - Percentile using linear interpolation~~ ✅ IMPLEMENTED
-6. ~~`percentile_nearest_rank()` - Percentile using nearest rank~~ ✅ IMPLEMENTED
-
-**matrix namespace:**
-- Most advanced matrix operations (eigenvalues, inverse, etc.) - specialized use cases
-
----
-
-## line (Line Drawing Objects) 🎨 PHASES 1-2
-
-### ✅ Implemented (20 functions)
+### Implemented (19 functions)
 
 **Core Functions:**
 1. `new()` - Create new line with coordinates
@@ -461,15 +406,16 @@ Based on the inventory, here are recommended priorities for implementation:
 18. `set_style()` - Set line style
 19. `set_width()` - Set line width
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (2 functions)
 
-**All line functions are implemented!** 🎉
+1. `set_first_point()` - Set first point via chart.point object
+2. `set_second_point()` - Set second point via chart.point object
 
 ---
 
-## box (Box Drawing Objects) 🎨 PHASES 1-2
+## box (Box Drawing Objects)
 
-### ✅ Implemented (28 functions)
+### Implemented (27 functions)
 
 **Core Functions:**
 1. `new()` - Create new box with coordinates
@@ -506,15 +452,16 @@ Based on the inventory, here are recommended priorities for implementation:
 26. `set_text_wrap()` - Set text wrapping
 27. `set_text_font_family()` - Set text font
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (2 functions)
 
-**All box functions are implemented!** 🎉
+1. `set_text_formatting()` - Set text formatting (bold/italic via `text.format_bold`, `text.format_italic`)
+2. `set_xloc()` - Set x-location mode and update left/right borders
 
 ---
 
-## label (Label Drawing Objects) 🎨 PHASE 3
+## label (Label Drawing Objects)
 
-### ✅ Implemented (17 functions)
+### Implemented (19 functions)
 
 **Core Functions:**
 1. `new()` - Create new label
@@ -543,15 +490,16 @@ Based on the inventory, here are recommended priorities for implementation:
 18. `set_textalign()` - Set text alignment
 19. `set_text_font_family()` - Set text font
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (2 functions)
 
-**All label functions are implemented!** 🎉
+1. `set_point()` - Set label position via chart.point object
+2. `set_text_formatting()` - Set text formatting (bold/italic via `text.format_bold`, `text.format_italic`)
 
 ---
 
-## linefill (Linefill Drawing Objects) 🎨 PHASE 3
+## linefill (Linefill Drawing Objects)
 
-### ✅ Implemented (5 functions)
+### Implemented (5 functions)
 
 1. `new()` - Create new linefill between two lines
 2. `get_line1()` - Get first line reference
@@ -559,68 +507,132 @@ Based on the inventory, here are recommended priorities for implementation:
 4. `set_color()` - Set fill color
 5. `delete()` - Delete linefill (no-op in JS)
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (0 functions)
 
-**All linefill functions are implemented!** 🎉
+All 5 official linefill functions are implemented.
 
 ---
 
-## chartPoint (Chart Point Objects) 🎨 NEW
+## chartPoint (Chart Point Objects)
 
-### ✅ Implemented (4 functions)
+### Implemented (4 functions)
 
 1. `new()` - Create a new chart point with time, index, and price coordinates
 2. `from_time()` - Create a chart point from timestamp and price
 3. `from_index()` - Create a chart point from bar index and price
 4. `copy()` - Create a copy of a chart point
 
-### ❌ Not Implemented (0 functions)
+### Not Implemented (1 function)
 
-**All chartPoint functions are implemented!** 🎉
-
-**Note:** Chart points are used with polylines and other multi-point drawing objects to specify locations on the chart.
+1. `now()` - Create a chart point at the current bar with `index` and `time` auto-filled (price defaults to `close`)
 
 ---
 
-## polyline (Polyline Drawing Objects) 🎨 NEW
+## polyline (Polyline Drawing Objects)
 
-### ✅ Implemented (3 functions)
+### Implemented (2 official + 1 custom = 3 functions)
 
 1. `new()` - Create a new polyline connecting multiple chart points
 2. `delete()` - Delete a polyline
-3. `get_all()` - Get all active polylines
+3. `get_all()` - Get all active polylines (custom addition, not in official API)
 
-### ❌ Not Implemented (0 functions - basic implementation)
+### Not Implemented (0 official functions)
 
-**All basic polyline functions are implemented!** 🎉
+All 2 official polyline functions are implemented.
 
-**Note:** This is a basic implementation focusing on straight-line polylines. The `curved` parameter is accepted but curved polylines are not yet supported - straight-line connections are used instead. Setter/getter functions (e.g., `set_points()`, `get_line_color()`) may be added in future iterations.
+**Note:** `curved` parameter is accepted but curved polylines are not yet supported.
 
-### Constants
+---
 
-The `xloc` constants are available for specifying x-coordinate modes:
-- `xloc.bar_index` - X-coordinates are bar indices
-- `xloc.bar_time` - X-coordinates are UNIX timestamps
+## map (Map/Dictionary Operations) -- NEW
+
+### Implemented (0 functions)
+
+No map functions are implemented yet.
+
+### Not Implemented (11 functions)
+
+1. `clear()` - Remove all key-value pairs
+2. `contains()` - Check if map contains a key
+3. `copy()` - Create a shallow copy
+4. `get()` - Get value by key
+5. `keys()` - Get array of all keys
+6. `new()` (newtypetype) - Create a new map with specified key/value types
+7. `put()` - Add or update a key-value pair
+8. `put_all()` - Add all key-value pairs from another map
+9. `remove()` - Remove a key-value pair
+10. `size()` - Get number of entries
+11. `values()` - Get array of all values
+
+**Note:** Maps are a core data structure in PineScript v6, useful for key-value lookups in computational contexts (e.g., symbol-to-weight mappings, level tracking).
+
+---
+
+## All Not-Implemented Functions (Summary)
+
+| # | Namespace | Function | Description |
+|---|-----------|----------|-------------|
+| 1 | array | `new_table()` | Table array (no computational value) |
+| ~~2~~ | ~~str~~ | ~~`repeat()`~~ | ~~Implemented~~ |
+| 3 | time | `time_close()` | Bar close time for timeframe/session |
+| 4 | timeframe | `change()` | Detect timeframe boundary changes |
+| 5 | timeframe | `from_seconds()` | Seconds to timeframe string |
+| 6 | timeframe | `in_seconds()` | Timeframe string to seconds |
+| 7 | line | `set_first_point()` | Set first point via chart.point |
+| 8 | line | `set_second_point()` | Set second point via chart.point |
+| 9 | box | `set_text_formatting()` | Bold/italic text formatting |
+| 10 | box | `set_xloc()` | Set x-location mode with borders |
+| 11 | label | `set_point()` | Set position via chart.point |
+| 12 | label | `set_text_formatting()` | Bold/italic text formatting |
+| 13 | chartPoint | `now()` | Chart point at current bar |
+| 14 | map | `clear()` | Clear all entries |
+| 15 | map | `contains()` | Check key existence |
+| 16 | map | `copy()` | Shallow copy |
+| 17 | map | `get()` | Get value by key |
+| 18 | map | `keys()` | Get all keys |
+| 19 | map | `new()` | Create typed map |
+| 20 | map | `put()` | Set key-value |
+| 21 | map | `put_all()` | Merge maps |
+| 22 | map | `remove()` | Remove entry |
+| 23 | map | `size()` | Entry count |
+| 24 | map | `values()` | Get all values |
+
+**Total: 23 official functions not yet implemented across in-scope namespaces.**
+
+---
+
+## Custom Additions (Not in Official PineScript v6 API)
+
+These functions are implemented in OakScriptJS but do not exist in the official PineScript v6 reference:
+
+| Namespace | Function | Purpose |
+|-----------|----------|---------|
+| ta | `ichimoku()` | Ichimoku Kinko Hyo indicator |
+| ta | `zigzag()` | ZigZag trend reversal indicator |
+| array | `new_array()` | Generic array constructor |
+| str | `charAt()` | Get character at index |
+| str | `concat()` | Concatenate strings |
+| str | `trimLeft()` | Trim left whitespace |
+| str | `trimRight()` | Trim right whitespace |
+| color | `from_hex()` | Create color from hex string |
+| matrix | `new_matrix()` | Generic matrix constructor |
+| polyline | `get_all()` | Get all active polylines |
+| time | `timestamp()` | Convenience timestamp helper |
+| time | `now()` | Current time helper |
 
 ---
 
 ## Notes
 
-1. **Drawing Objects Implemented**: Line, box, label, linefill, chartPoint, and polyline namespaces are **fully implemented** with focus on computational features. These enable trend analysis, gap detection, pattern recognition, and systematic object management.
-
-2. **Series Class**: The `Series` class provides lazy evaluation and operator chaining. When used with the Babel plugin, it enables native PineScript-like syntax: `(close - open) / (high - low)`.
-
-3. **Two API Levels**:
+1. **Two API Levels**:
    - **Core TA** (`taCore`): Array-based functions like `taCore.sma(priceArray, 14)`
    - **TA-Series** (`ta`): Series-based wrappers like `ta.sma(closeSeries, 14)`
 
-4. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
+2. **Series Class**: The `Series` class provides lazy evaluation and operator chaining. When used with the Babel plugin, it enables native PineScript-like syntax: `(close - open) / (high - low)`.
 
-5. **Type-Specific Arrays**: Array functions like `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays (`new_line()`, `new_box()`, `new_label()`, `new_linefill()`) are implemented as type-specific wrappers around `new_array()`.
+3. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
 
-6. **Matrix Implementation**: The matrix namespace has minimal implementation (2%) and represents the largest opportunity for expansion.
-
-7. **String Functions**: Fully implemented (100%)! All PineScript string manipulation functions are available.
+4. **Type-Specific Arrays**: `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays are type-specific wrappers around `new_array()`.
 
 ---
 

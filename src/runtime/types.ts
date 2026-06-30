@@ -1,0 +1,194 @@
+/**
+ * @fileoverview Type definitions for OakScriptJS runtime
+ * These types define the adapter interfaces and context structure for the runtime system
+ * @module runtime/types
+ */
+
+/**
+ * Handle returned by ChartAdapter.addSeries
+ * Represents a series on the chart with ability to update data
+ */
+export interface SeriesHandle {
+  /** Set the data for this series */
+  setData(data: Array<{ time: number; value: number; color?: string }>): void;
+}
+
+/**
+ * Options for creating a series on the chart
+ */
+export interface SeriesOptions {
+  /** Series color */
+  color?: string;
+  /** Line width */
+  lineWidth?: number;
+  /** Line style (0 = solid, 1 = dotted, 2 = dashed, etc.) */
+  lineStyle?: number;
+  /** Price scale ID */
+  priceScaleId?: string;
+  /** Pane index */
+  pane?: number;
+}
+
+/**
+ * Chart adapter interface
+ * Implementations translate library calls into chart library operations
+ */
+export interface ChartAdapter {
+  /** Add a new series to the chart */
+  addSeries(type: string, options?: SeriesOptions): SeriesHandle;
+  /** Remove a series from the chart */
+  removeSeries(series: SeriesHandle): void;
+  /** Get the main price series (optional, may return undefined) */
+  getMainSeries?(): SeriesHandle | undefined;
+  /** Create a new pane and return its index (optional) */
+  createPane?(): number;
+}
+
+/**
+ * Configuration for registering an input
+ */
+export interface InputConfig {
+  /** Unique identifier for the input */
+  id: string;
+  /** Type of input */
+  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color';
+  /** Default value */
+  defval: unknown;
+  /** Display title */
+  title?: string;
+  /** Minimum value (for numeric inputs) */
+  min?: number;
+  /** Maximum value (for numeric inputs) */
+  max?: number;
+  /** Step size (for numeric inputs) */
+  step?: number;
+  /** Options for dropdown selection (for string inputs) */
+  options?: string[];
+}
+
+/**
+ * Configuration for plot outputs in generated indicators
+ */
+export interface PlotConfig {
+    /** Unique identifier for the plot */
+    id: string;
+    /** Display title */
+    title: string;
+    /** Plot color */
+    color: string;
+    /** Line width in pixels */
+    lineWidth?: number;
+    /** Plot style */
+    style?: 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr';
+    /** Whether the plot is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
+    /** Display mode: 'all', 'none', 'data_window', 'status_line', 'pane' */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /** Offset in bars (positive = future, negative = past) */
+    offset?: number;
+    /** Histogram base value */
+    histbase?: number;
+}
+
+/**
+ * Configuration for horizontal line outputs in generated indicators
+ * Matches PineScript hline() function parameters
+ */
+export interface HLineConfig {
+    /** Unique identifier for the hline */
+    id: string;
+    /** Price level for the horizontal line */
+    price: number;
+    /** Display title */
+    title?: string;
+    /** Line color */
+    color?: string;
+    /** Line style: solid, dashed, or dotted */
+    linestyle?: 'solid' | 'dashed' | 'dotted';
+    /** Line width in pixels */
+    linewidth?: number;
+    /** Display mode */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+}
+
+/**
+ * Configuration for fill between plots or hlines in generated indicators
+ * Matches PineScript fill() function parameters
+ */
+export interface FillConfig {
+    /** Unique identifier for the fill */
+    id: string;
+    /** ID of the first plot or hline */
+    plot1: string;
+    /** ID of the second plot or hline */
+    plot2: string;
+    /** Fill color */
+    color?: string;
+    /** Per-bar fill colors (overrides static color) */
+    colors?: string[];
+    /** Display title */
+    title?: string;
+    /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */
+    visible?: boolean | string;
+}
+
+/**
+ * Options for numeric inputs
+ */
+export interface InputOptions {
+  /** Minimum value */
+  min?: number;
+  /** Maximum value */
+  max?: number;
+  /** Step size */
+  step?: number;
+}
+
+/**
+ * Input adapter interface
+ * Implementations handle input registration and value management
+ */
+export interface InputAdapter {
+  /** Register an input, returns current value (possibly user-updated) */
+  registerInput(config: InputConfig): unknown;
+  /** Get current value of an input */
+  getValue(id: string): unknown;
+  /** Set value of an input */
+  setValue(id: string, value: unknown): void;
+  /** Register callback for input changes */
+  onInputChange(callback: (id: string, value: unknown) => void): void;
+}
+
+/**
+ * OHLCV data structure
+ * Provides access to price and volume time series
+ */
+export interface OhlcvData {
+  /** Timestamps for each bar */
+  time: number[];
+  /** Open prices */
+  open: number[];
+  /** High prices */
+  high: number[];
+  /** Low prices */
+  low: number[];
+  /** Close prices */
+  close: number[];
+  /** Volume data */
+  volume: number[];
+}
+
+/**
+ * Global context object for OakScriptJS runtime
+ * Must be set by host application before calling any indicator calculate function
+ */
+export interface OakScriptContext {
+  /** Chart adapter for plot operations */
+  chart: ChartAdapter;
+  /** Input adapter for managing indicator inputs */
+  inputs: InputAdapter;
+  /** OHLCV data for the current symbol/timeframe */
+  ohlcv: OhlcvData;
+  /** Current bar index (typically the last bar) */
+  bar_index: number;
+}

@@ -10,25 +10,21 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
-          cache: 'pnpm'
-          
+          cache: 'npm'
+
       - name: Install dependencies
-        run: pnpm install
-        
-      - name: Build all packages
-        run: pnpm build
-        
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
       - name: Run tests
-        run: pnpm test
-        
+        run: npm test
+
       - name: Type check
-        run: pnpm typecheck
+        run: npm run typecheck

@@ -1,0 +1,371 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingView
+
+//@version=6
+library("LibraryCOT")
+
+// LibraryCOT Library
+// v5, 2025.12.20
+
+// This code's style is based on the recommendations from the Pine Script User Manual's Style guide:
+//    https://www.tradingview.com/pine-script-docs/writing/style-guide/
+
+
+
+//#region ———————————————————— Metric names and valid directions
+
+
+// +-----------------------------------+------------------------+
+// |  Legacy (COT) Metric Names        |       Directions       |
+// +-----------------------------------+------------------------+
+// | Open Interest                     | No direction           |
+// | Noncommercial Positions           | Long, Short, Spreading |
+// | Commercial Positions              | Long, Short            |
+// | Total Reportable Positions        | Long, Short            |
+// | Nonreportable Positions           | Long, Short            |
+// | Traders Total                     | No direction           |
+// | Traders Noncommercial             | Long, Short, Spreading |
+// | Traders Commercial                | Long, Short            |
+// | Traders Total Reportable          | Long, Short            |
+// | Concentration Gross LT 4 TDR      | Long, Short            |
+// | Concentration Gross LT 8 TDR      | Long, Short            |
+// | Concentration Net LT 4 TDR        | Long, Short            |
+// | Concentration Net LT 8 TDR        | Long, Short            |
+// +-----------------------------------+------------------------+
+
+// +-----------------------------------+------------------------+
+// | Disaggregated (COT2) Metric Names |       Directions       |
+// +-----------------------------------+------------------------+
+// | Open Interest                     | No direction           |
+// | Producer Merchant Positions       | Long, Short            |
+// | Swap Positions                    | Long, Short, Spreading |
+// | Managed Money Positions           | Long, Short, Spreading |
+// | Other Reportable Positions        | Long, Short, Spreading |
+// | Total Reportable Positions        | Long, Short            |
+// | Nonreportable Positions           | Long, Short            |
+// | Traders Total                     | No direction           |
+// | Traders Producer Merchant         | Long, Short            |
+// | Traders Swap                      | Long, Short, Spreading |
+// | Traders Managed Money             | Long, Short, Spreading |
+// | Traders Other Reportable          | Long, Short, Spreading |
+// | Traders Total Reportable          | Long, Short            |
+// | Concentration Gross LE 4 TDR      | Long, Short            |
+// | Concentration Gross LE 8 TDR      | Long, Short            |
+// | Concentration Net LE 4 TDR        | Long, Short            |
+// | Concentration Net LE 8 TDR        | Long, Short            |
+// +-----------------------------------+------------------------+
+
+// +-----------------------------------+------------------------+
+// | Financial (COT3) Metric Names     |       Directions       |
+// +-----------------------------------+------------------------+
+// | Open Interest                     | No direction           |
+// | Dealer Positions                  | Long, Short, Spreading |
+// | Asset Manager Positions           | Long, Short, Spreading |
+// | Leveraged Funds Positions         | Long, Short, Spreading |
+// | Other Reportable Positions        | Long, Short, Spreading |
+// | Total Reportable Positions        | Long, Short            |
+// | Nonreportable Positions           | Long, Short            |
+// | Traders Total                     | No direction           |
+// | Traders Dealer                    | Long, Short, Spreading |
+// | Traders Asset Manager             | Long, Short, Spreading |
+// | Traders Leveraged Funds           | Long, Short, Spreading |
+// | Traders Other Reportable          | Long, Short, Spreading |
+// | Traders Total Reportable          | Long, Short            |
+// | Concentration Gross LE 4 TDR      | Long, Short            |
+// | Concentration Gross LE 8 TDR      | Long, Short            |
+// | Concentration Net LE 4 TDR        | Long, Short            |
+// | Concentration Net LE 8 TDR        | Long, Short            |
+// +-----------------------------------+------------------------+
+//#endregion
+
+
+
+//#region ———————————————————— Library functions
+
+
+// @function                Returns the part of the COT ticker ID that specifies whether the report includes options
+//                          data.
+// @param includeOptions    (bool) `true` to specify that the data should include options and futures information, 
+//                          and `false` to specify futures only.
+// @returns                 (string) The <includeOptions> part of a COT ticker ID: `"FO"` specifies data that includes
+//                          options and futures information, and `"F"` specifies data that includes futures only.
+optionsToTicker(bool includeOptions) =>
+    includeOptions ? "FO" : "F"
+
+
+// @function                Constructs a string representing the metric name and direction parts of a COT ticker ID.
+// @param metricName        (string) One of the valid metric names listed in the library's documentation and source code.
+// @param metricDirection   (string) Metric direction. Possible values are: `"Long"`, `"Short"`, `"Spreading"`, and
+//                          `"No direction"`.
+// @returns                 (string) The <metricCode><metricDirection> portion of a COT ticker ID, e.g., `"OI"` for
+//                          `"Open Interest"` and `"No direction"`, or `"TC_L"` for `"Traders Commercial"` and `"Long"`.
+metricNameAndDirectionToTicker(string metricName, string metricDirection) =>
+    string metricCode = switch metricName
+        "Asset Manager Positions"      => "AMP"
+        "Commercial Positions"         => "CP"
+        "Concentration Gross LE 4 TDR" => "CON_GROSS_LE_4"
+        "Concentration Gross LE 8 TDR" => "CON_GROSS_LE_8"
+        "Concentration Gross LT 4 TDR" => "CON_GROSS_LT_4"
+        "Concentration Gross LT 8 TDR" => "CON_GROSS_LT_8"
+        "Concentration Net LE 4 TDR"   => "CON_NET_LE_4"
+        "Concentration Net LE 8 TDR"   => "CON_NET_LE_8"
+        "Concentration Net LT 4 TDR"   => "CON_NET_LT_4"
+        "Concentration Net LT 8 TDR"   => "CON_NET_LT_8"
+        "Dealer Positions"             => "DP"
+        "Leveraged Funds Positions"    => "LMP"
+        "Managed Money Positions"      => "MMP"
+        "Noncommercial Positions"      => "NCP"
+        "Nonreportable Positions"      => "NRP"
+        "Open Interest"                => "OI"
+        "Other Reportable Positions"   => "ORP"
+        "Producer Merchant Positions"  => "PMR"
+        "Swap Positions"               => "SP"
+        "Total Reportable Positions"   => "TRP"
+        "Traders Asset Manager"        => "TAM"
+        "Traders Commercial"           => "TC"
+        "Traders Dealer"               => "TD"
+        "Traders Leveraged Funds"      => "TLM"
+        "Traders Managed Money"        => "TMM"
+        "Traders Noncommercial"        => "TNC"
+        "Traders Other Reportable"     => "TOR"
+        "Traders Producer Merchant"    => "TPM"
+        "Traders Swap"                 => "TS"
+        "Traders Total"                => "TT"
+        "Traders Total Reportable"     => "TTR"
+        => runtime.error(
+            str.format(
+                "Invalid metric name: ''{0}''. See the library''s documentation or source code for all valid "
+                + "metric names.", metricName
+            )
+        ), na
+    string directionCode = switch metricDirection
+        "Long"         => "_L"
+        "Short"        => "_S"
+        "Spreading"    => "_SPREAD"
+        "No direction" => ""
+        => runtime.error(
+            str.format(
+                "''{0}'' is not a valid `metricDirection` argument. Possible values: "
+                + "''Long'', ''Short'', ''Spreading'', ''No direction''", metricDirection
+            )
+        ), na
+    if metricDirection == "No direction"
+        if metricName != "Open Interest" and metricName != "Traders Total"
+            runtime.error(
+                str.format(
+                    "''{0}'' does not apply to the ''{1}'' metric.", metricDirection, metricName
+                )
+            )
+    else if metricDirection == "Spreading"
+        isIncorrect = switch metricName
+            "Commercial Positions"         => true
+            "Total Reportable Positions"   => true
+            "Nonreportable Positions"      => true
+            "Traders Commercial"           => true
+            "Traders Total Reportable"     => true
+            "Concentration Gross LT 4 TDR" => true
+            "Concentration Gross LT 8 TDR" => true
+            "Concentration Net LT 4 TDR"   => true
+            "Concentration Net LT 8 TDR"   => true
+            "Concentration Gross LE 4 TDR" => true
+            "Concentration Gross LE 8 TDR" => true
+            "Concentration Net LE 4 TDR"   => true
+            "Concentration Net LE 8 TDR"   => true
+            "Producer Merchant Positions"  => true
+            "Traders Producer Merchant"    => true
+            => false
+        if isIncorrect
+            runtime.error(
+                str.format(
+                    "The ''{0}'' direction does not apply to the ''{1}'' metric.", metricDirection, metricName
+                )
+            )
+    else if metricName == "Open Interest" or metricName == "Traders Total"
+        runtime.error(
+            str.format(
+                "The ''{0}'' direction does not apply to the ''{1}'' metric.", metricDirection, metricName
+            )
+        )
+    metricCode + directionCode
+
+
+// @function                Converts a specified metric type into a required COT ticker ID component.
+//                          See the "Old and Other Futures" section of the CFTC's Explanatory Notes for details on
+//                          metric types.
+// @param metricType        (string) The metric type. Possible values are: `"All"`, `"Old"`, `"Other"`.
+// @returns                 (string) The <metricType> part of a COT ticker ID.
+typeToTicker(string metricType) =>
+    string result = switch metricType
+        "All"   => ""
+        "Old"   => "_OLD"
+        "Other" => "_OTHER"
+        => runtime.error(
+            str.format(
+                "''{0}'' is not a valid `metricType` argument. Possible values: ''All'', ''Old'', ''Other''", metricType
+            )
+        ), na
+
+
+// @function                Retrieves a string containing the Commodity Futures Trading Commission (CFTC) code for the
+//                          futures instrument referenced by the specified symbol, or an empty string if no CFTC code is
+//                          associated with the symbol. Scripts can use this function's result as the `CFTCCode`
+//                          argument in calls to this library's `COTTickerid()` and `requestCommitmentOfTraders()`
+//                          functions.
+//                          Calls to this function count toward a script's `request.*()` call limit.
+// @param symbol            (string) The symbol or ticker ID of the futures instrument for which to retrieve the CFTC
+//                          code. If the value is an empty string, the function retrieves the code for the instrument
+//                          referenced by the chart's symbol.
+// @returns                 (string) A string representing a CFTC code if one is associated with the symbol, and an
+//                          empty string otherwise.
+export getCFTCCode(string symbol) =>
+    // This logic relies on the variable `syminfo.cftc_code`, which automatically stores an available CFTC code.
+    // This variable is usable in scripts, but is not shown in the manual because its use cases outside this library's
+    // purpose are extremely limited.
+    string result = switch
+        symbol == "" => syminfo.cftc_code
+        => request.security(symbol, "", syminfo.cftc_code)
+
+
+// @function                Creates a valid ticker ID representing a CFTC Commitment of Traders (COT) symbol with
+//                          specified parameters.
+// @param COTType           (string) Specifies the report type that the symbol represents. Possible values are:
+//                          `"Legacy"`, `"Disaggregated"`, `"Financial"`.
+// @param CFTCCode          (string) The CFTC code for the futures instrument. For example, wheat futures (root "ZW")
+//                          have the code `"001602"`. Use this library's `getCFTCCode()` function to retrieve the code
+//                          for the instrument referenced by a specific symbol.
+// @param includeOptions    (bool) If `true`, the COT symbol specifies futures and options information. Otherwise, it
+//                          specifies futures only.
+// @param metricName        (string) One of the valid metric names listed in the library's documentation and source code.
+// @param metricDirection   (string) Metric direction. Possible values are: `"Long"`, `"Short"`, `"Spreading"`, and
+//                          `"No direction"`. Consult this library's documentation or code to see which direction values
+//                          apply to the specified metric.
+// @param metricType        (string) The metric type. Possible values are: `"All"`, `"Old"`, `"Other"`.
+// @returns                 (string) A COT ticker identifier, which `request.security()` calls can use to request
+//                          Commitment of Traders data.
+export COTTickerid(
+    string COTType, string CFTCCode, bool includeOptions, string metricName, string metricDirection, string metricType
+) =>
+    string typeCode = switch COTType
+        "Legacy"        => ""
+        "Disaggregated" => "2"
+        "Financial"     => "3"
+        => runtime.error(
+            str.format(
+                "''{0}'' is not a valid `COTType` argument. Possible values: "
+                + "''Legacy'', ''Disaggregated'', ''Financial''", COTType
+            )
+        ), na
+    bool invalidType = if COTType == "Legacy"
+        switch metricName
+            "Open Interest"                 => false
+            "Noncommercial Positions"       => false
+            "Commercial Positions"          => false
+            "Total Reportable Positions"    => false
+            "Nonreportable Positions"       => false
+            "Traders Total"                 => false
+            "Traders Noncommercial"         => false
+            "Traders Commercial"            => false
+            "Traders Total Reportable"      => false
+            "Concentration Gross LT 4 TDR"  => false
+            "Concentration Gross LT 8 TDR"  => false
+            "Concentration Net LT 4 TDR"    => false
+            "Concentration Net LT 8 TDR"    => false
+            => true
+    else if COTType == "Disaggregated"
+        switch metricName
+            "Open Interest"                 => false
+            "Producer Merchant Positions"   => false
+            "Swap Positions"                => false
+            "Managed Money Positions"       => false
+            "Other Reportable Positions"    => false
+            "Total Reportable Positions"    => false
+            "Nonreportable Positions"       => false
+            "Traders Total"                 => false
+            "Traders Producer Merchant"     => false
+            "Traders Swap"                  => false
+            "Traders Managed Money"         => false
+            "Traders Other Reportable"      => false
+            "Traders Total Reportable"      => false
+            "Concentration Gross LE 4 TDR"  => false
+            "Concentration Gross LE 8 TDR"  => false
+            "Concentration Net LE 4 TDR"    => false
+            "Concentration Net LE 8 TDR"    => false
+            => true
+    else if COTType == "Financial"
+        switch metricName
+            "Open Interest"                 => false
+            "Dealer Positions"              => false
+            "Asset Manager Positions"       => false
+            "Leveraged Funds Positions"     => false
+            "Other Reportable Positions"    => false
+            "Total Reportable Positions"    => false
+            "Nonreportable Positions"       => false
+            "Traders Total"                 => false
+            "Traders Dealer"                => false
+            "Traders Asset Manager"         => false
+            "Traders Leveraged Funds"       => false
+            "Traders Other Reportable"      => false
+            "Traders Total Reportable"      => false
+            "Concentration Gross LE 4 TDR"  => false
+            "Concentration Gross LE 8 TDR"  => false
+            "Concentration Net LE 4 TDR"    => false
+            "Concentration Net LE 8 TDR"    => false
+            => true
+    if invalidType
+        runtime.error(
+            str.format(
+                "''{0}'' is not a valid {1} COT metric. See the libary''s documentation or code for all valid {1} "
+                + "metric names.", metricName, COTType
+            )
+        )
+    string result = str.format(
+        "COT{0}:{1}_{2}_{3}{4}", typeCode, CFTCCode, optionsToTicker(includeOptions),
+        metricNameAndDirectionToTicker(metricName, metricDirection), typeToTicker(metricType)
+    )
+
+
+// @function                Requests CFTC Commitment of Traders (COT) data with specified parameters.
+//                          Calls to this function count toward a script's `request.*()` call limit.
+// @param COTType           (string) The type of report to request. Possible values are:
+//                          `"Legacy"`, `"Disaggregated"`, `"Financial"`.
+// @param CFTCCode          (string) The CFTC code for the futures instrument. For example, wheat futures (root "ZW")
+//                          have the code `"001602"`. Use this library's `getCFTCCode()` function to retrieve the code
+//                          for the instrument referenced by a specific symbol.
+// @param includeOptions    (bool) If `true`, the COT request includes options information. Otherwise, it includes only
+//                          futures.
+// @param metricName        (string) One of the valid metric names listed in the library's documentation and source code.
+// @param metricDirection   (string) Metric direction. Possible values are: `"Long"`, `"Short"`, `"Spreading"`, and
+//                          `"No direction"`. Consult the library's documentation or code to see which direction values
+//                          apply to the specified metric.
+// @param metricType        (string) The metric type. Possible values are: `"All"`, `"Old"`, `"Other"`.
+// @returns                 (float) The specified Commitment of Traders data series. If no data is available,
+//                          the function raises a runtime error.
+export requestCommitmentOfTraders(
+    string COTType, string CFTCCode, bool includeOptions, string metricName, string metricDirection, string metricType
+) =>
+    string t    = COTTickerid(COTType, CFTCCode, includeOptions, metricName, metricDirection, metricType)
+    string tf   = timeframe.isdwm ? timeframe.period : "1D"
+    float  data = request.security(t, tf, close, ignore_invalid_symbol = true)
+    if ta.cum(nz(data)) == 0 and barstate.islastconfirmedhistory
+        runtime.error(
+            "The requested COT data is unavailable. Please ensure the report type, CFTC code, "
+            + "and additional settings represent a valid metric request."
+        )
+    data
+//#endregion
+
+
+
+// ————— Example code
+
+
+float COTdataseries = requestCommitmentOfTraders(
+    COTType         = "Legacy",
+    CFTCCode        = getCFTCCode(""),
+    includeOptions  = false,
+    metricName      = "Open Interest",
+    metricDirection = "No direction",
+    metricType      = "All"
+)
+
+plot(COTdataseries, style = plot.style_stepline_diamond)

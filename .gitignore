@@ -2,9 +2,10 @@
 node_modules/
 yarn.lock
 .pnpm-store/
-
+nul
 # Build output
 dist/
+!indicators/dist/
 build/
 *.tsbuildinfo
 
@@ -40,8 +41,11 @@ pnpm-debug.log*
 *.temp
 .cache/
 .temp/
+screenshots/
+tmp/
 
 # OS
 Thumbs.db
 .claude/
 CLAUDE.md
+indicators/tsconfig.build.json

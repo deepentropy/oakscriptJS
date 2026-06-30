@@ -1,3 +1,0 @@
-//@version=6
-indicator(title="Balance of Power", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
-plot((close - open) / (high - low), color=color.red)

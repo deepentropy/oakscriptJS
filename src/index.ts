@@ -1,0 +1,182 @@
+/**
+ * OakScriptJS - Simplified PineScript-like library for JavaScript
+ *
+ * This library provides Series-based lazy evaluation and technical analysis functions
+ * for building trading indicators. Complexity is handled by the OakScriptEngine transpiler.
+ *
+ * Key features:
+ * - Series class for lazy evaluation and operator chaining
+ * - Core TA functions (array-based)
+ * - TA-Series wrappers (Series-based)
+ * - Native operator support via Babel plugin
+ *
+ * @packageDocumentation
+ */
+
+// Export all types
+export * from './types';
+export * from './types/metadata';
+
+// Export core namespaces (array-based functions)
+import * as taCore from './ta';
+import * as math from './math';
+import * as array from './array';
+import * as str from './str';
+import * as color from './color';
+import * as time from './time';
+import * as matrix from './matrix';
+import * as line from './line';
+import * as box from './box';
+import * as label from './label';
+import * as linefill from './linefill';
+import * as chartPoint from './chartpoint';
+import * as polyline from './polyline';
+
+export { taCore, math, array, str, color, time, matrix, line, box, label, linefill, chartPoint, polyline };
+
+// Export Series class (self-contained, no context)
+export { Series, BarData } from './runtime/series';
+export type { SeriesExtractor } from './runtime/series';
+
+// Export TA-Series namespace (Series-based wrappers)
+import * as ta from './ta-series';
+export { ta };
+
+// Export metadata types for indicator return values
+export type {
+  PlotOptions,
+  HLineOptions,
+  FillOptions,
+  InputMetadata,
+  PlotMetadata,
+  IndicatorMetadata,
+  TimeValue,
+  PlotData,
+  HLineData,
+  FillData,
+  IndicatorResult,
+  IndicatorFactory,
+  PlotStyle,
+  LineStyle,
+  PlotDisplay,
+  InputType
+} from './types/metadata';
+
+// Re-export commonly used functions for convenience
+export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr, cum, vwap } from './ta-series';
+export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
+export { rgb, from_hex as color_from_hex, new_color } from './color';
+
+// Export chart data utilities
+export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSourceSeries } from './utils';
+
+// Export libraries (ZigZag, etc.)
+export * from './lib';
+
+// Export helper functions for generated indicators (PineScript compatibility)
+export {isNA as na, nz} from './utils';
+
+// Export indicator infrastructure
+export {
+  indicator,
+  type IndicatorMetadataConfig,
+  type InputDefinition,
+  type IndicatorContext,
+  type IndicatorInstance,
+  type IndicatorConstructor,
+} from './indicator';
+
+export {
+  input,
+  type InputValue,
+  type IntInputOptions,
+  type FloatInputOptions,
+  type SourceInputOptions,
+  type BoolInputOptions,
+  type StringInputOptions,
+  type SourceType,
+} from './input';
+
+export {
+  plot as plotHelper,
+  createPlot,
+  type Time,
+  type TimeValuePair,
+  type PlotOptions as PlotHelperOptions,
+  type PlotResult,
+} from './plot';
+
+// Runtime exports - global context runtime for transpiler-generated indicators
+export {
+  setContext,
+  clearContext,
+  getContext,
+  registerCalculate,
+  recalculate,
+  plot,
+  hline,
+  clearPlots,
+} from './runtime/runtime';
+
+export {
+  input_int,
+  input_float,
+  input_bool,
+  input_string,
+  input_source,
+} from './runtime/inputs';
+
+export type {
+  OakScriptContext,
+  ChartAdapter,
+  InputAdapter,
+  SeriesHandle,
+  SeriesOptions,
+  InputConfig,
+  InputOptions,
+  OhlcvData,
+  PlotConfig,
+  HLineConfig,
+  FillConfig,
+} from './runtime/types';
+
+export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';
+export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
+
+// Version
+export const VERSION = '0.3.0';
+
+/**
+ * Library information
+ */
+export const info = {
+  name: 'OakScriptJS',
+  version: VERSION,
+  description: 'Simplified PineScript-like library - Series + TA functions',
+  features: {
+    series: 'Lazy evaluation with Series class',
+    operators: 'Native operators with Babel plugin (high - low)',
+    ta: 'Technical analysis functions (Series and array-based)',
+    runtime: 'Global context runtime for transpiler-generated indicators',
+    indicator: 'Indicator function with automatic pane management',
+    minimal: 'No DSL layer - complexity in transpiler'
+  },
+  namespaces: {
+    core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
+    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline'],
+    runtime: ['setContext', 'plot', 'hline', 'input_*'],
+    indicator: ['indicator', 'input', 'plotHelper', 'createPlot']
+  }
+};
+
+// PineScript compatibility stubs - functions that have no runtime effect
+// These are no-ops that allow transpiled code to run without modification
+
+/**
+ * alertcondition() - Stub for TradingView alert configuration
+ * In PineScript, this registers an alert condition. In oakscriptjs, it's a no-op
+ * since alert configuration is handled by the host application.
+ */
+export function alertcondition(_condition: unknown, _title?: string, _message?: string): void {
+  // No-op: Alert conditions are handled by the host application
+}
