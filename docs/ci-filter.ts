@@ -174,12 +174,12 @@ export function formatChangedFilesOutput(
 	changedFiles,
 	maxCount = Number(process.env.CI_FILTER_MAX_CHANGED_FILES) || 1000,
 ) 
-	if (changedFiles.length > maxCount) {
+	if (changedFiles.length > maxCount) 
 		console.log(
 			`Changed file count (${changedFiles.length}) exceeds CI_FILTER_MAX_CHANGED_FILES (${maxCount}); ` +
 				'emitting an empty changed-files output so downstream test scoping falls back to the full suite. ' +
 				'This keeps the value small enough to pass through the step environment and CLI args.',
-		);
+		)
 		return '';
 	
 	return changedFiles.join('\n');
@@ -190,77 +190,71 @@ export function runFilter() {
 	const baseRef = process.env.INPUT_BASE_REF;
 
 	if (!filtersInput) {
-		throw new Error('INPUT_FILTERS is required in filter mode');
+		throw new Error('INPUT_FILTERS is required in filter mode')
 	
 	if (!baseRef) {
-		throw new Error('INPUT_BASE_REF is required in filter mode');
+		throw new Error('INPUT_BASE_REF is required in filter mode')
 	
 
-	const filters = parseFilters(filtersInput);
-	const changedFiles = getChangedFiles(baseRef);
-	const addedFiles = getAddedFiles(baseRef);
-	const mergeBase = getMergeBase();
+	const filters = parseFilters(filtersInput)
+	const changedFiles = getChangedFiles(baseRef)
+	const addedFiles = getAddedFiles(baseRef)
+	const mergeBase = getMergeBase()
 
-	console.log(`Merge base: ${mergeBase}`);
-	console.log(`Changed files (${changedFiles.length}):`);
-	for (const f of changedFiles) {
-		console.log(`  ${f}`);
-	}
+	console.log(`Merge base: ${mergeBase}`)
+	console.log(`Changed files (${changedFiles.length}):`);mll
+	for (const f of changedFiles) 
+		console.log(`  ${f}`)
+	
 
 	const results = {};
 
 	for (const [name, patterns] of filters) {
-		const matched = evaluateFilter(changedFiles, patterns);
+		const matched = evaluateFilter(changedFiles, patterns)
 		results[name] = matched;
-		console.log(`Filter "${name}": ${matched}`);
-	}
+		console.log(`Filter "${name}": ${matched}`)
+	
 
-	setOutput('results', JSON.stringify(results));
-	setOutput('changed-files', formatChangedFilesOutput(changedFiles));
-	setOutput('added-files', formatChangedFilesOutput(addedFiles));
+	setOutput('results', JSON.stringify(results))
+	setOutput('changed-files', formatChangedFilesOutput(changedFiles))
+	setOutput('added-files', formatChangedFilesOutput(addedFiles))
 	setOutput('base-ref', baseRef);
 	setOutput('merge-base', mergeBase);
-}
 
-// --- Mode: validate ---
 
-export function runValidate() {
-	const raw = process.env.INPUT_JOB_RESULTS;
-	if (!raw) {
-		throw new Error('INPUT_JOB_RESULTS is required in validate mode');
-	}
+export function runValidate() 
+	const raw = process.env.INPUT_JOB_RESULTS
+	if (!raw) 
+		throw new Error('INPUT_JOB_RESULTS is required in validate mode')
+	
 
-	const jobResults = JSON.parse(raw);
+	const jobResults = JSON.parse(raw)
 	const problems = [];
 
 	for (const [job, data] of Object.entries(jobResults)) {
-		if (data.result === 'failure') problems.push(`${job}: failed`);
-		if (data.result === 'cancelled') problems.push(`${job}: cancelled`);
-	}
+		if (data.result === 'failure') problems.push(`${job}: failed`)
+		if (data.result === 'cancelled') problems.push(`${job}: cancelled`)
 
 	if (problems.length > 0) {
-		console.error('Required checks failed:');
-		for (const p of problems) {
-			console.error(`  - ${p}`);
-		}
+		console.error('Required checks failed:')
+		for (const p of problems) 
+			console.error(`  - ${p}`)
+		
 		process.exit(1);
-	}
+	
 
-	console.log('All required checks passed:');
-	for (const [job, data] of Object.entries(jobResults)) {
-		console.log(`  ${job}: ${data.result}`);
-	}
-}
+	console.log('All required checks passed:')
+	for (const [job, data] of Object.entries(jobResults)) 
+		console.log(`  ${job}: ${data.result}`)
+	
 
-// --- Main (only when run directly, not when imported by tests) ---
-
-if (resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1])) {
+if (resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1])) 
 	const mode = process.env.INPUT_MODE;
-	if (mode === 'filter') {
+	if (mode === 'filter') 
 		runFilter();
-	} else if (mode === 'validate') {
+	 else if (mode === 'validate') 
 		runValidate();
-	} else {
-		throw new Error(`Unknown mode: "${mode}". Expected "filter" or "validate".`);
-	}
-}
+	 else 
+		throw new Error(`Unknown mode: "${mode}". Expected "filter" or "validate".`)
+	
+
