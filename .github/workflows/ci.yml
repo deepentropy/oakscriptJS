@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+              [read]
+              [write]
+              
   pull_request:
     branches: [main]
+              [read]
+              [write]
 
 jobs:
   build-and-test:
@@ -14,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
