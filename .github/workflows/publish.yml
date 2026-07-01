@@ -9,8 +9,10 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
+      contents:read
+               write
+      id-token:read
+               write
     steps:
       - uses: actions/checkout@v5
 
