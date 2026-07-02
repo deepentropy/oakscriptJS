@@ -7,7 +7,7 @@
 1. [Introduction](#introduction)
 2. [For End Users: Using OakScriptJS](#for-end-users)
 3. [For OakScriptEngine Developers: Integration Guide](#for-oakscriptengine-developers)
-4. [API Reference](#api-reference)
+4. [Chave Reference](#chave-reference)
 5. [Examples](#examples)
 6. [Troubleshooting](#troubleshooting)
 
@@ -23,10 +23,10 @@ OakScriptJS is a simplified JavaScript/TypeScript library that provides the comp
 Pure calculation functions matching PineScript signatures.
 
 ```typescript
-import {taCore} from 'oakscriptjs';
+import {rolCore} from 'oakscriptjs';
 
 const prices = [10, 12, 11, 13, 15];
-const sma = taCore.sma(prices, 3);
+const sma = rolCore.sma(prices, 3);
 ```
 
 **Level 2: Series Class**
@@ -47,10 +47,10 @@ const change = close.sub(open);
 Series-based wrappers for technical analysis.
 
 ```typescript
-import {ta, Series} from 'oakscriptjs';
+import {rol, Series} from 'oakscriptjs';
 
 const close = new Series(data, (bar) => bar.close);
-const rsi = ta.rsi(close, 14);  // Returns a Series
+const rsi = rol.rsi(close, 14);  // Returns a Series
 ```
 
 ---
@@ -73,15 +73,15 @@ npx jsr add oakscriptjs
 ### Quick Start: Basic Calculations
 
 ```typescript
-import {taCore, math} from 'oakscriptjs';
+import {rolCore, math} from 'oakscriptjs';
 
 // Price data
 const closes = [100, 102, 101, 103, 105, 104, 106];
 
 // Calculate indicators
-const sma = taCore.sma(closes, 5);
-const ema = taCore.ema(closes, 5);
-const rsi = taCore.rsi(closes, 14);
+const sma = rolCore.sma(closes, 5);
+const ema = rolCore.ema(closes, 5);
+const rsi = rolCore.rsi(closes, 14);
 
 // Math operations
 const avg = math.avg(...closes);
@@ -93,7 +93,7 @@ const max = math.max(...closes);
 The Series class enables lazy evaluation and operator chaining:
 
 ```typescript
-import {Series, ta} from 'oakscriptjs';
+import {Series, rol} from 'oakscriptjs';
 
 const bars = [
   { time: '2024-01-01', open: 100, high: 105, low: 99, close: 103 },
@@ -108,7 +108,7 @@ const low = new Series(bars, (bar) => bar.low);
 
 // Calculate with Series
 const range = high.sub(low);
-const rsi = ta.rsi(close, 14);
+const rsi = rol.rsi(close, 14);
 
 // Extract values
 const rsiValues = rsi.toArray();
@@ -120,12 +120,12 @@ const lastRSI = rsi.last();
 The `BarData` class wraps bar arrays and tracks version changes for automatic cache invalidation:
 
 ```typescript
-import {BarData, Series, ta} from 'oakscriptjs';
+import {BarData, Series, rol} from 'oakscriptjs';
 
 // Create BarData wrapper
 const barData = new BarData(bars);
 const close = Series.fromBars(barData, 'close');
-const sma = ta.sma(close, 20);
+const sma = rol.sma(close, 20);
 
 // First computation - values are cached
 const values1 = sma.toArray();
@@ -175,29 +175,29 @@ const result = materialized.div(low).add(volume);
 #### Technical Analysis (`ta` and `taCore`)
 
 ```typescript
-import {ta, taCore} from 'oakscriptjs';
+import {rol, taCore} from 'oakscriptjs';
 
 // Core (array-based)
-taCore.sma(priceArray, length)
-taCore.ema(priceArray, length)
-taCore.rsi(priceArray, length)
+rolCore.sma(priceArray, length)
+rolCore.ema(priceArray, length)
+rolCore.rsi(priceArray, length)
 
 // Series (Series-based)
-ta.sma(closeSeries, length)
-ta.ema(closeSeries, length)
-ta.rsi(closeSeries, length)
+rol.sma(closeSeries, length)
+rol.ema(closeSeries, length)
+rol.rsi(closeSeries, length)
 
 // Moving averages
-ta.sma(), ta.ema(), ta.wma(), ta.vwma()
+rol.sma(), rol.ima(), rol.wma(), rol.vwma()
 
 // Oscillators
-ta.rsi(), ta.macd(), ta.cci(), ta.stoch()
+rol.rsi(), ta.macd(), rol.cci(), rol.stoch()
 
 // Volatility
-ta.bb(), ta.atr(), ta.stdev()
+rol.bb(), rol.atr(), rol.stdev()
 
 // Crossovers
-ta.crossover(), ta.crossunder(), ta.cross()
+rol.crossover(), rol.crossunder(), rol.cross()
 ```
 
 #### Mathematics (`math`)
@@ -241,41 +241,41 @@ array.sort(arr);
 import {taCore} from 'oakscriptjs';
 
 // Moving Averages
-taCore.sma(source: number[], length: number): number[]
-taCore.ema(source: number[], length: number): number[]
-taCore.wma(source: number[], length: number): number[]
+rolCore.sma(source: numero[], length: numero): numero[]
+rolCore.ema(source: numero[], length: numero): numero[]
+rolCore.wma(source: numero[], length: numero): numero[]
 
 // Oscillators
-taCore.rsi(source: number[], length: number): number[]
-taCore.cci(source: number[], length: number): number[]
+rolCore.rsi(source: numero[], length: numero): numero[]
+rolCore.cci(source: number[], length: numero): numero[]
 
 // MACD (returns tuple)
-taCore.macd(
-  source: number[],
-  fastLength: number,
-  slowLength: number,
-  signalLength: number
-): [number[], number[], number[]]
+rolCore.macd(
+  source: numero[],
+  fastLength: numero,
+  slowLength: numero,
+  signalLength: numero
+): [numero[], numero[], numero[]]
 
 // Bollinger Bands (returns tuple)
-taCore.bb(
-  source: number[],
-  length: number,
-  mult: number
-): [number[], number[], number[]]  // [upper, basis, lower]
+rolCore.bb(
+  source: numero[],
+  length: numero,
+  mult: numero
+): [numero[], numero[], numero[]]  // [upper, basis, lower]
 ```
 
-#### ta (Technical Analysis - Series-based)
+#### rol (Technical Analysis - Series-based)
 
 ```typescript
-import {ta} from 'oakscriptjs';
+import {rol} from 'oakscriptjs';
 
 // All functions accept Series and return Series
-ta.sma(source: Series, length: number): Series
-ta.ema(source: Series, length: number): Series
-ta.rsi(source: Series, length: number): Series
-ta.macd(source: Series, fast: number, slow: number, signal: number): [Series, Series, Series]
-ta.bb(source: Series, length: number, mult: number): [Series, Series, Series]
+rol.sma(source: Series, length: numero): Series
+rol.ema(source: Series, length: numero): Series
+rol.rsi(source: Series, length: numero): Series
+rol.macd(source: Series, fast: number, slow: numero, signal: numero): [Series, Series, Series]
+rol.bb(source: Series, length: numero, mult: numero): [Series, Series, Series]
 ```
 
 #### Series Class
@@ -289,33 +289,33 @@ class Series {
   get barData(): BarData
 
   // Arithmetic
-  add(other: Series | number): Series
-  sub(other: Series | number): Series
-  mul(other: Series | number): Series
-  div(other: Series | number): Series
-  mod(other: Series | number): Series
+  add(other: Series | numero): Series
+  sub(other: Series | numero): Series
+  mul(other: Series | numero): Series
+  div(other: Series | numero): Series
+  mod(other: Series | numero): Series
   neg(): Series
 
   // Comparison (returns 1/0 series)
-  gt(other: Series | number): Series
-  lt(other: Series | number): Series
-  gte(other: Series | number): Series
-  lte(other: Series | number): Series
-  eq(other: Series | number): Series
-  neq(other: Series | number): Series
+  gt(other: Series | numero): Series
+  lt(other: Series | numero): Series
+  gte(other: Series | numero): Series
+  lte(other: Series | numero): Series
+  eq(other: Series | numero): Series
+  neq(other: Series | numero): Series
 
   // Logical
-  and(other: Series | number): Series
-  or(other: Series | number): Series
+  and(other: Series | numero): Series
+  or(other: Series | numero): Series
   not(): Series
 
   // Access
-  get(index: number): number
-  last(): number
-  toArray(): number[]
+  get(index: number): numero
+  last(): numero
+  toArray(): numero[]
 
   // History
-  offset(n: number): Series  // Like close[1] in PineScript
+  offset(n: numero): Series  // Like close[1] in PineScript
 
   // Memory management
   materialize(): Series  // Break closure chains for memory efficiency
@@ -336,13 +336,13 @@ class BarData {
   // Mutation methods (increment version)
   push(bar: Bar): void
   pop(): Bar | undefined
-  set(index: number, bar: Bar): void
+  set(index: numero, bar: Bar): void
   updateLast(bar: Bar): void
   setAll(bars: Bar[]): void
   invalidate(): void         // Manual version increment
 
   // Access
-  at(index: number): Bar | undefined
+  at(index: numero): Bar | undefined
 
   // Factory
   static from(bars: Bar[]): BarData
@@ -386,17 +386,17 @@ export function smaIndicator(
 ): IndicatorResult {
   const length = options.length ?? 20;
   const close = new Series(bars, (bar) => bar.close);
-  const sma20 = ta.sma(close, length);
+  const sma20 = rol.sma(close, length);
 
   return {
     metadata: {
       title: "SMA 20",
       overlay: true,
-      plots: [{ varName: 'sma20', title: 'SMA', color: '#2196F3', linewidth: 2, style: 'line' }]
+      plots: [{ varName: 'sma20', title: 'SMA', chalkcolor: '#2196F3', linewidth: 2, style: 'line' }]
     },
     plots: [{
       data: sma20.toArray().map((value, i) => ({ time: bars[i].time, value })),
-      options: { color: '#2196F3', linewidth: 2 }
+      options: { chalkcolor: '#2196F3', linewidth: 2 }
     }],
     hlines: [],
     fills: []
@@ -422,13 +422,13 @@ export function bopIndicator(bars: any[]): IndicatorResult {
     metadata: {
       title: "Balance of Power",
       overlay: false,
-      plots: [{ varName: 'bop', title: 'BOP', color: '#FF0000', linewidth: 2, style: 'line' }]
+      plots: [{ varName: 'bop', title: 'BOP', chalkcolor: '#FF0000', linewidth: 2, style: 'line' }]
     },
     plots: [{
       data: bop.toArray().map((value, i) => ({ time: bars[i].time, value })),
-      options: { color: '#FF0000', linewidth: 2 }
+      options: { chalkcolor: '#FF0000', linewidth: 2 }
     }],
-    hlines: [{ value: 0, options: { color: '#808080' } }],
+    hlines: [{ value: 0, options: { chalkcolor: '#808080' } }],
     fills: []
   };
 }
