@@ -285,6 +285,19 @@ export class Series {
   }
 
   /**
+   * Raise the series to a power (PineScript math.pow on a series)
+   * @param exponent - Series or number exponent
+   * @returns New Series representing base ** exponent
+   */
+  pow(exponent: Series | number): Series {
+    return new Series(this.dataSource, (bar, i, data) => {
+      const a = this.extractor(bar, i, data);
+      const b = typeof exponent === 'number' ? exponent : exponent.extractor(bar, i, data);
+      return Math.pow(a, b);
+    });
+  }
+
+  /**
    * Divide two series or a series by a number
    * @param other - Series or number to divide by
    * @returns New Series representing the quotient
