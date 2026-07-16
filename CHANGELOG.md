@@ -5,6 +5,33 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-16
+
+### Added
+
+**Script API (`oakscriptjs/script`):**
+- New package entry for writing indicators as flat PineScript-style scripts:
+  `indicator()`, `input.*` (declares AND returns the current value), `plot()`,
+  `hline()`, `fill()`, `alertcondition()` — one statement per fact, no
+  calculate() function and no separate config objects
+- Context-bound OHLCV builtins (`open`, `high`, `low`, `close`, `volume`,
+  `hl2`, `hlc3`, `ohlc4`, `hlcc4`) backed by a shared versioned BarData, so
+  derived Series memoize across identical runs
+- `ta.*` re-exported with the chart-implicit (bars-first) functions bound to
+  the context: `ta.tr(true)`, `ta.atr(14)`, `ta.sar()`, `ta.supertrend()`,
+  `ta.dmi()`, `ta.kc()`, `ta.kcw()`, `ta.wpr()`, `ta.ichimoku()`
+- `color.when(cond, a, b)` — per-bar conditional colors for plot()/fill();
+  `color.new` alias for `new_color`
+- `executeScript(body, bars, inputs)` host entry collecting metadata,
+  inputConfig/plotConfig/hlineConfig/fillConfig, defaultInputs and the
+  IndicatorResult in one run — re-run on data/input changes (the PineScript
+  recalculation model)
+- `Series.pow(exponent)` — elementwise power
+
+### Changed
+- docs/guide.md: replaced the stale OakScriptEngine section (the transpiler
+  project no longer exists) with the Script API guide
+
 ## [0.1.5] - 2025-12-06
 
 ### Added

@@ -6,7 +6,7 @@
 
 1. [Introduction](#introduction)
 2. [For End Users: Using OakScriptJS](#for-end-users)
-3. [For OakScriptEngine Developers: Integration Guide](#for-oakscriptengine-developers)
+3. [Script API: PineScript-style indicators](#script-api)
 4. [API Reference](#api-reference)
 5. [Examples](#examples)
 6. [Troubleshooting](#troubleshooting)
@@ -228,6 +228,61 @@ array.sum(arr);
 array.avg(arr);
 array.sort(arr);
 ```
+
+---
+
+## Script API
+
+The `oakscriptjs/script` entry lets an indicator be written as a flat
+PineScript-style script: one statement per fact, no calculate() function and
+no separate config objects.
+
+```typescript
+import { indicator, input, plot, hline, ta, color, volume } from 'oakscriptjs/script';
+
+indicator('Kinetic Slippage Index (KSI)', { shorttitle: 'KSI', overlay: false, precision: 6 });
+
+const volEmaLength = input.int(20, 'Volume EMA Period', { minval: 1 });
+const sigLength    = input.int(9,  'Signal Line Period', { minval: 1 });
+const sigSpike     = input.float(0, 'Spike Signal Level', { minval: 0 });
+
+const trueRange = ta.tr(true);
+const emaVolume = ta.ema(volume, volEmaLength);
+const ksi       = emaVolume.gt(0).iff(trueRange.pow(2).div(volume.mul(emaVolume)), 0).mul(1_000_000);
+const signal    = ta.ema(ksi, sigLength);
+
+const histColor = color.when(ksi.gt(signal), color.new(color.green, 30), color.new(color.red, 30));
+
+plot(ksi, 'KSI Histogram', { color: histColor, style: 'histogram', linewidth: 2 });
+plot(signal, 'Signal Line', { color: color.orange, linewidth: 1 });
+hline(0, 'Zero Line', { color: color.gray, linestyle: 'dashed' });
+hline(sigSpike, 'Spike Line', { color: color.orange, linestyle: 'dashed' });
+```
+
+Key points:
+
+- `indicator(title, opts)` declares metadata once.
+- `input.*(defval, title, opts)` declares the input AND returns its current
+  value (the host-supplied override on recalculations, else the default).
+  `input.source()` returns a Series.
+- OHLCV builtins (`open`, `high`, `low`, `close`, `volume`, `hl2`, `hlc3`,
+  `ohlc4`, `hlcc4`) are context-bound Series.
+- `ta.*` is the Series API with the chart-implicit functions bound to the
+  context bars: `ta.tr(true)`, `ta.atr(14)`, `ta.sar()`, `ta.supertrend()`, ...
+- `plot(series, title, opts)` declares the plot and supplies its data in one
+  call; `opts.color` accepts a static color or a per-bar array from
+  `color.when(cond, a, b)` (PineScript conditional colors).
+- `fill(a, b, opts)` takes the handles returned by plot()/hline().
+- `alertcondition(cond, title, message)` is collected for the host's alert
+  engine.
+- JavaScript has no operator overloading, so Series math is method-chained:
+  `ksi.gt(signal).iff(a, b)` instead of `ksi > signal ? a : b`.
+
+Host side: call `executeScript(body, bars, inputs)` to run the script and
+collect `{ metadata, inputConfig, plotConfig, hlineConfig, fillConfig,
+defaultInputs, result }`. Re-run it whenever bars or inputs change — that is
+PineScript's recalculation model. Executions must be serialized (one script
+at a time); a Web Worker does this naturally.
 
 ---
 
