@@ -133,6 +133,49 @@ export interface FillConfig {
 }
 
 /**
+ * Configuration for plotshape/plotchar outputs in generated indicators
+ * Matches PineScript plotshape()/plotchar() declarative parameters
+ */
+export interface ShapeConfig {
+    /** Unique identifier for the shape declaration */
+    id: string;
+    /** 'shape' for plotshape, 'char' for plotchar */
+    kind: 'shape' | 'char';
+    /** Display title */
+    title?: string;
+    /** Shape style (plotshape only) */
+    style?: 'xcross' | 'cross' | 'triangleup' | 'triangledown' | 'flag' | 'circle' | 'arrowup' | 'arrowdown' | 'labelup' | 'labeldown' | 'square' | 'diamond';
+    /** Character (plotchar only) */
+    char?: string;
+    /** Marker location relative to the bar */
+    location: 'abovebar' | 'belowbar' | 'top' | 'bottom' | 'absolute';
+    /** Marker color */
+    color?: string;
+    /** Text shown near the marker */
+    text?: string;
+    /** Text color */
+    textcolor?: string;
+    /** Marker size */
+    size?: 'auto' | 'tiny' | 'small' | 'normal' | 'large' | 'huge';
+    /** Offset in bars (applied to the emitted marker times) */
+    offset?: number;
+}
+
+/**
+ * Configuration for bgcolor/barcolor outputs in generated indicators
+ */
+export interface BarColorConfig {
+    /** Unique identifier */
+    id: string;
+    /** 'bgcolor' or 'barcolor' */
+    kind: 'bgcolor' | 'barcolor';
+    /** Display title */
+    title?: string;
+    /** Offset in bars (bgcolor only, already baked into emitted data) */
+    offset?: number;
+}
+
+/**
  * Options for numeric inputs
  */
 export interface InputOptions {
