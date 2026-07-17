@@ -280,9 +280,65 @@ Key points:
 
 Host side: call `executeScript(body, bars, inputs)` to run the script and
 collect `{ metadata, inputConfig, plotConfig, hlineConfig, fillConfig,
-defaultInputs, result }`. Re-run it whenever bars or inputs change — that is
-PineScript's recalculation model. Executions must be serialized (one script
-at a time); a Web Worker does this naturally.
+shapeConfig, barColorConfig, defaultInputs, result }`. Re-run it whenever bars
+or inputs change — that is PineScript's recalculation model. Executions must be
+serialized (one script at a time); a Web Worker does this naturally.
+
+### Visual outputs (plotshape, plotchar, bgcolor, barcolor)
+
+Beyond `plot`, the script API emits per-bar markers and colors. Each is a pure
+function of an already-computed Series.
+
+```typescript
+import { plotshape, plotchar, bgcolor, barcolor, color, close, ta } from 'oakscriptjs/script';
+
+// Marker on each bar where the condition holds
+plotshape(ta.crossover(fast, slow), 'Cross', {
+  style: 'triangleup',        // shape.* style
+  location: 'belowbar',       // abovebar | belowbar | top | bottom | absolute
+  color: color.green,
+  text: 'B',
+  tooltip: 'Bullish cross',   // extension over PineScript, for label-style ports
+});
+
+// A character marker
+plotchar(close.gt(100), 'Above 100', { char: '↑', location: 'abovebar' });
+
+// Per-bar background / candle color: static color or a per-bar array
+bgcolor(color.when(fast.gt(slow), color.new(color.green, 90)));   // uncolored where false
+barcolor(color.when(close.gt(close.offset(1)), color.green, color.red));
+```
+
+`color.when(cond, colorTrue, colorFalse?)` builds the per-bar array; omit
+`colorFalse` to leave those bars uncolored (PineScript `na`).
+
+The run result carries the data: `result.markers` (`MarkerData[]`),
+`result.bgcolors` and `result.barcolors` (`BarColorData[]`). `plotshape`/
+`plotchar` are also declared in `shapeConfig`, and `bgcolor`/`barcolor` in
+`barColorConfig`, for the host UI.
+
+### Per-bar stateful execution (eachBar)
+
+The Series API is vectorized. For logic PineScript writes with persistent state
+(`var`, `:=`) or imperative loops, `eachBar(fn)` runs a callback once per bar and
+collects the returns into a Series. Inside the callback values are plain numbers,
+so native JS operators, `if`/`for`/`while` and closure `let` variables work.
+
+```typescript
+import { eachBar, seriesOf, close, high } from 'oakscriptjs/script';
+
+let dir = 0;                                 // var dir = 0
+const trend = eachBar((c) => {
+  if (c.close > c.get(close, 1)) dir = 1;    // dir := 1 ; c.get(src, k) is src[k]
+  else if (c.close < c.get(close, 1)) dir = -1;
+  return dir;                                // collected into a Series (bool → 1/0, void → na)
+});
+```
+
+The bar context `c` exposes `c.open/high/low/close/volume`, `c.i` (bar_index),
+`c.n`, `c.time`, `c.get(series, offset)` for history on any Series, and
+`c.prev(offset)` for this block's own previous output. Accumulate a side array in
+the closure and wrap it with `seriesOf(values)` for a second output.
 
 ---
 
@@ -420,9 +476,12 @@ import type {
 
 interface IndicatorResult {
   metadata: IndicatorMetadata;
-  plots: PlotData[];
+  plots: Record<string, TimeValue[]>;   // keyed by plot id
   hlines?: HLineData[];
   fills?: FillData[];
+  markers?: MarkerData[];               // from plotshape() / plotchar()
+  bgcolors?: BarColorData[];            // from bgcolor()
+  barcolors?: BarColorData[];           // from barcolor()
 }
 ```
 
@@ -430,61 +489,42 @@ interface IndicatorResult {
 
 ## Examples
 
-### Example 1: Simple Moving Average
+### Example 1: Simple Moving Average (script API)
 
 ```typescript
-import {Series, ta, type IndicatorResult} from 'oakscriptjs';
+import { executeScript, indicator, input, plot, ta, color, close } from 'oakscriptjs/script';
 
-export function smaIndicator(
-  bars: any[],
-  options: { length?: number } = {}
-): IndicatorResult {
-  const length = options.length ?? 20;
-  const close = new Series(bars, (bar) => bar.close);
-  const sma20 = ta.sma(close, length);
-
-  return {
-    metadata: {
-      title: "SMA 20",
-      overlay: true,
-      plots: [{ varName: 'sma20', title: 'SMA', color: '#2196F3', linewidth: 2, style: 'line' }]
-    },
-    plots: [{
-      data: sma20.toArray().map((value, i) => ({ time: bars[i].time, value })),
-      options: { color: '#2196F3', linewidth: 2 }
-    }],
-    hlines: [],
-    fills: []
-  };
+function smaIndicator() {
+  indicator('SMA 20', { overlay: true });
+  const length = input.int(20, 'Length', { minval: 1 });
+  plot(ta.sma(close, length), 'SMA', { color: color.blue, linewidth: 2 });
 }
+
+const run = executeScript(smaIndicator, bars);
+// run.result.plots['plot0'] → [{ time, value }, ...] (warm-up NaNs filtered out)
 ```
 
-### Example 2: Balance of Power (Native Operators)
+### Example 2: Balance of Power (script API)
 
 ```typescript
-import {Series, type IndicatorResult} from 'oakscriptjs';
+import { executeScript, indicator, plot, hline, color, open, high, low, close } from 'oakscriptjs/script';
 
-export function bopIndicator(bars: any[]): IndicatorResult {
-  const close = new Series(bars, (bar) => bar.close);
-  const open = new Series(bars, (bar) => bar.open);
-  const high = new Series(bars, (bar) => bar.high);
-  const low = new Series(bars, (bar) => bar.low);
-
-  // Series method calls for arithmetic
-  const bop = close.sub(open).div(high.sub(low));
-
-  return {
-    metadata: {
-      title: "Balance of Power",
-      overlay: false,
-      plots: [{ varName: 'bop', title: 'BOP', color: '#FF0000', linewidth: 2, style: 'line' }]
-    },
-    plots: [{
-      data: bop.toArray().map((value, i) => ({ time: bars[i].time, value })),
-      options: { color: '#FF0000', linewidth: 2 }
-    }],
-    hlines: [{ value: 0, options: { color: '#808080' } }],
-    fills: []
-  };
+function bopIndicator() {
+  indicator('Balance of Power', { overlay: false });
+  const bop = close.sub(open).div(high.sub(low));   // (close - open) / (high - low)
+  plot(bop, 'BOP', { color: color.red, linewidth: 2 });
+  hline(0, 'Zero', { color: color.gray });
 }
+
+const run = executeScript(bopIndicator, bars);
+```
+
+### Example 3: Low-level array API (no chart)
+
+```typescript
+import { taCore } from 'oakscriptjs';
+
+const closes = bars.map((b) => b.close);
+const sma = taCore.sma(closes, 20);   // number[]
+const rsi = taCore.rsi(closes, 14);   // number[]
 ```
