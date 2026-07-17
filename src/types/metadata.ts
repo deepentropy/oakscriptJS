@@ -201,6 +201,71 @@ export interface FillData {
 }
 
 /**
+ * Marker location on the chart (PineScript plotshape/plotchar locations)
+ */
+export type MarkerLocation = 'abovebar' | 'belowbar' | 'top' | 'bottom' | 'absolute';
+
+/**
+ * Marker size (PineScript size.* constants)
+ */
+export type MarkerSize = 'auto' | 'tiny' | 'small' | 'normal' | 'large' | 'huge';
+
+/**
+ * Shape style (PineScript shape.* constants)
+ */
+export type ShapeStyle =
+  | 'xcross'
+  | 'cross'
+  | 'triangleup'
+  | 'triangledown'
+  | 'flag'
+  | 'circle'
+  | 'arrowup'
+  | 'arrowdown'
+  | 'labelup'
+  | 'labeldown'
+  | 'square'
+  | 'diamond';
+
+/**
+ * One marker emitted by plotshape()/plotchar() on a bar where the condition held
+ */
+export interface MarkerData {
+  /** Time of the bar the marker is displayed on (offset already applied) */
+  time: any;
+  /** Id of the plotshape/plotchar declaration that produced it */
+  id: string;
+  /** Marker location relative to the bar */
+  location: MarkerLocation;
+  /** Shape style, or 'char' for plotchar markers */
+  style: ShapeStyle | 'char';
+  /** Character (plotchar only) */
+  char?: string;
+  /** Marker color */
+  color?: string;
+  /** Text shown near the marker */
+  text?: string;
+  /** Text color */
+  textcolor?: string;
+  /** Marker size */
+  size?: MarkerSize;
+  /** Hover tooltip (extension over PineScript plotshape, used by label.new ports) */
+  tooltip?: string;
+  /** Price for location 'absolute' (the series value on that bar) */
+  price?: number;
+}
+
+/**
+ * Per-bar color for bgcolor()/barcolor() output
+ */
+export interface BarColorData {
+  /** Time of the colored bar (offset already applied) */
+  time: any;
+  /** Color */
+  color: string;
+}
+
+/**
  * Complete indicator calculation result
  */
 export interface IndicatorResult {
@@ -212,6 +277,12 @@ export interface IndicatorResult {
   hlines?: HLineData[];
   /** Fills */
   fills?: FillData[];
+  /** Markers from plotshape()/plotchar() */
+  markers?: MarkerData[];
+  /** Background colors from bgcolor() */
+  bgcolors?: BarColorData[];
+  /** Bar colors from barcolor() */
+  barcolors?: BarColorData[];
 }
 
 /**

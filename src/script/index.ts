@@ -34,8 +34,17 @@
  */
 
 import type { Bar } from '../types';
-import type { FillData, IndicatorResult, TimeValue } from '../types/metadata';
-import type { FillConfig, HLineConfig, InputConfig, PlotConfig } from '../runtime/types';
+import type {
+  BarColorData,
+  FillData,
+  IndicatorResult,
+  MarkerData,
+  MarkerLocation,
+  MarkerSize,
+  ShapeStyle,
+  TimeValue,
+} from '../types/metadata';
+import type { BarColorConfig, FillConfig, HLineConfig, InputConfig, PlotConfig, ShapeConfig } from '../runtime/types';
 import { BarData, Series } from '../runtime/series';
 import * as taSeries from '../ta-series';
 import * as colorCore from '../color';
@@ -48,6 +57,8 @@ export interface ScriptRunResult {
   plotConfig: PlotConfig[];
   hlineConfig: HLineConfig[];
   fillConfig: FillConfig[];
+  shapeConfig: ShapeConfig[];
+  barColorConfig: BarColorConfig[];
   defaultInputs: Record<string, unknown>;
   alertConfig: AlertConditionConfig[];
   /** The renderable output (plots keyed by plotConfig ids, plot-pair fills). */
@@ -89,6 +100,11 @@ interface Collector {
   hlineConfig: HLineConfig[];
   fills: FillData[];
   fillConfig: FillConfig[];
+  shapeConfig: ShapeConfig[];
+  markers: MarkerData[];
+  barColorConfig: BarColorConfig[];
+  bgcolors: BarColorData[];
+  barcolors: BarColorData[];
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
 }
@@ -122,6 +138,11 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     hlineConfig: [],
     fills: [],
     fillConfig: [],
+    shapeConfig: [],
+    markers: [],
+    barColorConfig: [],
+    bgcolors: [],
+    barcolors: [],
     alertConfig: [],
     alerts: [],
   };
@@ -169,12 +190,17 @@ export function executeScript(
       plotConfig: c.plotConfig,
       hlineConfig: c.hlineConfig,
       fillConfig: c.fillConfig,
+      shapeConfig: c.shapeConfig,
+      barColorConfig: c.barColorConfig,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
       result: {
         metadata: { title: c.title, shorttitle: c.shortTitle, overlay: c.overlay, precision: c.precision },
         plots: c.plots,
         fills: c.fills.length ? c.fills : undefined,
+        markers: c.markers.length ? c.markers : undefined,
+        bgcolors: c.bgcolors.length ? c.bgcolors : undefined,
+        barcolors: c.barcolors.length ? c.barcolors : undefined,
         alerts: c.alerts.length ? c.alerts : undefined,
       },
     };
@@ -304,14 +330,20 @@ export const ta = {
 
 // ── Color helpers ────────────────────────────────────────────────────────────
 
-/** color.* plus `when` — per-bar conditional colors for plot()/fill(). */
+/** Per-bar color selection: truthy → colorTrue, else colorFalse.
+ *  colorFalse may be omitted (PineScript `na`): those bars get no color,
+ *  which bgcolor()/barcolor() skip. */
+function colorWhen(cond: Series, colorTrue: string, colorFalse: string): string[];
+function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<string | undefined>;
+function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<string | undefined> {
+  return cond.toArray().map((v) => (!isNA(v) && v !== 0 ? colorTrue : colorFalse));
+}
+
+/** color.* plus `when` — per-bar conditional colors for plot()/fill()/bgcolor()/barcolor(). */
 export const color = {
   ...colorCore,
   new: colorCore.new_color,
-  /** Per-bar color selection: truthy → colorTrue, else colorFalse. */
-  when(cond: Series, colorTrue: string, colorFalse: string): string[] {
-    return cond.toArray().map((v) => (!isNA(v) && v !== 0 ? colorTrue : colorFalse));
-  },
+  when: colorWhen,
 };
 
 // ── Drawing declarations ─────────────────────────────────────────────────────
@@ -403,6 +435,223 @@ export function fill(a: PlotHandle, b: PlotHandle, options: ScriptFillOptions = 
   });
 }
 
+export interface PlotShapeOptions {
+  style?: ShapeStyle;
+  location?: MarkerLocation;
+  color?: string;
+  text?: string;
+  textcolor?: string;
+  size?: MarkerSize;
+  /** Display offset in bars (marker shown at bar i + offset). */
+  offset?: number;
+  /** Hover tooltip (extension over PineScript, for label.new-style ports). */
+  tooltip?: string;
+}
+
+export interface PlotCharOptions extends Omit<PlotShapeOptions, 'style'> {
+  char?: string;
+}
+
+/** Shared emitter for plotshape()/plotchar(). Emits one marker per bar where
+ *  the condition is truthy (not na, not 0). */
+function emitMarkers(
+  kind: 'shape' | 'char',
+  condition: Series,
+  title: string | undefined,
+  options: PlotShapeOptions & PlotCharOptions
+): void {
+  const c = collector();
+  const id = `${kind}${c.shapeConfig.filter((s) => s.kind === kind).length}`;
+  const style: ShapeStyle | 'char' = kind === 'shape' ? (options.style ?? 'xcross') : 'char';
+  const char = kind === 'char' ? (options.char ?? '*') : undefined;
+  const location = options.location ?? 'abovebar';
+  c.shapeConfig.push({
+    id,
+    kind,
+    title,
+    style: kind === 'shape' ? (style as ShapeStyle) : undefined,
+    char,
+    location,
+    color: options.color,
+    text: options.text,
+    textcolor: options.textcolor,
+    size: options.size,
+    offset: options.offset,
+  });
+  const values = condition.toArray();
+  const b = bars();
+  const off = options.offset ?? 0;
+  for (let i = 0; i < b.length; i++) {
+    const v = values[i];
+    if (v === undefined || Number.isNaN(v) || v === 0) continue;
+    const j = i + off;
+    if (j < 0 || j >= b.length) continue;
+    c.markers.push({
+      time: b[j]!.time,
+      id,
+      location,
+      style,
+      char,
+      color: options.color,
+      text: options.text,
+      textcolor: options.textcolor,
+      size: options.size,
+      tooltip: options.tooltip,
+      price: location === 'absolute' ? v : undefined,
+    });
+  }
+}
+
+/** PineScript `plotshape()` — a marker on each bar where the condition holds. */
+export function plotshape(condition: Series, title?: string, options: PlotShapeOptions = {}): void {
+  emitMarkers('shape', condition, title, options);
+}
+
+/** PineScript `plotchar()` — a character marker on each bar where the condition holds. */
+export function plotchar(condition: Series, title?: string, options: PlotCharOptions = {}): void {
+  emitMarkers('char', condition, title, options);
+}
+
+/** Shared emitter for bgcolor()/barcolor(). A static color applies to every
+ *  bar; a per-bar array (from color.when) skips undefined entries. The offset
+ *  is baked in: the color computed at bar i lands on bar i + offset. */
+function emitBarColors(
+  kind: 'bgcolor' | 'barcolor',
+  colors: string | Array<string | undefined>,
+  options: { offset?: number; title?: string }
+): void {
+  const c = collector();
+  const id = `${kind}${c.barColorConfig.filter((x) => x.kind === kind).length}`;
+  c.barColorConfig.push({ id, kind, title: options.title, offset: options.offset });
+  const b = bars();
+  const off = options.offset ?? 0;
+  const target = kind === 'bgcolor' ? c.bgcolors : c.barcolors;
+  for (let i = 0; i < b.length; i++) {
+    const col = typeof colors === 'string' ? colors : colors[i];
+    if (!col) continue;
+    const j = i + off;
+    if (j < 0 || j >= b.length) continue;
+    target.push({ time: b[j]!.time, color: col });
+  }
+}
+
+/** PineScript `bgcolor()` — per-bar background color. */
+export function bgcolor(
+  colors: string | Array<string | undefined>,
+  options: { offset?: number; title?: string } = {}
+): void {
+  emitBarColors('bgcolor', colors, options);
+}
+
+/** PineScript `barcolor()` — per-bar candle color override. */
+export function barcolor(
+  colors: string | Array<string | undefined>,
+  options: { title?: string } = {}
+): void {
+  emitBarColors('barcolor', colors, options);
+}
+
+// ── Per-bar execution (eachBar) ──────────────────────────────────────────────
+
+/**
+ * The scalar view of one bar handed to an {@link eachBar} callback.
+ * All fields are plain numbers, so native JS operators work.
+ */
+export interface BarContext {
+  /** Bar index (PineScript bar_index). */
+  readonly i: number;
+  /** Total number of bars. */
+  readonly n: number;
+  /** Time of the current bar. */
+  readonly time: number;
+  readonly open: number;
+  readonly high: number;
+  readonly low: number;
+  readonly close: number;
+  readonly volume: number;
+  /** Value of any Series at the current bar minus `offset` (PineScript src[offset]). */
+  get(src: Series, offset?: number): number;
+  /** This block's own previous output (PineScript self-reference, offset >= 1). */
+  prev(offset?: number): number;
+}
+
+/**
+ * Runs the callback once per bar, in order, and collects the returned values
+ * into a Series. This is the escape hatch for PineScript logic the vectorized
+ * model cannot express:
+ *
+ * - `var x = 0` / `x := ...` → a plain `let` variable captured by the closure
+ * - per-bar `if` / `for` / `while` → native JS statements
+ * - `src[k]` → `c.get(src, k)`; self-reference → `c.prev()`
+ *
+ * Returning a boolean collects 1/0; returning nothing collects na (NaN).
+ *
+ * ```typescript
+ * let dir = 0;                          // var dir = 0
+ * const trend = eachBar((c) => {
+ *   if (c.close > c.get(close, 1)) dir = 1;   // dir := 1
+ *   else if (c.close < c.get(close, 1)) dir = -1;
+ *   return dir;
+ * });
+ * ```
+ */
+export function eachBar(fn: (c: BarContext) => number | boolean | void): Series {
+  collector(); // same lifecycle guard (and error message) as the declaration calls
+  const b = bars();
+  const out: number[] = new Array(b.length).fill(NaN);
+  const cache = new Map<Series, number[]>();
+  let idx = 0;
+  const ctx: BarContext = {
+    get i() {
+      return idx;
+    },
+    n: b.length,
+    get time() {
+      return b[idx]!.time as number;
+    },
+    get open() {
+      return b[idx]!.open;
+    },
+    get high() {
+      return b[idx]!.high;
+    },
+    get low() {
+      return b[idx]!.low;
+    },
+    get close() {
+      return b[idx]!.close;
+    },
+    get volume() {
+      return b[idx]!.volume ?? NaN;
+    },
+    get(src: Series, offset: number = 0): number {
+      let vals = cache.get(src);
+      if (!vals) {
+        vals = src.toArray();
+        cache.set(src, vals);
+      }
+      const j = idx - offset;
+      return j >= 0 && j < vals.length ? (vals[j] ?? NaN) : NaN;
+    },
+    prev(offset: number = 1): number {
+      const j = idx - Math.max(1, offset);
+      return j >= 0 ? out[j]! : NaN;
+    },
+  };
+  for (idx = 0; idx < b.length; idx++) {
+    const r = fn(ctx);
+    out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
+  }
+  return Series.fromArray(ctxBars, out);
+}
+
+/** Wraps a plain value array (e.g. a side output accumulated inside eachBar)
+ *  into a Series aligned with the current bars. */
+export function seriesOf(values: number[]): Series {
+  collector();
+  return Series.fromArray(ctxBars, values);
+}
+
 /** PineScript `alertcondition()` — collected for the host's alert engine. */
 export function alertcondition(condition: Series, title: string, message?: string): void {
   const c = collector();
@@ -416,4 +665,19 @@ export function alertcondition(condition: Series, title: string, message?: strin
 
 export { Series, BarData, isNA as na, nz };
 export * as math from '../math';
-export type { Bar, IndicatorResult, TimeValue, InputConfig, PlotConfig, HLineConfig, FillConfig };
+export type {
+  Bar,
+  IndicatorResult,
+  TimeValue,
+  InputConfig,
+  PlotConfig,
+  HLineConfig,
+  FillConfig,
+  ShapeConfig,
+  BarColorConfig,
+  MarkerData,
+  BarColorData,
+  MarkerLocation,
+  MarkerSize,
+  ShapeStyle,
+};
