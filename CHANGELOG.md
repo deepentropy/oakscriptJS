@@ -5,6 +5,36 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-17
+
+### Added
+
+**Tier 1 visual outputs (`oakscriptjs/script`):**
+- `plotshape(condition, title?, options)` and `plotchar(condition, title?, options)` —
+  per-bar markers where the condition holds. Options: `style`, `location`
+  (`abovebar`/`belowbar`/`top`/`bottom`/`absolute`), `color`, `text`, `textcolor`,
+  `size`, `offset`, and `tooltip` (extension over PineScript, for label ports).
+  Emitted as `IndicatorResult.markers` (`MarkerData[]`); declared as `ShapeConfig`.
+- `bgcolor(colors, options?)` and `barcolor(colors, options?)` — per-bar
+  background / candle colors from a static color or a per-bar array. Emitted as
+  `IndicatorResult.bgcolors` / `barcolors` (`BarColorData[]`); declared as `BarColorConfig`.
+- `color.when(cond, colorTrue, colorFalse?)` — `colorFalse` is now optional; an
+  omitted false-color leaves the bar uncolored (PineScript `na`), which
+  `bgcolor()`/`barcolor()` skip.
+
+**Per-bar execution:**
+- `eachBar(fn)` — runs a callback once per bar and collects the returns into a
+  Series. Inside the callback values are plain numbers, so native JS operators,
+  `if`/`for`/`while` and closure `let` variables replace PineScript
+  `var`/`:=`/loops. `c.get(src, k)` is `src[k]`, `c.prev(k)` is self-reference,
+  `c.i` is `bar_index`. `seriesOf(values)` wraps a side-output array as a Series.
+
+### Changed
+- `ScriptRunResult` gained `shapeConfig` and `barColorConfig`; `IndicatorResult`
+  gained optional `markers`, `bgcolors`, `barcolors`. All additive — existing
+  consumers are unaffected.
+- Fixed the stale `VERSION` constant (was `0.3.0`).
+
 ## [0.4.0] - 2026-07-16
 
 ### Added
