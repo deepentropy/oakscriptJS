@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions against the official language reference (`docs/official/language-reference/functions/`).
 
-**Last Updated:** February 2026 (v0.2.1)
+**Last Updated:** July 2026 (v0.5.0)
 
 ## Architecture Overview
 
@@ -13,7 +13,11 @@ OakScriptJS is a **simplified PineScript-like library** providing:
    - **BarData**: Versioned wrapper for automatic cache invalidation
    - **materialize()**: Breaks closure chains for memory efficiency
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
-4. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills)
+4. **Script API** (`oakscriptjs/script`): flat PineScript-style authoring —
+   `indicator()`, `input.*`, `plot`/`hline`/`fill`, the Tier 1 outputs
+   (`plotshape`/`plotchar`/`bgcolor`/`barcolor`), `alertcondition`, and
+   `eachBar()` for per-bar stateful logic. See the [Script API section](#script-api-oakscriptjsscript).
+5. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills, markers, bar colors)
 
 **No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the `@oakscript/indicators` package.
 
@@ -49,12 +53,12 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 |-----------|-------------------|--------|
 | **strategy** | 47 | Trading execution engine |
 | **table** | 22 | Rendering-only (no getters) |
-| **input** | 13 | UI/platform interaction |
+| **input** | 13 | UI/platform interaction — 6 provided by the script API (`input.int/float/bool/string/color/source`) |
 | **request** | 10 | External data fetching |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
 | **syminfo** | 2 | Platform symbol metadata |
-| **Standalone** | ~34 | Mixed: `plot`, `indicator`, `alert`, `na`, `nz`, `fill`, time helpers, type constructors, etc. |
+| **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `bgcolor`, `barcolor`, `alertcondition` |
 | **TOTAL** | **~140** | -- |
 
 ---
@@ -565,6 +569,41 @@ No map functions are implemented yet.
 11. `values()` - Get array of all values
 
 **Note:** Maps are a core data structure in PineScript v6, useful for key-value lookups in computational contexts (e.g., symbol-to-weight mappings, level tracking).
+
+---
+
+## Script API (`oakscriptjs/script`)
+
+The script entry provides the PineScript-style authoring surface. These are not
+`ta.*`-style calculation functions; they are declarations collected by
+`executeScript(body, bars, inputs)`.
+
+### Declarations
+
+| Function | Status | Notes |
+|----------|--------|-------|
+| `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
+| `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
+| `plot()` | Implemented | static or per-bar color, style, linewidth, histbase, offset |
+| `hline()` | Implemented | static level, color, linestyle, linewidth |
+| `fill()` | Implemented | plot-to-plot or hline-to-hline |
+| `plotshape()` | Implemented | per-bar marker; style, location, color, text, size, offset, tooltip |
+| `plotchar()` | Implemented | per-bar character marker |
+| `bgcolor()` | Implemented | per-bar background color (static or `color.when` array), offset |
+| `barcolor()` | Implemented | per-bar candle color override |
+| `alertcondition()` | Implemented | collected for the host alert engine |
+
+### Per-bar execution
+
+| Function | Status | Notes |
+|----------|--------|-------|
+| `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
+| `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
+
+### Run result (`IndicatorResult`)
+
+`plots` (keyed by id), optional `hlines`, `fills`, and the Tier 1 output data:
+`markers` (`MarkerData[]`), `bgcolors` and `barcolors` (`BarColorData[]`).
 
 ---
 
