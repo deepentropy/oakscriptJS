@@ -4,7 +4,6 @@
  */
 
 import type { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill } from '../types';
-import * as ta from '../ta';
 
 /**
  * Creates a new array with initial size and default value
@@ -814,19 +813,31 @@ export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased:
  * - Uses linear interpolation between adjacent values
  * - Result may not be a member of the array
  * - Returns NaN if array is empty
- * - Includes NaN values (will return NaN if any present)
+ *
+ * PineScript rules:
+ * - position in the sorted array: `percentage / 100 * size - 0.5`, clamped to the first / last value, linear
+ *   interpolation between the two neighbours
+ * - `na` values are sorted after all numbers; with an `na` in the array, a position between two values gives `na`
  */
 export function percentile_linear_interpolation(id: PineArray<float>, percentage: float): float {
   if (id.length === 0) {
     return NaN;
   }
+  const s = sortedNaLast(id);
+  const n = s.length;
+  const pos = (percentage / 100) * n - 0.5;
+  if (pos <= 0) return s[0]!;
+  if (pos >= n - 1) return s[n - 1]!;
+  const lo = Math.floor(pos);
+  const f = pos - lo;
+  if (f === 0) return s[lo]!;
+  return Number.isNaN(s[n - 1]!) ? NaN : s[lo]! + f * (s[lo + 1]! - s[lo]!);
+}
 
-  // Use the TA function by passing the array as a series
-  // The TA function calculates percentile over the last 'length' values
-  const result = ta.percentile_linear_interpolation(id, id.length, percentage);
-
-  // The result is a series, return the last value
-  return result[result.length - 1]!;
+/** Array values sorted ascending, `na` values after the numbers (array.percentile_*). */
+function sortedNaLast(id: PineArray<float>): number[] {
+  const numbers = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+  return [...numbers, ...Array<number>(id.length - numbers.length).fill(NaN)];
 }
 
 /**
@@ -850,18 +861,18 @@ export function percentile_linear_interpolation(id: PineArray<float>, percentage
  * - Result is always a member of the array
  * - Uses nearest-rank method (no interpolation)
  * - Returns NaN if array is empty
- * - Ignores NaN values
+ *
+ * PineScript rules:
+ * - the value at rank `ceil(percentage / 100 * size)` of the sorted array
+ * - `na` values are sorted after all numbers (na when that rank holds an `na`)
  */
 export function percentile_nearest_rank(id: PineArray<float>, percentage: float): float {
   if (id.length === 0) {
     return NaN;
   }
-
-  // Use the TA function by passing the array as a series
-  const result = ta.percentile_nearest_rank(id, id.length, percentage);
-
-  // The result is a series, return the last value
-  return result[result.length - 1]!;
+  const s = sortedNaLast(id);
+  const rank = Math.min(s.length, Math.max(1, Math.ceil((percentage / 100) * s.length)));
+  return s[rank - 1]!;
 }
 
 /**

@@ -18,13 +18,16 @@ describe('Array Percentile Functions', () => {
     it('should calculate 25th percentile', () => {
       const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const p25 = array.percentile_linear_interpolation(arr, 25);
-      expect(p25).toBeCloseTo(3.25, 10);
+      // position p / 100 * size - 0.5 (PineScript)
+      expect(p25).toBeCloseTo(3, 10);
+      expect(array.percentile_linear_interpolation(arr, 10)).toBeCloseTo(1.5, 10);
+      expect(array.percentile_linear_interpolation(arr, 33.3)).toBeCloseTo(3.83, 10);
     });
 
     it('should calculate 75th percentile', () => {
       const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const p75 = array.percentile_linear_interpolation(arr, 75);
-      expect(p75).toBeCloseTo(7.75, 10);
+      expect(p75).toBeCloseTo(8, 10);
     });
 
     it('should handle 0th percentile', () => {
@@ -45,10 +48,14 @@ describe('Array Percentile Functions', () => {
       expect(isNaN(result)).toBe(true);
     });
 
-    it('should return NaN if array contains NaN', () => {
-      const arr = [1, 2, NaN, 4, 5];
-      const result = array.percentile_linear_interpolation(arr, 50);
-      expect(isNaN(result)).toBe(true);
+    it('sorts na after the numbers; a position between two values is na when the array holds na', () => {
+      const arr = [3, NaN, 1, 2, NaN, 5];
+      expect(array.percentile_linear_interpolation(arr, 0)).toBe(1);
+      expect(array.percentile_linear_interpolation(arr, 25)).toBe(2); // exact position 1
+      expect(array.percentile_linear_interpolation(arr, 10)).toBeNaN(); // between 1 and 2
+      expect(array.percentile_linear_interpolation(arr, 75)).toBeNaN(); // position 4: na
+      expect(array.percentile_linear_interpolation([NaN, 7, 2], 50)).toBe(7);
+      expect(array.percentile_linear_interpolation([NaN, 7, 2], 10)).toBe(2);
     });
 
     it('should work with negative numbers', () => {
@@ -114,11 +121,12 @@ describe('Array Percentile Functions', () => {
       expect(isNaN(result)).toBe(true);
     });
 
-    it('should ignore NaN values', () => {
+    it('sorts na after the numbers, ranks on the full size (PineScript)', () => {
       const arr = [1, NaN, 2, 3, NaN, 4, 5];
-      const result = array.percentile_nearest_rank(arr, 50);
-      expect(isNaN(result)).toBe(false);
-      expect([2, 3, 4]).toContain(result);
+      expect(array.percentile_nearest_rank(arr, 50)).toBe(4); // rank 4 of [1, 2, 3, 4, 5, na, na]
+      expect(array.percentile_nearest_rank([3, NaN, 1, 2, NaN, 5], 50)).toBe(3);
+      expect(array.percentile_nearest_rank([3, NaN, 1, 2, NaN, 5], 75)).toBeNaN(); // rank 5: na
+      expect(array.percentile_nearest_rank([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 33.3)).toBe(4);
     });
 
     it('should work with negative numbers', () => {

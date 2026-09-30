@@ -46,8 +46,9 @@ describe('Newly Implemented TA Functions', () => {
       const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const p25 = ta.percentile_linear_interpolation(values, values.length, 25);
       const p75 = ta.percentile_linear_interpolation(values, values.length, 75);
-      expect(p25[values.length - 1]).toBeCloseTo(3.25);
-      expect(p75[values.length - 1]).toBeCloseTo(7.75);
+      // position p / 100 * length - 0.5 (PineScript)
+      expect(p25[values.length - 1]).toBeCloseTo(3);
+      expect(p75[values.length - 1]).toBeCloseTo(8);
     });
 
     it('should return NaN if any value is NaN', () => {
@@ -77,10 +78,22 @@ describe('Newly Implemented TA Functions', () => {
       expect(result[values.length - 1]).toBe(5);
     });
 
-    it('should ignore NaN values', () => {
-      const values = [1, NaN, 2, 3, NaN, 4, 5];
-      const result = ta.percentile_nearest_rank(values, values.length, 50);
-      expect(result[values.length - 1]).toBe(3);
+    it('keeps leading na values in the window, sorted before all numbers (PineScript)', () => {
+      // window of 5: [na, na, 1, 2, 3] -> rank ceil(p / 100 * 5)
+      const values = [NaN, NaN, 1, 2, 3];
+      expect(ta.percentile_nearest_rank(values, 5, 90)[4]).toBe(3); // rank 5
+      expect(ta.percentile_nearest_rank(values, 5, 50)[4]).toBe(1); // rank 3
+      expect(ta.percentile_nearest_rank(values, 5, 30)[4]).toBeNaN(); // rank 2: na
+    });
+  });
+
+  describe('percentile na window (PineScript)', () => {
+    it('linear interpolation keeps leading na values, sorted before all numbers', () => {
+      // window of 5: [na, 1, 2, 3, 4]; position p / 100 * 5 - 0.5
+      const values = [NaN, 1, 2, 3, 4];
+      expect(ta.percentile_linear_interpolation(values, 5, 50)[4]).toBe(2); // position 2
+      expect(ta.percentile_linear_interpolation(values, 5, 60)[4]).toBeCloseTo(2.5); // position 2.5
+      expect(ta.percentile_linear_interpolation(values, 5, 20)[4]).toBeNaN(); // position 0.5: na and 1
     });
   });
 

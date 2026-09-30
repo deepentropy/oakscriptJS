@@ -20,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ta.percentrank` gives a value from bar `length` on when the current value is not na; an na value in the window
   counts as not `<=` (before: na until the window held `length` non-na values). The comparison uses the 1e-10
   tolerance (#103).
+- `ta.percentile_linear_interpolation`: position `p / 100 * length - 0.5` in the sorted window (before:
+  `p / 100 * (length - 1)`); na values stay in the window (before: an na in the window gave na) (#104).
+- `ta.percentile_nearest_rank`: rank `ceil(p / 100 * length)` of the full window, na values included (before: the na
+  values were removed) (#104).
+- Both `ta.percentile_*` functions keep the window sorted from bar to bar. At the start of a series, na values are
+  before all numbers. An na inside the window of a series can still give a result different from PineScript (#104).
+- `array.percentile_linear_interpolation` / `array.percentile_nearest_rank` no longer use the `ta.*` functions:
+  same position / rank formulas, na values sorted after the numbers; with an na in the array, a position between two
+  values gives na (#104).
+- `ta.rising` / `ta.falling` skip na values (the steps are between the last `length + 1` non-na values; before: a step
+  with an na value counted as a rise / fall) and need a step larger than the 1e-10 tolerance (#104).
 
 ## [0.8.0] - 2026-09-30
 

@@ -225,6 +225,19 @@ describe('ta.rising', () => {
 
     expect(rising3.every(v => v === false)).toBe(true);
   });
+
+  it('skips na values (PineScript)', () => {
+    // leading na: false until there are length + 1 non-na values
+    expect(ta.rising([NaN, NaN, 1, 2, 3, 4], 3)).toEqual([false, false, false, false, false, true]);
+    // na inside: the steps are between the non-na values; on the na bar, the result of the last non-na bar
+    expect(ta.rising([1, 2, NaN, 3], 1)).toEqual([false, true, true, true]);
+    expect(ta.rising([1, 2, NaN, 0], 1)).toEqual([false, true, true, false]);
+  });
+
+  it('needs a rise larger than 1e-10 (PineScript)', () => {
+    expect(ta.rising([1, 1 + 1.4e-14], 1)[1]).toBe(false);
+    expect(ta.rising([1, 1 + 1e-9], 1)[1]).toBe(true);
+  });
 });
 
 describe('ta.falling', () => {
@@ -252,5 +265,12 @@ describe('ta.falling', () => {
     const falling3 = ta.falling(source, 3);
 
     expect(falling3.every(v => v === false)).toBe(true);
+  });
+
+  it('skips na values and uses the 1e-10 tolerance (PineScript)', () => {
+    // before: a step with an na value counted as a fall
+    expect(ta.falling([NaN, NaN, NaN, NaN, NaN, 5, 4], 5)).toEqual(Array(7).fill(false));
+    expect(ta.falling([3, 2, NaN, 1], 2)).toEqual([false, false, false, true]);
+    expect(ta.falling([1, 1 - 1.4e-14], 1)[1]).toBe(false);
   });
 });

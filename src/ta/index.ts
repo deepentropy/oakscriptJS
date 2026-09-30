@@ -9,7 +9,7 @@
  */
 
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
-import { eq, ge, gt, le } from '../compare';
+import { eq, ge, gt, le, lt } from '../compare';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -872,6 +872,26 @@ export function cross(source1: Source, source2: Source): series_bool {
 }
 
 /**
+ * ta.rising / ta.falling: true when each of the `length` steps between the last `length + 1` non-na values (up to
+ * the current bar) passes `step(newer, older)`; false when there are fewer non-na values.
+ *
+ * @internal
+ */
+function monotonic(source: Source, length: simple_int, step: (newer: number, older: number) => boolean): series_bool {
+  const result: series_bool = [];
+  const values: number[] = []; // non-na values so far
+  for (let i = 0; i < source.length; i++) {
+    const v = source[i]!;
+    if (!Number.isNaN(v)) values.push(v);
+    const n = values.length;
+    let ok = n > length;
+    for (let j = 1; ok && j <= length; j++) ok = step(values[n - j]!, values[n - j - 1]!);
+    result.push(ok);
+  }
+  return result;
+}
+
+/**
  * Rising - returns true if source is rising for length bars.
  *
  * @param source - Series of values to process
@@ -879,10 +899,11 @@ export function cross(source1: Source, source2: Source): series_bool {
  * @returns Boolean series (true when rising)
  *
  * @remarks
- * - True if current source is greater than any previous source for length bars back
- * - Checks if value is consistently rising over the period
- * - `na` values in the source series are ignored
- * - Returns false for the first (length - 1) bars
+ * PineScript rules:
+ * - each of the `length` steps is a rise larger than the 1e-10 tolerance
+ * - `na` values are skipped: the steps are between the last `length + 1` non-`na` values up to the current bar
+ *   (on an `na` bar, the result of the last non-`na` bar)
+ * - false while there are fewer than `length + 1` non-`na` values
  *
  * @example
  * ```typescript
@@ -891,24 +912,7 @@ export function cross(source1: Source, source2: Source): series_bool {
  * ```
  */
 export function rising(source: Source, length: simple_int): series_bool {
-  const result: series_bool = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length) {
-      result.push(false);
-    } else {
-      let isRising = true;
-      for (let j = 1; j <= length; j++) {
-        if (source[i - j + 1]! <= source[i - j]!) {
-          isRising = false;
-          break;
-        }
-      }
-      result.push(isRising);
-    }
-  }
-
-  return result;
+  return monotonic(source, length, gt);
 }
 
 /**
@@ -919,11 +923,11 @@ export function rising(source: Source, length: simple_int): series_bool {
  * @returns Boolean series (true when falling)
  *
  * @remarks
- * - True if current source is less than any previous source for length bars back
- * - Checks if value is consistently falling over the period
- * - `na` values in the source series are ignored
- * - The function calculates on the `length` quantity of non-`na` values
- * - Returns false for the first (length - 1) bars
+ * PineScript rules:
+ * - each of the `length` steps is a fall larger than the 1e-10 tolerance
+ * - `na` values are skipped: the steps are between the last `length + 1` non-`na` values up to the current bar
+ *   (on an `na` bar, the result of the last non-`na` bar)
+ * - false while there are fewer than `length + 1` non-`na` values
  *
  * @example
  * ```typescript
@@ -932,24 +936,7 @@ export function rising(source: Source, length: simple_int): series_bool {
  * ```
  */
 export function falling(source: Source, length: simple_int): series_bool {
-  const result: series_bool = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length) {
-      result.push(false);
-    } else {
-      let isFalling = true;
-      for (let j = 1; j <= length; j++) {
-        if (source[i - j + 1]! >= source[i - j]!) {
-          isFalling = false;
-          break;
-        }
-      }
-      result.push(isFalling);
-    }
-  }
-
-  return result;
+  return monotonic(source, length, lt);
 }
 
 /**
@@ -2677,56 +2664,55 @@ export function mode(source: Source, length: simple_int): series_float {
  * ```
  *
  * @remarks
- * - `na` values in the source series are included and will produce an `na` result
  * - The result will NOT always be a member of the input data set
  * - Uses linear interpolation between adjacent values when needed
  * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * PineScript rules:
+ * - position in the sorted window: `percentage / 100 * length - 0.5`, clamped to the first / last value, linear
+ *   interpolation between the two neighbours (na when a neighbour is na)
+ * - `na` values stay in the window (window size = `length`). At the start of a series they are sorted before all
+ *   numbers. The window is kept sorted from bar to bar: an `na` inside the window of a series is placed by the
+ *   insertion search, and the result can differ from PineScript there
  */
 export function percentile_linear_interpolation(
   source: Source,
   length: simple_int,
   percentage: number
 ): series_float {
+  return sortedWindow(source, length, (s) => {
+    const pos = (percentage / 100) * length - 0.5;
+    if (pos <= 0) return s[0]!;
+    if (pos >= length - 1) return s[length - 1]!;
+    const lo = Math.floor(pos);
+    return s[lo]! + (pos - lo) * (s[lo + 1]! - s[lo]!);
+  });
+}
+
+/**
+ * Sorted window of ta.percentile_*: each bar removes the value of the bar leaving the window and inserts the new
+ * value before the first greater value (an `na` is never greater, so it goes last, and a value passes the `na`
+ * values); `fn` reads the sorted window (`length` values). na for the first `length - 1` bars.
+ *
+ * @internal
+ */
+function sortedWindow(source: Source, length: simple_int, fn: (sorted: number[]) => number): series_float {
   const result: series_float = [];
-
+  const values: number[] = []; // sorted window
+  const bars: number[] = []; // bar index of each value
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
+    if (i >= length) {
+      const k = bars.indexOf(i - length);
+      values.splice(k, 1);
+      bars.splice(k, 1);
     }
-
-    // Collect values in the window (including NaN)
-    const values: number[] = [];
-    for (let j = 0; j < length; j++) {
-      const value = source[i - j]!;
-      values.push(value);
-    }
-
-    // If any value is NaN, the result is NaN
-    if (values.some(v => isNaN(v))) {
-      result.push(NaN);
-      continue;
-    }
-
-    // Sort values
-    const sorted = [...values].sort((a, b) => a - b);
-
-    // Calculate position using linear interpolation formula
-    const position = (percentage / 100) * (sorted.length - 1);
-    const lowerIndex = Math.floor(position);
-    const upperIndex = Math.ceil(position);
-
-    if (lowerIndex === upperIndex) {
-      // Exact position
-      result.push(sorted[lowerIndex]!);
-    } else {
-      // Linear interpolation between two values
-      const fraction = position - lowerIndex;
-      const interpolated = sorted[lowerIndex]! + fraction * (sorted[upperIndex]! - sorted[lowerIndex]!);
-      result.push(interpolated);
-    }
+    const v = source[i]!;
+    let k = 0;
+    while (k < values.length && !(v < values[k]!)) k++;
+    values.splice(k, 0, v);
+    bars.splice(k, 0, i);
+    result.push(i < length - 1 ? NaN : fn(values));
   }
-
   return result;
 }
 
@@ -2748,59 +2734,23 @@ export function percentile_linear_interpolation(
  * ```
  *
  * @remarks
- * - `na` values in the source series are ignored
  * - The result will ALWAYS be a member of the input data set
  * - The 100th percentile is defined as the largest value
  * - Using this method on lengths < 100 may result in the same value for multiple percentiles
  * - Returns NaN for the first (length - 1) values where there's insufficient data
+ *
+ * PineScript rules:
+ * - the value at rank `ceil(percentage / 100 * length)` of the sorted window (na when that rank holds an `na`)
+ * - `na` values stay in the window, as in `ta.percentile_linear_interpolation` (sorted before all numbers at the
+ *   start of a series)
  */
 export function percentile_nearest_rank(
   source: Source,
   length: simple_int,
   percentage: number
 ): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-
-    // Collect non-NaN values in the window
-    const values: number[] = [];
-    for (let j = 0; j < length; j++) {
-      const value = source[i - j]!;
-      if (!isNaN(value)) {
-        values.push(value);
-      }
-    }
-
-    if (values.length === 0) {
-      result.push(NaN);
-      continue;
-    }
-
-    // Sort values
-    const sorted = [...values].sort((a, b) => a - b);
-
-    // Special case: 100th percentile is the largest value
-    if (percentage >= 100) {
-      result.push(sorted[sorted.length - 1]!);
-      continue;
-    }
-
-    // Calculate rank using nearest rank method
-    // Formula: ceil(P/100 * N) where P is percentile and N is count
-    const rank = Math.ceil((percentage / 100) * sorted.length);
-
-    // Ranks are 1-indexed, so subtract 1 for 0-indexed array
-    const index = Math.max(0, rank - 1);
-
-    result.push(sorted[index]!);
-  }
-
-  return result;
+  const rank = Math.min(length, Math.max(1, Math.ceil((percentage / 100) * length)));
+  return sortedWindow(source, length, (s) => s[rank - 1]!);
 }
 
 /**
