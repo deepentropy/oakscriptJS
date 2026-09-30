@@ -153,7 +153,8 @@ describe('points', () => {
   it('chart.point.now() is the current bar, with the close as default price', () => {
     const input = bars(5);
     expect(run({}, () => undefined, () => [chart.point.now(), chart.point.now(123.5).price], input)).toEqual([
-      { index: 4, time: input[4]!.time, price: input[4]!.close },
+      // Bar.time is read in seconds by default (lightweight-charts); PineScript times are in ms
+      { index: 4, time: input[4]!.time * 1000, price: input[4]!.close },
       123.5,
     ]);
     expect(() => executeScript(() => chart.point.now(), input)).toThrow('inside eachBar');

@@ -74,6 +74,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and 14 per-bar count studies; the registry matches the 14,000 per-bar counts of PineScript
   (`drawing-check/doc/README.md`).
 
+**Chart context (issue #100):**
+- `executeScript(body, bars, inputs, chart)`: `chart` gives the chart timeframe, the exchange time zone,
+  the session type, the session of the bars and the regular hours in format (hours,
+  corrections, holidays), and the unit of `Bar.time` (default seconds).
+- `oakscriptjs/script`: `timeframe.period / multiplier / isintraday / isdaily / isweekly / ismonthly /
+  isminutes / isseconds / isticks / isdwm / main_period`, `timeframe.in_seconds()` of the chart,
+  `timeframe.change(tf)`; `syminfo.timezone / session`; calendar functions, `timestamp(y, m, d...)`,
+  `str.format_time` and `str.format` dates in the exchange time zone by default; `time` and `time_close`
+  as Series that can be called (`time("D")`, `time_close("W")`, `time(tf, session, timezone)`);
+  `time_tradingday`; `session.isfirstbar / islastbar / ismarket / ispremarket / ispostmarket /
+  isfirstbar_regular / islastbar_regular`; `ta.vwap(source)` restarts each trading day.
+- Trading calendar (`src/session`): session format with `F` day offsets, dated session
+  changes, corrections (early closes, days off) and holidays.
+- on 15 runs (stocks with regular and extended hours, futures, forex, crypto,
+  XETR): 954,251 values, 2 differences on a live last bar (`context-check/doc/README.md`).
+
+**Same-symbol request.security (issue #101):**
+- `oakscriptjs/script`: `request.security(symbol, timeframe, expression, gaps?, lookahead?)` for the chart
+  symbol (`syminfo.tickerid`, `""`, `ticker.heikinashi(...)`, `ticker.standard(...)`) and a timeframe equal to
+  or higher than the chart's. The higher-timeframe bars are built from the chart bars with the session rules
+  of #100 (D / W / M periods follow the regular hours); `expression` is a function that runs on them and may
+  return a Series, a number or a tuple. `barmerge.*`, `ticker.*`, `syminfo.tickerid` (chart context
+  `tickerid`). Other symbols and lower timeframes throw.
+- Mapping rules: 117,203 values, 0 differences; period times 23,235, 0 differences.
+  Values differ where the exchange's bars differ from bars built from the chart (official auction prices,
+  settlement, consolidated volume); see `security-check/doc/README.md`.
+
 ### Changed (breaking)
 
 - `ta.pivothigh` / `ta.pivotlow` (`taCore` and Series layer): the pivot value now appears `rightbars`

@@ -38,7 +38,12 @@ function choice(value: number, spec: string): string {
   return chosen.text;
 }
 
-function formatArgument(value: unknown, type: string | undefined, style: string | undefined, timezone: string): string {
+function formatArgument(
+  value: unknown,
+  type: string | undefined,
+  style: string | undefined,
+  timezone: string | (() => string)
+): string {
   if (value === undefined) return '';
   if (!type) return typeof value === 'number' ? number(value, '#,##0.###') : String(value);
   switch (type.trim()) {
@@ -54,7 +59,7 @@ function formatArgument(value: unknown, type: string | undefined, style: string 
     case 'time': {
       const styles = type.trim() === 'date' ? DATE_STYLES : TIME_STYLES;
       const s = style?.trim() ?? 'medium';
-      return formatDate(Number(value), styles[s] ?? style!, timezone);
+      return formatDate(Number(value), styles[s] ?? style!, typeof timezone === 'function' ? timezone() : timezone);
     }
     case 'choice':
       return choice(Number(value), style ?? '');
@@ -63,8 +68,8 @@ function formatArgument(value: unknown, type: string | undefined, style: string 
   }
 }
 
-/** Formats `pattern` with `args` like PineScript `str.format`; dates use `timezone`. */
-export function formatMessage(pattern: string, args: unknown[], timezone: string): string {
+/** Formats `pattern` with `args` like PineScript `str.format`; dates use `timezone` (read only when a date is formatted). */
+export function formatMessage(pattern: string, args: unknown[], timezone: string | (() => string)): string {
   let out = '';
   for (let i = 0; i < pattern.length; ) {
     const ch = pattern[i]!;

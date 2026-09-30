@@ -57,6 +57,13 @@ import * as polylineCore from '../polyline';
 import * as chartPointCore from '../chartpoint';
 import * as textCore from '../text';
 import { resetDrawings, setDrawingLimits } from '../drawing/registry';
+import * as timeframeCore from '../timeframe';
+import * as timeCore from '../time';
+import * as strCore from '../str';
+import { formatMessage } from '../str/messageformat';
+import { TradingCalendar, type SessionSpec } from '../session/calendar';
+import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars';
+import { heikinAshi, mapToChart, periodsOf, resample } from '../security/resample';
 import type { ChartPoint } from '../types';
 
 /** Everything one run of a script produced. */
@@ -174,15 +181,18 @@ function slugId(title: string | undefined, fallback: string, taken: Set<string>)
 
 /**
  * Runs a script body against `bars` with the given input overrides and
- * collects everything it declared. This is the host-side entry — editor
+ * collects everything it declared. `chart` describes the bars (chart timeframe,
+ * exchange time zone, session type) for the PineScript values that depend on them. This is the host-side entry — editor
  * panels, workers and tests call it; scripts never do.
  */
 export function executeScript(
   body: () => void,
   barsInput: Bar[],
-  inputs: Record<string, unknown> = {}
+  inputs: Record<string, unknown> = {},
+  chart: ChartContext = {}
 ): ScriptRunResult {
   ctxBars.setAll(barsInput);
+  chartCtx = { ...chart };
   ctx = freshCollector(inputs);
   resetDrawings();
   try {
@@ -393,12 +403,12 @@ export const ta = {
     typeof sourceOrLength === 'number'
       ? taSeries.lowestbars(low, sourceOrLength)
       : taSeries.lowestbars(sourceOrLength, length!),
-  /** `ta.vwap(source, anchor?)` with the chart volume. `anchor` (non-zero = reset) is required for the
-   *  PineScript default (a new day), which needs the exchange session. */
-  vwap: ((source: Series, anchor?: Series, stdev_mult?: number): Series | [Series, Series, Series] =>
-    stdev_mult === undefined
-      ? taSeries.vwap(source, volume, anchor)
-      : taSeries.vwapBands(source, volume, anchor, stdev_mult)) as {
+  /** `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume; the default anchor is a new trading
+   *  day (`timeframe.change("1D")`), which needs the chart context (timeframe, time zone, session). */
+  vwap: ((source: Series, anchor?: Series, stdev_mult?: number): Series | [Series, Series, Series] => {
+    const a = anchor ?? changeOf('1D'); // PineScript default: timeframe.change("1D")
+    return stdev_mult === undefined ? taSeries.vwap(source, volume, a) : taSeries.vwapBands(source, volume, a, stdev_mult);
+  }) as {
     (source: Series, anchor?: Series): Series;
     (source: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series];
   },
@@ -757,6 +767,411 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
 /** Bar index of the running eachBar() callback, -1 outside eachBar(). */
 let currentBar = -1;
 
+// ── Chart context (issue #100) ───────────────────────────────────────────────
+
+/**
+ * What the caller knows about the loaded bars. PineScript reads these values from the chart and
+ * the symbol; nothing is fetched here. A script that needs a value the caller did not give throws.
+ */
+export interface ChartContext {
+  /** Chart timeframe: "5", "60", "1D", "1W"... (PineScript `timeframe.period`) */
+  timeframe?: string;
+  /** Exchange time zone: "America/New_York", "Etc/UTC"... (PineScript `syminfo.timezone`) */
+  timezone?: string;
+  /** Session type of the bars (PineScript `syminfo.session`); default "regular" */
+  sessionType?: 'regular' | 'extended';
+  /**
+   * Session of the loaded bars in format: hours ("0930-1600", "1700-1600", "24x7"),
+   * corrections (early closes, days off) and holidays. Needed by `time(tf)`, `time_close`,
+   * `timeframe.change`, `time_tradingday`, `session.*` and the default anchor of `ta.vwap`.
+   */
+  session?: SessionSpec | string;
+  /** Regular trading hours when the bars include extended hours (default: `session`); holidays default to `session`'s */
+  regularSession?: SessionSpec | string;
+  /** Chart symbol as PineScript `syminfo.tickerid` (e.g. "NASDAQ:AAPL"); needed by `request.security(syminfo.tickerid, ...)` */
+  tickerid?: string;
+  /** Unit of `Bar.time`: 's' (default, as lightweight-charts) or 'ms'. PineScript times are in ms. */
+  timeUnit?: 's' | 'ms';
+}
+
+let chartCtx: ChartContext = {};
+
+function chartTimeframe(): timeframeCore.TimeframeInfo {
+  collector();
+  if (!chartCtx.timeframe) {
+    throw new Error('The chart timeframe is not known: pass it as executeScript(body, bars, inputs, { timeframe }).');
+  }
+  return timeframeCore.info(chartCtx.timeframe);
+}
+
+function exchangeTimezone(): string {
+  collector();
+  if (!chartCtx.timezone) {
+    throw new Error('The exchange time zone is not known: pass it as executeScript(body, bars, inputs, { timezone }).');
+  }
+  return chartCtx.timezone;
+}
+
+/**
+ * PineScript `timeframe.*`: the chart timeframe variables (from the chart context), and
+ * `in_seconds(timeframe?)`, `from_seconds(seconds)`. (context-check/doc/README.md).
+ */
+export const timeframe = {
+  ...timeframeCore,
+  get period(): string {
+    return chartTimeframe().period;
+  },
+  get main_period(): string {
+    return chartTimeframe().period;
+  },
+  get multiplier(): number {
+    return chartTimeframe().multiplier;
+  },
+  get isintraday(): boolean {
+    return chartTimeframe().isintraday;
+  },
+  get isdaily(): boolean {
+    return chartTimeframe().isdaily;
+  },
+  get isweekly(): boolean {
+    return chartTimeframe().isweekly;
+  },
+  get ismonthly(): boolean {
+    return chartTimeframe().ismonthly;
+  },
+  get isminutes(): boolean {
+    return chartTimeframe().isminutes;
+  },
+  get isseconds(): boolean {
+    return chartTimeframe().isseconds;
+  },
+  get isticks(): boolean {
+    return chartTimeframe().isticks;
+  },
+  get isdwm(): boolean {
+    return chartTimeframe().isdwm;
+  },
+  /** PineScript `timeframe.change(tf)`: 1 on bars that open a new `tf` period (0 on the first bar). */
+  change(tf: string): Series {
+    return changeOf(tf || chartTimeframe().period);
+  },
+  /** Seconds in `timeframe`; without it (or with "") the chart timeframe, as in PineScript. */
+  in_seconds(tf?: string): number {
+    return timeframeCore.in_seconds(tf === undefined || tf === '' ? chartTimeframe().period : tf);
+  },
+};
+
+/** PineScript `syminfo.timezone`, `syminfo.tickerid` and `syminfo.session` (session type), from the chart context. */
+export const syminfo = {
+  get timezone(): string {
+    return exchangeTimezone();
+  },
+  get tickerid(): string {
+    collector();
+    if (!chartCtx.tickerid) {
+      throw new Error('The chart symbol is not known: pass it as executeScript(body, bars, inputs, { tickerid }).');
+    }
+    return chartCtx.tickerid;
+  },
+  get session(): string {
+    collector();
+    return chartCtx.sessionType ?? 'regular';
+  },
+};
+
+/** A calendar function: `(time, timezone?)` on a UNIX time or on a Series of times. */
+interface CalendarFunction {
+  (time: number, timezone?: string): number;
+  (time: Series, timezone?: string): Series;
+}
+
+function calendar(fn: (time: number, timezone: string) => number): CalendarFunction {
+  return ((time: number | Series, timezone?: string) => {
+    const tz = timezone ?? exchangeTimezone();
+    return time instanceof Series ? Series.fromArray(ctxBars, time.toArray().map((t) => fn(t, tz))) : fn(time, tz);
+  }) as CalendarFunction;
+}
+
+/** PineScript `year(time, timezone?)`; the default time zone is the exchange time zone. */
+export const year = calendar(timeCore.year);
+/** PineScript `month(time, timezone?)`; the default time zone is the exchange time zone. */
+export const month = calendar(timeCore.month);
+/** PineScript `weekofyear(time, timezone?)`; the default time zone is the exchange time zone. */
+export const weekofyear = calendar(timeCore.weekofyear);
+/** PineScript `dayofmonth(time, timezone?)`; the default time zone is the exchange time zone. */
+export const dayofmonth = calendar(timeCore.dayofmonth);
+/** PineScript `dayofweek(time, timezone?)`; the default time zone is the exchange time zone. */
+export const dayofweek = calendar(timeCore.dayofweek);
+/** PineScript `hour(time, timezone?)`; the default time zone is the exchange time zone. */
+export const hour = calendar(timeCore.hour);
+/** PineScript `minute(time, timezone?)`; the default time zone is the exchange time zone. */
+export const minute = calendar(timeCore.minute);
+/** PineScript `second(time, timezone?)`; the default time zone is the exchange time zone. */
+export const second = calendar(timeCore.second);
+
+/**
+ * PineScript `timestamp`: date string (GMT+0 by default), `(timezone, year, month, day, ...)`, or
+ * `(year, month, day, ...)` in the exchange time zone.
+ */
+export function timestamp(dateString: string): number;
+export function timestamp(
+  timezone: string,
+  year: number,
+  month: number,
+  day: number,
+  hour?: number,
+  minute?: number,
+  second?: number
+): number;
+export function timestamp(year: number, month: number, day: number, hour?: number, minute?: number, second?: number): number;
+export function timestamp(first: string | number, ...rest: Array<number | undefined>): number {
+  if (typeof first === 'number') {
+    const [m, d, h, mi, s] = rest as [number, number, number?, number?, number?];
+    return timeCore.timestamp(exchangeTimezone(), first, m, d, h, mi, s);
+  }
+  if (rest.length === 0) return timeCore.timestamp(first);
+  const [y, m, d, h, mi, s] = rest as [number, number, number, number?, number?, number?];
+  return timeCore.timestamp(first, y, m, d, h, mi, s);
+}
+
+/** Session test of PineScript `time(timeframe, session, timezone)`; the default time zone is the exchange time zone. */
+export function inSession(time: number, session: string, timezone?: string): boolean {
+  return timeCore.inSession(time, session, timezone ?? exchangeTimezone());
+}
+
+/** PineScript `str.*`; `format_time` and the dates of `format` use the exchange time zone by default. */
+export const str = {
+  ...strCore,
+  format_time(time: number, format: string = "yyyy-MM-dd'T'HH:mm:ssZ", timezone?: string): string {
+    return strCore.format_time(time, format, timezone ?? exchangeTimezone());
+  },
+  format(pattern: string, ...args: unknown[]): string {
+    return formatMessage(pattern, args, exchangeTimezone);
+  },
+};
+
+// ── Session values (issue #100) ──────────────────────────────────────────────
+
+/** Bar time in ms (PineScript `time`). */
+function barTime(bar: Bar): number {
+  return (bar.time as number) * (chartCtx.timeUnit === 'ms' ? 1 : 1000);
+}
+
+const toSpec = (s: SessionSpec | string): SessionSpec => (typeof s === 'string' ? { session: s } : s);
+
+let sessionCache: { ctx: ChartContext; bars: SessionBars; regular: SessionBars } | null = null;
+
+/** Session calendars of the run (loaded bars and regular hours), built from the chart context. */
+function sessionBars(): { bars: SessionBars; regular: SessionBars } {
+  const tz = exchangeTimezone();
+  const tf = chartTimeframe().period;
+  if (!chartCtx.session) {
+    throw new Error('The session is not known: pass it as executeScript(body, bars, inputs, { session }).');
+  }
+  if (sessionCache?.ctx !== chartCtx) {
+    const loaded = toSpec(chartCtx.session);
+    const regular = chartCtx.regularSession ? toSpec(chartCtx.regularSession) : loaded;
+    sessionCache = {
+      ctx: chartCtx,
+      bars: new SessionBars(new TradingCalendar(tz, loaded), tf),
+      regular: new SessionBars(new TradingCalendar(tz, { holidays: loaded.holidays, ...regular }), tf),
+    };
+  }
+  return sessionCache;
+}
+
+/**
+ * Calendar for `time(tf, session, timezone)` arguments. Without session and time zone: the loaded
+ * session., an explicit time zone reads the symbol session hours in that zone without
+ * corrections and holidays, and an explicit session follows PineScript's session string rules.
+ */
+function calendarFor(session?: string, timezone?: string): { bars: SessionBars; test: boolean } {
+  const { bars } = sessionBars();
+  if (!session && !timezone) return { bars, test: false };
+  const tz = timezone ?? exchangeTimezone();
+  const spec = session ? { session } : { session: toSpec(chartCtx.session!).session };
+  return { bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period), test: true };
+}
+
+function perBar(fn: (t: number, i: number, times: number[]) => number): Series {
+  const times = ctxBars.bars.map(barTime);
+  return Series.fromArray(ctxBars, times.map((t, i) => fn(t, i, times)));
+}
+
+/** A Series that can also be called, like PineScript's `time` (variable) and `time(...)` (function). */
+function callableSeries<F extends (...args: never[]) => Series>(series: Series, fn: F): Series & F {
+  Object.setPrototypeOf(fn, Series.prototype);
+  Object.assign(fn, series);
+  return fn as Series & F;
+}
+
+function timeFunction(tf?: string, session?: string, timezone?: string): Series {
+  collector();
+  const { bars, test } = calendarFor(session, timezone);
+  const timeframeString = tf || chartTimeframe().period;
+  return perBar((t) => (test && !bars.inside(t) ? NaN : bars.timeOf(t, timeframeString)));
+}
+
+function timeCloseFunction(tf?: string, session?: string, timezone?: string): Series {
+  collector();
+  const { bars, test } = calendarFor(session, timezone);
+  const timeframeString = tf || chartTimeframe().period;
+  return perBar((t) => (test && !bars.inside(t) ? NaN : bars.closeOf(t, timeframeString)));
+}
+
+/**
+ * PineScript `time`: the bar open time in ms (a Series), and `time(timeframe?, session?, timezone?)`:
+ * the open time of the `timeframe` period that contains the bar, `na` outside `session`.
+ * Rules (context-check/doc/README.md).
+ */
+export const time = callableSeries(new Series(ctxBars, (b) => barTime(b)), timeFunction);
+
+/**
+ * PineScript `time_close`: the bar close time in ms (a Series), and `time_close(timeframe?, session?, timezone?)`.
+ * Needs the chart timeframe and session.
+ */
+export const time_close = callableSeries(
+  new Series(ctxBars, (_b, i) => sessionBars().bars.closeOf(barTime(ctxBars.bars[i]!), chartTimeframe().period)),
+  timeCloseFunction
+);
+
+/** PineScript `time_tradingday`: 00:00 UTC of the trading day of each bar, in ms. */
+export const time_tradingday = new Series(ctxBars, (b) => sessionBars().bars.tradingDayTime(barTime(b)));
+
+function changeOf(tf: string): Series {
+  const { bars } = sessionBars();
+  return perBar((t, i, times) => (i > 0 && bars.timeOf(t, tf) !== bars.timeOf(times[i - 1]!, tf) ? 1 : 0));
+}
+
+function flag(key: keyof SessionFlags): Series {
+  const { bars, regular } = sessionBars();
+  const values = sessionFlags(ctxBars.bars.map(barTime), bars, regular)[key];
+  return Series.fromArray(ctxBars, values.map((v) => (v ? 1 : 0)));
+}
+
+/**
+ * PineScript `session.*` (1 / 0 per bar) and the constants `session.regular` / `session.extended`.
+ * First and last bars are per session period; market / pre / post market use the regular hours.
+ */
+export const session = {
+  regular: 'regular',
+  extended: 'extended',
+  get isfirstbar(): Series { return flag('isfirstbar'); },
+  get islastbar(): Series { return flag('islastbar'); },
+  get ismarket(): Series { return flag('ismarket'); },
+  get ispremarket(): Series { return flag('ispremarket'); },
+  get ispostmarket(): Series { return flag('ispostmarket'); },
+  get isfirstbar_regular(): Series { return flag('isfirstbar_regular'); },
+  get islastbar_regular(): Series { return flag('islastbar_regular'); },
+};
+
+// ── request.security (issue #101) ─────────────────────────────────────────────
+
+/** PineScript `barmerge.*` constants of `request.security`. */
+export const barmerge = {
+  gaps_on: 'gaps_on',
+  gaps_off: 'gaps_off',
+  lookahead_on: 'lookahead_on',
+  lookahead_off: 'lookahead_off',
+} as const;
+
+const HEIKIN_ASHI = 'heikinashi:';
+
+/** PineScript `ticker.heikinashi(symbol)` / `ticker.standard(symbol)` for the chart symbol. */
+export const ticker = {
+  heikinashi(symbol: string): string {
+    return HEIKIN_ASHI + symbol;
+  },
+  standard(symbol: string): string {
+    return symbol.startsWith(HEIKIN_ASHI) ? symbol.slice(HEIKIN_ASHI.length) : symbol;
+  },
+};
+
+/** What an expression of `request.security` may return. */
+export type SecurityValue = Series | number | boolean | Array<Series | number | boolean>;
+
+function valuesOf(value: Series | number | boolean, length: number): number[] {
+  return value instanceof Series ? value.toArray().slice() : new Array<number>(length).fill(Number(value));
+}
+
+/**
+ * PineScript `request.security` for the chart symbol (`syminfo.tickerid`, `""`, `ticker.heikinashi(...)`,
+ * `ticker.standard(...)`) and a timeframe equal to or higher than the chart's. The higher-timeframe bars are
+ * built by grouping the chart bars, and `expression` runs on them (its `ta.*` calls, tuples and `timeframe.*`
+ * see the higher timeframe). Other symbols need external data and throw; a lower timeframe throws.
+ *
+ * Rules (security-check/doc/README.md): lookahead off shows a period's value from the
+ * bar that completes it; lookahead on from its first bar; gaps on keeps only the bar where the value appears.
+ * Built bars can differ from the exchange's bars (official open / close, volume).
+ */
+function security<T extends SecurityValue>(
+  symbol: string,
+  timeframe: string,
+  expression: () => T,
+  gaps: string = barmerge.gaps_off,
+  lookahead: string = barmerge.lookahead_off
+): T extends unknown[] ? Series[] : Series {
+  collector();
+  const heikin = symbol.startsWith(HEIKIN_ASHI);
+  const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
+  if (base !== '' && base !== chartCtx.tickerid) {
+    throw new Error(`request.security: "${symbol}" is not the chart symbol; other symbols need external data.`);
+  }
+  const chart = chartTimeframe();
+  const tf = timeframeCore.info(timeframe || chart.period).period;
+  if (timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
+    throw new Error(`request.security: timeframe "${tf}" is lower than the chart timeframe "${chart.period}".`);
+  }
+
+  const chartBars = ctxBars.bars;
+  const times = chartBars.map(barTime);
+  let htf: Bar[];
+  let group: number[];
+  let complete: boolean[];
+  if (tf === chart.period) {
+    htf = chartBars;
+    group = chartBars.map((_, i) => i);
+    complete = chartBars.map(() => true);
+  } else {
+    const { bars: loaded, regular } = sessionBars();
+    // D / W / M periods follow the regular hours; intraday periods the loaded session
+    const calendar = timeframeCore.info(tf).isdwm ? regular : loaded;
+    const starts = times.map((t) => calendar.timeOf(t, tf));
+    const dayPeriods = times.map((t, i) => {
+      const at = loaded.calendar.locate(t);
+      const periods = at ? calendar.calendar.periods(at.date) : [];
+      return periods.length ? calendar.timeOf(periods[0]![0], tf) : starts[i]!;
+    });
+    const last = times.length - 1;
+    const lastComplete = last >= 0 && loaded.closeOf(times[last]!, chart.period) >= calendar.periodEnd(times[last]!, tf);
+    ({ group, complete } = periodsOf(starts, dayPeriods, lastComplete));
+    const unit = chartCtx.timeUnit === 'ms' ? 1 : 1000;
+    htf = resample(chartBars, starts.map((s) => s / unit)).bars;
+  }
+  if (heikin) htf = heikinAshi(htf);
+
+  const savedCtx = chartCtx;
+  let result: T;
+  let values: number[][];
+  ctxBars.setAll(htf);
+  chartCtx = { ...chartCtx, timeframe: tf };
+  try {
+    result = expression();
+    const parts = Array.isArray(result) ? result : [result];
+    values = parts.map((p) => valuesOf(p, htf.length));
+  } finally {
+    ctxBars.setAll(chartBars);
+    chartCtx = savedCtx;
+  }
+  const mapped = values.map((v) =>
+    Series.fromArray(ctxBars, mapToChart(v, group, complete, lookahead === barmerge.lookahead_on, gaps === barmerge.gaps_on))
+  );
+  return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
+}
+
+/** PineScript `request.*`: `security` for the chart symbol (issue #101). */
+export const request = { security };
+
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that
 // executeScript() resets. `line.all` etc. are read like PineScript variables.
@@ -817,7 +1232,7 @@ export const chart = {
         throw new Error('chart.point.now() needs a current bar: call it inside eachBar().');
       }
       const bar = ctxBars.bars[currentBar]!;
-      return chartPointCore.new_point(bar.time as number, currentBar, price ?? bar.close);
+      return chartPointCore.new_point(barTime(bar), currentBar, price ?? bar.close);
     },
   },
 };
@@ -842,8 +1257,6 @@ export function alertcondition(condition: Series, title: string, message?: strin
 
 export { Series, BarData, isNA as na, nz };
 export * as math from '../math';
-export * as timeframe from '../timeframe';
-export { timestamp, year, month, weekofyear, dayofmonth, dayofweek, hour, minute, second, inSession } from '../time';
 export type {
   Bar,
   IndicatorResult,

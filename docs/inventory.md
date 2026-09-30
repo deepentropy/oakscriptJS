@@ -34,7 +34,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **array** | 55 | 54 (+1 custom) | 1 | 98.2% |
 | **matrix** | 50 | 50 (+1 custom) | 0 | 100% |
 | **str** | 18 | 18 (+4 custom) | 0 | 100% |
-| **time + timeframe** | 5 | 3 (+2 custom) | 2 | 60% |
+| **time + timeframe** | 5 | 5 (+2 custom) | 0 | 100% |
 | **color** | 7 | 7 (+1 custom) | 0 | 100% |
 | **line** | 21 | 21 | 0 | 100% |
 | **box** | 29 | 28 | 1 | 96.6% |
@@ -43,7 +43,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **chartPoint** | 5 | 5 | 0 | 100% |
 | **polyline** | 2 | 2 (+1 custom) | 0 | 100% |
 | **map** | 11 | 11 | 0 | 100% |
-| **TOTAL** | **312** | **308** | **4** | **98.7%** |
+| **TOTAL** | **312** | **310** | **2** | **99.4%** |
 
 ### Out-of-Scope Namespaces (Platform/Rendering/Data)
 
@@ -54,7 +54,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 | **strategy** | 47 | Trading execution engine |
 | **table** | 22 | Rendering-only (no getters) |
 | **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
-| **request** | 10 | External data fetching |
+| **request** | 10 | External data fetching — `request.security` for the chart symbol (higher timeframes, Heikin Ashi) is in the script API |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
 | **syminfo** | 2 | Platform symbol metadata |
@@ -372,10 +372,13 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 reference does not define the rule. All functions of this section were
 results: see `calendar-check/doc/README.md`.
 
+9. `time(timeframe, session, timezone)`, `time_close(...)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`,
+   `timeframe.*` variables, `syminfo.timezone/session` - script API, with the chart context of `executeScript`
+   (chart timeframe, exchange time zone, session in format); see `context-check/doc/README.md`
+
 ### Not Implemented
 
-1. `time()` / `time_close()` - bar open/close time for a timeframe and session (needs the chart timeframe and symbol session)
-2. `timeframe.change()` - Detects changes in a specified timeframe (returns bool on first bar of new timeframe)
+None.
 
 ---
 
@@ -639,8 +642,8 @@ The script entry provides the PineScript-style authoring surface. These are not
 |---|-----------|----------|-------------|
 | 1 | array | `new_table()` | Table array (no computational value) |
 | ~~2~~ | ~~str~~ | ~~`repeat()`~~ | ~~Implemented~~ |
-| 3 | time | `time_close()` | Bar close time for timeframe/session |
-| 4 | timeframe | `change()` | Detect timeframe boundary changes |
+| ~~3~~ | ~~time~~ | ~~`time_close()`~~ | ~~Implemented (script API)~~ |
+| ~~4~~ | ~~timeframe~~ | ~~`change()`~~ | ~~Implemented (script API)~~ |
 | ~~5~~ | ~~timeframe~~ | ~~`from_seconds()`~~ | ~~Implemented~~ |
 | ~~6~~ | ~~timeframe~~ | ~~`in_seconds()`~~ | ~~Implemented~~ |
 | ~~7~~ | ~~line~~ | ~~`set_first_point()`~~ | ~~Implemented~~ |
@@ -662,7 +665,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | ~~23~~ | ~~map~~ | ~~`size()`~~ | ~~Implemented~~ |
 | ~~24~~ | ~~map~~ | ~~`values()`~~ | ~~Implemented~~ |
 
-**Total: 4 official functions not yet implemented across in-scope namespaces.**
+**Total: 2 official functions not yet implemented across in-scope namespaces.**
 
 ---
 

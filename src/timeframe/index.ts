@@ -105,3 +105,46 @@ export function from_seconds(seconds: int): simple_string {
   if (seconds < SECONDS_PER_DAY) return `${Math.ceil(seconds / SECONDS_PER_MINUTE)}`;
   return `${Math.ceil(seconds / SECONDS_PER_DAY)}D`;
 }
+
+/** Properties of a chart timeframe, as PineScript's `timeframe.*` variables give them. */
+export interface TimeframeInfo {
+  /** Timeframe string with its multiplier: "1D", "60", "1S" (PineScript `timeframe.period`) */
+  period: string;
+  multiplier: number;
+  isintraday: boolean;
+  isdaily: boolean;
+  isweekly: boolean;
+  ismonthly: boolean;
+  isminutes: boolean;
+  isseconds: boolean;
+  isticks: boolean;
+  isdwm: boolean;
+}
+
+/**
+ * Describes a chart timeframe like PineScript's `timeframe.*` variables (checked on PineScript
+ * 30/09/2026 for 1S, 30S, 1, 5, 60, 240, 1D, 3D, 1W, 2W, 1M, 3M, 12M; see context-check/doc/README.md).
+ * The period always carries its multiplier: "D" becomes "1D".
+ *
+ * @param timeframe - Chart timeframe string, e.g. "5", "60", "D", "1W", "30S"
+ * @throws RangeError for strings that are not timeframes
+ */
+export function info(timeframe: simple_string): TimeframeInfo {
+  const text = timeframe.trim();
+  const m = /^(\d*)([SDWMT]?)$/.exec(text);
+  if (!m || text === '') throw new RangeError(`Invalid timeframe "${timeframe}"`);
+  const unit = m[2]!;
+  const multiplier = m[1] === '' ? 1 : Number(m[1]);
+  return {
+    period: unit === '' ? String(multiplier) : `${multiplier}${unit}`,
+    multiplier,
+    isintraday: unit === '' || unit === 'S' || unit === 'T',
+    isdaily: unit === 'D',
+    isweekly: unit === 'W',
+    ismonthly: unit === 'M',
+    isminutes: unit === '',
+    isseconds: unit === 'S',
+    isticks: unit === 'T',
+    isdwm: unit === 'D' || unit === 'W' || unit === 'M',
+  };
+}
