@@ -24,8 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `p / 100 * (length - 1)`); na values stay in the window (before: an na in the window gave na) (#104).
 - `ta.percentile_nearest_rank`: rank `ceil(p / 100 * length)` of the full window, na values included (before: the na
   values were removed) (#104).
-- Both `ta.percentile_*` functions keep the window sorted from bar to bar. At the start of a series, na values are
-  before all numbers. An na inside the window of a series can still give a result different from PineScript (#104).
+- Both `ta.percentile_*` functions keep the window sorted from bar to bar, as PineScript: the new value is inserted
+  before the first value `>=` it (passing the na values; an na goes last), then the value leaving the window is
+  removed. The place of an na value depends on the history (at the start of a series, before all numbers) (#104).
 - `array.percentile_linear_interpolation` / `array.percentile_nearest_rank` no longer use the `ta.*` functions:
   same position / rank formulas, na values sorted after the numbers; with an na in the array, a position between two
   values gives na (#104).

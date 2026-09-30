@@ -2670,10 +2670,11 @@ export function mode(source: Source, length: simple_int): series_float {
  *
  * PineScript rules:
  * - position in the sorted window: `percentage / 100 * length - 0.5`, clamped to the first / last value, linear
- *   interpolation between the two neighbours (na when a neighbour is na)
- * - `na` values stay in the window (window size = `length`). At the start of a series they are sorted before all
- *   numbers. The window is kept sorted from bar to bar: an `na` inside the window of a series is placed by the
- *   insertion search, and the result can differ from PineScript there
+ *   interpolation between the two neighbours (na when a neighbour is na, also at an exact position)
+ * - `na` values stay in the window (window size = `length`). The window is kept sorted from bar to bar: the new
+ *   value is inserted before the first value `>=` it, passing the `na` values (an `na` goes last), then the value
+ *   leaving the window is removed. So the place of an `na` depends on the history: at the start of a series the
+ *   `na` values are before all numbers
  */
 export function percentile_linear_interpolation(
   source: Source,
@@ -2690,9 +2691,10 @@ export function percentile_linear_interpolation(
 }
 
 /**
- * Sorted window of ta.percentile_*: each bar removes the value of the bar leaving the window and inserts the new
- * value before the first greater value (an `na` is never greater, so it goes last, and a value passes the `na`
- * values); `fn` reads the sorted window (`length` values). na for the first `length - 1` bars.
+ * Sorted window of ta.percentile_*, as PineScript keeps it: each bar first inserts the new value before the first
+ * value `>=` it (scanning from the start; an `na` is never `>=`, so a value passes the `na` values and an `na` goes
+ * last), then removes the value of the bar leaving the window. `fn` reads the sorted window (`length` values).
+ * na for the first `length - 1` bars.
  *
  * @internal
  */
@@ -2701,16 +2703,16 @@ function sortedWindow(source: Source, length: simple_int, fn: (sorted: number[])
   const values: number[] = []; // sorted window
   const bars: number[] = []; // bar index of each value
   for (let i = 0; i < source.length; i++) {
-    if (i >= length) {
-      const k = bars.indexOf(i - length);
-      values.splice(k, 1);
-      bars.splice(k, 1);
-    }
     const v = source[i]!;
     let k = 0;
-    while (k < values.length && !(v < values[k]!)) k++;
+    while (k < values.length && !(values[k]! >= v)) k++;
     values.splice(k, 0, v);
     bars.splice(k, 0, i);
+    if (i >= length) {
+      const old = bars.indexOf(i - length);
+      values.splice(old, 1);
+      bars.splice(old, 1);
+    }
     result.push(i < length - 1 ? NaN : fn(values));
   }
   return result;
@@ -2741,8 +2743,7 @@ function sortedWindow(source: Source, length: simple_int, fn: (sorted: number[])
  *
  * PineScript rules:
  * - the value at rank `ceil(percentage / 100 * length)` of the sorted window (na when that rank holds an `na`)
- * - `na` values stay in the window, as in `ta.percentile_linear_interpolation` (sorted before all numbers at the
- *   start of a series)
+ * - `na` values stay in the window, sorted from bar to bar as in `ta.percentile_linear_interpolation`
  */
 export function percentile_nearest_rank(
   source: Source,

@@ -95,6 +95,16 @@ describe('Newly Implemented TA Functions', () => {
       expect(ta.percentile_linear_interpolation(values, 5, 60)[4]).toBeCloseTo(2.5); // position 2.5
       expect(ta.percentile_linear_interpolation(values, 5, 20)[4]).toBeNaN(); // position 0.5: na and 1
     });
+
+    it('keeps the window sorted from bar to bar: insert before the first value >= v, then remove', () => {
+      const values = [1, 3, NaN, 2, 5];
+      // bar 3: insert 2 into [1, 3, na] -> [1, 2, 3, na], remove 1 -> [2, 3, na]
+      expect(ta.percentile_nearest_rank(values, 3, 50)[3]).toBe(3);
+      // bar 4: insert 5 (passes the na) -> [2, 3, na, 5], remove 3 -> [2, na, 5]
+      expect(ta.percentile_nearest_rank(values, 3, 30)[4]).toBe(2);
+      expect(ta.percentile_nearest_rank(values, 3, 50)[4]).toBeNaN();
+      expect(ta.percentile_nearest_rank(values, 3, 100)[4]).toBe(5);
+    });
   });
 
   describe('ta.rci', () => {
