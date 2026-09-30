@@ -4,7 +4,7 @@
 
 <h1 align="center">OakScriptJS</h1>
 
-OakScriptJS is a TypeScript/JavaScript library that provides PineScript v6 compatible technical analysis functions. Build trading indicators, run backtests, or integrate TA calculations into any JavaScript environment.
+OakScriptJS is a TypeScript/JavaScript library that provides PineScript v6 compatible technical analysis functions. Build trading indicators, write strategy logic for a backtesting engine of your choice (OakScriptJS does not fill orders), or integrate TA calculations into any JavaScript environment.
 
 ## Quick Start
 
