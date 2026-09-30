@@ -11,15 +11,13 @@
  */
 
 import type { ChartPoint, Polyline, color } from '../types';
+import { all as allDrawings, register, remove } from '../drawing/registry';
 
 // Re-export the Polyline type for convenience
 export type { Polyline };
 
 // Internal counter for generating unique IDs
 let polylineIdCounter = 0;
-
-// Track all active polylines
-const allPolylines: Polyline[] = [];
 
 /**
  * Generates a unique ID for a polyline
@@ -111,10 +109,7 @@ export function new_polyline(
     force_overlay,
   };
 
-  // Track the polyline
-  allPolylines.push(polyline);
-
-  return polyline;
+  return register('polyline', polyline);
 }
 
 /**
@@ -123,8 +118,7 @@ export function new_polyline(
  * @param id - Polyline object to delete
  *
  * @remarks
- * Removes the polyline from the internal tracking array.
- * In a rendering context, this would also remove the polyline from the chart.
+ * Removes the polyline from `polyline.all()` (the drawing registry, see drawing/registry).
  *
  * @example
  * ```typescript
@@ -134,10 +128,7 @@ export function new_polyline(
  *
  */
 export function delete_polyline(id: Polyline): void {
-  const index = allPolylines.findIndex((p) => p.id === id.id);
-  if (index !== -1) {
-    allPolylines.splice(index, 1);
-  }
+  remove('polyline', id);
 }
 
 /**
@@ -158,18 +149,26 @@ export function delete_polyline(id: Polyline): void {
  * ```
  */
 export function get_all(): readonly Polyline[] {
-  return [...allPolylines];
+  return allDrawings('polyline');
 }
 
 /**
- * Clears all polylines from the internal tracking array.
+ * All live polylines, in creation order (PineScript `polyline.all`). A new array.
+ *
+ */
+export function all(): Polyline[] {
+  return allDrawings('polyline');
+}
+
+/**
+ * Deletes all polylines.
  *
  * @remarks
  * This is useful for resetting state, especially in tests.
  * Not part of the PineScript API.
  */
 export function clear_all(): void {
-  allPolylines.length = 0;
+  for (const p of allDrawings('polyline')) remove('polyline', p);
 }
 
 /**

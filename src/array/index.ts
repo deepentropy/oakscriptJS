@@ -171,17 +171,21 @@ export function avg(id: PineArray<float>): float {
 }
 
 /**
- * Returns the minimum value (numeric arrays only)
+ * The `nth` smallest value (0 = the smallest) of the non-na elements (PineScript `array.min(id, nth)`).
+ * An `nth` past the end gives the greatest value; an array without values gives NaN. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function min(id: PineArray<float>): float {
-  return Math.min(...id);
+export function min(id: PineArray<float>, nth: simple_int = 0): float {
+  const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+  return values.length ? values[Math.min(nth, values.length - 1)]! : NaN;
 }
 
 /**
- * Returns the maximum value (numeric arrays only)
+ * The `nth` greatest value (0 = the greatest) of the non-na elements (PineScript `array.max(id, nth)`).
+ * An `nth` past the end gives the smallest value; an array without values gives NaN. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function max(id: PineArray<float>): float {
-  return Math.max(...id);
+export function max(id: PineArray<float>, nth: simple_int = 0): float {
+  const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => b - a);
+  return values.length ? values[Math.min(nth, values.length - 1)]! : NaN;
 }
 
 /**
@@ -214,22 +218,23 @@ export function mode(id: PineArray<float>): float {
 }
 
 /**
- * Returns the standard deviation
+ * Standard deviation of the non-na elements (PineScript `array.stdev(id, biased)`).
+ * `biased` true (default) divides by the count, false by the count - 1. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function stdev(id: PineArray<float>): float {
-  const mean = avg(id);
-  const squareDiffs = id.map(value => Math.pow(value - mean, 2));
-  const avgSquareDiff = sum(squareDiffs as PineArray<float>) / size(id);
-  return Math.sqrt(avgSquareDiff);
+export function stdev(id: PineArray<float>, biased: bool = true): float {
+  return Math.sqrt(variance(id, biased));
 }
 
 /**
- * Returns the variance
+ * Variance of the non-na elements (PineScript `array.variance(id, biased)`).
+ * `biased` true (default) divides by the count, false by the count - 1. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function variance(id: PineArray<float>): float {
-  const mean = avg(id);
-  const squareDiffs = id.map(value => Math.pow(value - mean, 2));
-  return sum(squareDiffs as PineArray<float>) / size(id);
+export function variance(id: PineArray<float>, biased: bool = true): float {
+  const values = id.filter((v) => !Number.isNaN(v));
+  if (!values.length) return NaN;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const squares = values.reduce((a, b) => a + (b - mean) * (b - mean), 0);
+  return squares / (biased ? values.length : values.length - 1);
 }
 
 /**
@@ -243,10 +248,16 @@ export function fill<T>(id: PineArray<T>, value: T, index_from: simple_int = 0, 
 }
 
 /**
- * Creates a new array from existing one (alias for copy)
+ * Creates an array from its arguments (PineScript `array.from(arg0, arg1, ...)`).
+ * `na` values are kept. 30/09/2026 (see partb-check/doc/README.md).
+ *
+ * @example
+ * ```typescript
+ * array.from(0.236, 0.382, 0.5, 0.618); // [0.236, 0.382, 0.5, 0.618]
+ * ```
  */
-export function from<T>(id: PineArray<T>): PineArray<T> {
-  return copy(id);
+export function from<T>(...values: T[]): PineArray<T> {
+  return [...values];
 }
 
 /**
@@ -292,52 +303,19 @@ export function last<T>(id: PineArray<T>): T {
 }
 
 /**
- * Tests whether at least one element in the array passes the test implemented by the provided function
- *
- * @param id - The array
- * @param predicate - Function to test for each element
- * @returns true if at least one element passes the test, false otherwise
- *
- * @remarks
- * - Similar to JavaScript's Array.prototype.some()
- * - Stops iterating once a matching element is found
- * - Returns false for empty arrays
- *
- * @example
- * ```typescript
- * const arr = [1, 2, 3, 4, 5];
- * const hasEven = array.some(arr, x => x % 2 === 0); // Returns: true
- * const hasNegative = array.some(arr, x => x < 0); // Returns: false
- * ```
- *
+ * True when at least one element of a bool array is true (PineScript `array.some(id)`).
+ * An empty array gives false. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function some<T>(id: PineArray<T>, predicate: (value: T) => bool): bool {
-  return id.some(predicate);
+export function some(id: PineArray<bool>): bool {
+  return id.some((v) => v === true);
 }
 
 /**
- * Tests whether all elements in the array pass the test implemented by the provided function
- *
- * @param id - The array
- * @param predicate - Function to test for each element
- * @returns true if all elements pass the test, false otherwise
- *
- * @remarks
- * - Similar to JavaScript's Array.prototype.every()
- * - Stops iterating once a failing element is found
- * - Returns true for empty arrays
- *
- * @example
- * ```typescript
- * const arr = [2, 4, 6, 8];
- * const allEven = array.every(arr, x => x % 2 === 0); // Returns: true
- * const allPositive = array.every(arr, x => x > 0); // Returns: true
- * const allLarge = array.every(arr, x => x > 5); // Returns: false
- * ```
- *
+ * True when every element of a bool array is true (PineScript `array.every(id)`).
+ * An empty array gives false. 30/09/2026 (see partb-check/doc/README.md).
  */
-export function every<T>(id: PineArray<T>, predicate: (value: T) => bool): bool {
-  return id.every(predicate);
+export function every(id: PineArray<bool>): bool {
+  return id.length > 0 && id.every((v) => v === true);
 }
 
 /**

@@ -1,4 +1,5 @@
 import * as label from '../../src/label';
+import * as chartPoint from '../../src/chartpoint';
 
 describe('Label Functions', () => {
   describe('label.new', () => {
@@ -161,12 +162,19 @@ describe('Label Functions', () => {
       expect(lbl.xloc).toBe('bar_time');
     });
 
-    it('should set yloc and y coordinate', () => {
+    it('should set yloc (PineScript label.set_yloc(id, yloc))', () => {
       const lbl = label.new(50, 155.5);
-      label.set_yloc(lbl, 0, 'abovebar');
+      label.set_yloc(lbl, 'abovebar');
 
-      expect(lbl.y).toBe(0);
+      expect(lbl.y).toBe(155.5);
       expect(lbl.yloc).toBe('abovebar');
+    });
+
+    it('should create a label from a chart point', () => {
+      const lbl = label.new(chartPoint.from_index(50, 155.5), 'x');
+      expect([lbl.x, lbl.y, lbl.text]).toEqual([50, 155.5, 'x']);
+      const t = label.new(chartPoint.from_time(1000, 1), 't', 'bar_time');
+      expect(t.x).toBe(1000);
     });
   });
 

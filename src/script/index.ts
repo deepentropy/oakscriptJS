@@ -48,7 +48,16 @@ import type { BarColorConfig, FillConfig, HLineConfig, InputConfig, PlotConfig, 
 import { BarData, Series } from '../runtime/series';
 import * as taSeries from '../ta-series';
 import * as colorCore from '../color';
-import { isNA, nz } from '../utils';
+import { fixnan as fixnanValues, isNA, nz } from '../utils';
+import * as lineCore from '../line';
+import * as labelCore from '../label';
+import * as boxCore from '../box';
+import * as linefillCore from '../linefill';
+import * as polylineCore from '../polyline';
+import * as chartPointCore from '../chartpoint';
+import * as textCore from '../text';
+import { resetDrawings, setDrawingLimits } from '../drawing/registry';
+import type { ChartPoint } from '../types';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -175,6 +184,7 @@ export function executeScript(
 ): ScriptRunResult {
   ctxBars.setAll(barsInput);
   ctx = freshCollector(inputs);
+  resetDrawings();
   try {
     body();
     const c = ctx;
@@ -216,6 +226,14 @@ export interface IndicatorOptions {
   overlay?: boolean;
   precision?: number;
   format?: string;
+  /** Lines kept before the oldest are deleted (default 50; keeps up to 5 more). */
+  max_lines_count?: number;
+  /** Labels kept before the oldest are deleted (default 50). */
+  max_labels_count?: number;
+  /** Boxes kept before the oldest are deleted (default 50). */
+  max_boxes_count?: number;
+  /** Polylines kept before the oldest are deleted (default 50). */
+  max_polylines_count?: number;
 }
 
 /** PineScript `indicator()` — declares the script's metadata. */
@@ -226,6 +244,12 @@ export function indicator(title: string, options: IndicatorOptions = {}): void {
   c.overlay = options.overlay ?? true;
   c.precision = options.precision;
   c.format = options.format;
+  setDrawingLimits({
+    line: options.max_lines_count,
+    label: options.max_labels_count,
+    box: options.max_boxes_count,
+    polyline: options.max_polylines_count,
+  });
 }
 
 export interface NumericInputOptions {
@@ -279,6 +303,19 @@ export const input = {
     const name = registerInput<string>({ type: 'source', defval, title }, 'input_source');
     return sourceSeries(name);
   },
+  /** Timeframe string ("60", "1D", "W"). As in PineScript, "" means the chart timeframe. */
+  timeframe(defval: string, title?: string, opts: StringInputOptions = {}): string {
+    return registerInput<string>({ type: 'timeframe', defval, title, options: opts.options }, 'input_timeframe');
+  },
+  /** Session string ("0930-1600", "0930-1600:23456"). */
+  session(defval: string, title?: string, opts: StringInputOptions = {}): string {
+    return registerInput<string>({ type: 'session', defval, title, options: opts.options }, 'input_session');
+  },
+  /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
+  time(defval: number, title?: string): number {
+    const v = registerInput<unknown>({ type: 'time', defval, title }, 'input_time');
+    return typeof v === 'number' ? v : defval;
+  },
 };
 
 // ── OHLCV builtins ───────────────────────────────────────────────────────────
@@ -303,6 +340,20 @@ function sourceSeries(name: string): Series {
 
 const bars = (): Bar[] => ctxBars.bars;
 
+/** A Series bound to the context bars whose values come from one pass over all bars
+ *  (cumulative indicators), recomputed when the bars version changes. */
+function barsSeries(compute: (b: Bar[]) => Series): Series {
+  let version = -1;
+  let values: number[] = [];
+  return new Series(ctxBars, (_bar, i, data) => {
+    if (version !== ctxBars.version) {
+      values = compute(data).toArray();
+      version = ctxBars.version;
+    }
+    return values[i] ?? NaN;
+  });
+}
+
 /** ta.* with the chart-implicit (bars-first) functions bound to the context,
  *  so scripts call them like PineScript: `ta.tr(true)`, `ta.atr(14)`. */
 export const ta = {
@@ -326,7 +377,60 @@ export const ta = {
     displacement: number
   ): [Series, Series, Series, Series, Series] =>
     taSeries.ichimoku(bars(), conversionPeriods, basePeriods, laggingSpan2Periods, displacement),
+  /** `ta.highest(source, length)` or `ta.highest(length)` (source = high). */
+  highest: (sourceOrLength: Series | number, length?: number): Series =>
+    typeof sourceOrLength === 'number' ? taSeries.highest(high, sourceOrLength) : taSeries.highest(sourceOrLength, length!),
+  /** `ta.lowest(source, length)` or `ta.lowest(length)` (source = low). */
+  lowest: (sourceOrLength: Series | number, length?: number): Series =>
+    typeof sourceOrLength === 'number' ? taSeries.lowest(low, sourceOrLength) : taSeries.lowest(sourceOrLength, length!),
+  /** `ta.highestbars(source, length)` or `ta.highestbars(length)` (source = high); offsets are 0 or negative. */
+  highestbars: (sourceOrLength: Series | number, length?: number): Series =>
+    typeof sourceOrLength === 'number'
+      ? taSeries.highestbars(high, sourceOrLength)
+      : taSeries.highestbars(sourceOrLength, length!),
+  /** `ta.lowestbars(source, length)` or `ta.lowestbars(length)` (source = low); offsets are 0 or negative. */
+  lowestbars: (sourceOrLength: Series | number, length?: number): Series =>
+    typeof sourceOrLength === 'number'
+      ? taSeries.lowestbars(low, sourceOrLength)
+      : taSeries.lowestbars(sourceOrLength, length!),
+  /** `ta.vwap(source, anchor?)` with the chart volume. `anchor` (non-zero = reset) is required for the
+   *  PineScript default (a new day), which needs the exchange session. */
+  vwap: ((source: Series, anchor?: Series, stdev_mult?: number): Series | [Series, Series, Series] =>
+    stdev_mult === undefined
+      ? taSeries.vwap(source, volume, anchor)
+      : taSeries.vwapBands(source, volume, anchor, stdev_mult)) as {
+    (source: Series, anchor?: Series): Series;
+    (source: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series];
+  },
+  /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
+   *  The value appears `rightbars` bars after the pivot bar, as in PineScript. */
+  pivothigh: (sourceOrLeft: Series | number, leftOrRight: number, rightbars?: number): Series =>
+    typeof sourceOrLeft === 'number'
+      ? taSeries.pivothigh(high, sourceOrLeft, leftOrRight)
+      : taSeries.pivothigh(sourceOrLeft, leftOrRight, rightbars!),
+  /** `ta.pivotlow(source, leftbars, rightbars)` or `ta.pivotlow(leftbars, rightbars)` (source = low). */
+  pivotlow: (sourceOrLeft: Series | number, leftOrRight: number, rightbars?: number): Series =>
+    typeof sourceOrLeft === 'number'
+      ? taSeries.pivotlow(low, sourceOrLeft, leftOrRight)
+      : taSeries.pivotlow(sourceOrLeft, leftOrRight, rightbars!),
+  // PineScript variables of the chart bars: `ta.obv`, not `ta.obv()`.
+  obv: barsSeries(taSeries.obv),
+  pvt: barsSeries(taSeries.pvt),
+  accdist: barsSeries(taSeries.accdist),
+  nvi: barsSeries(taSeries.nvi),
+  pvi: barsSeries(taSeries.pvi),
+  iii: barsSeries(taSeries.iii),
+  wad: barsSeries(taSeries.wad),
+  wvad: barsSeries(taSeries.wvad),
 };
+
+/** PineScript `fixnan(source)`: each `na` value becomes the previous non-`na` value.
+ *  Accepts a Series or a per-bar color array (`undefined` = `na`, as returned by `color.when`). */
+export function fixnan(source: Series): Series;
+export function fixnan(source: Array<string | undefined>): Array<string | undefined>;
+export function fixnan(source: Series | Array<string | undefined>): Series | Array<string | undefined> {
+  return source instanceof Series ? Series.fromArray(ctxBars, fixnanValues(source.toArray())) : fixnanValues(source);
+}
 
 // ── Color helpers ────────────────────────────────────────────────────────────
 
@@ -638,12 +742,85 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
       return j >= 0 ? out[j]! : NaN;
     },
   };
-  for (idx = 0; idx < b.length; idx++) {
-    const r = fn(ctx);
-    out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
+  try {
+    for (idx = 0; idx < b.length; idx++) {
+      currentBar = idx;
+      const r = fn(ctx);
+      out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
+    }
+  } finally {
+    currentBar = -1;
   }
   return Series.fromArray(ctxBars, out);
 }
+
+/** Bar index of the running eachBar() callback, -1 outside eachBar(). */
+let currentBar = -1;
+
+// ── Drawing objects ──────────────────────────────────────────────────────────
+// The drawing namespaces come from this bundle so that they share the registry that
+// executeScript() resets. `line.all` etc. are read like PineScript variables.
+
+/** PineScript `line.*`; `line.all` lists the live lines in creation order. */
+export const line = {
+  ...lineCore,
+  get all() {
+    return lineCore.all();
+  },
+};
+
+/** PineScript `label.*`; `label.all` lists the live labels in creation order. */
+export const label = {
+  ...labelCore,
+  get all() {
+    return labelCore.all();
+  },
+};
+
+/** PineScript `box.*`; `box.all` lists the live boxes in creation order. */
+export const box = {
+  ...boxCore,
+  get all() {
+    return boxCore.all();
+  },
+};
+
+/** PineScript `linefill.*`; `linefill.all` lists the live linefills in creation order. */
+export const linefill = {
+  ...linefillCore,
+  get all() {
+    return linefillCore.all();
+  },
+};
+
+/** PineScript `polyline.*`; `polyline.all` lists the live polylines in creation order. */
+export const polyline = {
+  ...polylineCore,
+  get all() {
+    return polylineCore.all();
+  },
+};
+
+/** PineScript `text.format_*` constants. */
+export const text = { ...textCore };
+
+/**
+ * PineScript `chart.point.*`. `chart.point.now(price?)` is the point of the current bar
+ * (index, time, and `price`, default the close), so it runs inside eachBar().
+ */
+export const chart = {
+  point: {
+    ...chartPointCore,
+    now(price?: number): ChartPoint {
+      collector();
+      if (currentBar < 0) {
+        throw new Error('chart.point.now() needs a current bar: call it inside eachBar().');
+      }
+      const bar = ctxBars.bars[currentBar]!;
+      return chartPointCore.new_point(bar.time as number, currentBar, price ?? bar.close);
+    },
+  },
+};
 
 /** Wraps a plain value array (e.g. a side output accumulated inside eachBar)
  *  into a Series aligned with the current bars. */
@@ -665,6 +842,8 @@ export function alertcondition(condition: Series, title: string, message?: strin
 
 export { Series, BarData, isNA as na, nz };
 export * as math from '../math';
+export * as timeframe from '../timeframe';
+export { timestamp, year, month, weekofyear, dayofmonth, dayofweek, hour, minute, second, inSession } from '../time';
 export type {
   Bar,
   IndicatorResult,

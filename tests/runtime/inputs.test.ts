@@ -8,6 +8,9 @@ import {
   input_bool,
   input_string,
   input_source,
+  input_timeframe,
+  input_session,
+  input_time,
   resetInputs,
 } from '../../src/runtime/inputs';
 import {
@@ -219,6 +222,50 @@ describe('Input Functions', () => {
 
       const value = input_string('SMA', 'MA Type');
       expect(value).toBe('EMA');
+    });
+  });
+
+  describe('input_timeframe, input_session, input_time', () => {
+    it('should return default values when no context is set', () => {
+      expect(input_timeframe('1D', 'HTF')).toBe('1D');
+      expect(input_session('0930-1600', 'Session')).toBe('0930-1600');
+      expect(input_time(1704067200000, 'Start')).toBe(1704067200000);
+    });
+
+    it('should register the inputs with their type', () => {
+      const ctx = createMockContext();
+      setContext(ctx);
+      const register = jest.spyOn(ctx.inputs, 'registerInput');
+
+      input_timeframe('1D', 'HTF', ['60', '1D', 'W']);
+      input_session('0930-1600:23456', 'Session');
+      input_time(1704067200000, 'Start');
+
+      expect(register.mock.calls.map(([c]) => [c.id, c.type, c.defval, c.options])).toEqual([
+        ['HTF', 'timeframe', '1D', ['60', '1D', 'W']],
+        ['Session', 'session', '0930-1600:23456', undefined],
+        ['Start', 'time', 1704067200000, undefined],
+      ]);
+    });
+
+    it('should return updated values and keep timeframe options', () => {
+      const ctx = createMockContext();
+      setContext(ctx);
+
+      input_timeframe('1D', 'HTF', ['60', '1D', 'W']);
+      input_session('0930-1600', 'Session');
+      input_time(1704067200000, 'Start');
+      ctx.inputs.setValue('HTF', 'W');
+      ctx.inputs.setValue('Session', '1800-1700');
+      ctx.inputs.setValue('Start', 1706745600000);
+
+      expect(input_timeframe('1D', 'HTF', ['60', '1D', 'W'])).toBe('W');
+      expect(input_session('0930-1600', 'Session')).toBe('1800-1700');
+      expect(input_time(1704067200000, 'Start')).toBe(1706745600000);
+
+      // not in the options: the value does not change
+      ctx.inputs.setValue('HTF', '5');
+      expect(input_timeframe('1D', 'HTF', ['60', '1D', 'W'])).toBe('W');
     });
   });
 

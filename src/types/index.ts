@@ -46,6 +46,11 @@ export type Source = series_float;
 // PineScript arrays are JS arrays; aliased for API parity and future extension.
 export type PineArray<T> = Array<T>;
 
+// Map types
+// PineScript maps are JS Maps: keys in insertion order, exact key equality (checked on PineScript).
+export type PineMapKey = number | string | boolean;
+export type PineMap<K extends PineMapKey, V> = Map<K, V>;
+
 // Matrix types
 export interface PineMatrix<T> {
   rows: int;
@@ -83,6 +88,8 @@ export interface Line {
   style?: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
   /** Line width in pixels (stored but not used for calculations) */
   width?: number;
+  /** Display on the main chart pane (PineScript force_overlay) */
+  force_overlay?: boolean;
 }
 
 /**
@@ -126,6 +133,10 @@ export interface Box {
   text_wrap?: 'none' | 'auto';
   /** Text font family */
   text_font_family?: 'default' | 'monospace';
+  /** Text formatting flags: 0 none, 1 bold, 2 italic, 3 bold + italic (PineScript text.format_*) */
+  text_formatting?: number;
+  /** Display on the main chart pane (PineScript force_overlay) */
+  force_overlay?: boolean;
 }
 
 /**
@@ -161,6 +172,10 @@ export interface Label {
   textalign?: 'left' | 'center' | 'right';
   /** Text font family */
   text_font_family?: 'default' | 'monospace';
+  /** Text formatting flags: 0 none, 1 bold, 2 italic, 3 bold + italic (PineScript text.format_*) */
+  text_formatting?: number;
+  /** Display on the main chart pane (PineScript force_overlay) */
+  force_overlay?: boolean;
 }
 
 /**

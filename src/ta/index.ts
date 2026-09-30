@@ -254,43 +254,64 @@ export function bb(
 }
 
 /**
- * Standard Deviation - measures the amount of variation or dispersion of values.
+ * Standard deviation over the last `length` non-na values.
  *
  * @param source - Series of values to process
- * @param length - Number of bars (length)
- * @returns Standard deviation series
+ * @param length - Number of values
+ * @param biased - true (default): biased estimate (divides by `length`); false: unbiased (by `length - 1`)
+ * @returns Standard deviation series (na until `length` non-na values exist)
  *
  * @remarks
- * - Calculates the population standard deviation (not sample)
- * - Returns NaN for the first (length - 1) values
- * - `na` values in the source series are ignored
- *
- * @example
- * ```typescript
- * const stdev20 = ta.stdev(closePrices, 20);
- * ```
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the window holds the last `length` non-na
+ * values, and a bar whose own value is `na` still gets a result.
  *
  */
-export function stdev(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-    // Floor the length to match PineScript's auto-truncation of float to int
-    const len = Math.floor(length);
-    const avg = sma(source, len);
+export function stdev(source: Source, length: simple_int, biased: simple_bool = true): series_float {
+  const len = Math.floor(length);
+  return source.map((_, i) => {
+    const values = lastValues(source, i, len);
+    if (!values) return NaN;
+    const mean = values.reduce((a, b) => a + b, 0) / len;
+    const squares = values.reduce((a, b) => a + (b - mean) * (b - mean), 0);
+    return Math.sqrt(squares / (biased ? len : len - 1));
+  });
+}
 
-  for (let i = 0; i < source.length; i++) {
-      if (i < len - 1) {
-      result.push(NaN);
-    } else {
-      let sumSquares = 0;
-          for (let j = 0; j < len; j++) {
-        const diff = source[i - j]! - avg[i]!;
-        sumSquares += diff * diff;
-      }
-          result.push(Math.sqrt(sumSquares / len));
-    }
+/** The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist. */
+function lastValues(source: Source, i: number, length: number): number[] | null {
+  const values: number[] = [];
+  for (let j = i; j >= 0 && values.length < length; j--) {
+    const x = source[j]!;
+    if (!Number.isNaN(x)) values.push(x);
   }
+  return values.length === length ? values : null;
+}
 
-  return result;
+/**
+ * The values of the window of `length` bars ending at bar `i`, with their offsets (0 = bar `i`,
+ * -1 = previous bar...). The window stops at the first `na` value, as does for
+ * ta.highest / ta.lowest / ta.highestbars / ta.lowestbars.
+ */
+function windowUntilNa(source: Source, i: number, length: number): Array<[number, number]> {
+  const values: Array<[number, number]> = [];
+  for (let j = 0; j < length && i - j >= 0; j++) {
+    const x = source[i - j]!;
+    if (Number.isNaN(x)) break;
+    values.push([x, -j]);
+  }
+  return values;
+}
+
+/** Offset of the best value of the window; on ties the oldest bar wins. 0 when the window is empty. */
+function extremeOffset(source: Source, length: simple_int, isHigher: (a: number, b: number) => boolean): series_int {
+  return source.map((_, i) => {
+    if (i < length - 1) return NaN;
+    const w = windowUntilNa(source, i, length);
+    if (w.length === 0) return 0;
+    let best = w[0]!;
+    for (const item of w) if (isHigher(item[0], best[0])) best = item; // w runs from new to old: >= keeps the oldest
+    return best[1];
+  });
 }
 
 /**
@@ -737,83 +758,44 @@ export function wma(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Highest Value - returns the highest value over a specified number of bars.
+ * Highest value over the last `length` bars.
  *
  * @param source - Series of values to process
- * @param length - Number of bars (length)
- * @returns Series containing the highest value for each bar
+ * @param length - Number of bars
+ * @returns Highest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * - Returns the maximum value in the lookback window
- * - `na` values in the source series are ignored
- * - Returns NaN for the first (length - 1) bars where there's insufficient data
- *
- * @example
- * ```typescript
- * const highest20 = ta.highest(closePrices, 20);
- * // Find resistance level
- * const resistance = ta.highest(high, 50);
- * ```
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): an `na` value ends the window, so only the values after the last `na`
+ * count, and a bar whose own value is `na` gives `na`.
+ * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  *
  */
 export function highest(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-    } else {
-      let max = -Infinity;
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j]!)) {
-          max = Math.max(max, source[i - j]!);
-        }
-      }
-      result.push(max === -Infinity ? NaN : max);
-    }
-  }
-
-  return result;
+  return source.map((_, i) => {
+    if (i < length - 1) return NaN;
+    const w = windowUntilNa(source, i, length);
+    return w.length ? Math.max(...w.map((x) => x[0])) : NaN;
+  });
 }
 
 /**
- * Lowest Value - returns the lowest value over a specified number of bars.
+ * Lowest value over the last `length` bars.
  *
  * @param source - Series of values to process
- * @param length - Number of bars (length)
- * @returns Series containing the lowest value for each bar
+ * @param length - Number of bars
+ * @returns Lowest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * - Returns the minimum value in the lookback window
- * - `na` values in the source series are ignored
- * - Returns NaN for the first (length - 1) bars where there's insufficient data
- *
- * @example
- * ```typescript
- * const lowest20 = ta.lowest(closePrices, 20);
- * // Find support level
- * const support = ta.lowest(low, 50);
- * ```
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): an `na` value ends the window, so only the values after the last `na`
+ * count, and a bar whose own value is `na` gives `na`.
  *
  */
 export function lowest(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-    } else {
-      let min = Infinity;
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j]!)) {
-          min = Math.min(min, source[i - j]!);
-        }
-      }
-      result.push(min === Infinity ? NaN : min);
-    }
-  }
-
-  return result;
+  return source.map((_, i) => {
+    if (i < length - 1) return NaN;
+    const w = windowUntilNa(source, i, length);
+    return w.length ? Math.min(...w.map((x) => x[0])) : NaN;
+  });
 }
 
 /**
@@ -824,7 +806,8 @@ export function lowest(source: Source, length: simple_int): series_float {
  *
  * @remarks
  * - Returns the running total of all values from index 0 to current index
- * - Each value is the sum of all previous values plus the current value
+ * - As in PineScript (checked on 30/09/2026): an `na` value adds nothing to the sum,
+ *   and the result is `na` on that bar only; the sum continues on the next bars
  * - Useful for calculating total volume, total trades, etc.
  *
  * @example
@@ -835,15 +818,12 @@ export function lowest(source: Source, length: simple_int): series_float {
  *
  */
 export function cum(source: Source): series_float {
-  const result: series_float = [];
   let sum = 0;
-
-  for (let i = 0; i < source.length; i++) {
-    sum += source[i]!;
-    result.push(sum);
-  }
-
-  return result;
+  return source.map((v) => {
+    if (Number.isNaN(v)) return NaN;
+    sum += v;
+    return sum;
+  });
 }
 
 /**
@@ -1842,22 +1822,57 @@ export function sar(
 }
 
 /**
+ * Pivot detection as computes it (checked 30/09/2026, see pivot-check/doc/README.md).
+ *
+ * The value of the pivot bar is returned `rightbars` bars later, on the bar where the pivot is
+ * confirmed, so no future bar is used. A pivot high may equal values on its left but must be higher
+ * than every value on its right (a pivot low: equal on the left, lower on the right). An `na`
+ * neighbour ends the check on its side; an `na` pivot value gives no pivot.
+ */
+function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHigh: boolean): series_float {
+  // "beats" = the neighbour prevents the pivot
+  const beatsLeft = isHigh ? (x: number, v: number) => x > v : (x: number, v: number) => x < v;
+  const beatsRight = isHigh ? (x: number, v: number) => x >= v : (x: number, v: number) => x <= v;
+
+  return source.map((_, i) => {
+    const center = i - rightbars;
+    if (center - leftbars < 0) return NaN;
+    const v = source[center]!;
+    if (Number.isNaN(v)) return NaN;
+    for (let j = 1; j <= leftbars; j++) {
+      const x = source[center - j]!;
+      if (Number.isNaN(x)) break;
+      if (beatsLeft(x, v)) return NaN;
+    }
+    for (let j = 1; j <= rightbars; j++) {
+      const x = source[center + j]!;
+      if (Number.isNaN(x)) break;
+      if (beatsRight(x, v)) return NaN;
+    }
+    return v;
+  });
+}
+
+/**
  * Pivot High - detects pivot high points in the price series.
  *
  * @param sourceOrLeftbars - Source series or leftbars (overloaded)
  * @param leftbarsOrRightbars - Leftbars or rightbars (overloaded)
  * @param rightbars - Number of bars to the right (optional)
  * @param high - High price series (used in 2-param version)
- * @returns Series with pivot high values (NaN when no pivot detected)
+ * @returns Series with the pivot high value on the bar where the pivot is confirmed
+ *   (`rightbars` bars after the pivot bar), NaN elsewhere
  *
  * @remarks
- * - Detects local maximum points
- * - Returns NaN when no pivot is detected
- * - Useful for identifying resistance levels
+ * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
+ *   index is `i - rightbars`
+ * - A pivot high may equal values on its left but must be higher than all values on its right
+ * - An `na` neighbour ends the check on its side
  *
  * @example
  * ```typescript
  * const pivotHighs = ta.pivothigh(high, 2, 2);
+ * // pivotHighs[i] is high[i - 2] when bar i - 2 is a pivot high
  * ```
  *
  */
@@ -1867,54 +1882,13 @@ export function pivothigh(
   rightbars?: simple_int,
   high?: Source
 ): series_float {
-  let source: Source;
-  let leftbars: simple_int;
-  let right: simple_int;
-
   if (rightbars === undefined) {
     if (!high) {
       throw new Error('ta.pivothigh() requires high series when using two-parameter version.');
     }
-    source = high;
-    leftbars = sourceOrLeftbars as simple_int;
-    right = leftbarsOrRightbars;
-  } else {
-    source = sourceOrLeftbars as Source;
-    leftbars = leftbarsOrRightbars;
-    right = rightbars;
+    return pivot(high, sourceOrLeftbars as simple_int, leftbarsOrRightbars, true);
   }
-
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < leftbars || i + right >= source.length) {
-      result.push(NaN);
-      continue;
-    }
-
-    const centerValue = source[i]!;
-    let isPivot = true;
-
-    for (let j = 1; j <= leftbars; j++) {
-      if (source[i - j]! >= centerValue) {
-        isPivot = false;
-        break;
-      }
-    }
-
-    if (isPivot) {
-      for (let j = 1; j <= right; j++) {
-        if (source[i + j]! >= centerValue) {
-          isPivot = false;
-          break;
-        }
-      }
-    }
-
-    result.push(isPivot ? centerValue : NaN);
-  }
-
-  return result;
+  return pivot(sourceOrLeftbars as Source, leftbarsOrRightbars, rightbars, true);
 }
 
 /**
@@ -1924,16 +1898,19 @@ export function pivothigh(
  * @param leftbarsOrRightbars - Leftbars or rightbars (overloaded)
  * @param rightbars - Number of bars to the right (optional)
  * @param low - Low price series (used in 2-param version)
- * @returns Series with pivot low values (NaN when no pivot detected)
+ * @returns Series with the pivot low value on the bar where the pivot is confirmed
+ *   (`rightbars` bars after the pivot bar), NaN elsewhere
  *
  * @remarks
- * - Detects local minimum points
- * - Returns NaN when no pivot is detected
- * - Useful for identifying support levels
+ * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
+ *   index is `i - rightbars`
+ * - A pivot low may equal values on its left but must be lower than all values on its right
+ * - An `na` neighbour ends the check on its side
  *
  * @example
  * ```typescript
  * const pivotLows = ta.pivotlow(low, 2, 2);
+ * // pivotLows[i] is low[i - 2] when bar i - 2 is a pivot low
  * ```
  *
  */
@@ -1943,54 +1920,13 @@ export function pivotlow(
   rightbars?: simple_int,
   low?: Source
 ): series_float {
-  let source: Source;
-  let leftbars: simple_int;
-  let right: simple_int;
-
   if (rightbars === undefined) {
     if (!low) {
       throw new Error('ta.pivotlow() requires low series when using two-parameter version.');
     }
-    source = low;
-    leftbars = sourceOrLeftbars as simple_int;
-    right = leftbarsOrRightbars;
-  } else {
-    source = sourceOrLeftbars as Source;
-    leftbars = leftbarsOrRightbars;
-    right = rightbars;
+    return pivot(low, sourceOrLeftbars as simple_int, leftbarsOrRightbars, false);
   }
-
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < leftbars || i + right >= source.length) {
-      result.push(NaN);
-      continue;
-    }
-
-    const centerValue = source[i]!;
-    let isPivot = true;
-
-    for (let j = 1; j <= leftbars; j++) {
-      if (source[i - j]! <= centerValue) {
-        isPivot = false;
-        break;
-      }
-    }
-
-    if (isPivot) {
-      for (let j = 1; j <= right; j++) {
-        if (source[i + j]! <= centerValue) {
-          isPivot = false;
-          break;
-        }
-      }
-    }
-
-    result.push(isPivot ? centerValue : NaN);
-  }
-
-  return result;
+  return pivot(sourceOrLeftbars as Source, leftbarsOrRightbars, rightbars, false);
 }
 
 /**
@@ -2437,51 +2373,64 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
 }
 
 /**
- * Volume Weighted Average Price (VWAP)
+ * Volume Weighted Average Price, restarted on each bar where `anchor` is true.
  *
- * VWAP is the average price weighted by volume, typically calculated from market open.
- * It's widely used by institutional traders to assess execution quality.
- *
- * This implementation calculates cumulative VWAP from the beginning of the series.
- * For intraday VWAP (reset at session start), additional session logic is needed.
- *
- * @param source - Price series (typically hlc3 or close)
+ * @param source - Source series (PineScript default `hlc3`)
  * @param volume - Volume series
- * @returns VWAP series
+ * @param anchor - Reset condition per bar (PineScript `anchor`). Without it the sums never restart;
+ *   PineScript's default anchor is a new day (`timeframe.change("1D")`), which needs the exchange session
+ * @param stdev_mult - When given, also returns the bands `vwap ± stdev_mult × stdev`
+ * @returns The VWAP series, or `[vwap, upper, lower]` when `stdev_mult` is given
  *
- * @example
- * ```typescript
- * const hlc3 = high.map((h, i) => (h + low[i]! + close[i]!) / 3);
- * const vwapValue = ta.vwap(hlc3, volume);
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): the sums restart on anchor bars; the standard deviation is
+ * `sqrt(Σ(volume × source²) / Σvolume − vwap²)`.
  *
  */
-export function vwap(source: Source, volume: Source): series_float {
+export function vwap(source: Source, volume: Source, anchor?: ArrayLike<boolean | number>): series_float;
+export function vwap(
+  source: Source,
+  volume: Source,
+  anchor: ArrayLike<boolean | number> | undefined,
+  stdev_mult: simple_float
+): [series_float, series_float, series_float];
+export function vwap(
+  source: Source,
+  volume: Source,
+  anchor?: ArrayLike<boolean | number>,
+  stdev_mult?: simple_float
+): series_float | [series_float, series_float, series_float] {
   if (source.length !== volume.length) {
     throw new Error('ta.vwap: source and volume must have the same length');
   }
-
-  const result: series_float = [];
-  let cumulativePV = 0; // Cumulative price * volume
-  let cumulativeVolume = 0; // Cumulative volume
-
+  const mid: series_float = [];
+  const upper: series_float = [];
+  const lower: series_float = [];
+  let sumPV = 0;
+  let sumV = 0;
+  let sumPPV = 0;
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(source[i]!) || isNaN(volume[i]!)) {
-      result.push(NaN);
-      continue;
+    if (anchor && anchor[i]) {
+      sumPV = 0;
+      sumV = 0;
+      sumPPV = 0;
     }
-
-    cumulativePV += source[i]! * volume[i]!;
-    cumulativeVolume += volume[i]!;
-
-    if (cumulativeVolume === 0) {
-      result.push(NaN);
-    } else {
-      result.push(cumulativePV / cumulativeVolume);
+    const s = source[i]!;
+    const v = volume[i]!;
+    if (!Number.isNaN(s) && !Number.isNaN(v)) {
+      sumPV += s * v;
+      sumV += v;
+      sumPPV += s * s * v;
+    }
+    const m = sumV === 0 ? NaN : sumPV / sumV;
+    mid.push(m);
+    if (stdev_mult !== undefined) {
+      const sd = Math.sqrt(Math.max(0, sumPPV / sumV - m * m));
+      upper.push(m + stdev_mult * sd);
+      lower.push(m - stdev_mult * sd);
     }
   }
-
-  return result;
+  return stdev_mult === undefined ? mid : [mid, upper, lower];
 }
 
 /**
@@ -2599,192 +2548,77 @@ export function kcw(
 }
 
 /**
- * Range (High - Low)
+ * Difference between the highest and the lowest value over the last `length` non-na values
+ * (PineScript `ta.range(source, length)`).
  *
- * Simple difference between high and low prices for each bar.
- * Represents the price range of each bar.
- *
- * @param high - High price series
- * @param low - Low price series
- * @returns Range series
- *
- * @example
- * ```typescript
- * const barRange = ta.range(high, low);
- * const avgRange = ta.sma(barRange, 20);
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped (the window holds the last `length` non-na
+ * values), and a bar whose own value is `na` still gets a result.
  *
  */
-export function range(high: Source, low: Source): series_float {
-  if (high.length !== low.length) {
-    throw new Error('ta.range: high and low must have the same length');
-  }
-
-  const result: series_float = [];
-
-  for (let i = 0; i < high.length; i++) {
-    if (isNaN(high[i]!) || isNaN(low[i]!)) {
-      result.push(NaN);
-    } else {
-      result.push(high[i]! - low[i]!);
-    }
-  }
-
-  return result;
+export function range(source: Source, length: simple_int): series_float {
+  return source.map((_, i) => {
+    const values = lastValues(source, i, length);
+    return values ? Math.max(...values) - Math.min(...values) : NaN;
+  });
 }
 
 /**
- * Highest Bars
+ * Offset to the bar with the highest value over the last `length` bars: 0 for the current bar,
+ * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
- * Returns the offset (number of bars back) to the highest value over a given period.
- * Returns 0 if the current bar is the highest, 1 if the previous bar, etc.
- *
- * @param source - Source series
- * @param length - Number of bars to look back
- * @returns Series with offset to highest value (0 = current bar, 1 = previous bar, etc.)
- *
- * @example
- * ```typescript
- * const offset = ta.highestbars(close, 10);
- * // If offset[i]! = 3, the highest value in last 10 bars was 3 bars ago
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): on equal values the oldest bar wins; an `na` value ends the window;
+ * 0 when the window has no value.
  *
  */
 export function highestbars(source: Source, length: simple_int): series_int {
-  const result: series_int = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-
-    let highestValue = source[i - length + 1]!;
-    let highestOffset = length - 1;
-
-    for (let j = i - length + 2; j <= i; j++) {
-      if (source[j]! > highestValue) {
-        highestValue = source[j]!;
-        highestOffset = i - j;
-      }
-    }
-
-    result.push(highestOffset);
-  }
-
-  return result;
+  return extremeOffset(source, length, (a, b) => a >= b);
 }
 
 /**
- * Lowest Bars
+ * Offset to the bar with the lowest value over the last `length` bars: 0 for the current bar,
+ * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
- * Returns the offset (number of bars back) to the lowest value over a given period.
- * Returns 0 if the current bar is the lowest, 1 if the previous bar, etc.
- *
- * @param source - Source series
- * @param length - Number of bars to look back
- * @returns Series with offset to lowest value (0 = current bar, 1 = previous bar, etc.)
- *
- * @example
- * ```typescript
- * const offset = ta.lowestbars(close, 10);
- * // If offset[i]! = 5, the lowest value in last 10 bars was 5 bars ago
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): on equal values the oldest bar wins; an `na` value ends the window;
+ * 0 when the window has no value.
  *
  */
 export function lowestbars(source: Source, length: simple_int): series_int {
-  const result: series_int = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-
-    let lowestValue = source[i - length + 1]!;
-    let lowestOffset = length - 1;
-
-    for (let j = i - length + 2; j <= i; j++) {
-      if (source[j]! < lowestValue) {
-        lowestValue = source[j]!;
-        lowestOffset = i - j;
-      }
-    }
-
-    result.push(lowestOffset);
-  }
-
-  return result;
+  return extremeOffset(source, length, (a, b) => a <= b);
 }
 
 /**
- * Maximum of Two Values
+ * All-time highest value of `source` up to each bar (PineScript `ta.max(source)`).
  *
- * Returns the greater of two values. Different from `highest()` which finds
- * the maximum over a series of bars.
- *
- * @param source1 - First source series
- * @param source2 - Second source series
- * @returns Series with maximum of the two values at each bar
- *
- * @example
- * ```typescript
- * const maxValue = ta.max(close, open);
- * // Returns the higher of close or open at each bar
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the value carries over `na` bars, and the
+ * result is `na` until the first non-na value.
  *
  */
-export function max(source1: Source, source2: Source): series_float {
-  if (source1.length !== source2.length) {
-    throw new Error('ta.max: source1 and source2 must have the same length');
-  }
-
-  const result: series_float = [];
-
-  for (let i = 0; i < source1.length; i++) {
-    if (isNaN(source1[i]!) || isNaN(source2[i]!)) {
-      result.push(NaN);
-    } else {
-      result.push(Math.max(source1[i]!, source2[i]!));
-    }
-  }
-
-  return result;
+export function max(source: Source): series_float {
+  let best = NaN;
+  return source.map((x) => {
+    if (!Number.isNaN(x) && !(x <= best)) best = x;
+    return best;
+  });
 }
 
 /**
- * Minimum of Two Values
+ * All-time lowest value of `source` up to each bar (PineScript `ta.min(source)`).
  *
- * Returns the lesser of two values. Different from `lowest()` which finds
- * the minimum over a series of bars.
- *
- * @param source1 - First source series
- * @param source2 - Second source series
- * @returns Series with minimum of the two values at each bar
- *
- * @example
- * ```typescript
- * const minValue = ta.min(close, open);
- * // Returns the lower of close or open at each bar
- * ```
+ * @remarks
+ * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the value carries over `na` bars, and the
+ * result is `na` until the first non-na value.
  *
  */
-export function min(source1: Source, source2: Source): series_float {
-  if (source1.length !== source2.length) {
-    throw new Error('ta.min: source1 and source2 must have the same length');
-  }
-
-  const result: series_float = [];
-
-  for (let i = 0; i < source1.length; i++) {
-    if (isNaN(source1[i]!) || isNaN(source2[i]!)) {
-      result.push(NaN);
-    } else {
-      result.push(Math.min(source1[i]!, source2[i]!));
-    }
-  }
-
-  return result;
+export function min(source: Source): series_float {
+  let best = NaN;
+  return source.map((x) => {
+    if (!Number.isNaN(x) && !(x >= best)) best = x;
+    return best;
+  });
 }
 
 /**
@@ -3764,4 +3598,134 @@ export function zigzag(
   }
 
   return [zigzagValues, directions, isPivot];
+}
+
+// ── Volume built-in variables (ta.obv, ta.pvt, ta.accdist, ta.nvi, ta.pvi, ta.iii, ta.wad, ta.wvad) ──
+//
+// In PineScript these are series variables computed from the chart bars. Here they take the
+// bar series explicitly. The results were (30/09/2026, see
+// volume-check/doc/README.md).
+
+/**
+ * On Balance Volume: `ta.cum(math.sign(ta.change(close)) * volume)`.
+ *
+ * @param close - Close price series
+ * @param volume - Volume series
+ * @returns OBV series (`na` on the first bar, and on bars without volume)
+ *
+ */
+export function obv(close: Source, volume: Source): series_float {
+  return cum(close.map((c, i) => (i === 0 ? NaN : Math.sign(c - close[i - 1]!) * volume[i]!)));
+}
+
+/**
+ * Price-Volume Trend: `ta.cum((ta.change(close) / close[1]) * volume)`.
+ *
+ * @param close - Close price series
+ * @param volume - Volume series
+ * @returns PVT series (`na` on the first bar, and on bars without volume)
+ *
+ */
+export function pvt(close: Source, volume: Source): series_float {
+  return cum(
+    close.map((c, i) => (i === 0 ? NaN : ((c - close[i - 1]!) / close[i - 1]!) * volume[i]!))
+  );
+}
+
+/**
+ * Accumulation/Distribution index: the running sum of
+ * `(2 * close - low - high) / (high - low) * volume`, with 0 on bars where `high == low`.
+ *
+ */
+export function accdist(high: Source, low: Source, close: Source, volume: Source): series_float {
+  return cum(
+    close.map((c, i) => {
+      const h = high[i]!;
+      const l = low[i]!;
+      return h === l ? 0 : ((2 * c - l - h) / (h - l)) * volume[i]!;
+    })
+  );
+}
+
+/**
+ * Intraday Intensity Index: `(2 * close - high - low) / (high - low) * volume`.
+ *
+ * built-in value is this formula. The formula shown in the PineScript reference,
+ * `(2 * close - high - low) / ((high - low) * volume)`, gives other values.
+ *
+ * @returns III series (`na` where `high == low`)
+ *
+ */
+export function iii(high: Source, low: Source, close: Source, volume: Source): series_float {
+  return close.map((c, i) => {
+    const range = high[i]! - low[i]!;
+    return range === 0 ? NaN : ((2 * c - high[i]! - low[i]!) / range) * volume[i]!;
+  });
+}
+
+/**
+ * Williams Variable Accumulation/Distribution: `(close - open) / (high - low) * volume`.
+ *
+ * @returns WVAD series (`na` where `high == low`)
+ *
+ */
+export function wvad(open: Source, high: Source, low: Source, close: Source, volume: Source): series_float {
+  return close.map((c, i) => {
+    const range = high[i]! - low[i]!;
+    return range === 0 ? NaN : ((c - open[i]!) / range) * volume[i]!;
+  });
+}
+
+/**
+ * Williams Accumulation/Distribution: the running sum of `close - min(low, close[1])` on up
+ * closes, `close - max(high, close[1])` on down closes, and 0 otherwise (first bar included).
+ *
+ */
+export function wad(high: Source, low: Source, close: Source): series_float {
+  return cum(
+    close.map((c, i) => {
+      const prev = i === 0 ? NaN : close[i - 1]!;
+      const mom = c - prev;
+      if (mom > 0) return c - Math.min(low[i]!, prev);
+      if (mom < 0) return c - Math.max(high[i]!, prev);
+      return 0;
+    })
+  );
+}
+
+/** Volume index shared by NVI and PVI: moves with the close change on bars selected by `use`. */
+function volumeIndex(close: Source, volume: Source, use: (v: number, prevV: number) => boolean): series_float {
+  const result: series_float = [];
+  let prevIndex = NaN;
+  for (let i = 0; i < close.length; i++) {
+    const prev = !prevIndex ? 1 : prevIndex; // nz(index[1], 0) == 0 ? 1 : index[1]
+    const c = close[i]!;
+    const prevC = i === 0 ? NaN : close[i - 1]!;
+    let value = prev;
+    if (c && prevC) {
+      const prevV = i === 0 || Number.isNaN(volume[i - 1]!) ? 0 : volume[i - 1]!;
+      if (use(volume[i]!, prevV)) value = prev + ((c - prevC) / prevC) * prev;
+    }
+    result.push(value);
+    prevIndex = value;
+  }
+  return result;
+}
+
+/**
+ * Negative Volume Index: moves with the close change only on bars where volume falls.
+ * Starts at 1.
+ *
+ */
+export function nvi(close: Source, volume: Source): series_float {
+  return volumeIndex(close, volume, (v, prevV) => v < prevV);
+}
+
+/**
+ * Positive Volume Index: moves with the close change only on bars where volume rises.
+ * Starts at 1.
+ *
+ */
+export function pvi(close: Source, volume: Source): series_float {
+  return volumeIndex(close, volume, (v, prevV) => v > prevV);
 }

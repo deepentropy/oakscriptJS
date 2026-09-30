@@ -82,7 +82,7 @@ export interface FillOptions {
 /**
  * Input parameter type
  */
-export type InputType = 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session';
+export type InputType = 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session' | 'time';
 
 /**
  * Input parameter metadata

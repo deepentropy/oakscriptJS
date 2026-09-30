@@ -256,6 +256,20 @@ describe('input helpers', () => {
       expect(inp.title).toBe('MA Type');
     });
   });
+
+  describe('input.timeframe, input.session, input.time', () => {
+    it('should create the inputs with their type', () => {
+      const tf = input.timeframe('1D', { title: 'HTF', options: ['60', '1D'] });
+      expect(tf).toEqual({ type: 'timeframe', defaultValue: '1D', value: '1D', title: 'HTF', options: ['60', '1D'] });
+
+      const s = input.session('0930-1600');
+      expect(s.type).toBe('session');
+      expect(s.value).toBe('0930-1600');
+
+      const t = input.time(1704067200000, { title: 'Start' });
+      expect(t).toEqual({ type: 'time', defaultValue: 1704067200000, value: 1704067200000, title: 'Start' });
+    });
+  });
 });
 
 describe('plot helpers', () => {

@@ -50,8 +50,11 @@ export interface ChartAdapter {
 export interface InputConfig {
   /** Unique identifier for the input */
   id: string;
-  /** Type of input */
-  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color';
+  /**
+   * Type of input. `timeframe` and `session` values are strings ("60", "1D", "0930-1600:23456";
+   * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds.
+   */
+  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session' | 'time';
   /** Default value */
   defval: unknown;
   /** Display title */
@@ -62,7 +65,7 @@ export interface InputConfig {
   max?: number;
   /** Step size (for numeric inputs) */
   step?: number;
-  /** Options for dropdown selection (for string inputs) */
+  /** Options for dropdown selection (for string, timeframe and session inputs) */
   options?: string[];
 }
 

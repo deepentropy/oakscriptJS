@@ -5,6 +5,109 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+**Calendar and timeframe functions (issue #99, level 1):**
+- `time.year/month/dayofmonth/dayofweek/weekofyear/hour/minute/second(time, timezone)`.
+  Time zones: UTC/GMT offset notation (`"UTC-5"`, `"GMT+0530"`, `"UTC+05:30"`, up to ±18:00) or
+  time zone database names (`"America/New_York"`, case-sensitive), converted with
+  `Intl.DateTimeFormat`. `dayofweek`: Sunday = 1. `weekofyear`: ISO 8601 weeks (Monday start).
+- `time.timestamp(dateString)` (RFC 2822 / ISO 8601, GMT+0 when no time zone is given) and
+  `time.timestamp(timezone, year, month, day, hour?, minute?, second?)` (a repeated wall-clock
+  time gives the later instant, a missing one is shifted forward).
+- `time.inSession(time, session, timezone)`: the session test of PineScript
+  `time(timeframe, session, timezone)` (`"0930-1600:23456"`, several periods, overnight
+  periods, `"24x7"`; several periods without days cover Monday to Friday).
+- `timeframe` namespace: `in_seconds(timeframe)` and `from_seconds(seconds)`.
+- `oakscriptjs/script` exports `timestamp`, the calendar functions, `inSession` and `timeframe`.
+
+**Inputs (issue #99, level 1):**
+- `input.timeframe(defval, title?, { options })`, `input.session(defval, title?, { options })` and
+  `input.time(defval, title?)` in `oakscriptjs/script`; `input.timeframe/session/time` in the `input`
+  helpers; `input_timeframe`, `input_session`, `input_time` in the runtime. The default is returned as
+  written (`"D"` stays `"D"`, `""` is the chart timeframe): see `input-check/doc/README.md`.
+- `InputConfig.type` and `InputType` gained `timeframe`, `session` and `time`. `SimpleInputAdapter`
+  checks `options` for timeframe and session inputs like for string inputs.
+
+**fixnan and volume variables (issue #99, level 1):**
+- `fixnan(source)`: numeric arrays and color arrays in the main entry; Series and color arrays in
+  `oakscriptjs/script`.
+- `ta.obv`, `ta.pvt`, `ta.accdist`, `ta.nvi`, `ta.pvi`, `ta.iii`, `ta.wad`, `ta.wvad`: context-bound
+  Series in `oakscriptjs/script` (PineScript variables), `ta.obv(bars)` in the Series layer and
+  `taCore.obv(close, volume)` (and the others) in the array layer. They follow PineScript's
+  built-in values: an `na` input adds nothing to the running sums; `ta.iii` is
+  `(2 * close - high - low) / (high - low) * volume` (the formula shown in the PineScript reference
+  divides by volume too, which does not do).
+
+**map namespace (issue #99, level 1):**
+- `map.new_map`, `put`, `put_all`, `get`, `contains`, `remove`, `size`, `clear`, `keys`, `values`,
+  `copy`, and the `PineMap<K, V>` type. A map is a JS `Map`: insertion order, exact key equality,
+  `put`/`remove` return the previous value or `undefined` (`na`), at most 50,000 pairs
+  (`RangeError` above, as the runtime error on PineScript).
+
+**Drawing objects (issue #99, level 1):**
+- Drawing registry (`src/drawing/registry.ts`) for lines, labels, boxes, polylines and linefills,
+  with the rules: `all()` lists live objects in creation order (a copy);
+  `delete` removes the object and makes it `na` (getters return NaN, setters do nothing, `na(obj)`
+  is true); `line.delete` also deletes the linefills of the line; when a creation brings the count
+  above `max_*_count + 5`, the oldest objects are deleted down to `max_*_count` (default 50; linefills
+  use `max_lines_count`); copies count as creations. `executeScript` resets the registry at every run.
+- `line.set_first_point` / `set_second_point`, `label.set_point`, `box.set_top_left_point` /
+  `set_bottom_right_point` (`point.index` for `bar_index` objects, `point.time` for `bar_time` ones),
+  `label.set_text_formatting`, `box.set_text_formatting` and the `text` namespace
+  (`format_none` 0, `format_bold` 1, `format_italic` 2, as encodes them).
+- `line.all()`, `label.all()`, `box.all()`, `linefill.all()`, `polyline.all()`, and `delete` aliases.
+- `oakscriptjs/script`: `line`, `label`, `box`, `linefill`, `polyline` (with `line.all` etc. read as
+  properties), `text`, `chart.point` with `chart.point.now(price?)` (current `eachBar` bar), and
+  `indicator()` options `max_lines_count`, `max_labels_count`, `max_boxes_count`, `max_polylines_count`.
+
+**Verification:**
+- The calendar, timestamp, session and timeframe functions were compared with values computed by
+  (30/09/2026): 100,000 calendar values, 256,000 session tests and 227
+  timestamp/timeframe/time zone items. See `calendar-check/doc/README.md` for the method, the rules
+  found and the 3 remaining differences. The input defaults were checked the same way
+  (`input-check/doc/README.md`). The volume variables and `fixnan` match on 381,415
+  values over 8 runs (`volume-check/doc/README.md`). The map behaviour was checked with 15 scripts
+  and 5 float-key probes (`map-check/doc/README.md`). The drawing rules were checked with 25 scripts
+  and 14 per-bar count studies; the registry matches the 14,000 per-bar counts of PineScript
+  (`drawing-check/doc/README.md`).
+
+### Changed (breaking)
+
+- `ta.pivothigh` / `ta.pivotlow` (`taCore` and Series layer): the pivot value now appears `rightbars`
+  bars after the pivot bar, as in PineScript. Before, it was written on the pivot bar itself, which
+  used `rightbars` future bars (lookahead). Ties now follow PineScript: equal values are allowed on
+  the left, not on the right; an `na` neighbour ends the check on its side. Code that shifted the
+  result by `rightbars` to undo the old placement must remove that shift.
+- `ta.cum`: an `na` value now adds nothing to the sum and gives `na` on that bar only, as in
+  PineScript. Before, every value after an `na` was NaN.
+- `oakscriptjs/script`: `ta.pivothigh(leftbars, rightbars)` and `ta.pivotlow(leftbars, rightbars)`
+  (2-argument form on the chart high / low) are accepted.
+- Both were: 377,299 values, 0 differences (`pivot-check/doc/README.md`).
+
+**Part B of issue #99: PineScript signatures and behaviour** (checked on PineScript,
+see `partb-check/doc/README.md`):
+- `ta.highestbars` / `ta.lowestbars` return 0 or negative offsets (0.5.0: positive); ties go to the
+  oldest bar. `ta.highest` / `ta.lowest` / `*bars`: an `na` value ends the window.
+- `ta.stdev(source, length, biased = true)` skips `na` values; `ta.range(source, length)` (0.5.0:
+  `(high, low)`); `ta.max(source)` / `ta.min(source)` are all-time values (0.5.0: element-wise of two
+  series); `ta.vwap(source, volume, anchor?, stdev_mult?)` with anchor reset and bands (`vwapBands` in
+  the Series layer).
+- Script API: `ta.highest(length)`, `ta.lowest(length)`, `ta.highestbars(length)`, `ta.lowestbars(length)`
+  on the chart high / low, and `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume.
+- `str.tostring` formats as (Java DecimalFormat patterns, half away from zero,
+  `format.percent`, `format.volume`; `format.mintick` throws: it needs `syminfo.mintick`).
+  `str.format` follows Java MessageFormat (number, integer, percent, currency, patterns, date, time,
+  choice). `str.format_time(time, format, timezone)` with Java SimpleDateFormat letters.
+- `array.from(...values)` (0.5.0: copy of an array), `array.some(id)` / `array.every(id)` on bool arrays
+  (0.5.0: predicate), `array.max(id, nth)` / `array.min(id, nth)`, `array.stdev(id, biased)` /
+  `array.variance(id, biased)`; na values are skipped.
+- `line.new` / `label.new` / `box.new` accept chart points, `force_overlay` and `text_formatting`;
+  `box.new` uses PineScript's parameter order after `bottom` (`border_color, border_width,
+  border_style, extend, xloc, bgcolor, ...`); `label.set_yloc(id, yloc)`.
+
 ## [0.5.0] - 2026-07-17
 
 ### Added

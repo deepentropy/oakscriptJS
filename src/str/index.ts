@@ -9,6 +9,9 @@
  * @version 6
  */
 
+import { formatNumber } from './numberformat';
+import { formatMessage } from './messageformat';
+import { formatDate } from './dateformat';
 import type { int, bool, float, simple_int, simple_string } from '../types';
 
 /**
@@ -29,32 +32,57 @@ export function length(str: simple_string): int {
 }
 
 /**
- * Converts a value to its string representation.
+ * Converts a value to its string representation (PineScript `str.tostring`).
  *
  * @param value - The value to convert (number, boolean, string, etc.)
- * @param format - Optional format string for numbers (e.g., "#.##" for 2 decimals)
+ * @param format - Optional number format: a pattern ("#.##", "#,###.00", "0.00%", "0.00E0") or
+ *   `format.percent` ("percent"), `format.volume` ("volume"), `format.price` / `format.inherit`
  * @returns String representation of the value
  *
  * @remarks
- * - When format is provided for numbers, it controls decimal places
- * - Format string pattern: "#" represents digits, "." represents decimal point
- * - Non-numeric values are converted using standard string conversion
+ * (checked 30/09/2026, see partb-check/doc/README.md):
+ * - without format, numbers show up to 10 decimals ("0.3333333333"); 1e21 and more use "1E21"
+ * - patterns round half away from zero on the shortest decimal form: 1.005 with "#.##" gives "1.01"
+ * - "#" is an optional digit ("1.5" with "#.##"), "0" a required digit ("1.50" with "0.00"),
+ *   "," groups thousands, "%" multiplies by 100, 'text' is literal text
+ * - `format.percent` shows 2 decimals and "%" without multiplying; `format.volume` uses K, M, B, T
+ * - `format.price` and `format.inherit` give "price1" / "inherit1" on PineScript: they are patterns
+ *   without digit characters, and oakscriptjs does the same
+ * - `format.mintick` needs the symbol's tick size and throws here
  *
  * @example
  * ```typescript
- * str.tostring(123) // Returns: "123"
- * str.tostring(123.456, "#.##") // Returns: "123.46"
- * str.tostring(true) // Returns: "true"
+ * str.tostring(123) // "123"
+ * str.tostring(1.5, "#.##") // "1.5"
+ * str.tostring(0.5, "#.00") // ".50"
+ * str.tostring(12345.678, format.volume) // "12.346K"
  * ```
  *
  */
 export function tostring(value: any, format?: simple_string): string {
-  if (typeof value === 'number' && format) {
-    // Handle format string (e.g., "#.##")
-    const decimals = format.split('.')[1]?.length || 0;
-    return value.toFixed(decimals);
+  if (typeof value !== 'number') return String(value);
+  if (!Number.isFinite(value)) return String(value); // NaN (na), Infinity
+  if (format === undefined || format === '') {
+    if (Math.abs(value) >= 1e21 && Number.isFinite(value)) {
+      return String(value).replace('e+', 'E').replace(/\.0+E/, 'E');
+    }
+    return formatNumber(value, '#.##########', 'halfUpShortest');
   }
-  return String(value);
+  switch (format) {
+    case 'percent':
+      return formatNumber(value, '0.00', 'halfUpShortest') + '%';
+    case 'volume': {
+      const abs = Math.abs(value);
+      for (const [size, unit] of [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']] as const) {
+        if (abs >= size) return formatNumber(value / size, '#.###', 'halfUpShortest') + unit;
+      }
+      return formatNumber(value, '#', 'halfUpShortest');
+    }
+    case 'mintick':
+      throw new Error('str.tostring(x, format.mintick) needs the symbol tick size (syminfo.mintick), which is not known here');
+    default:
+      return formatNumber(value, format, 'halfUpShortest');
+  }
 }
 
 /**
@@ -291,33 +319,27 @@ export function concat(...strings: simple_string[]): string {
 }
 
 /**
- * Formats a string by replacing numbered placeholders with values.
+ * Formats a string with placeholders (PineScript `str.format`, Java MessageFormat syntax).
  *
- * @param formatStr - The format string with placeholders like {0}, {1}, etc.
- * @param args - Values to substitute into placeholders
- * @returns The formatted string
+ * @param formatStr - Pattern with `{0}`, `{1,number,#.##}`, `{0,number,percent}`, `{0,date,yyyy-MM-dd}`...
+ * @param args - Values for the placeholders
+ * @returns Formatted string
  *
  * @remarks
- * - Placeholders use 0-based indexing: {0}, {1}, {2}, etc.
- * - Unreplaced placeholders remain in the string
- * - Values are converted to strings automatically
- * - Placeholders can be repeated
+ * (checked 30/09/2026, see partb-check/doc/README.md): numbers in `{n}` use
+ * "#,##0.###" (1234.5678 gives "1,234.568"); number patterns round half to even on the exact
+ * value; `'...'` is literal text and `''` a quote; a missing argument leaves `{n}` in the text.
+ * Dates are formatted in UTC here; uses the exchange time zone.
  *
  * @example
  * ```typescript
- * str.format("Hello {0}", "world") // Returns: "Hello world"
- * str.format("{0} + {1} = {2}", "1", "2", "3") // Returns: "1 + 2 = 3"
- * str.format("{1} {0}", "world", "Hello") // Returns: "Hello world"
- * str.format("{0} {0}", "test") // Returns: "test test"
+ * str.format('Close: {0,number,#.##}', 101.456) // "Close: 101.46"
+ * str.format('{0} and {1}', 'a', 2) // "a and 2"
  * ```
  *
  */
 export function format(formatStr: simple_string, ...args: any[]): string {
-  let result = formatStr;
-  args.forEach((arg, index) => {
-    result = result.replaceAll(`{${index}}`, String(arg));
-  });
-  return result;
+  return formatMessage(formatStr, args, 'Etc/UTC');
 }
 
 /**
@@ -539,78 +561,20 @@ export function repeat(source: simple_string, count: simple_int, separator: simp
   return Array(count).fill(source).join(separator);
 }
 
-export function format_time(time: simple_int, format: simple_string): string {
-  const date = new Date(time);
-
-  // Month names
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                     'July', 'August', 'September', 'October', 'November', 'December'];
-  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  // Get date components
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
-  const day = date.getUTCDate();
-  const hours = date.getUTCHours();
-  const minutes = date.getUTCMinutes();
-  const seconds = date.getUTCSeconds();
-
-  // Helper to pad with zeros
-  const pad = (num: number, len: number = 2): string => num.toString().padStart(len, '0');
-
-  // 12-hour format
-  const hours12 = hours % 12 || 12;
-  const ampm = hours < 12 ? 'AM' : 'PM';
-
-  // Replace format specifiers
-  // IMPORTANT: Must process longer patterns first to avoid partial replacements
-  // Use unique placeholders that won't conflict with format strings
-  const replacements = [
-    // Year (process yyyy before yy)
-    [/yyyy/g, year.toString()],
-    [/yy/g, year.toString().slice(-2)],
-    // Month (process MMMM before MMM before MM before M)
-    [/MMMM/g, monthNames[month]],
-    [/MMM/g, monthNamesShort[month]],
-    [/MM/g, pad(month + 1)],
-    [/M/g, (month + 1).toString()],
-    // Day (process dd before d)
-    [/dd/g, pad(day)],
-    [/d/g, day.toString()],
-    // Hours 24-hour (process HH before H)
-    [/HH/g, pad(hours)],
-    [/H/g, hours.toString()],
-    // Hours 12-hour (process hh before h)
-    [/hh/g, pad(hours12)],
-    [/h/g, hours12.toString()],
-    // Minutes (process mm before m)
-    [/mm/g, pad(minutes)],
-    [/m/g, minutes.toString()],
-    // Seconds (process ss before s)
-    [/ss/g, pad(seconds)],
-    [/s/g, seconds.toString()],
-    // AM/PM
-    [/a/g, ampm]
-  ];
-
-  // Apply all replacements in order, using safe approach
-  // Create unique placeholder tokens that won't appear in user format strings
-  let result = format;
-  const tokens: string[] = [];
-
-  // First pass: replace all patterns with unique tokens
-  replacements.forEach(([pattern, value], index) => {
-    const token = `\uFFF0${index}\uFFF1`; // Use private use area characters
-    result = result.replace(pattern as RegExp, token);
-    tokens[index] = value as string;
-  });
-
-  // Second pass: replace tokens with actual values
-  tokens.forEach((value, index) => {
-    const token = `\uFFF0${index}\uFFF1`;
-    result = result.replaceAll(token, value);
-  });
-
-  return result;
+/**
+ * Formats a UNIX time (ms) with a date pattern (PineScript `str.format_time`).
+ *
+ * @param time - UNIX time in milliseconds
+ * @param format - Java SimpleDateFormat pattern, e.g. "yyyy-MM-dd HH:mm:ss", "dd MMM yyyy", "hh:mm a"
+ * @param timezone - UTC/GMT offset ("UTC-5") or IANA name ("America/New_York"). PineScript's default is
+ *   the exchange time zone, which is not known here: the default is UTC
+ * @returns Formatted date string
+ *
+ * @remarks
+ * Letters (checked on 30/09/2026, see partb-check/doc/README.md): y, M, d, E, u, D, w,
+ * H, k, K, h, a, m, s, S, Z, z; 'text' is literal text.
+ *
+ */
+export function format_time(time: simple_int, format: simple_string = "yyyy-MM-dd'T'HH:mm:ssZ", timezone: simple_string = 'Etc/UTC'): string {
+  return formatDate(time, format, timezone);
 }

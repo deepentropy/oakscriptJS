@@ -117,18 +117,18 @@ export function bb(source: Series, length: number, mult: number): [Series, Serie
   return [upperSeries, basisSeries, lowerSeries];
 }
 
-/**
- * Standard Deviation
- * @param source - Source series
- * @param length - Period length
- * @returns Series with standard deviation values
- */
-export function stdev(source: Series, length: number): Series {
-  const bars = source.bars as Bar[];
-  const sourceValues = source.toArray();
-  const result = taCore.stdev(sourceValues, length);
-  return Series.fromArray(bars, result);
-}
+    /**
+     * Standard deviation (PineScript ta.stdev; biased by default)
+     * @param source - Source series
+     * @param length - Period length
+     * @param biased - true (default): divide by length; false: by length - 1
+     * @returns Series with standard deviation values
+     */
+    export function stdev(source: Series, length: number, biased: boolean = true): Series {
+      const bars = source.bars as Bar[];
+      return Series.fromArray(bars, taCore.stdev(source.toArray(), length, biased));
+    }
+    
 
 /**
  * Average True Range
@@ -156,6 +156,61 @@ export function tr(bars: Bar[], handle_na: boolean = false): Series {
   const close = bars.map(b => b.close);
   const result = taCore.tr(handle_na, high, low, close);
   return Series.fromArray(bars, result);
+}
+
+// Volume built-in variables. PineScript exposes them as variables of the chart bars
+// (`ta.obv`); here they take the bars.
+
+const col = (bars: Bar[], f: 'open' | 'high' | 'low' | 'close' | 'volume'): number[] =>
+  bars.map((b) => b[f] ?? NaN);
+
+/** On Balance Volume (PineScript `ta.obv`) */
+export function obv(bars: Bar[]): Series {
+  return Series.fromArray(bars, taCore.obv(col(bars, 'close'), col(bars, 'volume')));
+}
+
+/** Price-Volume Trend (PineScript `ta.pvt`) */
+export function pvt(bars: Bar[]): Series {
+  return Series.fromArray(bars, taCore.pvt(col(bars, 'close'), col(bars, 'volume')));
+}
+
+/** Accumulation/Distribution index (PineScript `ta.accdist`) */
+export function accdist(bars: Bar[]): Series {
+  return Series.fromArray(
+    bars,
+    taCore.accdist(col(bars, 'high'), col(bars, 'low'), col(bars, 'close'), col(bars, 'volume'))
+  );
+}
+
+/** Negative Volume Index (PineScript `ta.nvi`) */
+export function nvi(bars: Bar[]): Series {
+  return Series.fromArray(bars, taCore.nvi(col(bars, 'close'), col(bars, 'volume')));
+}
+
+/** Positive Volume Index (PineScript `ta.pvi`) */
+export function pvi(bars: Bar[]): Series {
+  return Series.fromArray(bars, taCore.pvi(col(bars, 'close'), col(bars, 'volume')));
+}
+
+/** Intraday Intensity Index (PineScript `ta.iii`) */
+export function iii(bars: Bar[]): Series {
+  return Series.fromArray(
+    bars,
+    taCore.iii(col(bars, 'high'), col(bars, 'low'), col(bars, 'close'), col(bars, 'volume'))
+  );
+}
+
+/** Williams Accumulation/Distribution (PineScript `ta.wad`) */
+export function wad(bars: Bar[]): Series {
+  return Series.fromArray(bars, taCore.wad(col(bars, 'high'), col(bars, 'low'), col(bars, 'close')));
+}
+
+/** Williams Variable Accumulation/Distribution (PineScript `ta.wvad`) */
+export function wvad(bars: Bar[]): Series {
+  return Series.fromArray(
+    bars,
+    taCore.wvad(col(bars, 'open'), col(bars, 'high'), col(bars, 'low'), col(bars, 'close'), col(bars, 'volume'))
+  );
 }
 
 /**
@@ -358,19 +413,28 @@ export function supertrend(bars: Bar[], factor: number, atrLength: number): [Ser
   return [trendSeries, dirSeries];
 }
 
-/**
- * Volume Weighted Average Price
- * @param source - Source series (typically close or hlc3)
- * @param volume - Volume series
- * @returns Series with VWAP values
- */
-export function vwap(source: Series, volume: Series): Series {
-  const bars = source.bars as Bar[];
-  const sourceValues = source.toArray();
-  const volumeValues = volume.toArray();
-  const result = taCore.vwap(sourceValues, volumeValues);
-  return Series.fromArray(bars, result);
-}
+    /**
+     * Volume Weighted Average Price (PineScript ta.vwap)
+     * @param source - Source series
+     * @param volume - Volume series
+     * @param anchor - Reset condition (non-zero = reset); without it the sums never restart
+     * @returns Series with VWAP values
+     */
+    export function vwap(source: Series, volume: Series, anchor?: Series): Series {
+      const bars = source.bars as Bar[];
+      return Series.fromArray(bars, taCore.vwap(source.toArray(), volume.toArray(), anchor?.toArray()));
+    }
+
+    /**
+     * VWAP with standard deviation bands (PineScript `[vwap, upper, lower] = ta.vwap(source, anchor, stdev_mult)`)
+     * @returns [vwap, upper, lower] Series
+     */
+    export function vwapBands(source: Series, volume: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series] {
+      const bars = source.bars as Bar[];
+      const [m, u, l] = taCore.vwap(source.toArray(), volume.toArray(), anchor?.toArray(), stdev_mult);
+      return [Series.fromArray(bars, m), Series.fromArray(bars, u), Series.fromArray(bars, l)];
+    }
+    
 
 /**
  * Ichimoku Kinko Hyo (Ichimoku Cloud)
@@ -620,7 +684,8 @@ export function hma(source: Series, length: number): Series {
  * @param source - Source series
  * @param leftbars - Number of bars to the left of the pivot
  * @param rightbars - Number of bars to the right of the pivot
- * @returns Series with pivot high values (NaN where no pivot)
+ * @returns Series with the pivot high value on the bar where the pivot is confirmed,
+ *   `rightbars` bars after the pivot bar (as in PineScript), NaN elsewhere
  */
 export function pivothigh(source: Series, leftbars: number, rightbars: number): Series {
   const bars = source.bars as Bar[];
@@ -633,7 +698,8 @@ export function pivothigh(source: Series, leftbars: number, rightbars: number): 
  * @param source - Source series
  * @param leftbars - Number of bars to the left of the pivot
  * @param rightbars - Number of bars to the right of the pivot
- * @returns Series with pivot low values (NaN where no pivot)
+ * @returns Series with the pivot low value on the bar where the pivot is confirmed,
+ *   `rightbars` bars after the pivot bar (as in PineScript), NaN elsewhere
  */
 export function pivotlow(source: Series, leftbars: number, rightbars: number): Series {
   const bars = source.bars as Bar[];
@@ -776,17 +842,17 @@ export function kcw(bars: Bar[], source: Series, length: number = 20, mult: numb
   return Series.fromArray(bars, result);
 }
 
-/**
- * Range (high - low)
- * @param high - High series
- * @param low - Low series
- * @returns Series with range values
- */
-export function range(high: Series, low: Series): Series {
-  const bars = high.bars as Bar[];
-  const result = taCore.range(high.toArray(), low.toArray());
-  return Series.fromArray(bars, result);
-}
+    /**
+     * Range: highest minus lowest value over the last `length` non-na values (PineScript ta.range)
+     * @param source - Source series
+     * @param length - Number of values
+     * @returns Series with range values
+     */
+    export function range(source: Series, length: number): Series {
+      const bars = source.bars as Bar[];
+      return Series.fromArray(bars, taCore.range(source.toArray(), length));
+    }
+    
 
 /**
  * Highest Bars - offset to the highest value
@@ -812,29 +878,27 @@ export function lowestbars(source: Series, length: number): Series {
   return Series.fromArray(bars, result);
 }
 
-/**
- * Element-wise maximum
- * @param source1 - First series
- * @param source2 - Second series
- * @returns Series with max of each pair
- */
-export function max(source1: Series, source2: Series): Series {
-  const bars = source1.bars as Bar[];
-  const result = taCore.max(source1.toArray(), source2.toArray());
-  return Series.fromArray(bars, result);
-}
+    /**
+     * All-time highest value (PineScript ta.max)
+     * @param source - Source series
+     * @returns Series with the highest value up to each bar
+     */
+    export function max(source: Series): Series {
+      const bars = source.bars as Bar[];
+      return Series.fromArray(bars, taCore.max(source.toArray()));
+    }
+    
 
-/**
- * Element-wise minimum
- * @param source1 - First series
- * @param source2 - Second series
- * @returns Series with min of each pair
- */
-export function min(source1: Series, source2: Series): Series {
-  const bars = source1.bars as Bar[];
-  const result = taCore.min(source1.toArray(), source2.toArray());
-  return Series.fromArray(bars, result);
-}
+    /**
+     * All-time lowest value (PineScript ta.min)
+     * @param source - Source series
+     * @returns Series with the lowest value up to each bar
+     */
+    export function min(source: Series): Series {
+      const bars = source.bars as Bar[];
+      return Series.fromArray(bars, taCore.min(source.toArray()));
+    }
+    
 
 /**
  * Center of Gravity
@@ -955,6 +1019,15 @@ export const ta = {
   lowestbars,
   max,
   min,
+  vwapBands,
+  obv,
+  pvt,
+  accdist,
+  nvi,
+  pvi,
+  iii,
+  wad,
+  wvad,
   cog,
   mode,
   percentile_linear_interpolation,

@@ -68,8 +68,12 @@ export class SimpleInputAdapter implements InputAdapter {
       }
     }
 
-    // Validate string inputs with options
-    if (config.type === 'string' && config.options && typeof value === 'string') {
+    // Validate string, timeframe and session inputs with options
+    if (
+      (config.type === 'string' || config.type === 'timeframe' || config.type === 'session') &&
+      config.options &&
+      typeof value === 'string'
+    ) {
       if (!config.options.includes(value)) {
         // Keep current value if invalid option
         return;

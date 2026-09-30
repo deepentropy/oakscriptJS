@@ -6,6 +6,7 @@
 import type { series_float, int, float, Source, Bar, OHLC } from '../types';
 import { sma, ema, wma, rma } from '../ta';
 import { Series } from '../runtime/series';
+import { isDeleted } from '../drawing/registry';
 
 /**
  * Validates that a series has sufficient data for a given length
@@ -24,10 +25,11 @@ export function createNaNSeries(length: int): series_float {
 }
 
 /**
- * Checks if a value is NaN or null
+ * Checks if a value is `na`: NaN, null, undefined, or a deleted drawing object
+ * (as in PineScript, `na(l)` is true after `line.delete(l)`).
  */
 export function isNA(value: any): boolean {
-  return value === null || value === undefined || Number.isNaN(value);
+  return value === null || value === undefined || Number.isNaN(value) || isDeleted(value);
 }
 
 /**
@@ -35,6 +37,25 @@ export function isNA(value: any): boolean {
  */
 export function nz(value: any, defaultValue: any = 0): any {
   return isNA(value) ? defaultValue : value;
+}
+
+/**
+ * PineScript `fixnan(source)`: replaces each `na` value (NaN, null or undefined) with the
+ * previous non-`na` value. Values before the first non-`na` value stay `na`.
+ * Works for numeric series and for color series (arrays of color strings with `undefined` for `na`).
+ *
+ */
+export function fixnan<T>(source: T[]): T[] {
+  let last: T | undefined;
+  let seen = false;
+  return source.map((v) => {
+    if (!isNA(v)) {
+      last = v;
+      seen = true;
+      return v;
+    }
+    return seen ? (last as T) : v;
+  });
 }
 
 /**

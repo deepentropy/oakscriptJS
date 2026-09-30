@@ -34,16 +34,16 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **array** | 55 | 54 (+1 custom) | 1 | 98.2% |
 | **matrix** | 50 | 50 (+1 custom) | 0 | 100% |
 | **str** | 18 | 18 (+4 custom) | 0 | 100% |
-| **time + timeframe** | 5 | 1 (+2 custom) | 4 | 20% |
+| **time + timeframe** | 5 | 3 (+2 custom) | 2 | 60% |
 | **color** | 7 | 7 (+1 custom) | 0 | 100% |
-| **line** | 21 | 19 | 2 | 90.5% |
-| **box** | 29 | 27 | 2 | 93.1% |
-| **label** | 21 | 19 | 2 | 90.5% |
+| **line** | 21 | 21 | 0 | 100% |
+| **box** | 29 | 28 | 1 | 96.6% |
+| **label** | 21 | 21 | 0 | 100% |
 | **linefill** | 5 | 5 | 0 | 100% |
-| **chartPoint** | 5 | 4 | 1 | 80% |
+| **chartPoint** | 5 | 5 | 0 | 100% |
 | **polyline** | 2 | 2 (+1 custom) | 0 | 100% |
-| **map** | 11 | 0 | 11 | 0% |
-| **TOTAL** | **312** | **289** | **23** | **92.6%** |
+| **map** | 11 | 11 | 0 | 100% |
+| **TOTAL** | **312** | **308** | **4** | **98.7%** |
 
 ### Out-of-Scope Namespaces (Platform/Rendering/Data)
 
@@ -53,7 +53,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 |-----------|-------------------|--------|
 | **strategy** | 47 | Trading execution engine |
 | **table** | 22 | Rendering-only (no getters) |
-| **input** | 13 | UI/platform interaction — 6 provided by the script API (`input.int/float/bool/string/color/source`) |
+| **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
 | **request** | 10 | External data fetching |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
@@ -128,6 +128,13 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 59. `wma()` - Weighted Moving Average
 60. `wpr()` - Williams %R
 61. `zigzag()` - ZigZag indicator (custom, not in official PineScript v6)
+
+### Built-in variables
+
+`ta.obv`, `ta.pvt`, `ta.accdist`, `ta.nvi`, `ta.pvi`, `ta.iii`, `ta.wad`, `ta.wvad`: context-bound Series in
+the script API (`ta.obv`), functions of the bars in `ta` (`ta.obv(bars)`) and of the columns in `taCore`
+(`taCore.obv(close, volume)`). `ta.tr` is a function (`ta.tr(handle_na)`). `fixnan()` is a top-level function.
+All were results: see `volume-check/doc/README.md`.
 
 ### Not Implemented (0 official functions)
 
@@ -347,18 +354,28 @@ All 18 official str functions are implemented.
 
 ## time + timeframe (Time Operations)
 
-### Implemented (1 official + 2 custom = 3 functions)
+All calendar functions take an explicit `timezone`: UTC/GMT offset notation (`"UTC-5"`, `"GMT+0530"`)
+or an IANA name (`"America/New_York"`). The PineScript default (exchange time zone) is not available.
 
-1. `time()` - Convert time components to timestamp (basic implementation)
-2. `timestamp()` - Custom addition for convenience
-3. `now()` - Custom addition for convenience
+### Implemented
 
-### Not Implemented (4 functions)
+1. `timestamp(dateString)` - RFC 2822 / ISO 8601 date string, GMT+0 when no time zone is given
+2. `timestamp(timezone, year, month, day, hour?, minute?, second?)` - calendar fields in a time zone
+3. `timestamp(year, month, day, hour?, minute?, second?)` - calendar fields in the host time zone (PineScript: exchange time zone)
+4. `year()`, `month()`, `dayofmonth()`, `dayofweek()`, `weekofyear()`, `hour()`, `minute()`, `second()` - `(time, timezone)`
+5. `timeframe.in_seconds(timeframe)` - timeframe string to seconds (1M = 2,628,003 s)
+6. `timeframe.from_seconds(seconds)` - seconds to timeframe string
+7. `inSession(time, session, timezone)` - custom: the session test of `time(timeframe, session, timezone)`
+8. `now()` - custom addition for convenience
 
-1. `time_close()` - Returns UNIX time of the current bar's close for a given timeframe/session
+`weekofyear()` uses ISO 8601 weeks (Monday start, week 1 contains the first Thursday). The PineScript
+reference does not define the rule. All functions of this section were
+results: see `calendar-check/doc/README.md`.
+
+### Not Implemented
+
+1. `time()` / `time_close()` - bar open/close time for a timeframe and session (needs the chart timeframe and symbol session)
 2. `timeframe.change()` - Detects changes in a specified timeframe (returns bool on first bar of new timeframe)
-3. `timeframe.from_seconds()` - Converts a number of seconds into a valid timeframe string
-4. `timeframe.in_seconds()` - Converts a timeframe string into seconds
 
 ---
 
@@ -385,7 +402,7 @@ All 7 official color functions are implemented.
 
 ## line (Line Drawing Objects)
 
-### Implemented (19 functions)
+### Implemented (21 official + `all()`)
 
 **Core Functions:**
 1. `new()` - Create new line with coordinates
@@ -409,17 +426,21 @@ All 7 official color functions are implemented.
 17. `set_color()` - Set line color
 18. `set_style()` - Set line style
 19. `set_width()` - Set line width
+20. `set_first_point()` - Set first point via chart.point object
+21. `set_second_point()` - Set second point via chart.point object
+22. `all()` - Live lines in creation order (PineScript `line.all`)
 
-### Not Implemented (2 functions)
+All drawing namespaces keep a registry of live objects (`all()`; `line.all` in the script API):
+creation order, a working `delete`, and automatic deletion of the oldest objects above `max_*_count + 5`,
+as on PineScript. See `drawing-check/doc/README.md`.
 
-1. `set_first_point()` - Set first point via chart.point object
-2. `set_second_point()` - Set second point via chart.point object
+### Not Implemented (0 functions)
 
 ---
 
 ## box (Box Drawing Objects)
 
-### Implemented (27 functions)
+### Implemented (28 official + `all()`)
 
 **Core Functions:**
 1. `new()` - Create new box with coordinates
@@ -455,17 +476,19 @@ All 7 official color functions are implemented.
 25. `set_text_valign()` - Set vertical alignment
 26. `set_text_wrap()` - Set text wrapping
 27. `set_text_font_family()` - Set text font
+28. `set_text_formatting()` - Set text formatting (`text.format_bold`, `text.format_italic`)
+29. `set_top_left_point()` / `set_bottom_right_point()` - Set corners via chart.point objects
+30. `all()` - Live boxes in creation order (PineScript `box.all`)
 
-### Not Implemented (2 functions)
+### Not Implemented (1 function)
 
-1. `set_text_formatting()` - Set text formatting (bold/italic via `text.format_bold`, `text.format_italic`)
-2. `set_xloc()` - Set x-location mode and update left/right borders
+1. `set_xloc()` - Set x-location mode and update left/right borders
 
 ---
 
 ## label (Label Drawing Objects)
 
-### Implemented (19 functions)
+### Implemented (21 official + `all()`)
 
 **Core Functions:**
 1. `new()` - Create new label
@@ -493,11 +516,11 @@ All 7 official color functions are implemented.
 17. `set_size()` - Set label size
 18. `set_textalign()` - Set text alignment
 19. `set_text_font_family()` - Set text font
+20. `set_point()` - Set label position via chart.point object
+21. `set_text_formatting()` - Set text formatting (`text.format_bold`, `text.format_italic`)
+22. `all()` - Live labels in creation order (PineScript `label.all`)
 
-### Not Implemented (2 functions)
-
-1. `set_point()` - Set label position via chart.point object
-2. `set_text_formatting()` - Set text formatting (bold/italic via `text.format_bold`, `text.format_italic`)
+### Not Implemented (0 functions)
 
 ---
 
@@ -509,7 +532,8 @@ All 7 official color functions are implemented.
 2. `get_line1()` - Get first line reference
 3. `get_line2()` - Get second line reference
 4. `set_color()` - Set fill color
-5. `delete()` - Delete linefill (no-op in JS)
+5. `delete()` - Delete linefill
+6. `all()` - Live linefills in creation order (PineScript `linefill.all`); a linefill is also deleted by `line.delete` of one of its lines
 
 ### Not Implemented (0 functions)
 
@@ -519,16 +543,15 @@ All 5 official linefill functions are implemented.
 
 ## chartPoint (Chart Point Objects)
 
-### Implemented (4 functions)
+### Implemented (5 functions)
 
 1. `new()` - Create a new chart point with time, index, and price coordinates
 2. `from_time()` - Create a chart point from timestamp and price
 3. `from_index()` - Create a chart point from bar index and price
 4. `copy()` - Create a copy of a chart point
+5. `now()` - Chart point of the current bar (script API `chart.point.now(price?)`, inside `eachBar()`; price defaults to `close`)
 
-### Not Implemented (1 function)
-
-1. `now()` - Create a chart point at the current bar with `index` and `time` auto-filled (price defaults to `close`)
+### Not Implemented (0 functions)
 
 ---
 
@@ -539,6 +562,7 @@ All 5 official linefill functions are implemented.
 1. `new()` - Create a new polyline connecting multiple chart points
 2. `delete()` - Delete a polyline
 3. `get_all()` - Get all active polylines (custom addition, not in official API)
+4. `all()` - Live polylines in creation order (PineScript `polyline.all`)
 
 ### Not Implemented (0 official functions)
 
@@ -548,25 +572,26 @@ All 2 official polyline functions are implemented.
 
 ---
 
-## map (Map/Dictionary Operations) -- NEW
+## map (Map/Dictionary Operations)
 
-### Implemented (0 functions)
+### Implemented (11 functions)
 
-No map functions are implemented yet.
+1. `new_map()` - Create a new map (PineScript `map.new<keyType, valueType>()`)
+2. `put()` - Add or update a key-value pair; returns the previous value or `undefined` (`na`)
+3. `put_all()` - Add all key-value pairs from another map
+4. `get()` - Get value by key (`undefined` when missing)
+5. `contains()` - Check if map contains a key
+6. `remove()` - Remove a key-value pair; returns the removed value or `undefined`
+7. `size()` - Get number of entries
+8. `clear()` - Remove all key-value pairs
+9. `keys()` - Get array of all keys (insertion order)
+10. `values()` - Get array of all values (insertion order)
+11. `copy()` - Create a shallow copy
 
-### Not Implemented (11 functions)
+A map is a JS `Map`. Insertion order, exact key equality, the return values and the 50,000-pair limit
+were: see `map-check/doc/README.md`.
 
-1. `clear()` - Remove all key-value pairs
-2. `contains()` - Check if map contains a key
-3. `copy()` - Create a shallow copy
-4. `get()` - Get value by key
-5. `keys()` - Get array of all keys
-6. `new()` (newtypetype) - Create a new map with specified key/value types
-7. `put()` - Add or update a key-value pair
-8. `put_all()` - Add all key-value pairs from another map
-9. `remove()` - Remove a key-value pair
-10. `size()` - Get number of entries
-11. `values()` - Get array of all values
+### Not Implemented (0 functions)
 
 **Note:** Maps are a core data structure in PineScript v6, useful for key-value lookups in computational contexts (e.g., symbol-to-weight mappings, level tracking).
 
@@ -584,6 +609,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 |----------|--------|-------|
 | `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
 | `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
+| `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
 | `plot()` | Implemented | static or per-bar color, style, linewidth, histbase, offset |
 | `hline()` | Implemented | static level, color, linestyle, linewidth |
 | `fill()` | Implemented | plot-to-plot or hline-to-hline |
@@ -615,28 +641,28 @@ The script entry provides the PineScript-style authoring surface. These are not
 | ~~2~~ | ~~str~~ | ~~`repeat()`~~ | ~~Implemented~~ |
 | 3 | time | `time_close()` | Bar close time for timeframe/session |
 | 4 | timeframe | `change()` | Detect timeframe boundary changes |
-| 5 | timeframe | `from_seconds()` | Seconds to timeframe string |
-| 6 | timeframe | `in_seconds()` | Timeframe string to seconds |
-| 7 | line | `set_first_point()` | Set first point via chart.point |
-| 8 | line | `set_second_point()` | Set second point via chart.point |
-| 9 | box | `set_text_formatting()` | Bold/italic text formatting |
+| ~~5~~ | ~~timeframe~~ | ~~`from_seconds()`~~ | ~~Implemented~~ |
+| ~~6~~ | ~~timeframe~~ | ~~`in_seconds()`~~ | ~~Implemented~~ |
+| ~~7~~ | ~~line~~ | ~~`set_first_point()`~~ | ~~Implemented~~ |
+| ~~8~~ | ~~line~~ | ~~`set_second_point()`~~ | ~~Implemented~~ |
+| ~~9~~ | ~~box~~ | ~~`set_text_formatting()`~~ | ~~Implemented~~ |
 | 10 | box | `set_xloc()` | Set x-location mode with borders |
-| 11 | label | `set_point()` | Set position via chart.point |
-| 12 | label | `set_text_formatting()` | Bold/italic text formatting |
-| 13 | chartPoint | `now()` | Chart point at current bar |
-| 14 | map | `clear()` | Clear all entries |
-| 15 | map | `contains()` | Check key existence |
-| 16 | map | `copy()` | Shallow copy |
-| 17 | map | `get()` | Get value by key |
-| 18 | map | `keys()` | Get all keys |
-| 19 | map | `new()` | Create typed map |
-| 20 | map | `put()` | Set key-value |
-| 21 | map | `put_all()` | Merge maps |
-| 22 | map | `remove()` | Remove entry |
-| 23 | map | `size()` | Entry count |
-| 24 | map | `values()` | Get all values |
+| ~~11~~ | ~~label~~ | ~~`set_point()`~~ | ~~Implemented~~ |
+| ~~12~~ | ~~label~~ | ~~`set_text_formatting()`~~ | ~~Implemented~~ |
+| ~~13~~ | ~~chartPoint~~ | ~~`now()`~~ | ~~Implemented~~ |
+| ~~14~~ | ~~map~~ | ~~`clear()`~~ | ~~Implemented~~ |
+| ~~15~~ | ~~map~~ | ~~`contains()`~~ | ~~Implemented~~ |
+| ~~16~~ | ~~map~~ | ~~`copy()`~~ | ~~Implemented~~ |
+| ~~17~~ | ~~map~~ | ~~`get()`~~ | ~~Implemented~~ |
+| ~~18~~ | ~~map~~ | ~~`keys()`~~ | ~~Implemented~~ |
+| ~~19~~ | ~~map~~ | ~~`new()`~~ | ~~Implemented~~ |
+| ~~20~~ | ~~map~~ | ~~`put()`~~ | ~~Implemented~~ |
+| ~~21~~ | ~~map~~ | ~~`put_all()`~~ | ~~Implemented~~ |
+| ~~22~~ | ~~map~~ | ~~`remove()`~~ | ~~Implemented~~ |
+| ~~23~~ | ~~map~~ | ~~`size()`~~ | ~~Implemented~~ |
+| ~~24~~ | ~~map~~ | ~~`values()`~~ | ~~Implemented~~ |
 
-**Total: 23 official functions not yet implemented across in-scope namespaces.**
+**Total: 4 official functions not yet implemented across in-scope namespaces.**
 
 ---
 
@@ -656,7 +682,7 @@ These functions are implemented in OakScriptJS but do not exist in the official 
 | color | `from_hex()` | Create color from hex string |
 | matrix | `new_matrix()` | Generic matrix constructor |
 | polyline | `get_all()` | Get all active polylines |
-| time | `timestamp()` | Convenience timestamp helper |
+| time | `inSession()` | Session test of `time(timeframe, session, timezone)` |
 | time | `now()` | Current time helper |
 
 ---

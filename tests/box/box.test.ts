@@ -1,4 +1,5 @@
 import * as box from '../../src/box';
+import * as chartPoint from '../../src/chartpoint';
 
 describe('Box Functions', () => {
   describe('box.new', () => {
@@ -16,14 +17,15 @@ describe('Box Functions', () => {
     });
 
     it('should create a box with custom xloc and extend', () => {
-      const b = box.new(10, 105, 20, 100, 'bar_index', 'right');
+      // PineScript order: border_color, border_width, border_style, extend, xloc
+      const b = box.new(10, 105, 20, 100, undefined, undefined, undefined, 'right', 'bar_index');
 
       expect(b.xloc).toBe('bar_index');
       expect(b.extend).toBe('right');
     });
 
     it('should create a box with border styling', () => {
-      const b = box.new(10, 105, 20, 100, 'bar_index', 'none', '#FF0000', 2, 'dashed');
+      const b = box.new(10, 105, 20, 100, '#FF0000', 2, 'dashed');
 
       expect(b.border_color).toBe('#FF0000');
       expect(b.border_width).toBe(2);
@@ -31,7 +33,7 @@ describe('Box Functions', () => {
     });
 
     it('should create a box with background color', () => {
-      const b = box.new(10, 105, 20, 100, 'bar_index', 'none', undefined, undefined, undefined, '#00FF00');
+      const b = box.new(10, 105, 20, 100, undefined, undefined, undefined, 'none', 'bar_index', '#00FF00');
 
       expect(b.bgcolor).toBe('#00FF00');
     });
@@ -39,8 +41,7 @@ describe('Box Functions', () => {
     it('should create a box with text content', () => {
       const b = box.new(
         10, 105, 20, 100,
-        'bar_index', 'none',
-        undefined, undefined, undefined, undefined,
+        undefined, undefined, undefined, 'none', 'bar_index', undefined,
         'Gap', 'auto', '#000000', 'center', 'center'
       );
 
@@ -49,6 +50,20 @@ describe('Box Functions', () => {
       expect(b.text_color).toBe('#000000');
       expect(b.text_halign).toBe('center');
       expect(b.text_valign).toBe('center');
+    });
+
+    it('should create a box from two chart points (PineScript box.new(top_left, bottom_right))', () => {
+      const b = box.new(chartPoint.from_index(10, 105), chartPoint.from_index(20, 100), '#FF0000');
+      expect([b.left, b.top, b.right, b.bottom, b.border_color]).toEqual([10, 105, 20, 100, '#FF0000']);
+      const t = box.new(chartPoint.from_time(1000, 105), chartPoint.from_time(2000, 100),
+        undefined, undefined, undefined, undefined, 'bar_time');
+      expect([t.left, t.right]).toEqual([1000, 2000]);
+    });
+
+    it('should store force_overlay and text_formatting', () => {
+      const b = box.new(10, 105, 20, 100, undefined, undefined, undefined, undefined, undefined, undefined,
+        'x', undefined, undefined, undefined, undefined, undefined, undefined, true, 3);
+      expect([b.force_overlay, b.text_formatting]).toEqual([true, 3]);
     });
   });
 

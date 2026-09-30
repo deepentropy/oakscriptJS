@@ -159,6 +159,14 @@ describe('ta.cum', () => {
     expect(cumSum[1]).toBe(4.0);
     expect(cumSum[2]).toBe(7.0);
   });
+
+  it('skips na values like PineScript: na on that bar, the sum continues', () => {
+    const cumSum = ta.cum([NaN, 1, NaN, 1, 1]);
+    expect(cumSum[0]).toBeNaN();
+    expect(cumSum[1]).toBe(1);
+    expect(cumSum[2]).toBeNaN();
+    expect(cumSum.slice(3)).toEqual([2, 3]);
+  });
 });
 
 describe('ta.cross', () => {

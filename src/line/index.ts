@@ -10,31 +10,26 @@
  * @version 6
  */
 
-import type { Line, color } from '../types';
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
+import type { ChartPoint, Line, color } from '../types';
+
+type LineXloc = 'bar_index' | 'bar_time';
+type LineExtend = 'none' | 'left' | 'right' | 'both';
+type LineStyle = 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
 
 /**
- * Creates a new line object.
+ * Creates a new line (PineScript `line.new`), with two chart points or with coordinates:
  *
- * @param x1 - First point's bar index or UNIX timestamp
- * @param y1 - First point's price level
- * @param x2 - Second point's bar index or UNIX timestamp
- * @param y2 - Second point's price level
- * @param xloc - X-axis coordinate system (default: 'bar_index')
- * @param extend - Extension mode (default: 'none')
- * @param color - Line color (optional)
- * @param style - Line style (optional, default: 'solid')
- * @param width - Line width in pixels (optional, default: 1)
- * @returns New line object
+ * - `line.new(first_point, second_point, xloc?, extend?, color?, style?, width?, force_overlay?)`
+ * - `line.new(x1, y1, x2, y2, xloc?, extend?, color?, style?, width?, force_overlay?)`
  *
- * @remarks
- * - Coordinates can be bar indices or UNIX timestamps depending on xloc
- * - Extension modes: 'none', 'left', 'right', 'both'
- * - Styling properties are stored but not used for computational functions
+ * With chart points, x is `point.index` for `bar_index` lines and `point.time` for `bar_time` lines.
  *
  * @example
  * ```typescript
  * // Create a trend line from bar 0 (price 100) to bar 50 (price 150)
  * const trendLine = line.new(0, 100, 50, 150, 'bar_index', 'right');
+ * const fromPoints = line.new(chartPoint.from_index(0, 100), chartPoint.from_index(50, 150));
  *
  * // Calculate price at bar 75 (extrapolated)
  * const price = line.get_price(trendLine, 75); // Returns 175
@@ -42,27 +37,52 @@ import type { Line, color } from '../types';
  *
  */
 export function new_line(
+  first_point: ChartPoint,
+  second_point: ChartPoint,
+  xloc?: LineXloc,
+  extend?: LineExtend,
+  lineColor?: color,
+  style?: LineStyle,
+  width?: number,
+  force_overlay?: boolean
+): Line;
+export function new_line(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  xloc: 'bar_index' | 'bar_time' = 'bar_index',
-  extend: 'none' | 'left' | 'right' | 'both' = 'none',
+  xloc?: LineXloc,
+  extend?: LineExtend,
   lineColor?: color,
-  style?: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both',
-  width?: number
-): Line {
-  return {
+  style?: LineStyle,
+  width?: number,
+  force_overlay?: boolean
+): Line;
+export function new_line(...args: unknown[]): Line {
+  let x1: number, y1: number, x2: number, y2: number, rest: unknown[];
+  if (typeof args[0] === 'object' && args[0] !== null) {
+    const [p1, p2, ...others] = args as [ChartPoint, ChartPoint, ...unknown[]];
+    const xloc = (others[0] as LineXloc | undefined) ?? 'bar_index';
+    [x1, y1, x2, y2, rest] = [pointX(p1, xloc), p1.price, pointX(p2, xloc), p2.price, others];
+  } else {
+    [x1, y1, x2, y2] = args as [number, number, number, number];
+    rest = args.slice(4);
+  }
+  const [xloc, extend, lineColor, style, width, force_overlay] = rest as [
+    LineXloc?, LineExtend?, color?, LineStyle?, number?, boolean?,
+  ];
+  return register('line', {
     x1,
     y1,
     x2,
     y2,
-    xloc,
-    extend,
+    xloc: xloc ?? 'bar_index',
+    extend: extend ?? 'none',
     color: lineColor,
     style: style || 'solid',
-    width: width || 1
-  };
+    width: width || 1,
+    force_overlay: force_overlay ?? false,
+  });
 }
 
 /**
@@ -234,7 +254,7 @@ export function get_y2(id: Line): number {
  *
  */
 export function copy(id: Line): Line {
-  return { ...id };
+  return register('line', { ...id });
 }
 
 /**
@@ -252,6 +272,7 @@ export function copy(id: Line): Line {
  *
  */
 export function set_x1(id: Line, x: number): Line {
+  if (isDeleted(id)) return id;
   id.x1 = x;
   return id;
 }
@@ -271,6 +292,7 @@ export function set_x1(id: Line, x: number): Line {
  *
  */
 export function set_x2(id: Line, x: number): Line {
+  if (isDeleted(id)) return id;
   id.x2 = x;
   return id;
 }
@@ -290,6 +312,7 @@ export function set_x2(id: Line, x: number): Line {
  *
  */
 export function set_y1(id: Line, y: number): Line {
+  if (isDeleted(id)) return id;
   id.y1 = y;
   return id;
 }
@@ -309,6 +332,7 @@ export function set_y1(id: Line, y: number): Line {
  *
  */
 export function set_y2(id: Line, y: number): Line {
+  if (isDeleted(id)) return id;
   id.y2 = y;
   return id;
 }
@@ -329,6 +353,7 @@ export function set_y2(id: Line, y: number): Line {
  *
  */
 export function set_xy1(id: Line, x: number, y: number): Line {
+  if (isDeleted(id)) return id;
   id.x1 = x;
   id.y1 = y;
   return id;
@@ -350,6 +375,7 @@ export function set_xy1(id: Line, x: number, y: number): Line {
  *
  */
 export function set_xy2(id: Line, x: number, y: number): Line {
+  if (isDeleted(id)) return id;
   id.x2 = x;
   id.y2 = y;
   return id;
@@ -376,6 +402,7 @@ export function set_xy2(id: Line, x: number, y: number): Line {
  *
  */
 export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | 'bar_time'): Line {
+  if (isDeleted(id)) return id;
   id.x1 = x1;
   id.x2 = x2;
   id.xloc = xloc;
@@ -397,6 +424,7 @@ export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | '
  *
  */
 export function set_extend(id: Line, extend: 'none' | 'left' | 'right' | 'both'): Line {
+  if (isDeleted(id)) return id;
   id.extend = extend;
   return id;
 }
@@ -416,6 +444,7 @@ export function set_extend(id: Line, extend: 'none' | 'left' | 'right' | 'both')
  *
  */
 export function set_color(id: Line, lineColor: color): Line {
+  if (isDeleted(id)) return id;
   id.color = lineColor;
   return id;
 }
@@ -435,6 +464,7 @@ export function set_color(id: Line, lineColor: color): Line {
  *
  */
 export function set_style(id: Line, style: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both'): Line {
+  if (isDeleted(id)) return id;
   id.style = style;
   return id;
 }
@@ -454,6 +484,7 @@ export function set_style(id: Line, style: 'solid' | 'dotted' | 'dashed' | 'arro
  *
  */
 export function set_width(id: Line, width: number): Line {
+  if (isDeleted(id)) return id;
   id.width = width;
   return id;
 }
@@ -464,23 +495,58 @@ export function set_width(id: Line, width: number): Line {
  * @param id - Line object to delete
  *
  * @remarks
- * In this implementation, deletion is a no-op since we don't maintain a global line registry.
- * Users should simply stop referencing the line object to allow garbage collection.
- * This function exists for API compatibility with PineScript.
+ * Removes the line from `line.all()`. As in PineScript, the deleted line is `na`: its getters
+ * return NaN and its setters do nothing. Deleting it twice has no effect. Deleting a line also deletes the linefills that use it.
  *
  * @example
  * ```typescript
  * const line = line.new(0, 100, 50, 150);
  * line.delete(line);
- * // Line object can now be garbage collected if no other references exist
+ * // line.all() no longer contains it
  * ```
  *
  */
-export function delete_line(_id: Line): void {
-  // No-op in this implementation
-  // In PineScript, this removes the line from the chart
-  // In our calculation-only library, users manage object lifecycle
+export function delete_line(id: Line): void {
+  remove('line', id);
+}
+
+/** x coordinate of a chart point for an object's xloc (`na` when the point has no such coordinate). */
+function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
+  const x = xloc === 'bar_time' ? point.time : point.index;
+  return x ?? NaN;
+}
+
+/**
+ * All live lines, in creation order (PineScript `line.all`). A new array: later changes do not affect it.
+ *
+ */
+export function all(): Line[] {
+  return allDrawings('line');
+}
+
+/**
+ * Sets the first point of the line from a chart point: `point.index` for `bar_index` lines,
+ * `point.time` for `bar_time` lines (`na` when the point does not have it), and `point.price`.
+ *
+ */
+export function set_first_point(id: Line, point: ChartPoint): Line {
+  if (isDeleted(id)) return id;
+  id.x1 = pointX(point, id.xloc);
+  id.y1 = point.price;
+  return id;
+}
+
+/**
+ * Sets the second point of the line from a chart point (see {@link set_first_point}).
+ *
+ */
+export function set_second_point(id: Line, point: ChartPoint): Line {
+  if (isDeleted(id)) return id;
+  id.x2 = pointX(point, id.xloc);
+  id.y2 = point.price;
+  return id;
 }
 
 // Alias to match PineScript API
 export { new_line as new };
+export { delete_line as delete };

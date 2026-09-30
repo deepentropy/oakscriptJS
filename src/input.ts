@@ -9,7 +9,7 @@
  */
 export interface InputValue<T> {
   /** Input type identifier */
-  type: 'int' | 'float' | 'source' | 'bool' | 'string';
+  type: 'int' | 'float' | 'source' | 'bool' | 'string' | 'timeframe' | 'session' | 'time';
   /** Default value */
   defaultValue: T;
   /** Current value (initially equals defaultValue) */
@@ -22,7 +22,7 @@ export interface InputValue<T> {
   max?: number;
   /** Step size (for numeric inputs) */
   step?: number;
-  /** Available options (for source/string types) */
+  /** Available options (for source/string/timeframe/session types) */
   options?: string[];
 }
 
@@ -78,6 +78,14 @@ export interface StringInputOptions {
   title?: string;
   /** Available options for dropdown */
   options?: string[];
+}
+
+/**
+ * Options for time input
+ */
+export interface TimeInputOptions {
+  /** Display title */
+  title?: string;
 }
 
 /**
@@ -199,6 +207,71 @@ export const input = {
       value: defaultValue,
       title: options.title,
       options: options.options,
+    };
+  },
+
+  /**
+   * Create a timeframe input parameter (PineScript `input.timeframe`)
+   * @param defaultValue - Default timeframe string ("60", "1D", "W"); "" means the chart timeframe
+   * @param options - Additional options (title, options for dropdown)
+   * @returns Input value object
+   *
+   * @example
+   * ```typescript
+   * const htf = input.timeframe('1D', { title: 'Higher timeframe' });
+   * console.log(htf.value); // '1D'
+   * ```
+   */
+  timeframe(defaultValue: string, options: StringInputOptions = {}): InputValue<string> {
+    return {
+      type: 'timeframe' as const,
+      defaultValue,
+      value: defaultValue,
+      title: options.title,
+      options: options.options,
+    };
+  },
+
+  /**
+   * Create a session input parameter (PineScript `input.session`)
+   * @param defaultValue - Default session string ("0930-1600", "0930-1600:23456")
+   * @param options - Additional options (title, options for dropdown)
+   * @returns Input value object
+   *
+   * @example
+   * ```typescript
+   * const rth = input.session('0930-1600', { title: 'Regular hours' });
+   * console.log(rth.value); // '0930-1600'
+   * ```
+   */
+  session(defaultValue: string, options: StringInputOptions = {}): InputValue<string> {
+    return {
+      type: 'session' as const,
+      defaultValue,
+      value: defaultValue,
+      title: options.title,
+      options: options.options,
+    };
+  },
+
+  /**
+   * Create a date/time input parameter (PineScript `input.time`)
+   * @param defaultValue - Default UNIX time in milliseconds, e.g. `time.timestamp('2024-01-01')`
+   * @param options - Additional options (title)
+   * @returns Input value object
+   *
+   * @example
+   * ```typescript
+   * const start = input.time(time.timestamp('2024-01-01'), { title: 'Start' });
+   * console.log(start.value); // 1704067200000
+   * ```
+   */
+  time(defaultValue: number, options: TimeInputOptions = {}): InputValue<number> {
+    return {
+      type: 'time' as const,
+      defaultValue,
+      value: defaultValue,
+      title: options.title,
     };
   },
 };

@@ -13,6 +13,8 @@ import {
   color,
   close,
   volume,
+  timestamp,
+  fixnan,
 } from '../../src/script';
 import type { Bar } from '../../src/types';
 
@@ -64,6 +66,44 @@ describe('executeScript', () => {
     const second = executeScript(body, BARS, { length: 2 });
     // Shorter length → fewer warm-up bars → more plotted points.
     expect(second.result.plots['plot0']!.length).toBeGreaterThan(first.result.plots['plot0']!.length);
+  });
+
+  test('ta.obv and the other volume variables are Series of the context bars', () => {
+    const body = () => {
+      indicator('OBV');
+      plot(ta.obv, 'obv');
+      plot(fixnan(ta.obv.sub(ta.obv.offset(1))), 'obv change');
+    };
+    const run = executeScript(body, BARS);
+    const obv = run.result.plots['plot0']!.map((p) => p.value);
+    // closes 100 102 101 103 ... volumes 1000 + i: bar 1 up (+1001), bar 2 down (-1002)
+    expect(obv.slice(0, 2)).toEqual([1001, -1]);
+
+    // new bars: the cached values are recomputed
+    const other = executeScript(body, makeBars([10, 9, 8]));
+    expect(other.result.plots['plot0']!.map((p) => p.value)).toEqual([-1001, -2003]);
+  });
+
+  test('timeframe, session and time inputs declare their type and return their value', () => {
+    let seen: unknown[] = [];
+    const body = () => {
+      indicator('Inputs');
+      seen = [
+        input.timeframe('1D', 'Higher timeframe', { options: ['60', '1D'] }),
+        input.session('0930-1600', 'Session'),
+        input.time(timestamp('2024-01-01'), 'Start'),
+      ];
+    };
+    const run = executeScript(body, BARS);
+    expect(run.inputConfig).toEqual([
+      { id: 'higher_timeframe', type: 'timeframe', defval: '1D', title: 'Higher timeframe', options: ['60', '1D'] },
+      { id: 'session', type: 'session', defval: '0930-1600', title: 'Session', options: undefined },
+      { id: 'start', type: 'time', defval: 1704067200000, title: 'Start' },
+    ]);
+    expect(seen).toEqual(['1D', '0930-1600', 1704067200000]);
+
+    executeScript(body, BARS, { higher_timeframe: '60', session: '1800-1700:23456', start: 1706745600000 });
+    expect(seen).toEqual(['60', '1800-1700:23456', 1706745600000]);
   });
 
   test('context-bound builtins and ta.tr work without passing bars', () => {

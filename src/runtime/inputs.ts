@@ -226,6 +226,73 @@ export function input_string(defval: string, title?: string, options?: string[])
 }
 
 /**
+ * Registers `config` once (idempotent) and returns the current stored value.
+ */
+function registerOnce(config: InputConfig): unknown {
+  const context = getContext()!;
+  if (!registeredInputs.has(config.id)) {
+    context.inputs.registerInput(config);
+    registeredInputs.set(config.id, true);
+
+    if (autoRecalculateEnabled) {
+      context.inputs.onInputChange((changedId) => {
+        if (changedId === config.id) {
+          recalculate();
+        }
+      });
+    }
+  }
+  return context.inputs.getValue(config.id);
+}
+
+/**
+ * Register a timeframe input (PineScript `input.timeframe`)
+ * First call registers with defval, subsequent calls return current value
+ * @param defval - Default timeframe string ("60", "1D", "W"); "" means the chart timeframe
+ * @param title - Display title (optional)
+ * @param options - Array of timeframe options for dropdown (optional)
+ * @returns Current timeframe string
+ */
+export function input_timeframe(defval: string, title?: string, options?: string[]): string {
+  if (!getContext()) {
+    return defval;
+  }
+  const value = registerOnce({ id: generateInputId(title, defval, 'timeframe'), type: 'timeframe', defval, title, options });
+  return typeof value === 'string' ? value : defval;
+}
+
+/**
+ * Register a session input (PineScript `input.session`)
+ * First call registers with defval, subsequent calls return current value
+ * @param defval - Default session string ("0930-1600", "0930-1600:23456")
+ * @param title - Display title (optional)
+ * @param options - Array of session options for dropdown (optional)
+ * @returns Current session string
+ */
+export function input_session(defval: string, title?: string, options?: string[]): string {
+  if (!getContext()) {
+    return defval;
+  }
+  const value = registerOnce({ id: generateInputId(title, defval, 'session'), type: 'session', defval, title, options });
+  return typeof value === 'string' ? value : defval;
+}
+
+/**
+ * Register a date/time input (PineScript `input.time`)
+ * First call registers with defval, subsequent calls return current value
+ * @param defval - Default UNIX time in milliseconds, e.g. `time.timestamp("2024-01-01")`
+ * @param title - Display title (optional)
+ * @returns Current UNIX time in milliseconds
+ */
+export function input_time(defval: number, title?: string): number {
+  if (!getContext()) {
+    return defval;
+  }
+  const value = registerOnce({ id: generateInputId(title, defval, 'time'), type: 'time', defval, title });
+  return typeof value === 'number' ? value : defval;
+}
+
+/**
  * Register a source input (returns a data series from OHLCV)
  * First call registers with defval, subsequent calls return current value
  * @param defval - Default source name ('close', 'open', 'high', 'low', 'volume', 'hl2', 'hlc3', 'ohlc4')

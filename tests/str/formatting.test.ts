@@ -117,3 +117,39 @@ describe('str.format', () => {
     expect(str.format('Price: {0}', '$100')).toBe('Price: $100');
   });
 });
+
+// results (30/09/2026, see partb-check/doc/README.md)
+describe('str.format number and date patterns', () => {
+  it('formats numbers like PineScript', () => {
+    expect(str.format('{0}', 1234.5678)).toBe('1,234.568');
+    expect(str.format('{0,number,#.##}', 1234.5678)).toBe('1234.57');
+    expect(str.format('{0,number,integer}', 0.5)).toBe('0');
+    expect(str.format('{0,number,percent}', 1234.5678)).toBe('123,457%');
+    expect(str.format('{0,number,currency}', -7)).toBe('-$7.00');
+    expect(str.format('{0,number,#.##} / {1,number,#.#}', 1234.5678, 0.25)).toBe('1234.57 / 0.2');
+    expect(str.format("'{0}' {0}", 0.5)).toBe('{0} 0.5');
+    expect(str.format("it''s {0}", -7)).toBe("it's -7");
+    expect(str.format('{0,choice,0#zero|1#one|1<many}', 1234.5)).toBe('many');
+  });
+
+  it('formats dates in UTC', () => {
+    const t = Date.UTC(2024, 2, 5, 14, 7, 9, 123);
+    expect(str.format('{0,date,yyyy-MM-dd}', t)).toBe('2024-03-05');
+    expect(str.format('{0,date}', t)).toBe('Mar 5, 2024');
+    expect(str.format('{0,time}', t)).toBe('2:07:09\u202FPM');
+  });
+});
+
+describe('str.format_time with a time zone', () => {
+  const t = Date.UTC(2024, 2, 5, 14, 7, 9, 123);
+  it.each([
+    ['yyyy-MM-dd HH:mm:ss', 'America/New_York', '2024-03-05 09:07:09'],
+    ['hh:mm a', 'Asia/Kolkata', '07:37 PM'],
+    ["yyyy-MM-dd'T'HH:mm:ssZ", 'America/New_York', '2024-03-05T09:07:09-0500'],
+    ['z', 'GMT+5', 'GMT+05:00'],
+    ['z', 'UTC', 'GMT'],
+    ['D w u k K S', 'UTC', '65 10 2 14 2 123'],
+  ])('%s in %s', (pattern, tz, expected) => {
+    expect(str.format_time(t, pattern, tz)).toBe(expected);
+  });
+});

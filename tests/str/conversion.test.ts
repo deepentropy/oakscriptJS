@@ -45,7 +45,19 @@ describe('str.tostring', () => {
     expect(str.tostring(123.456, '#.##')).toBe('123.46');
     expect(str.tostring(123.456, '#.#')).toBe('123.5');
     expect(str.tostring(123.456, '#')).toBe('123');
-    expect(str.tostring(123, '#.##')).toBe('123.00');
+    // (30/09/2026): '#' digits are optional, '0' digits are required
+    expect(str.tostring(123, '#.##')).toBe('123');
+    expect(str.tostring(123, '0.00')).toBe('123.00');
+    expect(str.tostring(1.005, '#.##')).toBe('1.01');
+    expect(str.tostring(0.5, '#.00')).toBe('.50');
+    expect(str.tostring(0.5, '#.##')).toBe('0.5');
+    expect(str.tostring(-0.004, '#.##')).toBe('0');
+    expect(str.tostring(12345.678, '#,###.##')).toBe('12,345.68');
+    expect(str.tostring(0.125, '#.##%')).toBe('12.5%');
+    expect(str.tostring(12345.678, 'volume')).toBe('12.346K');
+    expect(str.tostring(0.5, 'percent')).toBe('0.50%');
+    expect(str.tostring(1 / 3)).toBe('0.3333333333');
+    expect(() => str.tostring(1, 'mintick')).toThrow('syminfo.mintick');
   });
 
   it('should handle already string values', () => {

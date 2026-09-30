@@ -21,9 +21,11 @@ export * from './types/metadata';
 import * as taCore from './ta';
 import * as math from './math';
 import * as array from './array';
+import * as map from './map';
 import * as str from './str';
 import * as color from './color';
 import * as time from './time';
+import * as timeframe from './timeframe';
 import * as matrix from './matrix';
 import * as line from './line';
 import * as box from './box';
@@ -31,8 +33,9 @@ import * as label from './label';
 import * as linefill from './linefill';
 import * as chartPoint from './chartpoint';
 import * as polyline from './polyline';
+import * as text from './text';
 
-export { taCore, math, array, str, color, time, matrix, line, box, label, linefill, chartPoint, polyline };
+export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text };
 
 // Export Series class (self-contained, no context)
 export { Series, BarData } from './runtime/series';
@@ -74,7 +77,7 @@ export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSourceSeries } fro
 export * from './lib';
 
 // Export helper functions for generated indicators (PineScript compatibility)
-export {isNA as na, nz} from './utils';
+export {isNA as na, nz, fixnan} from './utils';
 
 // Export indicator infrastructure
 export {
@@ -94,6 +97,7 @@ export {
   type SourceInputOptions,
   type BoolInputOptions,
   type StringInputOptions,
+  type TimeInputOptions,
   type SourceType,
 } from './input';
 
@@ -124,6 +128,9 @@ export {
   input_bool,
   input_string,
   input_source,
+  input_timeframe,
+  input_session,
+  input_time,
 } from './runtime/inputs';
 
 export type {
@@ -162,8 +169,8 @@ export const info = {
     minimal: 'No DSL layer - complexity in transpiler'
   },
   namespaces: {
-    core: ['ta', 'math', 'array', 'str', 'color', 'time', 'matrix'],
-    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline'],
+    core: ['ta', 'math', 'array', 'map', 'str', 'color', 'time', 'timeframe', 'matrix'],
+    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline', 'text'],
     runtime: ['setContext', 'plot', 'hline', 'input_*'],
     indicator: ['indicator', 'input', 'plotHelper', 'createPlot']
   }

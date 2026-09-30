@@ -10,62 +10,82 @@
  * @version 6
  */
 
-import type { Label, color } from '../types';
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
+import type { ChartPoint, Label, color } from '../types';
+
+type LabelXloc = 'bar_index' | 'bar_time';
+type LabelYloc = 'price' | 'abovebar' | 'belowbar';
+type LabelStyle = NonNullable<Label['style']>;
 
 /**
- * Creates a new label object.
+ * Creates a new label (PineScript `label.new`), with a chart point or with coordinates:
  *
- * @param x - Bar index or UNIX timestamp
- * @param y - Price level (when yloc = 'price')
- * @param text - Label text content (optional)
- * @param xloc - X-axis coordinate system (default: 'bar_index')
- * @param yloc - Y-axis positioning mode (default: 'price')
- * @param labelColor - Border and arrow color (optional)
- * @param style - Label style (optional)
- * @param textcolor - Text color (optional)
- * @param size - Label size (optional)
- * @param textalign - Text alignment (optional)
- * @param tooltip - Tooltip text (optional)
- * @param text_font_family - Font family (optional)
- * @returns New label object
+ * - `label.new(point, text?, xloc?, yloc?, color?, style?, textcolor?, size?, textalign?, tooltip?,
+ *   text_font_family?, force_overlay?, text_formatting?)`
+ * - `label.new(x, y, text?, xloc?, yloc?, color?, style?, textcolor?, size?, textalign?, tooltip?,
+ *   text_font_family?, force_overlay?, text_formatting?)`
  *
- * @remarks
- * - yloc modes: 'price' (at y coordinate), 'abovebar' (above bar), 'belowbar' (below bar)
- * - Label styles include: 'label_up', 'label_down', 'arrowup', 'arrowdown', 'circle', etc.
- * - Styling properties are stored but not used for computational functions
+ * With a chart point, x is `point.index` for `bar_index` labels and `point.time` for `bar_time` labels.
  *
  * @example
  * ```typescript
- * // Mark a pivot high
- * const label = label.new(50, 155.5, 'Pivot High', 'bar_index', 'price', '#FF0000', 'label_down');
- *
- * // Simple annotation
- * const note = label.new(100, 150, 'Breakout', 'bar_index', 'abovebar');
+ * const signal = label.new(10, 105.5, 'BUY');
+ * const atPoint = label.new(chartPoint.from_index(10, 105.5), 'BUY');
  * ```
  *
  */
 export function new_label(
-  x: number,
-  y: number,
+  point: ChartPoint,
   text?: string,
-  xloc: 'bar_index' | 'bar_time' = 'bar_index',
-  yloc: 'price' | 'abovebar' | 'belowbar' = 'price',
+  xloc?: LabelXloc,
+  yloc?: LabelYloc,
   labelColor?: color,
-  style?: 'none' | 'xcross' | 'cross' | 'triangleup' | 'triangledown' | 'flag' | 'circle' |
-          'arrowup' | 'arrowdown' | 'label_up' | 'label_down' | 'label_left' | 'label_right' |
-          'label_lower_left' | 'label_lower_right' | 'label_upper_left' | 'label_upper_right' |
-          'label_center' | 'square' | 'diamond' | 'text_outline',
+  style?: LabelStyle,
   textcolor?: color,
   size?: string | number,
   textalign?: 'left' | 'center' | 'right',
   tooltip?: string,
-  text_font_family?: 'default' | 'monospace'
-): Label {
-  return {
+  text_font_family?: 'default' | 'monospace',
+  force_overlay?: boolean,
+  text_formatting?: number
+): Label;
+export function new_label(
+  x: number,
+  y: number,
+  text?: string,
+  xloc?: LabelXloc,
+  yloc?: LabelYloc,
+  labelColor?: color,
+  style?: LabelStyle,
+  textcolor?: color,
+  size?: string | number,
+  textalign?: 'left' | 'center' | 'right',
+  tooltip?: string,
+  text_font_family?: 'default' | 'monospace',
+  force_overlay?: boolean,
+  text_formatting?: number
+): Label;
+export function new_label(...args: unknown[]): Label {
+  let x: number, y: number, rest: unknown[];
+  if (typeof args[0] === 'object' && args[0] !== null) {
+    const point = args[0] as ChartPoint;
+    rest = args.slice(1);
+    x = pointX(point, (rest[1] as LabelXloc | undefined) ?? 'bar_index');
+    y = point.price;
+  } else {
+    [x, y] = args as [number, number];
+    rest = args.slice(2);
+  }
+  const [text, xloc, yloc, labelColor, style, textcolor, size, textalign, tooltip, text_font_family,
+    force_overlay, text_formatting] = rest as [
+    string?, LabelXloc?, LabelYloc?, color?, LabelStyle?, color?, (string | number)?,
+    ('left' | 'center' | 'right')?, string?, ('default' | 'monospace')?, boolean?, number?,
+  ];
+  return register('label', {
     x,
     y,
-    xloc,
-    yloc,
+    xloc: xloc ?? 'bar_index',
+    yloc: yloc ?? 'price',
     text,
     tooltip,
     color: labelColor,
@@ -73,8 +93,10 @@ export function new_label(
     textcolor,
     size,
     textalign,
-    text_font_family
-  };
+    text_font_family,
+    force_overlay: force_overlay ?? false,
+    text_formatting,
+  });
 }
 
 /**
@@ -148,7 +170,7 @@ export function get_text(id: Label): string | undefined {
  *
  */
 export function copy(id: Label): Label {
-  return { ...id };
+  return register('label', { ...id });
 }
 
 // =============================================================================
@@ -170,6 +192,7 @@ export function copy(id: Label): Label {
  *
  */
 export function set_x(id: Label, x: number): Label {
+  if (isDeleted(id)) return id;
   id.x = x;
   return id;
 }
@@ -189,6 +212,7 @@ export function set_x(id: Label, x: number): Label {
  *
  */
 export function set_y(id: Label, y: number): Label {
+  if (isDeleted(id)) return id;
   id.y = y;
   return id;
 }
@@ -209,6 +233,7 @@ export function set_y(id: Label, y: number): Label {
  *
  */
 export function set_xy(id: Label, x: number, y: number): Label {
+  if (isDeleted(id)) return id;
   id.x = x;
   id.y = y;
   return id;
@@ -233,33 +258,19 @@ export function set_xy(id: Label, x: number, y: number): Label {
  *
  */
 export function set_xloc(id: Label, x: number, xloc: 'bar_index' | 'bar_time'): Label {
+  if (isDeleted(id)) return id;
   id.x = x;
   id.xloc = xloc;
   return id;
 }
 
 /**
- * Sets the y-axis positioning mode.
- *
- * @param id - Label object to modify
- * @param y - New y coordinate
- * @param yloc - New positioning mode
- * @returns Modified label object
- *
- * @remarks
- * - 'price': Position at y coordinate
- * - 'abovebar': Position above the bar
- * - 'belowbar': Position below the bar
- *
- * @example
- * ```typescript
- * const label = label.new(50, 155.5, 'Pivot');
- * label.set_yloc(label, 0, 'abovebar'); // Position above bar (y ignored)
- * ```
+ * Sets the y-location mode of the label (PineScript `label.set_yloc(id, yloc)`): `price` uses the
+ * label's y, `abovebar` / `belowbar` place it above / below the bar.
  *
  */
-export function set_yloc(id: Label, y: number, yloc: 'price' | 'abovebar' | 'belowbar'): Label {
-  id.y = y;
+export function set_yloc(id: Label, yloc: 'price' | 'abovebar' | 'belowbar'): Label {
+  if (isDeleted(id)) return id;
   id.yloc = yloc;
   return id;
 }
@@ -283,6 +294,7 @@ export function set_yloc(id: Label, y: number, yloc: 'price' | 'abovebar' | 'bel
  *
  */
 export function set_text(id: Label, text: string): Label {
+  if (isDeleted(id)) return id;
   id.text = text;
   return id;
 }
@@ -302,6 +314,7 @@ export function set_text(id: Label, text: string): Label {
  *
  */
 export function set_tooltip(id: Label, tooltip: string): Label {
+  if (isDeleted(id)) return id;
   id.tooltip = tooltip;
   return id;
 }
@@ -325,6 +338,7 @@ export function set_tooltip(id: Label, tooltip: string): Label {
  *
  */
 export function set_color(id: Label, labelColor: color): Label {
+  if (isDeleted(id)) return id;
   id.color = labelColor;
   return id;
 }
@@ -344,6 +358,7 @@ export function set_color(id: Label, labelColor: color): Label {
  *
  */
 export function set_textcolor(id: Label, textColor: color): Label {
+  if (isDeleted(id)) return id;
   id.textcolor = textColor;
   return id;
 }
@@ -369,6 +384,7 @@ export function set_style(
         'label_lower_left' | 'label_lower_right' | 'label_upper_left' | 'label_upper_right' |
         'label_center' | 'square' | 'diamond' | 'text_outline'
 ): Label {
+  if (isDeleted(id)) return id;
   id.style = style;
   return id;
 }
@@ -388,6 +404,7 @@ export function set_style(
  *
  */
 export function set_size(id: Label, size: string | number): Label {
+  if (isDeleted(id)) return id;
   id.size = size;
   return id;
 }
@@ -407,6 +424,7 @@ export function set_size(id: Label, size: string | number): Label {
  *
  */
 export function set_textalign(id: Label, align: 'left' | 'center' | 'right'): Label {
+  if (isDeleted(id)) return id;
   id.textalign = align;
   return id;
 }
@@ -426,6 +444,7 @@ export function set_textalign(id: Label, align: 'left' | 'center' | 'right'): La
  *
  */
 export function set_text_font_family(id: Label, font: 'default' | 'monospace'): Label {
+  if (isDeleted(id)) return id;
   id.text_font_family = font;
   return id;
 }
@@ -436,23 +455,58 @@ export function set_text_font_family(id: Label, font: 'default' | 'monospace'): 
  * @param id - Label object to delete
  *
  * @remarks
- * In this implementation, deletion is a no-op since we don't maintain a global label registry.
- * Users should simply stop referencing the label object to allow garbage collection.
- * This function exists for API compatibility with PineScript.
+ * Removes the label from `label.all()`. As in PineScript, the deleted label is `na`: its getters
+ * return NaN and its setters do nothing. Deleting it twice has no effect.
  *
  * @example
  * ```typescript
  * const label = label.new(50, 155.5, 'Pivot');
  * label.delete(label);
- * // Label object can now be garbage collected if no other references exist
+ * // label.all() no longer contains it
  * ```
  *
  */
-export function delete_label(_id: Label): void {
-  // No-op in this implementation
-  // In PineScript, this removes the label from the chart
-  // In our calculation-only library, users manage object lifecycle
+export function delete_label(id: Label): void {
+  remove('label', id);
+}
+
+/** x coordinate of a chart point for an object's xloc (`na` when the point has no such coordinate). */
+function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
+  const x = xloc === 'bar_time' ? point.time : point.index;
+  return x ?? NaN;
+}
+
+/**
+ * All live labels, in creation order (PineScript `label.all`). A new array.
+ *
+ */
+export function all(): Label[] {
+  return allDrawings('label');
+}
+
+/**
+ * Sets the label position from a chart point: `point.index` for `bar_index` labels, `point.time`
+ * for `bar_time` labels, and `point.price`.
+ *
+ */
+export function set_point(id: Label, point: ChartPoint): Label {
+  if (isDeleted(id)) return id;
+  id.x = pointX(point, id.xloc);
+  id.y = point.price;
+  return id;
+}
+
+/**
+ * Sets the text formatting: `text.format_none`, `text.format_bold`, `text.format_italic`,
+ * or `text.format_bold + text.format_italic`.
+ *
+ */
+export function set_text_formatting(id: Label, formatting: number): Label {
+  if (isDeleted(id)) return id;
+  id.text_formatting = formatting;
+  return id;
 }
 
 // Alias to match PineScript API
 export { new_label as new };
+export { delete_label as delete };

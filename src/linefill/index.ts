@@ -10,6 +10,7 @@
  * @version 6
  */
 
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
 import type { Linefill, Line, color } from '../types';
 
 /**
@@ -40,11 +41,11 @@ import type { Linefill, Line, color } from '../types';
  *
  */
 export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linefill {
-  return {
+  return register('linefill', {
     line1,
     line2,
     color: fillColor
-  };
+  });
 }
 
 /**
@@ -117,6 +118,7 @@ export function get_line2(id: Linefill): Line {
  *
  */
 export function set_color(id: Linefill, fillColor: color): Linefill {
+  if (isDeleted(id)) return id;
   id.color = fillColor;
   return id;
 }
@@ -127,23 +129,30 @@ export function set_color(id: Linefill, fillColor: color): Linefill {
  * @param id - Linefill object to delete
  *
  * @remarks
- * In this implementation, deletion is a no-op since we don't maintain a global linefill registry.
- * Users should simply stop referencing the linefill object to allow garbage collection.
- * This function exists for API compatibility with PineScript.
+ * Removes the linefill from `linefill.all()`. As in PineScript, the deleted linefill is `na`: its getters
+ * return NaN and its setters do nothing. Deleting it twice has no effect.
  *
  * @example
  * ```typescript
  * const channelFill = linefill.new(upperLine, lowerLine);
  * linefill.delete(channelFill);
- * // Linefill object can now be garbage collected if no other references exist
+ * // linefill.all() no longer contains it
  * ```
  *
  */
-export function delete_linefill(_id: Linefill): void {
-  // No-op in this implementation
-  // In PineScript, this removes the linefill from the chart
-  // In our calculation-only library, users manage object lifecycle
+export function delete_linefill(id: Linefill): void {
+  remove('linefill', id);
+}
+
+
+/**
+ * All live linefills, in creation order (PineScript `linefill.all`). A new array.
+ *
+ */
+export function all(): Linefill[] {
+  return allDrawings('linefill');
 }
 
 // Alias to match PineScript API
 export { new_linefill as new };
+export { delete_linefill as delete };
