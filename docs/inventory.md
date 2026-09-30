@@ -612,8 +612,8 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
 | `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
-| `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset |
-| `hline()` | Implemented | static level, color, linestyle, linewidth |
+| `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset; `plot.style_*`, `plot.linestyle_*` constants |
+| `hline()` | Implemented | static level, color, linestyle (default dashed), linewidth; `hline.style_*` constants |
 | `fill()` | Implemented | plot-to-plot or hline-to-hline |
 | `plotshape()` | Implemented | per-bar marker; style, location, color, text, size, offset, tooltip |
 | `plotchar()` | Implemented | per-bar character marker |

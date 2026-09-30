@@ -264,6 +264,17 @@ describe('Plot Functions', () => {
       expect(ctx.mockChart.addedSeries[0]!.type).toBe('line');
     });
 
+    it('draws dashed by default (PineScript), the given line style otherwise', () => {
+      const ctx = createMockContext();
+      setContext(ctx);
+
+      hline(50, 'Support');
+      hline(70, 'Resistance', undefined, 'solid');
+
+      expect(ctx.mockChart.addedSeries[0]!.options?.lineStyle).toBe(2); // dashed
+      expect(ctx.mockChart.addedSeries[1]!.options?.lineStyle).toBe(0); // solid
+    });
+
     it('should create constant value data across all time points', () => {
       const ctx = createMockContext();
       setContext(ctx);

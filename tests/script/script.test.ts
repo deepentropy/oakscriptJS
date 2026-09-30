@@ -140,6 +140,27 @@ describe('executeScript', () => {
     expect(run.plotConfig[2]!.linestyle).toBeUndefined();
   });
 
+  test('plot.style_*, plot.linestyle_* and hline.style_* constants (PineScript)', () => {
+    expect([plot.linestyle_solid, plot.linestyle_dotted, plot.linestyle_dashed]).toEqual(['solid', 'dotted', 'dashed']);
+    expect([hline.style_solid, hline.style_dotted, hline.style_dashed]).toEqual(['solid', 'dotted', 'dashed']);
+    expect([plot.style_line, plot.style_stepline_diamond, plot.style_columns]).toEqual(['line', 'stepline_diamond', 'columns']);
+    const run = executeScript(() => {
+      indicator('Constants', { overlay: false });
+      plot(close, 'p', { style: plot.style_stepline, linestyle: plot.linestyle_dotted });
+      hline(50, 'Mid', { linestyle: hline.style_solid });
+    }, BARS);
+    expect(run.plotConfig[0]).toMatchObject({ style: 'stepline', linestyle: 'dotted' });
+    expect(run.hlineConfig[0]).toMatchObject({ linestyle: 'solid' });
+  });
+
+  test('hline default line style is dashed (PineScript)', () => {
+    const run = executeScript(() => {
+      indicator('Level', { overlay: false });
+      hline(0, 'Zero');
+    }, BARS);
+    expect(run.hlineConfig[0]!.linestyle).toBe('dashed');
+  });
+
   test('hline and hline-to-hline fill produce configs', () => {
     const run = executeScript(() => {
       indicator('Bands', { overlay: false });

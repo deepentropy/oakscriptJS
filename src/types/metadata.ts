@@ -7,7 +7,7 @@
 /**
  * Plot style options
  */
-export type PlotStyle = 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr';
+export type PlotStyle = 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr' | 'stepline_diamond';
 
 /**
  * Line style options
@@ -57,7 +57,7 @@ export interface HLineOptions {
   title?: string;
   /** Line color */
   color?: string;
-  /** Line style */
+  /** Line style (PineScript default: dashed) */
   linestyle?: LineStyle;
   /** Line width */
   linewidth?: number;

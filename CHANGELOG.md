@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `linestyle` of plots (`'solid' | 'dashed' | 'dotted'`, as for hlines; PineScript `plot(..., linestyle)`) in
   `PlotConfig`, `PlotOptions` and the script API `plot()` options, passed to the plot config. Not set means solid.
   PineScript accepts it with every plot style; the value is a constant or an input, not a per-bar series (#105).
+- Script API constants: `plot.style_*` (line, linebr, stepline, steplinebr, stepline_diamond, histogram, columns,
+  area, areabr, circles, cross), `plot.linestyle_solid / _dotted / _dashed`, `hline.style_solid / _dotted / _dashed`.
+  `stepline_diamond` is added to the plot style type.
+
+### Changed
+
+- `hline()` draws dashed when no line style is given, as PineScript: the script API sets `linestyle: 'dashed'` in the
+  hline config, and the runtime `hline()` draws dashed (before: not set / solid).
 
 ### Fixed
 

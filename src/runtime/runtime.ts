@@ -191,7 +191,7 @@ export function plot(
  * @param price - Y-axis value for the line
  * @param title - Line title (optional)
  * @param color - Line color (optional)
- * @param linestyle - Line style (optional)
+ * @param linestyle - Line style (optional, default dashed as PineScript)
  * @param linewidth - Line width (optional)
  * @returns Unique hline ID
  */
@@ -211,7 +211,7 @@ export function hline(
   const options: SeriesOptions = {
     color: color,
     lineWidth: linewidth,
-    lineStyle: getLineStyle(linestyle),
+    lineStyle: getLineStyle(linestyle ?? 'dashed'),
   };
 
   // Create a line series for the hline

@@ -84,7 +84,7 @@ export interface PlotConfig {
     /** Line width in pixels */
     lineWidth?: number;
     /** Plot style */
-    style?: 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr';
+    style?: 'line' | 'stepline' | 'histogram' | 'area' | 'circles' | 'columns' | 'cross' | 'areabr' | 'steplinebr' | 'linebr' | 'stepline_diamond';
     /** Whether the plot is visible (can be boolean or expression string for dynamic visibility) */
     visible?: boolean | string;
     /** Display mode: 'all', 'none', 'data_window', 'status_line', 'pane' */
@@ -110,7 +110,7 @@ export interface HLineConfig {
     title?: string;
     /** Line color */
     color?: string;
-    /** Line style: solid, dashed, or dotted */
+    /** Line style: solid, dashed, or dotted (PineScript default: dashed) */
     linestyle?: 'solid' | 'dashed' | 'dotted';
     /** Line width in pixels */
     linewidth?: number;

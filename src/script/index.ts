@@ -537,7 +537,7 @@ export interface ScriptPlotOptions {
 }
 
 /** PineScript `plot()` — declares the plot and supplies its data in one call. */
-export function plot(series: Series, title?: string, options: ScriptPlotOptions = {}): PlotHandle {
+function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {}): PlotHandle {
   const c = collector();
   const id = `plot${c.plotConfig.length}`;
   const perBar = Array.isArray(options.color) ? options.color : undefined;
@@ -564,14 +564,36 @@ export function plot(series: Series, title?: string, options: ScriptPlotOptions 
   return { id, kind: 'plot' };
 }
 
+/**
+ * PineScript `plot()`, with the `plot.style_*` and `plot.linestyle_*` constants:
+ * `plot(src, 'Level', { style: plot.style_stepline, linestyle: plot.linestyle_dashed })`.
+ */
+export const plot = Object.assign(plotImpl, {
+  style_line: 'line',
+  style_linebr: 'linebr',
+  style_stepline: 'stepline',
+  style_steplinebr: 'steplinebr',
+  style_stepline_diamond: 'stepline_diamond',
+  style_histogram: 'histogram',
+  style_columns: 'columns',
+  style_area: 'area',
+  style_areabr: 'areabr',
+  style_circles: 'circles',
+  style_cross: 'cross',
+  linestyle_solid: 'solid',
+  linestyle_dotted: 'dotted',
+  linestyle_dashed: 'dashed',
+} as const);
+
 export interface ScriptHLineOptions {
   color?: string;
+  /** Line style; default dashed (PineScript). */
   linestyle?: HLineConfig['linestyle'];
   linewidth?: number;
 }
 
-/** PineScript `hline()` — a static horizontal level. */
-export function hline(price: number, title?: string, options: ScriptHLineOptions = {}): PlotHandle {
+/** PineScript `hline()` — a static horizontal level. Default line style: dashed (PineScript). */
+function hlineImpl(price: number, title?: string, options: ScriptHLineOptions = {}): PlotHandle {
   const c = collector();
   const id = `hline${c.hlineConfig.length}`;
   c.hlineConfig.push({
@@ -579,11 +601,18 @@ export function hline(price: number, title?: string, options: ScriptHLineOptions
     price,
     title,
     color: options.color,
-    linestyle: options.linestyle,
+    linestyle: options.linestyle ?? 'dashed',
     linewidth: options.linewidth,
   });
   return { id, kind: 'hline' };
 }
+
+/** PineScript `hline()`, with the `hline.style_*` constants: `hline(0, 'Zero', { linestyle: hline.style_dotted })`. */
+export const hline = Object.assign(hlineImpl, {
+  style_solid: 'solid',
+  style_dotted: 'dotted',
+  style_dashed: 'dashed',
+} as const);
 
 export interface ScriptFillOptions {
   /** Static color, or a per-bar color array from color.when(). */
