@@ -37,6 +37,7 @@ import type { Bar } from '../types';
 import type {
   BarColorData,
   FillData,
+  FillGradient,
   IndicatorResult,
   MarkerData,
   MarkerLocation,
@@ -525,11 +526,69 @@ export interface ScriptFillOptions {
   title?: string;
 }
 
-/** PineScript `fill()` — between two plots (dynamic) or two hlines (band). */
-export function fill(a: PlotHandle, b: PlotHandle, options: ScriptFillOptions = {}): void {
+/** A fill colour argument: a colour, na (null / undefined), or a per-bar array from color.when(). */
+export type ScriptFillColor = string | null | undefined | Array<string | null | undefined>;
+
+/** A gradient value argument: a number or a Series. */
+export type ScriptFillValue = number | Series;
+
+function perBarValues(v: ScriptFillValue, n: number): number[] {
+  return v instanceof Series ? v.toArray().slice(0, n) : new Array<number>(n).fill(v);
+}
+
+function perBarColors(c: ScriptFillColor, n: number): Array<string | null> {
+  if (Array.isArray(c)) return Array.from({ length: n }, (_, i) => c[i] ?? null);
+  return new Array<string | null>(n).fill(c ?? null);
+}
+
+/**
+ * PineScript `fill()`, with the three PineScript overloads (positional arguments), for two plots or two hlines:
+ * - `fill(p1, p2, color?, title?, ...)`
+ * - `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, title?, ...)`: gradient fill; values and colours
+ *   can change per bar (a Series / a color.when() array)
+ * - `fill(p1, p2, { color, title })`: options object (oakscriptjs form, kept for existing scripts)
+ * Arguments that change only how shows the fill (`editable`, `show_last`, `fillgaps`, `display`) are
+ * accepted and not used.
+ */
+export function fill(a: PlotHandle, b: PlotHandle, options?: ScriptFillOptions): void;
+export function fill(a: PlotHandle, b: PlotHandle, color: ScriptFillColor, title?: string, ...rest: unknown[]): void;
+export function fill(
+  a: PlotHandle,
+  b: PlotHandle,
+  top_value: ScriptFillValue,
+  bottom_value: ScriptFillValue,
+  top_color: ScriptFillColor,
+  bottom_color: ScriptFillColor,
+  title?: string,
+  ...rest: unknown[]
+): void;
+export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
   const c = collector();
-  const perBar = Array.isArray(options.color) ? options.color : undefined;
-  const staticColor = typeof options.color === 'string' ? options.color : undefined;
+  const third = args[0];
+  let perBar: string[] | undefined;
+  let staticColor: string | undefined;
+  let title: string | undefined;
+  let gradient: FillGradient | undefined;
+  if (typeof third === 'number' || third instanceof Series) {
+    const n = ctxBars.bars.length;
+    gradient = {
+      topValue: perBarValues(third, n),
+      bottomValue: perBarValues(args[1] as ScriptFillValue, n),
+      topColor: perBarColors(args[2] as ScriptFillColor, n),
+      bottomColor: perBarColors(args[3] as ScriptFillColor, n),
+    };
+    title = args[4] as string | undefined;
+  } else if (third !== null && typeof third === 'object' && !Array.isArray(third)) {
+    const options = third as ScriptFillOptions;
+    perBar = Array.isArray(options.color) ? options.color : undefined;
+    staticColor = typeof options.color === 'string' ? options.color : undefined;
+    title = options.title;
+  } else {
+    const color = third as ScriptFillColor;
+    perBar = Array.isArray(color) ? color.map((x) => x ?? '') : undefined;
+    staticColor = typeof color === 'string' ? color : undefined;
+    title = args[1] as string | undefined;
+  }
   if (a.kind === 'hline' && b.kind === 'hline') {
     c.fillConfig.push({
       id: `fill${c.fillConfig.length}`,
@@ -537,15 +596,17 @@ export function fill(a: PlotHandle, b: PlotHandle, options: ScriptFillOptions = 
       plot2: b.id,
       color: staticColor,
       colors: perBar,
-      title: options.title,
+      gradient,
+      title,
     });
     return;
   }
   c.fills.push({
     plot1: a.id,
     plot2: b.id,
-    options: { color: staticColor, title: options.title },
+    options: { color: staticColor, title },
     colors: perBar,
+    gradient,
   });
 }
 

@@ -329,11 +329,12 @@ export const yellow = '#FDD835';
  * @returns Color calculated from linear gradient
  *
  * @remarks
- * - Interpolates between bottom_color and top_color based on value's position
- * - If value <= bottom_value, returns bottom_color
- * - If value >= top_value, returns top_color
- * - Otherwise, returns linearly interpolated color
- * - Works with rgb(), rgba(), and hex color formats
+ * Rules (gradient-check/doc/README.md):
+ * - If value <= bottom_value, returns bottom_color; else if value >= top_value, returns top_color
+ * - Otherwise the colours are mixed with their transparency (premultiplied alpha); the RGB channels are truncated
+ * - An na value or bottom_value / top_value, or bottom_value == top_value, gives a fully transparent colour
+ * - An na colour counts as fully transparent
+ * - Works with rgb(), rgba() and hex (#RRGGBB, #RRGGBBAA) colours
  *
  * @example
  * ```typescript
@@ -356,57 +357,26 @@ export function from_gradient(
   bottom_color: color,
   top_color: color
 ): color {
-  // Parse colors to RGB
-  const parseColor = (col: color): [number, number, number, number] => {
-    if (typeof col === 'string') {
-      // Handle hex colors
-      if (col.startsWith('#')) {
-        const hex = col.slice(1);
-        const r = parseInt(hex.slice(0, 2), 16);
-        const g = parseInt(hex.slice(2, 4), 16);
-        const b = parseInt(hex.slice(4, 6), 16);
-        return [r, g, b, 1];
-      }
-
-      // Handle rgb/rgba colors
-      const match = col.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-      if (match) {
-        return [
-          parseInt(match[1]!),
-          parseInt(match[2]!),
-          parseInt(match[3]!),
-          match[4] ? parseFloat(match[4]) : 1
-        ];
-      }
-    }
-
-    // Default to black if parsing fails
-    return [0, 0, 0, 1];
+  const transparent = 'rgba(0, 0, 0, 0)';
+  if ([value, bottom_value, top_value].some((v) => v === null || v === undefined || Number.isNaN(v)) || bottom_value === top_value) {
+    return transparent;
+  }
+  const k = value <= bottom_value ? 0 : value >= top_value ? 1 : (value - bottom_value) / (top_value - bottom_value);
+  // alpha as a byte (0-255), as PineScript stores it; an na colour (null / undefined) is fully transparent
+  const rgba = (c: color) => {
+    if (c === null || c === undefined) return { r: 0, g: 0, b: 0, a: 0 };
+    const p = parseColor(c);
+    return { r: p.r, g: p.g, b: p.b, a: Math.round((1 - p.t / 100) * 255) };
   };
-
-  const [r1, g1, b1, a1] = parseColor(bottom_color);
-  const [r2, g2, b2, a2] = parseColor(top_color);
-
-  // Calculate interpolation factor
-  let t: number;
-  if (value <= bottom_value) {
-    t = 0;
-  } else if (value >= top_value) {
-    t = 1;
-  } else {
-    t = (value - bottom_value) / (top_value - bottom_value);
-  }
-
-  // Interpolate RGB and alpha
-  const r = Math.round(r1 + (r2 - r1) * t);
-  const g = Math.round(g1 + (g2 - g1) * t);
-  const b = Math.round(b1 + (b2 - b1) * t);
-  const a = a1 + (a2 - a1) * t;
-
-  if (a === 1) {
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  const c1 = rgba(bottom_color);
+  const c2 = rgba(top_color);
+  const w1 = c1.a * (1 - k);
+  const w2 = c2.a * k;
+  const a = w1 + w2;
+  if (a === 0) return transparent;
+  const mix = (x1: number, x2: number) => Math.floor((x1 * w1 + x2 * w2) / a);
+  const [r, g, b] = [mix(c1.r, c2.r), mix(c1.g, c2.g), mix(c1.b, c2.b)];
+  return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 }
 
 /**

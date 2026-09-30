@@ -198,6 +198,24 @@ export interface FillData {
   options?: FillOptions;
   /** Per-bar fill colors (overrides static options.color) */
   colors?: string[];
+  /** Gradient fill (PineScript `fill(p1, p2, top_value, bottom_value, top_color, bottom_color)`) */
+  gradient?: FillGradient;
+}
+
+/**
+ * Gradient of a fill, one entry per bar. Rules (gradient-check/doc/README.md): the colour
+ * changes with the price, `topColor` at `topValue` and `bottomColor` at `bottomValue`; outside that range the end
+ * colour is kept; each bar has its own gradient (the part from bar i-1 to bar i uses the values of bar i).
+ */
+export interface FillGradient {
+  /** Price of `topColor`, per bar */
+  topValue: number[];
+  /** Price of `bottomColor`, per bar */
+  bottomValue: number[];
+  /** Colour at `topValue`, per bar (null: na) */
+  topColor: Array<string | null>;
+  /** Colour at `bottomValue`, per bar (null: na) */
+  bottomColor: Array<string | null>;
 }
 
 /**

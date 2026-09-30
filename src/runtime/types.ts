@@ -4,6 +4,8 @@
  * @module runtime/types
  */
 
+import type { FillGradient } from '../types/metadata';
+
 /**
  * Handle returned by ChartAdapter.addSeries
  * Represents a series on the chart with ability to update data
@@ -129,6 +131,8 @@ export interface FillConfig {
     color?: string;
     /** Per-bar fill colors (overrides static color) */
     colors?: string[];
+    /** Gradient fill (PineScript `fill(hline1, hline2, top_value, bottom_value, top_color, bottom_color)`) */
+    gradient?: FillGradient;
     /** Display title */
     title?: string;
     /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */

@@ -5,6 +5,22 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-30
+
+### Added
+
+- Gradient fills (issue #83): `FillData.gradient` and `FillConfig.gradient` (`FillGradient`: per-bar `topValue`,
+  `bottomValue`, `topColor`, `bottomColor`). Script API `fill()` follows the three PineScript overloads with positional
+  arguments: `fill(p1, p2, color, title)` and `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, title)`
+  for plots and hlines (values: number or Series; colours: colour, na or `color.when()` array). The options object
+  form still works.
+
+### Fixed
+
+- `color.from_gradient` follows PineScript: premultiplied byte alpha, truncated channels, transparent result for na
+  inputs or an empty range, hex colours with alpha (before: its own parser lost the alpha of `#RRGGBBAA`).
+- (`gradient-check/doc/README.md`): 23 checks, 0 differences.
+
 ## [0.6.1] - 2026-09-30
 
 ### Fixed
