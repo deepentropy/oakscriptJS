@@ -164,7 +164,7 @@ export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAd
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
 
 // Version
-export const VERSION = '0.8.0';
+export const VERSION = '0.8.1';
 
 /**
  * Library information
