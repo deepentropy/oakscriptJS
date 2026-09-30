@@ -5,7 +5,7 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-09-30
 
 ### Added
 
@@ -100,6 +100,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mapping rules: 117,203 values, 0 differences; period times 23,235, 0 differences.
   Values differ where the exchange's bars differ from bars built from the chart (official auction prices,
   settlement, consolidated volume); see `security-check/doc/README.md`.
+
+**Multi-period timeframes (follow-up of #100 and #101):**
+- `time(tf)`, `time_close(tf)`, `timeframe.change(tf)`, `time_tradingday` and `request.security` accept daily,
+  weekly and monthly timeframes with a multiplier ("3D", "2W", "3M", "12M"), and multi-period charts. Periods
+  restart each calendar year: "nD" groups n trading days, "nW" n weeks from the first Monday of the year, "nM"
+  n months from January. On intraday charts `time_close("nD")` is the start of the next period.
+- `request.security`: a chart bar completes its period only when it closes at or after the period end; a period
+  whose last bars are missing completes on the first bar of the next period.
+- (13 timeframes, 13 runs): 2,308,875 timing values, 0 differences; see
+  `multiperiod-check/doc/README.md`.
 
 ### Changed (breaking)
 

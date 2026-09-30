@@ -7,8 +7,10 @@
  * - `lookahead_on`: every chart bar of a period shows the value of that period
  * - `gaps_on`: only the bar where the value appears has it (the completing bar with lookahead off, the
  *   first bar of the period with lookahead on); the other bars are `na`
- * - the last loaded bar completes its period only if it closes at or after the end of the period (a
- *   period still trading keeps showing the previous completed value)
+ * - a bar completes its period only if it closes at or after the end of the period (a period still
+ *   trading keeps showing the previous completed value); when the bars at the end of a period are missing
+ *   (data gap, a day off not in the calendar), the period completes on the first bar of the next period
+ *   (multiperiod-check/doc/README.md)
  * - D / W / M periods follow the regular hours: on extended-hours charts the premarket bars still show
  *   the previous period, which completes on the last bar of its trading day
  */
@@ -47,43 +49,44 @@ export function resample(bars: Bar[], periodStart: number[]): Resampled {
 }
 
 /**
- * Period index and completion of each chart bar.
+ * Period index of each chart bar, and the latest completed period at each chart bar.
  * @param starts - Period start of each chart bar (the higher-timeframe bar it belongs to)
  * @param dayPeriods - Period of the trading day of each chart bar in the loaded session: on extended-hours
  *   charts the premarket bars still belong to the previous daily period, but a new trading day completes it
- * @param lastComplete - True when the last chart bar completes its period
+ * @param reaches - True when the chart bar closes at or after the end of its period
  */
-export function periodsOf(starts: number[], dayPeriods: number[], lastComplete: boolean): { group: number[]; complete: boolean[] } {
+export function periodsOf(starts: number[], dayPeriods: number[], reaches: boolean[]): { group: number[]; latest: number[] } {
   const n = starts.length;
   const group: number[] = [];
   starts.forEach((s, i) => group.push(i === 0 ? 0 : group[i - 1]! + (s !== starts[i - 1] ? 1 : 0)));
-  // a period completes once: the premarket bars after it (same period) do not complete it again
-  let done = -1;
-  const complete = starts.map((s, i) => {
-    const ends = i < n - 1 ? starts[i + 1] !== s || dayPeriods[i + 1] !== dayPeriods[i] : lastComplete;
-    if (!ends || done === group[i]) return false;
-    done = group[i]!;
-    return true;
+  const latest: number[] = [];
+  starts.forEach((s, i) => {
+    let done = i === 0 ? -1 : latest[i - 1]!;
+    // a new period completes all the earlier ones (their last bars may be missing)
+    if (i > 0 && group[i] !== group[i - 1]) done = Math.max(done, group[i]! - 1);
+    // the last bar of its period in the loaded session (the premarket bars after it do not complete it again)
+    const ends = i < n - 1 ? starts[i + 1] !== s || dayPeriods[i + 1] !== dayPeriods[i] : true;
+    if (ends && reaches[i]) done = Math.max(done, group[i]!);
+    latest.push(done);
   });
-  return { group, complete };
+  return { group, latest };
 }
 
 /**
  * Maps values computed on the higher-timeframe bars to the chart bars.
  * @param values - One value per higher-timeframe bar
  * @param group - Period index of each chart bar
- * @param complete - True on the chart bars that complete their period
+ * @param latest - Latest completed period at each chart bar (-1: none yet)
  */
-export function mapToChart(values: number[], group: number[], complete: boolean[], lookahead: boolean, gaps: boolean): number[] {
-  let completed = -1;
+export function mapToChart(values: number[], group: number[], latest: number[], lookahead: boolean, gaps: boolean): number[] {
   return group.map((g, i) => {
-    const first = i === 0 || group[i - 1] !== g;
-    if (lookahead) return gaps && !first ? NaN : (values[g] ?? NaN);
-    if (complete[i]) {
-      completed = g;
-      return values[g] ?? NaN;
+    if (lookahead) {
+      const first = i === 0 || group[i - 1] !== g;
+      return gaps && !first ? NaN : (values[g] ?? NaN);
     }
-    return gaps || completed < 0 ? NaN : (values[completed] ?? NaN);
+    const done = latest[i]!;
+    if (done < 0 || (gaps && i > 0 && latest[i - 1] === done)) return NaN;
+    return values[done] ?? NaN;
   });
 }
 

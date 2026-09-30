@@ -1127,11 +1127,11 @@ function security<T extends SecurityValue>(
   const times = chartBars.map(barTime);
   let htf: Bar[];
   let group: number[];
-  let complete: boolean[];
+  let latest: number[];
   if (tf === chart.period) {
     htf = chartBars;
     group = chartBars.map((_, i) => i);
-    complete = chartBars.map(() => true);
+    latest = group;
   } else {
     const { bars: loaded, regular } = sessionBars();
     // D / W / M periods follow the regular hours; intraday periods the loaded session
@@ -1142,9 +1142,8 @@ function security<T extends SecurityValue>(
       const periods = at ? calendar.calendar.periods(at.date) : [];
       return periods.length ? calendar.timeOf(periods[0]![0], tf) : starts[i]!;
     });
-    const last = times.length - 1;
-    const lastComplete = last >= 0 && loaded.closeOf(times[last]!, chart.period) >= calendar.periodEnd(times[last]!, tf);
-    ({ group, complete } = periodsOf(starts, dayPeriods, lastComplete));
+    const reaches = times.map((t) => loaded.closeOf(t, chart.period) >= calendar.periodEnd(t, tf));
+    ({ group, latest } = periodsOf(starts, dayPeriods, reaches));
     const unit = chartCtx.timeUnit === 'ms' ? 1 : 1000;
     htf = resample(chartBars, starts.map((s) => s / unit)).bars;
   }
@@ -1164,7 +1163,7 @@ function security<T extends SecurityValue>(
     chartCtx = savedCtx;
   }
   const mapped = values.map((v) =>
-    Series.fromArray(ctxBars, mapToChart(v, group, complete, lookahead === barmerge.lookahead_on, gaps === barmerge.gaps_on))
+    Series.fromArray(ctxBars, mapToChart(v, group, latest, lookahead === barmerge.lookahead_on, gaps === barmerge.gaps_on))
   );
   return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
 }

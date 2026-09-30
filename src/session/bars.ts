@@ -8,11 +8,16 @@
  * - "D" is the session start of the trading day; "W" / "M" the session start of the first trading day
  *   of the week (Monday to Sunday) / month
  * - intraday closes are cut at the end of the session period; the "D" close is the session end
- * - on intraday charts the "W" / "M" close is the session start of the next week's / month's first
+ * - on intraday charts the "W" / "M" (and "nD") close is the session start of the next period's first
  *   trading day; on D / W / M charts it is the session end of the last trading day of the week / month
  * - on D / W / M charts, intraday timeframes give the chart bar's time, and the end of the session
  *   period that contains the bar open as close
  * - `time_tradingday` is 00:00 UTC of the trading day (on W / M charts, of the last trading day)
+ *
+ * Multipliers above one day (issue #100 follow-up, multiperiod-check/doc/README.md): periods restart each
+ * calendar year. "nD" groups n trading days from the first trading day of the year; "nW" groups n weeks from
+ * the first week whose Monday is in the year; "nM" groups n months from January. The last group of a year
+ * can be shorter.
  */
 
 import { info, in_seconds, type TimeframeInfo } from '../timeframe';
@@ -26,26 +31,75 @@ import {
   type DateNum,
 } from './calendar';
 
-function periodLimit(tf: TimeframeInfo): 'D' | 'W' | 'M' {
-  if (tf.multiplier !== 1) {
-    throw new RangeError(`Timeframe "${tf.period}": only 1D, 1W and 1M are supported above one day`);
-  }
-  return tf.isdaily ? 'D' : tf.isweekly ? 'W' : 'M';
+type Unit = 'D' | 'W' | 'M';
+
+function unitOf(tf: TimeframeInfo): { unit: Unit; n: number } {
+  return { unit: tf.isdaily ? 'D' : tf.isweekly ? 'W' : 'M', n: tf.multiplier };
 }
 
-function periodRange(date: DateNum, unit: 'W' | 'M'): [DateNum, DateNum] {
-  return unit === 'W' ? [weekStart(date), addDays(weekStart(date), 6)] : [monthStart(date), monthEnd(date)];
-}
+const yearOf = (date: DateNum): number => Math.floor(date / 10000);
+
+/** Monday of the first week of `year` (the first Monday on or after 1 January). */
+const firstMonday = (year: number): DateNum => {
+  const jan1 = year * 10000 + 101;
+  const monday = weekStart(jan1);
+  return monday === jan1 ? jan1 : addDays(monday, 7);
+};
 
 /** Values of the bars of one chart, for a trading calendar. */
 export class SessionBars {
   readonly chart: TimeframeInfo;
+
+  private readonly yearDays = new Map<number, DateNum[]>();
 
   constructor(
     readonly calendar: TradingCalendar,
     chartTimeframe: string
   ) {
     this.chart = info(chartTimeframe);
+  }
+
+  /** Trading days of a calendar year, in order. */
+  private tradingDaysOf(year: number): DateNum[] {
+    let days = this.yearDays.get(year);
+    if (!days) {
+      days = [];
+      for (let date = year * 10000 + 101; yearOf(date) === year; date = addDays(date, 1)) {
+        if (this.calendar.isTradingDay(date)) days.push(date);
+      }
+      this.yearDays.set(year, days);
+    }
+    return days;
+  }
+
+  /**
+   * Dates [from, to] of the `n`-`unit` period that contains `date` (for "D": its first and last trading days).
+   * Periods restart each calendar year.
+   */
+  private periodRange(date: DateNum, unit: Unit, n: number): [DateNum, DateNum] {
+    if (unit === 'D') {
+      if (n === 1) return [date, date];
+      const days = this.tradingDaysOf(yearOf(date));
+      let k = days.findIndex((d) => d >= date);
+      if (k === -1) return this.periodRange(yearOf(date) * 10000 + 10000 + 101, unit, n);
+      k -= k % n;
+      return [days[k]!, days[Math.min(k + n, days.length) - 1]!];
+    }
+    if (unit === 'W') {
+      const monday = weekStart(date);
+      const year = yearOf(monday);
+      const first = firstMonday(year);
+      const next = firstMonday(year + 1);
+      const k = Math.round((dateUtcMs(monday) - dateUtcMs(first)) / (7 * 86_400_000));
+      const from = addDays(first, (k - (k % n)) * 7);
+      const to = addDays(from, n * 7 - 1);
+      return [from, to < next ? to : addDays(next, -1)];
+    }
+    const year = yearOf(date);
+    const month = Math.floor(date / 100) % 100;
+    const firstMonth = month - ((month - 1) % n);
+    const lastMonth = Math.min(firstMonth + n - 1, 12);
+    return [monthStart(year * 10000 + firstMonth * 100 + 1), monthEnd(year * 10000 + lastMonth * 100 + 1)];
   }
 
   private dayStart(date: DateNum): number {
@@ -68,9 +122,8 @@ export class SessionBars {
       const ms = in_seconds(tf.period) * 1000;
       return start + Math.floor((time - start) / ms) * ms;
     }
-    const unit = periodLimit(tf);
-    if (unit === 'D') return this.dayStart(at.date);
-    const [from, to] = periodRange(at.date, unit);
+    const { unit, n } = unitOf(tf);
+    const [from, to] = this.periodRange(at.date, unit, n);
     const first = this.calendar.firstTradingDay(from, to);
     return first === null ? NaN : this.dayStart(first);
   }
@@ -86,12 +139,11 @@ export class SessionBars {
       if (this.chart.isdwm) return end;
       return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
     }
-    const unit = periodLimit(tf);
-    if (unit === 'D') return this.dayEnd(at.date);
-    const [from, to] = periodRange(at.date, unit);
-    if (this.chart.isintraday) {
-      const next = addDays(to, 1);
-      const [nextFrom, nextTo] = periodRange(next, unit);
+    const { unit, n } = unitOf(tf);
+    const [from, to] = this.periodRange(at.date, unit, n);
+    // intraday charts: the start of the next period, except "1D" (the session end)
+    if (this.chart.isintraday && (unit !== 'D' || n > 1)) {
+      const [nextFrom, nextTo] = this.periodRange(addDays(to, 1), unit, n);
       const first = this.calendar.firstTradingDay(nextFrom, addDays(nextTo, 31));
       return first === null ? NaN : this.dayStart(first);
     }
@@ -99,12 +151,13 @@ export class SessionBars {
     return last === null ? NaN : this.dayEnd(last);
   }
 
-  /** Trading day of a bar: on W / M charts the last trading day of the week / month. */
+  /** Trading day of a bar: on D / W / M charts the last trading day of the chart period. */
   tradingDay(time: number): DateNum | null {
     const at = this.calendar.locate(time);
     if (!at) return null;
-    if (this.chart.isweekly || this.chart.ismonthly) {
-      const [from, to] = periodRange(at.date, this.chart.isweekly ? 'W' : 'M');
+    if (this.chart.isdwm) {
+      const { unit, n } = unitOf(this.chart);
+      const [from, to] = this.periodRange(at.date, unit, n);
       return this.calendar.lastTradingDay(from, to);
     }
     return at.date;
@@ -112,7 +165,7 @@ export class SessionBars {
 
   /**
    * End of the `timeframe` period that contains `time`: the intraday close, the session end of the day,
-   * or the session end of the last trading day of the week / month. Used to know whether the last loaded
+   * or the session end of the last trading day of the period. Used to know whether the last loaded
    * bar completes a higher-timeframe period (request.security).
    */
   periodEnd(time: number, timeframe: string): number {
@@ -123,9 +176,8 @@ export class SessionBars {
       const [, end] = this.calendar.periods(at.date)[at.index]!;
       return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
     }
-    const unit = periodLimit(tf);
-    if (unit === 'D') return this.dayEnd(at.date);
-    const [from, to] = periodRange(at.date, unit);
+    const { unit, n } = unitOf(tf);
+    const [from, to] = this.periodRange(at.date, unit, n);
     const last = this.calendar.lastTradingDay(from, to);
     return last === null ? NaN : this.dayEnd(last);
   }
