@@ -57,6 +57,7 @@ import * as linefillCore from '../linefill';
 import * as polylineCore from '../polyline';
 import * as chartPointCore from '../chartpoint';
 import * as textCore from '../text';
+import * as mathCore from '../math';
 import { resetDrawings, setDrawingLimits } from '../drawing/registry';
 import * as timeframeCore from '../timeframe';
 import * as timeCore from '../time';
@@ -66,6 +67,27 @@ import { TradingCalendar, type SessionSpec } from '../session/calendar';
 import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars';
 import { heikinAshi, mapToChart, periodsOf, resample } from '../security/resample';
 import type { ChartPoint } from '../types';
+import {
+  STRATEGY_CONSTANTS,
+  STRATEGY_DEFAULTS,
+  STRATEGY_NUMBER_VARIABLES,
+  STRATEGY_TEXT_VARIABLES,
+  type StrategyCloseAllOptions,
+  type StrategyCloseOptions,
+  type StrategyDirection,
+  type StrategyEngine,
+  type StrategyEntryOptions,
+  type StrategyExitOptions,
+  type StrategyNumberVariable,
+  type StrategyOptions,
+  type StrategyProperties,
+  type StrategyRiskDirection,
+  type StrategyRiskRule,
+  type StrategyRiskValueType,
+  type StrategyTextVariable,
+  type StrategyTrade,
+  type StrategyVariable,
+} from '../strategy';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -78,6 +100,8 @@ export interface ScriptRunResult {
   barColorConfig: BarColorConfig[];
   defaultInputs: Record<string, unknown>;
   alertConfig: AlertConditionConfig[];
+  /** Strategy properties (declared values, else the PineScript defaults) when the script declares strategy(). */
+  strategyConfig?: StrategyProperties;
   /** The renderable output (plots keyed by plotConfig ids, plot-pair fills). */
   result: IndicatorResult & { alerts?: AlertState[] };
 }
@@ -103,6 +127,7 @@ export interface PlotHandle {
 }
 
 interface Collector {
+  declaration?: 'indicator' | 'strategy';
   title: string;
   shortTitle?: string;
   overlay: boolean;
@@ -124,6 +149,17 @@ interface Collector {
   barcolors: BarColorData[];
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
+  strategy?: StrategyRun;
+}
+
+/** State of the strategy of the current run. */
+interface StrategyRun {
+  properties: StrategyProperties;
+  engine?: StrategyEngine;
+  /** strategy.eachBar() has run (it runs once per script run). */
+  looped: boolean;
+  /** Inside the strategy.eachBar() callback. */
+  inLoop: boolean;
 }
 
 /** Bars for the current run. Module-level and REUSED across runs so builtins
@@ -180,20 +216,37 @@ function slugId(title: string | undefined, fallback: string, taken: Set<string>)
 
 // ── Host entry ───────────────────────────────────────────────────────────────
 
+/** What the host passes to its strategy engine factory when the script declares strategy(). */
+export interface StrategySetup {
+  properties: StrategyProperties;
+  bars: readonly Bar[];
+  chart: Readonly<ChartContext>;
+}
+
+export interface ScriptOptions {
+  /** Creates the order engine of a strategy script; called by strategy(). */
+  strategyEngine?: (setup: StrategySetup) => StrategyEngine;
+}
+
+let scriptOptions: ScriptOptions = {};
+
 /**
  * Runs a script body against `bars` with the given input overrides and
  * collects everything it declared. `chart` describes the bars (chart timeframe,
- * exchange time zone, session type) for the PineScript values that depend on them. This is the host-side entry — editor
+ * exchange time zone, session type) for the PineScript values that depend on them. `options.strategyEngine`
+ * supplies the order engine of strategy scripts. This is the host-side entry — editor
  * panels, workers and tests call it; scripts never do.
  */
 export function executeScript(
   body: () => void,
   barsInput: Bar[],
   inputs: Record<string, unknown> = {},
-  chart: ChartContext = {}
+  chart: ChartContext = {},
+  options: ScriptOptions = {}
 ): ScriptRunResult {
   ctxBars.setAll(barsInput);
   chartCtx = { ...chart };
+  scriptOptions = options;
   ctx = freshCollector(inputs);
   resetDrawings();
   try {
@@ -215,6 +268,7 @@ export function executeScript(
       barColorConfig: c.barColorConfig,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
+      strategyConfig: c.strategy?.properties,
       result: {
         metadata: { title: c.title, shorttitle: c.shortTitle, overlay: c.overlay, precision: c.precision },
         plots: c.plots,
@@ -250,6 +304,7 @@ export interface IndicatorOptions {
 /** PineScript `indicator()` — declares the script's metadata. */
 export function indicator(title: string, options: IndicatorOptions = {}): void {
   const c = collector();
+  declare(c, 'indicator');
   c.title = title;
   c.shortTitle = options.shorttitle;
   c.overlay = options.overlay ?? true;
@@ -261,6 +316,13 @@ export function indicator(title: string, options: IndicatorOptions = {}): void {
     box: options.max_boxes_count,
     polyline: options.max_polylines_count,
   });
+}
+
+function declare(c: Collector, kind: 'indicator' | 'strategy'): void {
+  if (c.declaration) {
+    throw new Error(`${kind}(): the script already declared ${c.declaration}(); a script has one declaration.`);
+  }
+  c.declaration = kind;
 }
 
 export interface NumericInputOptions {
@@ -828,6 +890,215 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
 /** Bar index of the running eachBar() callback, -1 outside eachBar(). */
 let currentBar = -1;
 
+// ── Strategy (declaration and strategy.* API; the host supplies the order engine) ──
+
+/** The strategy of the current run; throws when the script did not declare strategy(). */
+function strategyRun(caller: string): StrategyRun {
+  const run = collector().strategy;
+  if (!run) throw new Error(`${caller}: declare the script with strategy() first.`);
+  return run;
+}
+
+function strategyEngine(caller: string): StrategyEngine {
+  const run = strategyRun(caller);
+  if (!run.engine) {
+    throw new Error(
+      `${caller}: no strategy engine; pass it as executeScript(body, bars, inputs, chart, { strategyEngine }).`
+    );
+  }
+  return run.engine;
+}
+
+/** The engine for an order call: order calls run inside strategy.eachBar(), at a bar close. */
+function orderEngine(caller: string): StrategyEngine {
+  const engine = strategyEngine(caller);
+  if (!strategyRun(caller).inLoop) throw new Error(`${caller} must be called inside strategy.eachBar().`);
+  return engine;
+}
+
+/** Options without na (NaN) numbers and undefined values: in PineScript an na argument means "not given". */
+function given<T extends object>(options: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (value === undefined || (typeof value === 'number' && Number.isNaN(value))) continue;
+    out[key] = value;
+  }
+  return out as T;
+}
+
+function strategyVariable(name: StrategyVariable): number | string {
+  const value = strategyEngine(`strategy.${name}`).get(name);
+  if (value === undefined) throw new Error(`strategy.${name} is not provided by the strategy engine.`);
+  return value;
+}
+
+function riskRule(rule: StrategyRiskRule): void {
+  const engine = strategyEngine(`strategy.risk.${rule.rule}()`);
+  if (!engine.risk) throw new Error(`strategy.risk.${rule.rule}() is not provided by the strategy engine.`);
+  engine.risk(rule);
+}
+
+/** PineScript `strategy()` declaration: script metadata and strategy properties. */
+function declareStrategy(title: string, options: StrategyOptions = {}): void {
+  const c = collector();
+  declare(c, 'strategy');
+  c.title = title;
+  c.shortTitle = options.shorttitle;
+  c.overlay = options.overlay ?? false;
+  c.precision = options.precision;
+  c.format = options.format;
+  setDrawingLimits({
+    line: options.max_lines_count,
+    label: options.max_labels_count,
+    box: options.max_boxes_count,
+    polyline: options.max_polylines_count,
+  });
+  const properties: StrategyProperties = { ...STRATEGY_DEFAULTS };
+  const target = properties as unknown as Record<string, unknown>;
+  for (const key of [...Object.keys(STRATEGY_DEFAULTS), 'currency']) {
+    const value = (options as Record<string, unknown>)[key];
+    if (value !== undefined) target[key] = value;
+  }
+  const factory = scriptOptions.strategyEngine;
+  c.strategy = {
+    properties,
+    engine: factory?.({ properties, bars: ctxBars.bars, chart: chartCtx }),
+    looped: false,
+    inLoop: false,
+  };
+}
+
+/**
+ * Runs the strategy logic once per bar, in order, like {@link eachBar}. On each bar the engine first
+ * fills the pending orders (`processBar`), then the callback runs at the bar close (order calls,
+ * `strategy.*` variables), then `processClose` runs. A script has one strategy.eachBar() per run.
+ * The callback's return values are collected into a Series, as with eachBar().
+ */
+function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series {
+  const run = strategyRun('strategy.eachBar()');
+  const engine = strategyEngine('strategy.eachBar()');
+  if (run.looped) throw new Error('strategy.eachBar() runs once per script run.');
+  run.looped = true;
+  return eachBar((c) => {
+    engine.processBar(c.i);
+    run.inLoop = true;
+    try {
+      return fn(c);
+    } finally {
+      run.inLoop = false;
+      engine.processClose(c.i);
+    }
+  });
+}
+
+/** Numeric `strategy.*` variables, read from the engine (current bar inside strategy.eachBar()). */
+export type StrategyNumberVariables = { readonly [K in StrategyNumberVariable]: number };
+/** Text `strategy.*` variables, read from the engine. */
+export type StrategyTextVariables = { readonly [K in StrategyTextVariable]: string };
+
+/** PineScript `strategy`: the `strategy()` declaration and the `strategy.*` namespace. */
+export type StrategyApi = ((title: string, options?: StrategyOptions) => void) &
+  typeof STRATEGY_CONSTANTS &
+  StrategyNumberVariables &
+  StrategyTextVariables & {
+    eachBar: typeof strategyEachBar;
+    entry(id: string, direction: StrategyDirection, options?: StrategyEntryOptions): void;
+    order(id: string, direction: StrategyDirection, options?: StrategyEntryOptions): void;
+    exit(id: string, options?: StrategyExitOptions): void;
+    close(id: string, options?: StrategyCloseOptions): void;
+    close_all(options?: StrategyCloseAllOptions): void;
+    cancel(id: string): void;
+    cancel_all(): void;
+    /** PineScript `strategy.opentrades.*(index)`: open trade `index` (0 = oldest), undefined when it does not exist. */
+    opentrade(index: number): StrategyTrade | undefined;
+    /** PineScript `strategy.closedtrades.*(index)`: closed trade `index` (0 = oldest), undefined when it does not exist. */
+    closedtrade(index: number): StrategyTrade | undefined;
+    default_entry_qty(fill_price: number): number;
+    risk: {
+      allow_entry_in(direction: StrategyRiskDirection): void;
+      max_cons_loss_days(count: number, alert_message?: string): void;
+      max_drawdown(value: number, type: StrategyRiskValueType, alert_message?: string): void;
+      max_intraday_filled_orders(count: number, alert_message?: string): void;
+      max_intraday_loss(value: number, type: StrategyRiskValueType, alert_message?: string): void;
+      max_position_size(contracts: number): void;
+    };
+  };
+
+const strategyMembers = {
+  ...STRATEGY_CONSTANTS,
+  eachBar: strategyEachBar,
+  entry(id: string, direction: StrategyDirection, options: StrategyEntryOptions = {}): void {
+    orderEngine('strategy.entry()').entry(id, direction, given(options));
+  },
+  order(id: string, direction: StrategyDirection, options: StrategyEntryOptions = {}): void {
+    orderEngine('strategy.order()').order(id, direction, given(options));
+  },
+  exit(id: string, options: StrategyExitOptions = {}): void {
+    orderEngine('strategy.exit()').exit(id, given(options));
+  },
+  close(id: string, options: StrategyCloseOptions = {}): void {
+    orderEngine('strategy.close()').close(id, given(options));
+  },
+  close_all(options: StrategyCloseAllOptions = {}): void {
+    orderEngine('strategy.close_all()').close_all(given(options));
+  },
+  cancel(id: string): void {
+    orderEngine('strategy.cancel()').cancel(id);
+  },
+  cancel_all(): void {
+    orderEngine('strategy.cancel_all()').cancel_all();
+  },
+  opentrade(index: number): StrategyTrade | undefined {
+    return strategyEngine('strategy.opentrade()').openTrade(index);
+  },
+  closedtrade(index: number): StrategyTrade | undefined {
+    return strategyEngine('strategy.closedtrade()').closedTrade(index);
+  },
+  default_entry_qty(fill_price: number): number {
+    const engine = strategyEngine('strategy.default_entry_qty()');
+    if (!engine.defaultEntryQty) throw new Error('strategy.default_entry_qty() is not provided by the strategy engine.');
+    return engine.defaultEntryQty(fill_price);
+  },
+  risk: {
+    allow_entry_in: (direction: StrategyRiskDirection) => riskRule({ rule: 'allow_entry_in', direction }),
+    max_cons_loss_days: (count: number, alert_message?: string) =>
+      riskRule(given({ rule: 'max_cons_loss_days' as const, count, alert_message })),
+    max_drawdown: (value: number, type: StrategyRiskValueType, alert_message?: string) =>
+      riskRule(given({ rule: 'max_drawdown' as const, value, type, alert_message })),
+    max_intraday_filled_orders: (count: number, alert_message?: string) =>
+      riskRule(given({ rule: 'max_intraday_filled_orders' as const, count, alert_message })),
+    max_intraday_loss: (value: number, type: StrategyRiskValueType, alert_message?: string) =>
+      riskRule(given({ rule: 'max_intraday_loss' as const, value, type, alert_message })),
+    max_position_size: (contracts: number) => riskRule({ rule: 'max_position_size', contracts }),
+  },
+};
+
+const variableGetters: PropertyDescriptorMap = {};
+for (const name of [...STRATEGY_NUMBER_VARIABLES, ...STRATEGY_TEXT_VARIABLES]) {
+  variableGetters[name] = { get: () => strategyVariable(name), enumerable: true };
+}
+
+/**
+ * PineScript `strategy`: call it to declare a strategy, and use its members as the `strategy.*` namespace.
+ * OakScriptJS does not fill orders: the host passes an engine in `executeScript(..., { strategyEngine })`,
+ * and the order calls and `strategy.*` variables are forwarded to it.
+ *
+ * ```typescript
+ * strategy('MA Cross', { initial_capital: 10000, default_qty_type: strategy.percent_of_equity, default_qty_value: 100 });
+ * const up = ta.crossover(ta.sma(close, 9), ta.sma(close, 21));
+ * strategy.eachBar((c) => {
+ *   if (c.get(up) && strategy.position_size === 0) {
+ *     strategy.entry('L', strategy.long);
+ *     strategy.exit('X', { from_entry: 'L', stop: c.close * 0.95, limit: c.close * 1.15 });
+ *   }
+ * });
+ * ```
+ */
+export const strategy = Object.defineProperties(
+  Object.assign((title: string, options?: StrategyOptions) => declareStrategy(title, options), strategyMembers),
+  variableGetters
+) as StrategyApi;
+
 // ── Chart context (issue #100) ───────────────────────────────────────────────
 
 /**
@@ -853,6 +1124,12 @@ export interface ChartContext {
   tickerid?: string;
   /** Unit of `Bar.time`: 's' (default, as lightweight-charts) or 'ms'. PineScript times are in ms. */
   timeUnit?: 's' | 'ms';
+  /** Minimum price move of the symbol (PineScript `syminfo.mintick`), e.g. 0.01; used by `math.round_to_mintick` */
+  mintick?: number;
+  /** Currency value of one point of price move for one contract (PineScript `syminfo.pointvalue`); 1 for stocks */
+  pointvalue?: number;
+  /** Smallest tradable quantity (PineScript `syminfo.mincontract`); 1 for whole shares */
+  mincontract?: number;
 }
 
 let chartCtx: ChartContext = {};
@@ -922,8 +1199,30 @@ export const timeframe = {
   },
 };
 
-/** PineScript `syminfo.timezone`, `syminfo.tickerid` and `syminfo.session` (session type), from the chart context. */
+/** A symbol property that the host passes in the chart context. */
+function symbolProperty(key: 'mintick' | 'pointvalue' | 'mincontract'): number {
+  collector();
+  const value = chartCtx[key];
+  if (value === undefined) {
+    throw new Error(`syminfo.${key} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
+  }
+  return value;
+}
+
+/**
+ * PineScript `syminfo.timezone`, `syminfo.tickerid`, `syminfo.session` (session type), `syminfo.mintick`,
+ * `syminfo.pointvalue` and `syminfo.mincontract`, from the chart context.
+ */
 export const syminfo = {
+  get mintick(): number {
+    return symbolProperty('mintick');
+  },
+  get pointvalue(): number {
+    return symbolProperty('pointvalue');
+  },
+  get mincontract(): number {
+    return symbolProperty('mincontract');
+  },
   get timezone(): string {
     return exchangeTimezone();
   },
@@ -1315,7 +1614,36 @@ export function alertcondition(condition: Series, title: string, message?: strin
 // ── Convenience re-exports ───────────────────────────────────────────────────
 
 export { Series, BarData, isNA as na, nz };
-export * as math from '../math';
+export { STRATEGY_DEFAULTS } from '../strategy';
+export type {
+  StrategyCloseAllOptions,
+  StrategyCloseOptions,
+  StrategyCommissionType,
+  StrategyDirection,
+  StrategyEngine,
+  StrategyEntryOptions,
+  StrategyExitOptions,
+  StrategyNumberVariable,
+  StrategyOcaType,
+  StrategyOptions,
+  StrategyProperties,
+  StrategyQtyType,
+  StrategyRiskDirection,
+  StrategyRiskRule,
+  StrategyRiskValueType,
+  StrategyTextVariable,
+  StrategyTrade,
+  StrategyVariable,
+} from '../strategy';
+
+/** PineScript `math.*`; `math.round_to_mintick(x)` uses `syminfo.mintick` of the chart context. */
+export const math = {
+  ...mathCore,
+  round_to_mintick: ((number: number | Series, mintick?: number) => {
+    const tick = mintick ?? syminfo.mintick;
+    return number instanceof Series ? mathCore.round_to_mintick(number, tick) : mathCore.round_to_mintick(number, tick);
+  }) as typeof mathCore.round_to_mintick,
+};
 export * as compare from '../compare';
 export type {
   Bar,

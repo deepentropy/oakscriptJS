@@ -5,6 +5,38 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-30
+
+### Added
+
+- `callsite` namespace: per-call history of `ta.*` calls in a conditional block. `callsite.whenCalled(called, fn,
+  ...sources)` runs an array function on the bars where the call runs only; `callsite.crossover()`,
+  `callsite.crossunder()` and `callsite.cross()` are stateful call sites for bar loops (false on their first call).
+- Script API chart context: `mintick`, `pointvalue`, `mincontract`, read as `syminfo.mintick`, `syminfo.pointvalue`,
+  `syminfo.mincontract`. The script API `math.round_to_mintick(x)` uses `syminfo.mintick` when no tick is given.
+- Script API `strategy()` declaration and `strategy.*` API. OakScriptJS does not fill orders: the host passes an
+  order engine (`StrategyEngine`) in `executeScript(body, bars, inputs, chart, { strategyEngine })`, and the order
+  calls (`entry`, `order`, `exit`, `close`, `close_all`, `cancel`, `cancel_all`), the `strategy.*` variables, the
+  trades (`strategy.opentrade(i)`, `strategy.closedtrade(i)`), `strategy.risk.*` and `strategy.default_entry_qty`
+  are forwarded to it. `strategy.eachBar(fn)` runs the strategy logic per bar between the engine's `processBar(i)`
+  and `processClose(i)`. The run result has the resolved properties in `strategyConfig` (PineScript defaults in
+  `STRATEGY_DEFAULTS`).
+- `at(source, i, offset)`: history reference `x[offset]` on arrays; a negative offset throws. `div(a, b)`: division
+  where `a / 0` is na. `getSource(bars, name)` is exported from the main entry point.
+
+### Fixed
+
+- `ta.tr(false)` (the default) returns na on bar 0, where the previous close is na (before: `high - low`).
+  `ta.atr` uses `ta.tr(true)`.
+- `ta.dmi` follows the PineScript reference: +DM and -DM are na on bar 0, the true range is `ta.tr` (na on bar 0),
+  +DI / -DI keep the previous value when the smoothed true range is 0 (`fixnan`), comparisons use the 1e-10
+  tolerance. The first +DI / -DI value is one bar later than before, and the early values differ until the RMA
+  smoothing converges.
+- `ta.kc` with `useTrueRange` uses `ta.tr` (na on bar 0), as the PineScript reference: the bands start one bar
+  later.
+- `ta.mfi` follows the reference formula: a bar with an na change (bar 0) adds its money flow to both sums, so the
+  first value is on bar `length - 1`, and a change within 1e-10 of 0 counts as unchanged.
+
 ## [0.7.2] - 2026-09-30
 
 ### Changed

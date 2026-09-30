@@ -340,6 +340,44 @@ The bar context `c` exposes `c.open/high/low/close/volume`, `c.i` (bar_index),
 `c.prev(offset)` for this block's own previous output. Accumulate a side array in
 the closure and wrap it with `seriesOf(values)` for a second output.
 
+### Strategies (strategy declaration and strategy.* API)
+
+OakScriptJS does not fill orders. `strategy()` declares the strategy and its properties, and the
+`strategy.*` calls and variables are forwarded to an order engine that the host supplies. The strategy
+logic runs in `strategy.eachBar(fn)`: on each bar the engine fills the pending orders
+(`processBar(i)`), the callback runs at the bar close, then the engine gets `processClose(i)`.
+
+```typescript
+import { strategy, ta, close } from 'oakscriptjs/script';
+
+strategy('MA Cross', {
+  initial_capital: 10000,
+  default_qty_type: strategy.percent_of_equity,
+  default_qty_value: 100,
+});
+const up = ta.crossover(ta.sma(close, 9), ta.sma(close, 21));
+strategy.eachBar((c) => {
+  if (c.get(up) && strategy.position_size === 0) {
+    strategy.entry('L', strategy.long);
+    strategy.exit('X', { from_entry: 'L', stop: c.close * 0.95, limit: c.close * 1.15 });
+  }
+});
+```
+
+The host passes the engine to `executeScript(body, bars, inputs, chart, { strategyEngine })`. The
+factory receives the resolved properties (declared values, else the PineScript defaults), the bars and
+the chart context, and returns an object that implements `StrategyEngine`. The run result has the
+properties in `strategyConfig`.
+
+- Order options use the PineScript argument names (`from_entry`, `qty_percent`, `trail_points`...). An
+  `na` (NaN) option is removed before the call; the deprecated `when` argument does not exist.
+- Order calls must be inside `strategy.eachBar()`. Variables (`strategy.position_size`,
+  `strategy.equity`...) can also be read after it (final state).
+- `strategy.opentrades.entry_price(i)` is written `strategy.opentrade(i)?.entry_price`, and
+  `strategy.closedtrades.profit(i)` is written `strategy.closedtrade(i)?.profit`.
+- A variable, `strategy.risk.*` rule or `strategy.default_entry_qty()` that the engine does not provide
+  throws an error.
+
 ---
 
 ## API Reference

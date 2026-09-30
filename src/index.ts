@@ -35,8 +35,9 @@ import * as chartPoint from './chartpoint';
 import * as polyline from './polyline';
 import * as text from './text';
 import * as compare from './compare';
+import * as callsite from './callsite';
 
-export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text, compare };
+export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text, compare, callsite };
 
 // Export Series class (self-contained, no context)
 export { Series, BarData } from './runtime/series';
@@ -73,7 +74,7 @@ export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, 
 export { rgb, from_hex as color_from_hex, new_color } from './color';
 
 // Export chart data utilities
-export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSourceSeries } from './utils';
+export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSource, getSourceSeries, at, div } from './utils';
 
 // Export libraries (ZigZag, etc.)
 export * from './lib';
@@ -149,11 +150,20 @@ export type {
   FillConfig,
 } from './runtime/types';
 
+// Strategy types and constants (the script API forwards strategy.* calls to a host engine)
+export {
+  STRATEGY_CONSTANTS,
+  STRATEGY_DEFAULTS,
+  STRATEGY_NUMBER_VARIABLES,
+  STRATEGY_TEXT_VARIABLES,
+} from './strategy';
+export type * from './strategy';
+
 export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
 
 // Version
-export const VERSION = '0.7.2';
+export const VERSION = '0.8.0';
 
 /**
  * Library information

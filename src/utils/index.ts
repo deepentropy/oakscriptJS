@@ -58,6 +58,23 @@ export function fixnan<T>(source: T[]): T[] {
 }
 
 /**
+ * PineScript history reference `x[offset]` at bar `i` of an array: the value `offset` bars back,
+ * `na` (NaN) before the first bar. A negative offset (a later bar) throws, as in PineScript.
+ */
+export function at(source: ArrayLike<number>, i: int, offset: int = 0): float {
+  if (offset < 0) {
+    throw new RangeError(`at(): the offset must be >= 0 (got ${offset}); a negative offset reads a later bar.`);
+  }
+  const j = i - offset;
+  return j >= 0 && j < source.length ? (source[j] ?? NaN) : NaN;
+}
+
+/** PineScript division: `a / 0` is `na` (NaN), where JavaScript gives Infinity or NaN. */
+export function div(a: float, b: float): float {
+  return b === 0 ? NaN : a / b;
+}
+
+/**
  * Ensures a value is within bounds
  */
 export function clamp(value: float, min: float, max: float): float {

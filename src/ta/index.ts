@@ -9,6 +9,7 @@
  */
 
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
+import { eq, ge, gt, le } from '../compare';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -464,8 +465,8 @@ export function tr(
 
   for (let i = 0; i < high.length; i++) {
     if (i === 0) {
-      // First bar: no previous close, so just use high - low
-      result.push(high[i]! - low[i]!);
+      // First bar: the previous close is na
+      result.push(handle_na ? high[i]! - low[i]! : NaN);
     } else {
       const prevClose = close[i - 1]!;
 
@@ -526,7 +527,8 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
     );
   }
 
-  const trueRange = tr(false, high, low, close);
+  // PineScript: ta.atr uses ta.tr(true), so bar 0 is high - low
+  const trueRange = tr(true, high, low, close);
   return rma(trueRange, length);
 }
 
@@ -1607,55 +1609,33 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
     );
   }
 
-  const result: series_float = [];
-
-  const changes: number[] = [NaN];
-  for (let i = 1; i < source.length; i++) {
-    changes.push(source[i]! - source[i - 1]!);
-  }
-
-  const positiveFlow: number[] = [];
-  const negativeFlow: number[] = [];
-
+  // PineScript reference:
+  //   upper = math.sum(volume * (ta.change(src) <= 0 ? 0 : src), length)
+  //   lower = math.sum(volume * (ta.change(src) >= 0 ? 0 : src), length)
+  // A comparison with na is false, so a bar with an na change (bar 0) adds its money flow to both sums.
+  // The comparisons use the 1e-10 tolerance of Pine operators.
+  const upperFlow: number[] = [];
+  const lowerFlow: number[] = [];
   for (let i = 0; i < source.length; i++) {
-    if (i === 0 || isNaN(changes[i]!)) {
-      positiveFlow.push(0);
-      negativeFlow.push(0);
-    } else if (changes[i]! > 0) {
-      positiveFlow.push(volume[i]! * source[i]!);
-      negativeFlow.push(0);
-    } else if (changes[i]! < 0) {
-      positiveFlow.push(0);
-      negativeFlow.push(volume[i]! * source[i]!);
-    } else {
-      positiveFlow.push(0);
-      negativeFlow.push(0);
-    }
+    const change = i === 0 ? NaN : source[i]! - source[i - 1]!;
+    const flow = volume[i]! * source[i]!;
+    upperFlow.push(le(change, 0) ? 0 : flow);
+    lowerFlow.push(ge(change, 0) ? 0 : flow);
   }
+  // math.sum: the sum of the last `length` non-na values
+  const sumAt = (flow: number[], i: number): number => {
+    const values = lastValues(flow, i, Math.floor(length));
+    return values ? values.reduce((a, b) => a + b, 0) : NaN;
+  };
+  const upper = upperFlow.map((_, i) => sumAt(upperFlow, i));
+  const lower = lowerFlow.map((_, i) => sumAt(lowerFlow, i));
 
-  for (let i = 0; i < source.length; i++) {
-    if (i < length) {
-      result.push(NaN);
-    } else {
-      let posSum = 0;
-      let negSum = 0;
-
-      for (let j = 0; j < length; j++) {
-        posSum += positiveFlow[i - j]!;
-        negSum += negativeFlow[i - j]!;
-      }
-
-      if (negSum === 0) {
-        result.push(100);
-      } else {
-        const moneyRatio = posSum / negSum;
-        const mfiValue = 100 - (100 / (1 + moneyRatio));
-        result.push(mfiValue);
-      }
-    }
-  }
-
-  return result;
+  return upper.map((u, i) => {
+    const l = lower[i]!;
+    if (Number.isNaN(u) || Number.isNaN(l)) return NaN;
+    if (l === 0) return 100;
+    return 100 - 100 / (1 + u / l);
+  });
 }
 
 /**
@@ -2018,67 +1998,44 @@ export function dmi(
   low: Source,
   close: Source
 ): [series_float, series_float, series_float] {
+  // PineScript reference (built-in DMI):
+  //   up = ta.change(high), down = -ta.change(low)
+  //   plusDM = na(up) ? na : (up > down and up > 0 ? up : 0), minusDM likewise
+  //   trur = ta.rma(ta.tr, len)
+  //   plus = fixnan(100 * ta.rma(plusDM, len) / trur), minus likewise
+  //   adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
   const len = Math.max(high.length, low.length, close.length);
   const plusDM: series_float = [];
   const minusDM: series_float = [];
-  const trueRangeValues = tr(false, high, low, close);
-
-  // Calculate +DM and -DM
   for (let i = 0; i < len; i++) {
-    if (i === 0) {
-      plusDM.push(0);
-      minusDM.push(0);
-    } else {
-      const upMove = high[i]! - high[i - 1]!;
-      const downMove = low[i - 1]! - low[i]!;
-
-      let plusDMVal = 0;
-      let minusDMVal = 0;
-
-      if (upMove > downMove && upMove > 0) {
-        plusDMVal = upMove;
-      }
-      if (downMove > upMove && downMove > 0) {
-        minusDMVal = downMove;
-      }
-
-      plusDM.push(plusDMVal);
-      minusDM.push(minusDMVal);
-    }
+    const up = i === 0 ? NaN : high[i]! - high[i - 1]!;
+    const down = i === 0 ? NaN : low[i - 1]! - low[i]!;
+    plusDM.push(Number.isNaN(up) ? NaN : gt(up, down) && gt(up, 0) ? up : 0);
+    minusDM.push(Number.isNaN(down) ? NaN : gt(down, up) && gt(down, 0) ? down : 0);
   }
 
-  // Smooth +DM, -DM, and TR using RMA
-  const smoothedPlusDM = rma(plusDM, diLength);
-  const smoothedMinusDM = rma(minusDM, diLength);
-  const smoothedTR = rma(trueRangeValues, diLength);
+  const trur = rma(tr(false, high, low, close), diLength);
+  const smoothedPlus = rma(plusDM, diLength);
+  const smoothedMinus = rma(minusDM, diLength);
+  // x / 0 is na; fixnan keeps the previous value
+  const directional = (smoothed: series_float): series_float => {
+    let last = NaN;
+    return smoothed.map((v, i) => {
+      const t = trur[i]!;
+      const value = t === 0 ? NaN : (100 * v) / t;
+      if (!Number.isNaN(value)) last = value;
+      return last;
+    });
+  };
+  const plusDI = directional(smoothedPlus);
+  const minusDI = directional(smoothedMinus);
 
-  // Calculate +DI and -DI
-  const plusDI: series_float = [];
-  const minusDI: series_float = [];
-
-  for (let i = 0; i < len; i++) {
-    if (smoothedTR[i]! === 0) {
-      plusDI.push(0);
-      minusDI.push(0);
-    } else {
-      plusDI.push((smoothedPlusDM[i]! / smoothedTR[i]!) * 100);
-      minusDI.push((smoothedMinusDM[i]! / smoothedTR[i]!) * 100);
-    }
-  }
-
-  // Calculate DX
-  const dx: series_float = [];
-  for (let i = 0; i < len; i++) {
-    const sum = plusDI[i]! + minusDI[i]!;
-    if (sum === 0) {
-      dx.push(0);
-    } else {
-      dx.push((Math.abs(plusDI[i]! - minusDI[i]!) / sum) * 100);
-    }
-  }
-
-  // Calculate ADX (smoothed DX)
-  const adx = rma(dx, adxSmoothing);
+  const dx = plusDI.map((plus, i) => {
+    const minus = minusDI[i]!;
+    const sum = plus + minus;
+    return Math.abs(plus - minus) / (eq(sum, 0) ? 1 : sum);
+  });
+  const adx = rma(dx, adxSmoothing).map((v) => 100 * v);
 
   return [plusDI, minusDI, adx];
 }
@@ -2233,6 +2190,7 @@ export function kc(
     if (!high || !low || !close) {
       throw new Error('ta.kc() with useTrueRange=true requires high, low, and close data');
     }
+    // PineScript reference: ta.tr, which is na on bar 0
     range = tr(false, high, low, close);
   } else {
     if (!high || !low) {

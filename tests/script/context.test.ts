@@ -10,6 +10,7 @@ import {
   timeframe,
   timestamp,
   close,
+  math,
   type ChartContext,
 } from '../../src/script';
 import type { Bar } from '../../src/types';
@@ -69,6 +70,16 @@ describe('exchange time zone defaults', () => {
   it('syminfo.timezone and syminfo.session', () => {
     expect(run(NY, () => [syminfo.timezone, syminfo.session])).toEqual(['America/New_York', 'regular']);
     expect(run({ ...NY, sessionType: 'extended' }, () => syminfo.session)).toBe('extended');
+  });
+
+  it('syminfo.mintick, pointvalue and mincontract; math.round_to_mintick uses syminfo.mintick', () => {
+    const sym: ChartContext = { mintick: 0.25, pointvalue: 50, mincontract: 1 };
+    expect(run(sym, () => [syminfo.mintick, syminfo.pointvalue, syminfo.mincontract])).toEqual([0.25, 50, 1]);
+    expect(run(sym, () => [math.round_to_mintick(10.1), math.round_to_mintick(10.125), math.round_to_mintick(10.3, 0.5)])).toEqual([10, 10.25, 10.5]);
+    expect(run(sym, () => math.round_to_mintick(close).toArray())).toEqual([1.5, 1.5, 1.5]);
+    expect(() => run({}, () => syminfo.mintick)).toThrow('syminfo.mintick is not known');
+    expect(() => run({}, () => math.round_to_mintick(1.2))).toThrow('syminfo.mintick is not known');
+    expect(run({}, () => math.sqrt(4))).toBe(2);
   });
 
   it('calendar functions, timestamp and str.format_time use the exchange time zone', () => {

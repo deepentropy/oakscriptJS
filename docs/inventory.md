@@ -51,7 +51,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 
 | Namespace | Official Functions | Reason |
 |-----------|-------------------|--------|
-| **strategy** | 47 | Trading execution engine |
+| **strategy** | 47 | Order execution engine: the script API has `strategy()` and the `strategy.*` API, forwarded to an engine the host supplies |
 | **table** | 22 | Rendering-only (no getters) |
 | **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
 | **request** | 10 | External data fetching — `request.security` for the chart symbol (higher timeframes, Heikin Ashi) is in the script API |
@@ -371,8 +371,9 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 reference does not define the rule.
 
 9. `time(timeframe, session, timezone)`, `time_close(...)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`,
-   `timeframe.*` variables, `syminfo.timezone/session` - script API, with the chart context of `executeScript`
-   (chart timeframe, exchange time zone, session in the symbol session format)
+   `timeframe.*` variables, `syminfo.timezone/session/mintick/pointvalue/mincontract` - script API, with the chart
+   context of `executeScript` (chart timeframe, exchange time zone, session in the symbol session format, symbol
+   properties)
 
 ### Not Implemented
 
