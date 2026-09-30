@@ -34,8 +34,9 @@ import * as linefill from './linefill';
 import * as chartPoint from './chartpoint';
 import * as polyline from './polyline';
 import * as text from './text';
+import * as compare from './compare';
 
-export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text };
+export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text, compare };
 
 // Export Series class (self-contained, no context)
 export { Series, BarData } from './runtime/series';
@@ -151,7 +152,7 @@ export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAd
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
 
 // Version
-export const VERSION = '0.6.0';
+export const VERSION = '0.6.1';
 
 /**
  * Library information

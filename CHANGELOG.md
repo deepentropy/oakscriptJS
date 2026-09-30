@@ -5,6 +5,24 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-09-30
+
+### Fixed
+
+Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
+- Comparison operators: new `compare` namespace (`eq`, `ne`, `lt`, `le`, `gt`, `ge`, `EPSILON`) with PineScript's
+  absolute tolerance of 1e-10 (`0.1 + 0.2 == 0.3` is true) and false for an `na` operand. The `Series` methods
+  `gt`, `gte`, `lt`, `lte`, `eq`, `neq` use it (before: exact comparisons; `neq` was true with `na`).
+- `ta.rsi`: a change from or to `na` is `na`, not a 0 gain / loss. `ta.rma`: an `na` source gives `na` on that bar
+  (the next bar continues from the last value).
+- `color.new`, `color.r/g/b/t`: hex colours (`#RRGGBB`, `#RRGGBBAA`) are read; before they became black.
+
+### Changed
+
+- The `color` constants are the PineScript v6 palette (for example `color.green` #4CAF50,
+  `color.red` #F23645, `color.teal` #089981); before they were HTML colours (`#00FF00`, `#FF0000`, `#008080`).
+  Charts that use these constants change colour.
+
 ## [0.6.0] - 2026-09-30
 
 ### Added

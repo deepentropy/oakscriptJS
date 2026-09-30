@@ -1256,6 +1256,7 @@ export function alertcondition(condition: Series, title: string, message?: strin
 
 export { Series, BarData, isNA as na, nz };
 export * as math from '../math';
+export * as compare from '../compare';
 export type {
   Bar,
   IndicatorResult,

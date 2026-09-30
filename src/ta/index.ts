@@ -145,9 +145,9 @@ export function rsi(source: Source, length: simple_int): series_float {
     changes.push(source[i]! - source[i - 1]!);
   }
 
-  // Separate gains and losses
-  const gains: number[] = changes.map(c => c > 0 ? c : 0);
-  const losses: number[] = changes.map(c => c < 0 ? -c : 0);
+  // Separate gains and losses; a change from or to na is na (skipped by rma), not a 0 gain / loss
+  const gains: number[] = changes.map(c => (Number.isNaN(c) ? NaN : c > 0 ? c : 0));
+  const losses: number[] = changes.map(c => (Number.isNaN(c) ? NaN : c < 0 ? -c : 0));
 
   // Calculate average gains and losses using RMA (not SMA)
   const avgGains = rma(gains, length);
@@ -702,9 +702,11 @@ export function rma(source: Source, length: simple_int): series_float {
       if (val !== undefined && !isNaN(val)) {
         // RMA formula: alpha * source + (1 - alpha) * RMA[1]
         rmaValue = alpha * val + (1 - alpha) * rmaValue;
+        result.push(rmaValue);
+      } else {
+        // na source: na on this bar; the next bar continues from the last value (PineScript)
+        result.push(NaN);
       }
-      // If current value is NaN, rmaValue stays the same (carry forward)
-      result.push(rmaValue);
     }
   }
 

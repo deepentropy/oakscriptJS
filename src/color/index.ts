@@ -192,6 +192,14 @@ export function t(clr: color): float {
  */
 function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
   if (typeof clr === 'string') {
+    // Hex: #RRGGBB, #RRGGBBAA (PineScript literals), #RGB, #RGBA
+    const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(clr.trim());
+    if (hex) {
+      let digits = hex[1]!;
+      if (digits.length <= 4) digits = [...digits].map((c) => c + c).join('');
+      const byte = (k: number) => parseInt(digits.slice(k, k + 2), 16);
+      return { r: byte(0), g: byte(2), b: byte(4), t: digits.length === 8 ? (1 - byte(6) / 255) * 100 : 0 };
+    }
     // Handle rgb() or rgba() format
     const match = clr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
     if (match) {
@@ -206,60 +214,61 @@ function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
   return { r: 0, g: 0, b: 0, t: 0 };
 }
 
-// Predefined color constants matching PineScript v6
+// Predefined color constants of PineScript v6, (pinerules-check/doc/README.md).
+// PineScript v5 differs for red (#FF5252), teal (#00897B) and yellow (#FFEB3B).
 /**
  * Aqua/Cyan color constant
- * @constant {string} #00FFFF - RGB(0, 255, 255)
+ * @constant {string} #00BCD4 - RGB(0, 188, 212)
  */
-export const aqua = '#00FFFF';
+export const aqua = '#00BCD4';
 
 /**
  * Black color constant
- * @constant {string} #000000 - RGB(0, 0, 0)
+ * @constant {string} #363A45 - RGB(54, 58, 69)
  */
-export const black = '#000000';
+export const black = '#363A45';
 
 /**
  * Blue color constant
- * @constant {string} #0000FF - RGB(0, 0, 255)
+ * @constant {string} #2962FF - RGB(41, 98, 255)
  */
-export const blue = '#0000FF';
+export const blue = '#2962FF';
 
 /**
  * Fuchsia/Magenta color constant
- * @constant {string} #FF00FF - RGB(255, 0, 255)
+ * @constant {string} #E040FB - RGB(224, 64, 251)
  */
-export const fuchsia = '#FF00FF';
+export const fuchsia = '#E040FB';
 
 /**
  * Gray color constant
- * @constant {string} #808080 - RGB(128, 128, 128)
+ * @constant {string} #787B86 - RGB(120, 123, 134)
  */
-export const gray = '#808080';
+export const gray = '#787B86';
 
 /**
  * Green color constant (same as lime)
- * @constant {string} #00FF00 - RGB(0, 255, 0)
+ * @constant {string} #4CAF50 - RGB(76, 175, 80)
  */
-export const green = '#00FF00';
+export const green = '#4CAF50';
 
 /**
  * Lime color constant (same as green)
- * @constant {string} #00FF00 - RGB(0, 255, 0)
+ * @constant {string} #00E676 - RGB(0, 230, 118)
  */
-export const lime = '#00FF00';
+export const lime = '#00E676';
 
 /**
  * Maroon color constant
- * @constant {string} #800000 - RGB(128, 0, 0)
+ * @constant {string} #880E4F - RGB(136, 14, 79)
  */
-export const maroon = '#800000';
+export const maroon = '#880E4F';
 
 /**
  * Navy color constant
- * @constant {string} #000080 - RGB(0, 0, 128)
+ * @constant {string} #311B92 - RGB(49, 27, 146)
  */
-export const navy = '#000080';
+export const navy = '#311B92';
 
 /**
  * Olive color constant
@@ -269,33 +278,33 @@ export const olive = '#808000';
 
 /**
  * Orange color constant
- * @constant {string} #FFA500 - RGB(255, 165, 0)
+ * @constant {string} #FF9800 - RGB(255, 152, 0)
  */
-export const orange = '#FFA500';
+export const orange = '#FF9800';
 
 /**
  * Purple color constant
- * @constant {string} #800080 - RGB(128, 0, 128)
+ * @constant {string} #9C27B0 - RGB(156, 39, 176)
  */
-export const purple = '#800080';
+export const purple = '#9C27B0';
 
 /**
  * Red color constant
- * @constant {string} #FF0000 - RGB(255, 0, 0)
+ * @constant {string} #F23645 - RGB(242, 54, 69)
  */
-export const red = '#FF0000';
+export const red = '#F23645';
 
 /**
  * Silver color constant
- * @constant {string} #C0C0C0 - RGB(192, 192, 192)
+ * @constant {string} #B2B5BE - RGB(178, 181, 190)
  */
-export const silver = '#C0C0C0';
+export const silver = '#B2B5BE';
 
 /**
  * Teal color constant
- * @constant {string} #008080 - RGB(0, 128, 128)
+ * @constant {string} #089981 - RGB(8, 153, 129)
  */
-export const teal = '#008080';
+export const teal = '#089981';
 
 /**
  * White color constant
@@ -305,9 +314,9 @@ export const white = '#FFFFFF';
 
 /**
  * Yellow color constant
- * @constant {string} #FFFF00 - RGB(255, 255, 0)
+ * @constant {string} #FDD835 - RGB(253, 216, 53)
  */
-export const yellow = '#FFFF00';
+export const yellow = '#FDD835';
 
 /**
  * Creates a color from a gradient based on value position.

@@ -4,6 +4,7 @@
  * @module runtime/series
  */
 
+import * as compare from '../compare';
 import type { Bar } from '../types';
 
 /**
@@ -334,7 +335,7 @@ export class Series {
   }
 
   // ============================================
-  // Comparison Operations
+  // Comparison Operations (PineScript operators: tolerance 1e-10, false with na; see src/compare)
   // ============================================
 
   /**
@@ -346,7 +347,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a > b ? 1 : 0;
+      return compare.gt(a, b) ? 1 : 0;
     });
   }
 
@@ -359,7 +360,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a >= b ? 1 : 0;
+      return compare.ge(a, b) ? 1 : 0;
     });
   }
 
@@ -372,7 +373,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a < b ? 1 : 0;
+      return compare.lt(a, b) ? 1 : 0;
     });
   }
 
@@ -385,7 +386,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a <= b ? 1 : 0;
+      return compare.le(a, b) ? 1 : 0;
     });
   }
 
@@ -398,7 +399,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a === b ? 1 : 0;
+      return compare.eq(a, b) ? 1 : 0;
     });
   }
 
@@ -411,7 +412,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return a !== b ? 1 : 0;
+      return compare.ne(a, b) ? 1 : 0;
     });
   }
 
