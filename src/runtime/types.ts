@@ -69,6 +69,19 @@ export interface InputConfig {
   step?: number;
   /** Options for dropdown selection (for string, timeframe and session inputs) */
   options?: string[];
+  /** Settings group header (PineScript `group`) */
+  group?: string;
+  /** Inputs with the same `inline` id are shown on one line (PineScript `inline`) */
+  inline?: string;
+  /** Info tooltip of the input (PineScript `tooltip`) */
+  tooltip?: string;
+  /** Ask for the value when the script is added to a chart (PineScript `confirm`) */
+  confirm?: boolean;
+  /**
+   * Where the input value is shown (PineScript `display`); not set means the PineScript default: 'all', except
+   * color inputs: 'none'
+   */
+  display?: 'all' | 'none' | 'data_window' | 'status_line';
 }
 
 /**
@@ -95,6 +108,30 @@ export interface PlotConfig {
     histbase?: number;
     /** Line style (PineScript `linestyle`); default solid. A constant or an input value, not per bar */
     linestyle?: 'solid' | 'dashed' | 'dotted';
+}
+
+/**
+ * Configuration of a PineScript `plotarrow()` declaration: an up arrow (below the bar) for a positive value, a down
+ * arrow (above the bar) for a negative value, nothing for 0 / na. The arrow height scales with the absolute value
+ * between `minheight` and `maxheight` pixels (drawn by the renderer).
+ */
+export interface ArrowConfig {
+    /** Unique identifier (key of the arrow data in the result) */
+    id: string;
+    /** Display title */
+    title?: string;
+    /** Color of the up arrows (PineScript default #00FF00) */
+    colorup: string;
+    /** Color of the down arrows (PineScript default #FF0000) */
+    colordown: string;
+    /** Minimal arrow height in pixels (PineScript default 5) */
+    minheight: number;
+    /** Maximal arrow height in pixels (PineScript default 100) */
+    maxheight: number;
+    /** Offset in bars (applied to the emitted arrow times) */
+    offset?: number;
+    /** Display mode */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
 }
 
 /**

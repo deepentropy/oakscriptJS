@@ -276,6 +276,20 @@ export interface MarkerData {
 }
 
 /**
+ * Per-bar arrow from plotarrow(): up arrow for a positive value, down arrow for a negative value
+ */
+export interface ArrowData {
+  /** Time of the bar the arrow is displayed on (offset already applied) */
+  time: any;
+  /** Id of the plotarrow declaration that produced it */
+  id: string;
+  /** Series value (non-zero): its sign gives the direction, its absolute value the height */
+  value: number;
+  /** Arrow color (colorup or colordown of that bar) */
+  color: string;
+}
+
+/**
  * Per-bar color for bgcolor()/barcolor() output
  */
 export interface BarColorData {
@@ -299,6 +313,8 @@ export interface IndicatorResult {
   fills?: FillData[];
   /** Markers from plotshape()/plotchar() */
   markers?: MarkerData[];
+  /** Arrows from plotarrow() */
+  arrows?: ArrowData[];
   /** Background colors from bgcolor() */
   bgcolors?: BarColorData[];
   /** Bar colors from barcolor() */

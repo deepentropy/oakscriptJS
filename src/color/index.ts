@@ -47,7 +47,7 @@ const alphaOf = (transp: number): float =>
  * color.rgb(300, 0, 0) // Returns: "rgb(255, 0, 0)" - Clamped to 255
  * ```
  */
-export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp?: simple_float): color {
+export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp?: simple_float): string {
   const r = channel(red);
   const g = channel(green);
   const b = channel(blue);
@@ -80,7 +80,7 @@ export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp
  * color.from_hex("FFA500") // Returns: "rgb(255, 165, 0)" - Orange
  * ```
  */
-export function from_hex(hex: string, transp?: simple_float): color {
+export function from_hex(hex: string, transp?: simple_float): string {
   // Remove # if present
   hex = hex.replace('#', '');
 
@@ -113,7 +113,7 @@ export function from_hex(hex: string, transp?: simple_float): color {
  * color.new_color(red, 100) // Returns: "rgba(255, 0, 0, 0)" - Fully transparent
  * ```
  */
-export function new_color(baseColor: color, transp: simple_float): color {
+export function new_color(baseColor: color, transp: simple_float): string {
   // Parse the color and apply transparency
   const rgba = parseColor(baseColor);
   return rgb(rgba.r, rgba.g, rgba.b, transp);
@@ -368,7 +368,7 @@ export function from_gradient(
   top_value: float,
   bottom_color: color,
   top_color: color
-): color {
+): string {
   const transparent = 'rgba(0, 0, 0, 0)';
   if ([value, bottom_value, top_value].some((v) => v === null || v === undefined || Number.isNaN(v)) || bottom_value === top_value) {
     return transparent;

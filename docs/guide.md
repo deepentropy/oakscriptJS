@@ -340,6 +340,27 @@ The bar context `c` exposes `c.open/high/low/close/volume`, `c.i` (bar_index),
 `c.prev(offset)` for this block's own previous output. Accumulate a side array in
 the closure and wrap it with `seriesOf(values)` for a second output.
 
+### ta.* calls in conditional code (callsite)
+
+In PineScript every `ta.*` call keeps its own history, fed only on the bars where the call runs. This matters in
+an `if` block and, since v6, in the right operand of `and` / `or`, which run only when the left operand does not
+decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` is true). A vectorized Series call
+sees every bar, so such calls need a call site from the `callsite` namespace:
+`callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
+`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()` in a bar loop.
+
+```typescript
+import { callsite } from 'oakscriptjs';
+
+// Pine: longCond = longUp or (src > sigLine and ta.barssince(longUp) <= lookback)
+const since = callsite.barssince();
+const longCond = eachBar((c) => {
+  const up = c.get(longUp) === 1;
+  // the right operand runs only when longUp is false, so barssince() never sees true here
+  return up || (c.get(src) > c.get(sigLine) && since(up) <= lookback);
+});
+```
+
 ### Strategies (strategy declaration and strategy.* API)
 
 OakScriptJS does not fill orders. `strategy()` declares the strategy and its properties, and the

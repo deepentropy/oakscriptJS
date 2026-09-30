@@ -612,11 +612,13 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
 | `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
+| input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, copied to `InputConfig` |
 | `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset; `plot.style_*`, `plot.linestyle_*` constants |
 | `hline()` | Implemented | static level, color, linestyle (default dashed), linewidth; `hline.style_*` constants |
 | `fill()` | Implemented | plot-to-plot or hline-to-hline |
 | `plotshape()` | Implemented | per-bar marker; style, location, color, text, size, offset, tooltip |
 | `plotchar()` | Implemented | per-bar character marker |
+| `plotarrow()` | Implemented | up / down arrow per bar by the sign of the value; colorup, colordown, minheight, maxheight, offset; `arrowConfig` + `result.arrows` |
 | `bgcolor()` | Implemented | per-bar background color (static or `color.when` array), offset |
 | `barcolor()` | Implemented | per-bar candle color override |
 | `alertcondition()` | Implemented | collected for the host alert engine |
@@ -627,11 +629,13 @@ The script entry provides the PineScript-style authoring surface. These are not
 |----------|--------|-------|
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
+| `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
+| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince` |
 
 ### Run result (`IndicatorResult`)
 
 `plots` (keyed by id), optional `hlines`, `fills`, and the Tier 1 output data:
-`markers` (`MarkerData[]`), `bgcolors` and `barcolors` (`BarColorData[]`).
+`markers` (`MarkerData[]`), `arrows` (`ArrowData[]`), `bgcolors` and `barcolors` (`BarColorData[]`).
 
 ---
 

@@ -15,14 +15,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Script API constants: `plot.style_*` (line, linebr, stepline, steplinebr, stepline_diamond, histogram, columns,
   area, areabr, circles, cross), `plot.linestyle_solid / _dotted / _dashed`, `hline.style_solid / _dotted / _dashed`.
   `stepline_diamond` is added to the plot style type.
+- Script API `barstate.*` (`isfirst`, `islast`, `ishistory`, `isrealtime`, `isnew`, `isconfirmed`,
+  `islastconfirmedhistory`) as 1 / 0 Series. All bars but the last are confirmed history bars; the state of the last
+  bar comes from the new `ChartContext` flags `lastBarConfirmed` (default false), `realtime` (default false) and
+  `lastBarNew` (default true). Without live updates the last bar is a history bar that is not confirmed, as in
+  PineScript (#112).
+- Script API `plotarrow(series, title?, { colorup, colordown, offset, minheight, maxheight, display })`: the
+  declaration goes to `arrowConfig` (PineScript defaults `#00FF00`, `#FF0000`, 5, 100), the arrows (value and color
+  per bar, 0 / na: none) to `result.arrows` (#111).
+- `input.*` options `group`, `inline`, `tooltip`, `confirm`, `display` for every input kind, copied to
+  `InputConfig` (#109).
+- `callsite.barssince()`: a `ta.barssince` call site for bar loops. The `callsite` documentation and the guide
+  explain the lazy `and` / `or` of PineScript v6: a `ta.*` call in a right operand runs only when the left operand
+  does not decide the result (#113).
 
 ### Changed
 
+- `STRATEGY_DEFAULTS` has the PineScript v6 values: `default_qty_type` `percent_of_equity`, `default_qty_value`
+  100, `initial_capital` 100000 (before: the v5 values `fixed`, 1, 1000000) (#106).
+- Division by zero follows PineScript: `x / 0` is +/-Infinity in `Series.div` and `div()` (before: na); `0 / 0` is
+  na. PineScript keeps the infinite value in comparisons (`1 / 0 > 0` is true) and treats it as na elsewhere, so
+  `na()` is true for +/-Infinity, `nz()` replaces it, the script API `plot()` draws it as na, `ta.sma` skips it and
+  `ta.cum` is na on its bar; `fixnan()` keeps it, as in PineScript (#108).
 - `hline()` draws dashed when no line style is given, as PineScript: the script API sets `linestyle: 'dashed'` in the
   hline config, and the runtime `hline()` draws dashed (before: not set / solid).
 
 ### Fixed
 
+- `color.rgb`, `color.from_hex`, `color.new` and `color.from_gradient` are typed as returning `string` (they always
+  return a CSS color), so their results are accepted by `plot`, `fill`, `plotshape`, `bgcolor`, `barcolor` and
+  `input.color` (#107).
+- Script API `ta.mfi(source, length)` uses the chart volume, as PineScript (before: a third `volume` argument was
+  needed) (#110).
 - `color.new` and `color.rgb` clamp the transparency to 0..100 (`color.new(c, 140)` is fully transparent,
   `color.new(c, -5)` is opaque; before: an invalid `rgba()` text); an `na` transparency is fully transparent (#102).
 - `color.rgb` takes an `na` channel as 0 (`color.rgb(255, 0, na)` is red; before: `'rgb(255, 0, NaN)'`) and truncates

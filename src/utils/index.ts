@@ -25,11 +25,18 @@ export function createNaNSeries(length: int): series_float {
 }
 
 /**
- * Checks if a value is `na`: NaN, null, undefined, or a deleted drawing object
- * (as in PineScript, `na(l)` is true after `line.delete(l)`).
+ * Checks if a value is `na`: NaN, null, undefined, +/-Infinity, or a deleted drawing object
+ * (as in PineScript, `na(l)` is true after `line.delete(l)`, and `na(1 / 0)` is true).
  */
 export function isNA(value: any): boolean {
-  return value === null || value === undefined || Number.isNaN(value) || isDeleted(value);
+  return (
+    value === null ||
+    value === undefined ||
+    Number.isNaN(value) ||
+    value === Infinity ||
+    value === -Infinity ||
+    isDeleted(value)
+  );
 }
 
 /**
@@ -48,7 +55,8 @@ export function fixnan<T>(source: T[]): T[] {
   let last: T | undefined;
   let seen = false;
   return source.map((v) => {
-    if (!isNA(v)) {
+    // PineScript fixnan keeps +/-Infinity (only NaN / null / undefined are replaced)
+    if (!(v === null || v === undefined || Number.isNaN(v) || isDeleted(v))) {
       last = v;
       seen = true;
       return v;
@@ -69,9 +77,12 @@ export function at(source: ArrayLike<number>, i: int, offset: int = 0): float {
   return j >= 0 && j < source.length ? (source[j] ?? NaN) : NaN;
 }
 
-/** PineScript division: `a / 0` is `na` (NaN), where JavaScript gives Infinity or NaN. */
+/**
+ * PineScript division: `a / 0` is +/-Infinity (0 / 0 is NaN), as in JavaScript. PineScript keeps the infinite value
+ * in comparisons (`1 / 0 > 0` is true) and treats it as `na` in `na()`, `nz()` and plots.
+ */
 export function div(a: float, b: float): float {
-  return b === 0 ? NaN : a / b;
+  return a / b;
 }
 
 /**

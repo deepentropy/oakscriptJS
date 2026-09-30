@@ -33,12 +33,12 @@ export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // PineScript: the mean of the last `len` non-na values; an na value is skipped,
+  // PineScript: the mean of the last `len` non-na values; an na value (also +/-Infinity) is skipped,
   // so the bar keeps the previous result
   const window: number[] = [];
   for (let i = 0; i < source.length; i++) {
     const v = source[i];
-    if (v !== undefined && v !== null && !Number.isNaN(v)) {
+    if (v !== undefined && v !== null && Number.isFinite(v)) {
       window.push(v);
       if (window.length > len) window.shift();
     }
@@ -829,7 +829,8 @@ export function lowest(source: Source, length: simple_int): series_float {
 export function cum(source: Source): series_float {
   let sum = 0;
   return source.map((v) => {
-    if (Number.isNaN(v)) return NaN;
+    // PineScript: an na value (also +/-Infinity) gives na on its bar and is not added
+    if (!Number.isFinite(v)) return NaN;
     sum += v;
     return sum;
   });

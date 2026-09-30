@@ -99,9 +99,10 @@ export const STRATEGY_DEFAULTS: StrategyProperties = {
   calc_on_order_fills: false,
   calc_on_every_tick: false,
   backtest_fill_limits_assumption: 0,
-  default_qty_type: 'fixed',
-  default_qty_value: 1,
-  initial_capital: 1000000,
+  // v6 values; PineScript v5: fixed / 1 / 1000000 and margins 0
+  default_qty_type: 'percent_of_equity',
+  default_qty_value: 100,
+  initial_capital: 100000,
   slippage: 0,
   commission_type: 'percent',
   commission_value: 0,

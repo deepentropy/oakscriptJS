@@ -103,8 +103,8 @@ describe('strategy() declaration', () => {
   });
 
   it('PineScript defaults', () => {
-    expect(STRATEGY_DEFAULTS).toMatchObject({ pyramiding: 0, default_qty_type: 'fixed', default_qty_value: 1,
-      initial_capital: 1000000, commission_type: 'percent', close_entries_rule: 'FIFO', margin_long: 100,
+    expect(STRATEGY_DEFAULTS).toMatchObject({ pyramiding: 0, default_qty_type: 'percent_of_equity', default_qty_value: 100,
+      initial_capital: 100000, commission_type: 'percent', close_entries_rule: 'FIFO', margin_long: 100,
       margin_short: 100, risk_free_rate: 2 });
   });
 

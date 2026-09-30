@@ -35,6 +35,7 @@
 
 import type { Bar } from '../types';
 import type {
+  ArrowData,
   BarColorData,
   FillData,
   FillGradient,
@@ -45,7 +46,15 @@ import type {
   ShapeStyle,
   TimeValue,
 } from '../types/metadata';
-import type { BarColorConfig, FillConfig, HLineConfig, InputConfig, PlotConfig, ShapeConfig } from '../runtime/types';
+import type {
+  ArrowConfig,
+  BarColorConfig,
+  FillConfig,
+  HLineConfig,
+  InputConfig,
+  PlotConfig,
+  ShapeConfig,
+} from '../runtime/types';
 import { BarData, Series } from '../runtime/series';
 import * as taSeries from '../ta-series';
 import * as colorCore from '../color';
@@ -97,6 +106,7 @@ export interface ScriptRunResult {
   hlineConfig: HLineConfig[];
   fillConfig: FillConfig[];
   shapeConfig: ShapeConfig[];
+  arrowConfig: ArrowConfig[];
   barColorConfig: BarColorConfig[];
   defaultInputs: Record<string, unknown>;
   alertConfig: AlertConditionConfig[];
@@ -144,6 +154,8 @@ interface Collector {
   fillConfig: FillConfig[];
   shapeConfig: ShapeConfig[];
   markers: MarkerData[];
+  arrowConfig: ArrowConfig[];
+  arrows: ArrowData[];
   barColorConfig: BarColorConfig[];
   bgcolors: BarColorData[];
   barcolors: BarColorData[];
@@ -193,6 +205,8 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     fillConfig: [],
     shapeConfig: [],
     markers: [],
+    arrowConfig: [],
+    arrows: [],
     barColorConfig: [],
     bgcolors: [],
     barcolors: [],
@@ -265,6 +279,7 @@ export function executeScript(
       hlineConfig: c.hlineConfig,
       fillConfig: c.fillConfig,
       shapeConfig: c.shapeConfig,
+      arrowConfig: c.arrowConfig,
       barColorConfig: c.barColorConfig,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
@@ -274,6 +289,7 @@ export function executeScript(
         plots: c.plots,
         fills: c.fills.length ? c.fills : undefined,
         markers: c.markers.length ? c.markers : undefined,
+        arrows: c.arrows.length ? c.arrows : undefined,
         bgcolors: c.bgcolors.length ? c.bgcolors : undefined,
         barcolors: c.barcolors.length ? c.barcolors : undefined,
         alerts: c.alerts.length ? c.alerts : undefined,
@@ -325,14 +341,34 @@ function declare(c: Collector, kind: 'indicator' | 'strategy'): void {
   c.declaration = kind;
 }
 
-export interface NumericInputOptions {
+/** Options of every `input.*` kind (PineScript `group`, `inline`, `tooltip`, `confirm`, `display`). */
+export interface InputOptions {
+  group?: string;
+  inline?: string;
+  tooltip?: string;
+  confirm?: boolean;
+  display?: InputConfig['display'];
+}
+
+export interface NumericInputOptions extends InputOptions {
   minval?: number;
   maxval?: number;
   step?: number;
 }
 
-export interface StringInputOptions {
+export interface StringInputOptions extends InputOptions {
   options?: string[];
+}
+
+/** The InputConfig fields of the common input options (unset options are left out). */
+function common(opts: InputOptions): Partial<InputConfig> {
+  const out: Partial<InputConfig> = {};
+  if (opts.group !== undefined) out.group = opts.group;
+  if (opts.inline !== undefined) out.inline = opts.inline;
+  if (opts.tooltip !== undefined) out.tooltip = opts.tooltip;
+  if (opts.confirm !== undefined) out.confirm = opts.confirm;
+  if (opts.display !== undefined) out.display = opts.display;
+  return out;
 }
 
 /** Declares the input in the collector and returns its current value (the
@@ -348,7 +384,7 @@ function registerInput<T>(config: Omit<InputConfig, 'id'>, fallbackId: string): 
 
 function registerNumeric(type: 'int' | 'float', defval: number, title?: string, opts: NumericInputOptions = {}): number {
   const v = registerInput<unknown>(
-    { type, defval, title, min: opts.minval, max: opts.maxval, step: opts.step },
+    { type, defval, title, min: opts.minval, max: opts.maxval, step: opts.step, ...common(opts) },
     `input_${type}`
   );
   return typeof v === 'number' ? v : defval;
@@ -362,31 +398,37 @@ export const input = {
   float(defval: number, title?: string, opts: NumericInputOptions = {}): number {
     return registerNumeric('float', defval, title, opts);
   },
-  bool(defval: boolean, title?: string): boolean {
-    return registerInput<boolean>({ type: 'bool', defval, title }, 'input_bool');
+  bool(defval: boolean, title?: string, opts: InputOptions = {}): boolean {
+    return registerInput<boolean>({ type: 'bool', defval, title, ...common(opts) }, 'input_bool');
   },
   string(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>({ type: 'string', defval, title, options: opts.options }, 'input_string');
+    return registerInput<string>({ type: 'string', defval, title, options: opts.options, ...common(opts) }, 'input_string');
   },
-  color(defval: string, title?: string): string {
-    return registerInput<string>({ type: 'color', defval, title }, 'input_color');
+  color(defval: string, title?: string, opts: InputOptions = {}): string {
+    return registerInput<string>({ type: 'color', defval, title, ...common(opts) }, 'input_color');
   },
   /** Declares a source input and returns it as a Series. */
-  source(defval: string = 'close', title?: string): Series {
-    const name = registerInput<string>({ type: 'source', defval, title }, 'input_source');
+  source(defval: string = 'close', title?: string, opts: InputOptions = {}): Series {
+    const name = registerInput<string>({ type: 'source', defval, title, ...common(opts) }, 'input_source');
     return sourceSeries(name);
   },
   /** Timeframe string ("60", "1D", "W"). As in PineScript, "" means the chart timeframe. */
   timeframe(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>({ type: 'timeframe', defval, title, options: opts.options }, 'input_timeframe');
+    return registerInput<string>(
+      { type: 'timeframe', defval, title, options: opts.options, ...common(opts) },
+      'input_timeframe'
+    );
   },
   /** Session string ("0930-1600", "0930-1600:23456"). */
   session(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>({ type: 'session', defval, title, options: opts.options }, 'input_session');
+    return registerInput<string>(
+      { type: 'session', defval, title, options: opts.options, ...common(opts) },
+      'input_session'
+    );
   },
   /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
-  time(defval: number, title?: string): number {
-    const v = registerInput<unknown>({ type: 'time', defval, title }, 'input_time');
+  time(defval: number, title?: string, opts: InputOptions = {}): number {
+    const v = registerInput<unknown>({ type: 'time', defval, title, ...common(opts) }, 'input_time');
     return typeof v === 'number' ? v : defval;
   },
 };
@@ -475,6 +517,8 @@ export const ta = {
     (source: Series, anchor?: Series): Series;
     (source: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series];
   },
+  /** `ta.mfi(source, length)` with the chart volume (PineScript takes 2 arguments). */
+  mfi: (source: Series, length: number): Series => taSeries.mfi(source, length, volume),
   /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
    *  The value appears `rightbars` bars after the pivot bar, as in PineScript. */
   pivothigh: (sourceOrLeft: Series | number, leftOrRight: number, rightbars?: number): Series =>
@@ -557,7 +601,7 @@ function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {
   const data: TimeValue[] = [];
   for (let i = 0; i < b.length; i++) {
     const value = values[i];
-    if (value === undefined || Number.isNaN(value)) continue;
+    if (value === undefined || !Number.isFinite(value)) continue; // PineScript plots +/-Infinity as na
     data.push(perBar ? { time: b[i]!.time, value, color: perBar[i] } : { time: b[i]!.time, value });
   }
   c.plots[id] = data;
@@ -779,6 +823,56 @@ export function plotshape(condition: Series, title?: string, options: PlotShapeO
 /** PineScript `plotchar()` — a character marker on each bar where the condition holds. */
 export function plotchar(condition: Series, title?: string, options: PlotCharOptions = {}): void {
   emitMarkers('char', condition, title, options);
+}
+
+export interface PlotArrowOptions {
+  /** Color of the up arrows: a color or a per-bar array (default #00FF00, PineScript). */
+  colorup?: string | Array<string | undefined>;
+  /** Color of the down arrows: a color or a per-bar array (default #FF0000, PineScript). */
+  colordown?: string | Array<string | undefined>;
+  /** Display offset in bars (arrow shown at bar i + offset). */
+  offset?: number;
+  /** Minimal arrow height in pixels (default 5). */
+  minheight?: number;
+  /** Maximal arrow height in pixels (default 100). */
+  maxheight?: number;
+  display?: ArrowConfig['display'];
+}
+
+/**
+ * PineScript `plotarrow()` — an up arrow below the bar for a positive value, a down arrow above the bar for a
+ * negative value, nothing for 0 / na. The arrows go to `result.arrows` (value and color per bar), the declaration to
+ * `arrowConfig`; the renderer scales the height with the absolute value between minheight and maxheight.
+ */
+export function plotarrow(series: Series, title?: string, options: PlotArrowOptions = {}): void {
+  const c = collector();
+  const id = `arrow${c.arrowConfig.length}`;
+  const pick = (col: string | Array<string | undefined> | undefined, fallback: string, i: number): string | undefined =>
+    col === undefined ? fallback : typeof col === 'string' ? col : col[i];
+  const colorup = typeof options.colorup === 'string' ? options.colorup : '#00FF00';
+  const colordown = typeof options.colordown === 'string' ? options.colordown : '#FF0000';
+  c.arrowConfig.push({
+    id,
+    title,
+    colorup,
+    colordown,
+    minheight: options.minheight ?? 5,
+    maxheight: options.maxheight ?? 100,
+    offset: options.offset,
+    display: options.display,
+  });
+  const values = series.toArray();
+  const b = bars();
+  const off = options.offset ?? 0;
+  for (let i = 0; i < b.length; i++) {
+    const v = values[i];
+    if (v === undefined || Number.isNaN(v) || v === 0) continue;
+    const j = i + off;
+    if (j < 0 || j >= b.length) continue;
+    const color = v > 0 ? pick(options.colorup, '#00FF00', i) : pick(options.colordown, '#FF0000', i);
+    if (color === undefined) continue; // na color: no arrow
+    c.arrows.push({ time: b[j]!.time, id, value: v, color });
+  }
 }
 
 /** Shared emitter for bgcolor()/barcolor(). A static color applies to every
@@ -1162,6 +1256,15 @@ export interface ChartContext {
   pointvalue?: number;
   /** Smallest tradable quantity (PineScript `syminfo.mincontract`); 1 for whole shares */
   mincontract?: number;
+  /**
+   * The last bar is closed (`barstate.isconfirmed` on the last bar). Default false: PineScript treats the last bar
+   * of the data as not confirmed until the data feed closes it.
+   */
+  lastBarConfirmed?: boolean;
+  /** The last bar receives live updates (`barstate.isrealtime`); default false (a calculation on history). */
+  realtime?: boolean;
+  /** On a realtime last bar: this run is the first update of the bar (`barstate.isnew`); default true. */
+  lastBarNew?: boolean;
 }
 
 let chartCtx: ChartContext = {};
@@ -1440,6 +1543,36 @@ function flag(key: keyof SessionFlags): Series {
   return Series.fromArray(ctxBars, values.map((v) => (v ? 1 : 0)));
 }
 
+/** A 1 / 0 Series from a per-bar test on the bar index and the number of bars. */
+function barFlag(test: (i: number, n: number) => boolean): Series {
+  const n = ctxBars.bars.length;
+  return Series.fromArray(ctxBars, Array.from({ length: n }, (_, i) => (test(i, n) ? 1 : 0)));
+}
+
+const lastRealtime = (i: number, n: number): boolean => i === n - 1 && chartCtx.realtime === true;
+
+/**
+ * PineScript `barstate.*` (1 / 0 per bar). All bars but the last are confirmed history bars. The last bar is
+ * confirmed only when the host says so (`ChartContext.lastBarConfirmed`, e.g. the closing update of a realtime
+ * bar), and is a realtime bar only when it receives live updates (`ChartContext.realtime`); without live updates
+ * it is a history bar, as in PineScript.
+ * `islastconfirmedhistory` is the last bar when it is confirmed and not realtime, else the bar before it.
+ */
+export const barstate = {
+  get isfirst(): Series { return barFlag((i) => i === 0); },
+  get islast(): Series { return barFlag((i, n) => i === n - 1); },
+  get isconfirmed(): Series { return barFlag((i, n) => i < n - 1 || chartCtx.lastBarConfirmed === true); },
+  get isrealtime(): Series { return barFlag(lastRealtime); },
+  get ishistory(): Series { return barFlag((i, n) => !lastRealtime(i, n)); },
+  get isnew(): Series { return barFlag((i, n) => !lastRealtime(i, n) || chartCtx.lastBarNew !== false); },
+  get islastconfirmedhistory(): Series {
+    return barFlag((i, n) => {
+      const lastConfirmed = chartCtx.lastBarConfirmed === true && chartCtx.realtime !== true;
+      return i === (lastConfirmed ? n - 1 : n - 2);
+    });
+  },
+};
+
 /**
  * PineScript `session.*` (1 / 0 per bar) and the constants `session.regular` / `session.extended`.
  * First and last bars are per session period; market / pre / post market use the regular hours.
@@ -1686,8 +1819,10 @@ export type {
   HLineConfig,
   FillConfig,
   ShapeConfig,
+  ArrowConfig,
   BarColorConfig,
   MarkerData,
+  ArrowData,
   BarColorData,
   MarkerLocation,
   MarkerSize,

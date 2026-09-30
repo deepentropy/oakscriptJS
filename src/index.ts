@@ -148,6 +148,7 @@ export type {
   PlotConfig,
   HLineConfig,
   FillConfig,
+  ArrowConfig,
 } from './runtime/types';
 
 // Strategy types and constants (the script API forwards strategy.* calls to a host engine)

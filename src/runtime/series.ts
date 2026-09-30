@@ -307,7 +307,7 @@ export class Series {
     return new Series(this.dataSource, (bar, i, data) => {
       const a = this.extractor(bar, i, data);
       const b = typeof other === 'number' ? other : other.extractor(bar, i, data);
-      return b !== 0 ? a / b : NaN;
+      return a / b; // PineScript: x / 0 is +/-Infinity (na() is true for it), 0 / 0 is na
     });
   }
 

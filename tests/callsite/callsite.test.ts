@@ -56,3 +56,21 @@ describe('callsite.crossover / crossunder / cross', () => {
     });
   });
 });
+
+describe('callsite.barssince', () => {
+  it('counts calls since the condition was true; na before the first true', () => {
+    const since = callsite.barssince();
+    expect([false, true, false, false, true, NaN].map((c) => since(c))).toEqual([NaN, 0, 1, 2, 0, 1]);
+  });
+
+  it('lazy or (PineScript v6): in the right operand of `up or ...`, barssince(up) never sees true', () => {
+    // up every 7th bar, as in the PineScript probe: `up or ta.barssince(up) <= 3` equals `up` on every bar
+    const since = callsite.barssince();
+    const up = Array.from({ length: 30 }, (_, i) => i % 7 === 0);
+    const lazyOr = up.map((u) => u || since(u) <= 3);
+    expect(lazyOr).toEqual(up);
+    // the vectorized reading (every bar) differs
+    const eager = taCore.barssince(up);
+    expect(up.map((u, i) => u || eager[i]! <= 3)).not.toEqual(up);
+  });
+});
