@@ -367,15 +367,21 @@ export function sum(source: series_float | Series, length: simple_int): series_f
   // Handle Series objects - extract to array first
   const sourceArray = source instanceof Series ? source.toArray() : source;
   const result: series_float = [];
-
+  const len = Math.floor(length);
+  // (nahandling-check/doc/README.md): the sum of the last `len` non-na values; an na value is skipped, so
+  // the bar keeps the previous result
+  const window: number[] = [];
   for (let i = 0; i < sourceArray.length; i++) {
-    if (i < length - 1) {
+    const v = sourceArray[i];
+    if (v !== undefined && v !== null && !Number.isNaN(v)) {
+      window.push(v);
+      if (window.length > len) window.shift();
+    }
+    if (window.length < len) {
       result.push(NaN);
     } else {
       let total = 0;
-      for (let j = 0; j < length; j++) {
-        total += sourceArray[i - j]!;
-      }
+      for (const x of window) total += x;
       result.push(total);
     }
   }

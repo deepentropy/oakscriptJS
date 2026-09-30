@@ -18,9 +18,9 @@ import type { series_float, series_bool, series_int, int, Source, simple_int, si
  * @returns Simple moving average of source for length bars back
  *
  * @remarks
- * - `na` values in the source series are ignored
- * - The function calculates on the `length` quantity of non-`na` values
- * - Returns NaN for the first (length - 1) values where there's insufficient data
+ * - `na` values in the source series are ignored: the mean of the last `length` non-`na` values, and a bar with an
+ *   `na` source keeps the previous result (measured on PineScript)
+ * - Returns NaN until `length` non-`na` values are available
  *
  * @example
  * ```typescript
@@ -31,22 +31,37 @@ import type { series_float, series_bool, series_int, int, Source, simple_int, si
  */
 export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-    // Floor the length to match PineScript's auto-truncation of float to int
-    const len = Math.floor(length);
-
+  // Floor the length to match PineScript's auto-truncation of float to int
+  const len = Math.floor(length);
+  // (nahandling-check/doc/README.md): the mean of the last `len` non-na values; an na value is skipped,
+  // so the bar keeps the previous result
+  const window: number[] = [];
   for (let i = 0; i < source.length; i++) {
-      if (i < len - 1) {
+    const v = source[i];
+    if (v !== undefined && v !== null && !Number.isNaN(v)) {
+      window.push(v);
+      if (window.length > len) window.shift();
+    }
+    if (window.length < len) {
       result.push(NaN);
     } else {
       let sum = 0;
-          for (let j = 0; j < len; j++) {
-        sum += source[i - j]!;
-      }
-          result.push(sum / len);
+      for (const x of window) sum += x;
+      result.push(sum / len);
     }
   }
-
   return result;
+}
+
+/** Mean of the last `length` bars; na when the window holds an na value (used by ta.dev). */
+function strictWindowMean(source: Source, length: simple_int): series_float {
+  const len = Math.floor(length);
+  return Array.from({ length: source.length }, (_, i) => {
+    if (i < len - 1) return NaN;
+    let sum = 0;
+    for (let j = 0; j < len; j++) sum += source[i - j]!;
+    return sum / len;
+  });
 }
 
 /**
@@ -104,8 +119,11 @@ export function ema(source: Source, length: simple_int): series_float {
       const val = source[i];
       if (val !== undefined && !isNaN(val)) {
         emaValue = (val - emaValue) * multiplier + emaValue;
+        result.push(emaValue);
+      } else {
+        // na source: na on this bar; the next bar continues from the last value (PineScript)
+        result.push(NaN);
       }
-      result.push(emaValue);
     }
   }
 
@@ -736,26 +754,30 @@ export function rma(source: Source, length: simple_int): series_float {
  */
 export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-    // Floor the length to match PineScript's auto-truncation of float to int
-    const len = Math.floor(length);
-
+  // Floor the length to match PineScript's auto-truncation of float to int
+  const len = Math.floor(length);
+  // (nahandling-check/doc/README.md): na on a bar with an na source; otherwise the last `len` bars, each na
+  // replaced by the previous non-na value
+  const filled: number[] = [];
+  let last = NaN;
   for (let i = 0; i < source.length; i++) {
-      if (i < len - 1) {
+    const v = source[i];
+    const isNa = v === undefined || v === null || Number.isNaN(v);
+    if (!isNa) last = v;
+    filled.push(last);
+    if (isNa || i < len - 1) {
       result.push(NaN);
-    } else {
-      let sum = 0;
-      let weightSum = 0;
-
-          for (let j = 0; j < len; j++) {
-              const weight = len - j;
-        sum += source[i - j]! * weight;
-        weightSum += weight;
-      }
-
-      result.push(sum / weightSum);
+      continue;
     }
+    let sum = 0;
+    let weightSum = 0;
+    for (let j = 0; j < len; j++) {
+      const weight = len - j;
+      sum += filled[i - j]! * weight;
+      weightSum += weight;
+    }
+    result.push(sum / weightSum);
   }
-
   return result;
 }
 
@@ -1052,7 +1074,8 @@ export function mom(source: Source, length: simple_int): series_float {
  */
 export function dev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-  const meanValues = sma(source, length);
+  // (nahandling-check/doc/README.md): na when the window of `length` bars holds an na value
+  const meanValues = strictWindowMean(source, length);
 
   for (let i = 0; i < source.length; i++) {
     if (i < length - 1 || isNaN(meanValues[i]!)) {
@@ -1098,26 +1121,25 @@ export function dev(source: Source, length: simple_int): series_float {
  */
 export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const result: series_float = [];
-  const meanValues = sma(source, length);
-
+  const len = Math.floor(length);
+  // (nahandling-check/doc/README.md): the last `len` non-na values, as ta.sma; an na value is skipped
+  const window: number[] = [];
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1 || isNaN(meanValues[i]!)) {
-      result.push(NaN);
-    } else {
-      let sumSquares = 0;
-      let count = 0;
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j]!)) {
-          const diff = source[i - j]! - meanValues[i]!;
-          sumSquares += diff * diff;
-          count++;
-        }
-      }
-      const divisor = biased ? count : count - 1;
-      result.push(divisor > 0 ? sumSquares / divisor : NaN);
+    const v = source[i];
+    if (v !== undefined && v !== null && !Number.isNaN(v)) {
+      window.push(v);
+      if (window.length > len) window.shift();
     }
+    const divisor = biased ? len : len - 1;
+    if (window.length < len || divisor <= 0) {
+      result.push(NaN);
+      continue;
+    }
+    const mean = window.reduce((a, x) => a + x, 0) / len;
+    let sumSquares = 0;
+    for (const x of window) sumSquares += (x - mean) * (x - mean);
+    result.push(sumSquares / divisor);
   }
-
   return result;
 }
 

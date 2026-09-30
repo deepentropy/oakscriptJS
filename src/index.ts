@@ -153,7 +153,7 @@ export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAd
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
 
 // Version
-export const VERSION = '0.7.0';
+export const VERSION = '0.7.1';
 
 /**
  * Library information

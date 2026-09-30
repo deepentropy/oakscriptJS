@@ -5,6 +5,19 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-09-30
+
+### Fixed
+
+na handling of window functions, (`nahandling-check/doc/README.md`: 32,046 values, 0
+differences):
+- `ta.sma`, `math.sum`, `ta.variance` (and `ta.vwma`, `ta.bb`): the last `length` non-na values; a bar with an na
+  source keeps the previous result (before: na for every window with an na value).
+- `ta.ema`: na on a bar with an na source, then continues from the last value (before: the previous value).
+- `ta.wma` (and `ta.hma`): na on a bar with an na source; otherwise the last `length` bars with each na replaced by the
+  previous value.
+- `ta.dev` / `ta.cci`: unchanged behaviour (na when the window holds an na value), now independent of `ta.sma`.
+
 ## [0.7.0] - 2026-09-30
 
 ### Added
