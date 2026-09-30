@@ -38,7 +38,6 @@ import type { Linefill, Line, color } from '../types';
  * // Fill channel with color
  * const channelFill = linefill.new(upperLine, lowerLine, '#0000FF20'); // Transparent blue
  * ```
- *
  */
 export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linefill {
   return register('linefill', {
@@ -65,7 +64,6 @@ export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linef
  * const line1 = linefill.get_line1(channelFill);
  * line.set_y2(line1, 175); // Update upper line's second point
  * ```
- *
  */
 export function get_line1(id: Linefill): Line {
   return id.line1;
@@ -88,7 +86,6 @@ export function get_line1(id: Linefill): Line {
  * const line2 = linefill.get_line2(channelFill);
  * line.set_y2(line2, 145); // Update lower line's second point
  * ```
- *
  */
 export function get_line2(id: Linefill): Line {
   return id.line2;
@@ -115,7 +112,6 @@ export function get_line2(id: Linefill): Line {
  *   linefill.set_color(channelFill, '#FF000020'); // Red
  * }
  * ```
- *
  */
 export function set_color(id: Linefill, fillColor: color): Linefill {
   if (isDeleted(id)) return id;
@@ -138,7 +134,6 @@ export function set_color(id: Linefill, fillColor: color): Linefill {
  * linefill.delete(channelFill);
  * // linefill.all() no longer contains it
  * ```
- *
  */
 export function delete_linefill(id: Linefill): void {
   remove('linefill', id);
@@ -147,7 +142,6 @@ export function delete_linefill(id: Linefill): void {
 
 /**
  * All live linefills, in creation order (PineScript `linefill.all`). A new array.
- *
  */
 export function all(): Linefill[] {
   return allDrawings('linefill');

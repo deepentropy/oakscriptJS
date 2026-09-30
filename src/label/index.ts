@@ -32,7 +32,6 @@ type LabelStyle = NonNullable<Label['style']>;
  * const signal = label.new(10, 105.5, 'BUY');
  * const atPoint = label.new(chartPoint.from_index(10, 105.5), 'BUY');
  * ```
- *
  */
 export function new_label(
   point: ChartPoint,
@@ -110,7 +109,6 @@ export function new_label(...args: unknown[]): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * const x = label.get_x(label); // Returns 50
  * ```
- *
  */
 export function get_x(id: Label): number {
   return id.x;
@@ -127,7 +125,6 @@ export function get_x(id: Label): number {
  * const label = label.new(50, 155.5, 'Pivot');
  * const y = label.get_y(label); // Returns 155.5
  * ```
- *
  */
 export function get_y(id: Label): number {
   return id.y;
@@ -144,7 +141,6 @@ export function get_y(id: Label): number {
  * const label = label.new(50, 155.5, 'Pivot High');
  * const text = label.get_text(label); // Returns 'Pivot High'
  * ```
- *
  */
 export function get_text(id: Label): string | undefined {
   return id.text;
@@ -167,7 +163,6 @@ export function get_text(id: Label): string | undefined {
  * // Modify copy without affecting original
  * copied.text = 'New Text';
  * ```
- *
  */
 export function copy(id: Label): Label {
   return register('label', { ...id });
@@ -189,7 +184,6 @@ export function copy(id: Label): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_x(label, 55); // Move to bar 55
  * ```
- *
  */
 export function set_x(id: Label, x: number): Label {
   if (isDeleted(id)) return id;
@@ -209,7 +203,6 @@ export function set_x(id: Label, x: number): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_y(label, 160); // Move to price 160
  * ```
- *
  */
 export function set_y(id: Label, y: number): Label {
   if (isDeleted(id)) return id;
@@ -230,7 +223,6 @@ export function set_y(id: Label, y: number): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_xy(label, 60, 160); // Move to (60, 160)
  * ```
- *
  */
 export function set_xy(id: Label, x: number, y: number): Label {
   if (isDeleted(id)) return id;
@@ -255,7 +247,6 @@ export function set_xy(id: Label, x: number, y: number): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_xloc(label, 1609459200000, 'bar_time'); // Change to timestamp
  * ```
- *
  */
 export function set_xloc(id: Label, x: number, xloc: 'bar_index' | 'bar_time'): Label {
   if (isDeleted(id)) return id;
@@ -267,7 +258,6 @@ export function set_xloc(id: Label, x: number, xloc: 'bar_index' | 'bar_time'): 
 /**
  * Sets the y-location mode of the label (PineScript `label.set_yloc(id, yloc)`): `price` uses the
  * label's y, `abovebar` / `belowbar` place it above / below the bar.
- *
  */
 export function set_yloc(id: Label, yloc: 'price' | 'abovebar' | 'belowbar'): Label {
   if (isDeleted(id)) return id;
@@ -291,7 +281,6 @@ export function set_yloc(id: Label, yloc: 'price' | 'abovebar' | 'belowbar'): La
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_text(label, 'Updated Text');
  * ```
- *
  */
 export function set_text(id: Label, text: string): Label {
   if (isDeleted(id)) return id;
@@ -311,7 +300,6 @@ export function set_text(id: Label, text: string): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_tooltip(label, 'Resistance level formed at 155.5');
  * ```
- *
  */
 export function set_tooltip(id: Label, tooltip: string): Label {
   if (isDeleted(id)) return id;
@@ -335,7 +323,6 @@ export function set_tooltip(id: Label, tooltip: string): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_color(label, '#FF0000'); // Red label
  * ```
- *
  */
 export function set_color(id: Label, labelColor: color): Label {
   if (isDeleted(id)) return id;
@@ -355,7 +342,6 @@ export function set_color(id: Label, labelColor: color): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_textcolor(label, '#FFFFFF'); // White text
  * ```
- *
  */
 export function set_textcolor(id: Label, textColor: color): Label {
   if (isDeleted(id)) return id;
@@ -375,7 +361,6 @@ export function set_textcolor(id: Label, textColor: color): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_style(label, 'label_down'); // Arrow pointing down
  * ```
- *
  */
 export function set_style(
   id: Label,
@@ -401,7 +386,6 @@ export function set_style(
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_size(label, 'large'); // Larger label
  * ```
- *
  */
 export function set_size(id: Label, size: string | number): Label {
   if (isDeleted(id)) return id;
@@ -421,7 +405,6 @@ export function set_size(id: Label, size: string | number): Label {
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_textalign(label, 'center'); // Center-aligned text
  * ```
- *
  */
 export function set_textalign(id: Label, align: 'left' | 'center' | 'right'): Label {
   if (isDeleted(id)) return id;
@@ -441,7 +424,6 @@ export function set_textalign(id: Label, align: 'left' | 'center' | 'right'): La
  * const label = label.new(50, 155.5, 'Pivot');
  * label.set_text_font_family(label, 'monospace');
  * ```
- *
  */
 export function set_text_font_family(id: Label, font: 'default' | 'monospace'): Label {
   if (isDeleted(id)) return id;
@@ -464,7 +446,6 @@ export function set_text_font_family(id: Label, font: 'default' | 'monospace'): 
  * label.delete(label);
  * // label.all() no longer contains it
  * ```
- *
  */
 export function delete_label(id: Label): void {
   remove('label', id);
@@ -478,7 +459,6 @@ function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
 
 /**
  * All live labels, in creation order (PineScript `label.all`). A new array.
- *
  */
 export function all(): Label[] {
   return allDrawings('label');
@@ -487,7 +467,6 @@ export function all(): Label[] {
 /**
  * Sets the label position from a chart point: `point.index` for `bar_index` labels, `point.time`
  * for `bar_time` labels, and `point.price`.
- *
  */
 export function set_point(id: Label, point: ChartPoint): Label {
   if (isDeleted(id)) return id;
@@ -499,7 +478,6 @@ export function set_point(id: Label, point: ChartPoint): Label {
 /**
  * Sets the text formatting: `text.format_none`, `text.format_bold`, `text.format_italic`,
  * or `text.format_bold + text.format_italic`.
- *
  */
 export function set_text_formatting(id: Label, formatting: number): Label {
   if (isDeleted(id)) return id;

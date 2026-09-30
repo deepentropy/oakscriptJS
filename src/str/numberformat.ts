@@ -1,9 +1,9 @@
 /**
- * Number patterns ("#.##", "#,##0.00", "0.00E0", "#.##%", "'#'#.##") as formats them.
+ * Number patterns ("#.##", "#,##0.00", "0.00E0", "#.##%", "'#'#.##") as PineScript formats them.
  *
  * The pattern syntax is Java's DecimalFormat: `0` required digit, `#` optional digit, `,` grouping,
  * `.` decimal point, `E0` exponent, `%` multiplies by 100, `'...'` quoted literal text.
- * (30/09/2026, see partb-check/doc/README.md):
+ * PineScript rules:
  * - `str.tostring` rounds half away from zero on the shortest decimal form of the number
  *   (`1.005` with "#.##" gives "1.01", `2.5` with "#" gives "3")
  * - `str.format` rounds half to even on the exact binary value (`0.25` with "#.#" gives "0.2")

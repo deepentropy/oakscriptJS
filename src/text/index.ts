@@ -3,8 +3,7 @@
  * PineScript `text.format_*` constants for `label.set_text_formatting` and `box.set_text_formatting`.
  *
  * The values are flags that add up, as in PineScript (`text.format_bold + text.format_italic`).
- * They are the values sends for drawn labels and boxes (checked 30/09/2026).
- *
+ * They are the values PineScript uses for drawn labels and boxes.
  */
 
 /** No formatting. */

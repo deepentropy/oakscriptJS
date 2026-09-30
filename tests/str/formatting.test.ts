@@ -118,7 +118,7 @@ describe('str.format', () => {
   });
 });
 
-// results (30/09/2026, see partb-check/doc/README.md)
+// Expected values: PineScript results
 describe('str.format number and date patterns', () => {
   it('formats numbers like PineScript', () => {
     expect(str.format('{0}', 1234.5678)).toBe('1,234.568');

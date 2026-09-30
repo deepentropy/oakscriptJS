@@ -1,6 +1,6 @@
 import { map } from '../../src';
 
-// Each case reproduces a check run on (30/09/2026, see map-check/doc/README.md).
+// Each case follows the PineScript map behaviour.
 
 describe('map', () => {
   it('put returns the previous value or na; get returns na for a missing key', () => {

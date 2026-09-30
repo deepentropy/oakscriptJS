@@ -1,6 +1,6 @@
 import { timeframe } from '../../src';
 
-// Expected values: PineScript reference examples and results (checked 30/09/2026)
+// Expected values: PineScript reference examples and PineScript results
 
 describe('timeframe.in_seconds', () => {
   it.each([
@@ -17,7 +17,7 @@ describe('timeframe.in_seconds', () => {
     ['M', 2628003],
     ['3M', 7884009],
     ['12M', 31536036],
-    // any multiplier
+    // any multiplier, as in PineScript
     ['7S', 7],
     ['1441', 86460],
     ['0', 0],

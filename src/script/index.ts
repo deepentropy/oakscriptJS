@@ -237,7 +237,7 @@ export interface IndicatorOptions {
   overlay?: boolean;
   precision?: number;
   format?: string;
-  /** Lines kept before the oldest are deleted (default 50; keeps up to 5 more). */
+  /** Lines kept before the oldest are deleted (default 50; PineScript keeps up to 5 more). */
   max_lines_count?: number;
   /** Labels kept before the oldest are deleted (default 50). */
   max_labels_count?: number;
@@ -547,7 +547,7 @@ function perBarColors(c: ScriptFillColor, n: number): Array<string | null> {
  * - `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, title?, ...)`: gradient fill; values and colours
  *   can change per bar (a Series / a color.when() array)
  * - `fill(p1, p2, { color, title })`: options object (oakscriptjs form, kept for existing scripts)
- * Arguments that change only how shows the fill (`editable`, `show_last`, `fillgaps`, `display`) are
+ * Arguments that change only how the chart shows the fill (`editable`, `show_last`, `fillgaps`, `display`) are
  * accepted and not used.
  */
 export function fill(a: PlotHandle, b: PlotHandle, options?: ScriptFillOptions): void;
@@ -842,7 +842,7 @@ export interface ChartContext {
   /** Session type of the bars (PineScript `syminfo.session`); default "regular" */
   sessionType?: 'regular' | 'extended';
   /**
-   * Session of the loaded bars in format: hours ("0930-1600", "1700-1600", "24x7"),
+   * Session of the loaded bars in the symbol session format: hours ("0930-1600", "1700-1600", "24x7"),
    * corrections (early closes, days off) and holidays. Needed by `time(tf)`, `time_close`,
    * `timeframe.change`, `time_tradingday`, `session.*` and the default anchor of `ta.vwap`.
    */
@@ -875,7 +875,7 @@ function exchangeTimezone(): string {
 
 /**
  * PineScript `timeframe.*`: the chart timeframe variables (from the chart context), and
- * `in_seconds(timeframe?)`, `from_seconds(seconds)`. (context-check/doc/README.md).
+ * `in_seconds(timeframe?)`, `from_seconds(seconds)`.
  */
 export const timeframe = {
   ...timeframeCore,
@@ -1043,7 +1043,7 @@ function sessionBars(): { bars: SessionBars; regular: SessionBars } {
 
 /**
  * Calendar for `time(tf, session, timezone)` arguments. Without session and time zone: the loaded
- * session., an explicit time zone reads the symbol session hours in that zone without
+ * session. As in PineScript, an explicit time zone reads the symbol session hours in that zone without
  * corrections and holidays, and an explicit session follows PineScript's session string rules.
  */
 function calendarFor(session?: string, timezone?: string): { bars: SessionBars; test: boolean } {
@@ -1083,7 +1083,6 @@ function timeCloseFunction(tf?: string, session?: string, timezone?: string): Se
 /**
  * PineScript `time`: the bar open time in ms (a Series), and `time(timeframe?, session?, timezone?)`:
  * the open time of the `timeframe` period that contains the bar, `na` outside `session`.
- * Rules (context-check/doc/README.md).
  */
 export const time = callableSeries(new Series(ctxBars, (b) => barTime(b)), timeFunction);
 
@@ -1161,7 +1160,7 @@ function valuesOf(value: Series | number | boolean, length: number): number[] {
  * built by grouping the chart bars, and `expression` runs on them (its `ta.*` calls, tuples and `timeframe.*`
  * see the higher timeframe). Other symbols need external data and throw; a lower timeframe throws.
  *
- * Rules (security-check/doc/README.md): lookahead off shows a period's value from the
+ * PineScript rules: lookahead off shows a period's value from the
  * bar that completes it; lookahead on from its first bar; gaps on keeps only the bar where the value appears.
  * Built bars can differ from the exchange's bars (official open / close, volume).
  */

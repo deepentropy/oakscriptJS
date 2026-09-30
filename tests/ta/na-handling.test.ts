@@ -1,5 +1,5 @@
 /**
- * na handling of window functions, (nahandling-check/doc/README.md).
+ * na handling of window functions (PineScript rules).
  */
 import { math, taCore } from '../../src';
 

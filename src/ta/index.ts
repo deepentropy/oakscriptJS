@@ -19,7 +19,7 @@ import type { series_float, series_bool, series_int, int, Source, simple_int, si
  *
  * @remarks
  * - `na` values in the source series are ignored: the mean of the last `length` non-`na` values, and a bar with an
- *   `na` source keeps the previous result (measured on PineScript)
+ *   `na` source keeps the previous result (as in PineScript)
  * - Returns NaN until `length` non-`na` values are available
  *
  * @example
@@ -27,13 +27,12 @@ import type { series_float, series_bool, series_int, int, Source, simple_int, si
  * const closePrices = [10, 11, 12, 13, 14];
  * const sma5 = ta.sma(closePrices, 5); // Returns: [NaN, NaN, NaN, NaN, 12]
  * ```
- *
  */
 export function sma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // (nahandling-check/doc/README.md): the mean of the last `len` non-na values; an na value is skipped,
+  // PineScript: the mean of the last `len` non-na values; an na value is skipped,
   // so the bar keeps the previous result
   const window: number[] = [];
   for (let i = 0; i < source.length; i++) {
@@ -83,7 +82,6 @@ function strictWindowMean(source: Source, length: simple_int): series_float {
  * const closePrices = [10, 11, 12, 13, 14];
  * const ema5 = ta.ema(closePrices, 5);
  * ```
- *
  */
 export function ema(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -121,7 +119,7 @@ export function ema(source: Source, length: simple_int): series_float {
         emaValue = (val - emaValue) * multiplier + emaValue;
         result.push(emaValue);
       } else {
-        // na source: na on this bar; the next bar continues from the last value (PineScript)
+        // na source: na on this bar; the next bar continues from the last value (as in PineScript)
         result.push(NaN);
       }
     }
@@ -152,7 +150,6 @@ export function ema(source: Source, length: simple_int): series_float {
  * const overbought = rsi14.map(v => v > 70);
  * const oversold = rsi14.map(v => v < 30);
  * ```
- *
  */
 export function rsi(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -205,7 +202,6 @@ export function rsi(source: Source, length: simple_int): series_float {
  * ```typescript
  * const [macdLine, signal, histogram] = ta.macd(closePrices, 12, 26, 9);
  * ```
- *
  */
 export function macd(
   source: Source,
@@ -250,7 +246,6 @@ export function macd(
  * ```typescript
  * const [middle, upper, lower] = ta.bb(closePrices, 20, 2);
  * ```
- *
  */
 export function bb(
   series: Source,
@@ -280,9 +275,8 @@ export function bb(
  * @returns Standard deviation series (na until `length` non-na values exist)
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the window holds the last `length` non-na
+ * As in PineScript: `na` values are skipped, the window holds the last `length` non-na
  * values, and a bar whose own value is `na` still gets a result.
- *
  */
 export function stdev(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const len = Math.floor(length);
@@ -307,7 +301,7 @@ function lastValues(source: Source, i: number, length: number): number[] | null 
 
 /**
  * The values of the window of `length` bars ending at bar `i`, with their offsets (0 = bar `i`,
- * -1 = previous bar...). The window stops at the first `na` value, as does for
+ * -1 = previous bar...). The window stops at the first `na` value, as PineScript does for
  * ta.highest / ta.lowest / ta.highestbars / ta.lowestbars.
  */
 function windowUntilNa(source: Source, i: number, length: number): Array<[number, number]> {
@@ -348,7 +342,6 @@ function extremeOffset(source: Source, length: simple_int, isHigher: (a: number,
  * ```typescript
  * const crossUp = ta.crossover(fastMA, slowMA);
  * ```
- *
  */
 export function crossover(series1: Source, series2: Source): series_bool {
   const result: series_bool = [];
@@ -380,7 +373,6 @@ export function crossover(series1: Source, series2: Source): series_bool {
  * ```typescript
  * const crossDown = ta.crossunder(fastMA, slowMA);
  * ```
- *
  */
 export function crossunder(series1: Source, series2: Source): series_bool {
   const result: series_bool = [];
@@ -413,7 +405,6 @@ export function crossunder(series1: Source, series2: Source): series_bool {
  * const change1 = ta.change(closePrices); // Daily change
  * const change5 = ta.change(closePrices, 5); // 5-day change
  * ```
- *
  */
 export function change(source: Source, length: simple_int = 1): series_float {
   const result: series_float = [];
@@ -455,7 +446,6 @@ export function change(source: Source, length: simple_int = 1): series_float {
  * const { ta } = createContext({ chart: { high, low, close } });
  * const trueRange = ta.tr(); // Matches PineScript!
  * ```
- *
  */
 export function tr(
   handle_na: simple_bool = false,
@@ -527,7 +517,6 @@ export function tr(
  * const { ta } = createContext({ chart: { high, low, close } });
  * const atr14 = ta.atr(14); // Matches PineScript!
  * ```
- *
  */
 export function atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float {
   if (!high || !low || !close) {
@@ -571,7 +560,6 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
  * const { ta } = createContext({ chart: { high, low, close } });
  * const [supertrend, direction] = ta.supertrend(3, 10); // Matches PineScript!
  * ```
- *
  */
 export function supertrend(
   factor: simple_float,
@@ -679,7 +667,6 @@ export function supertrend(
  * // avgGain = ta.rma(gains, 14);
  * // avgLoss = ta.rma(losses, 14);
  * ```
- *
  */
 export function rma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -722,7 +709,7 @@ export function rma(source: Source, length: simple_int): series_float {
         rmaValue = alpha * val + (1 - alpha) * rmaValue;
         result.push(rmaValue);
       } else {
-        // na source: na on this bar; the next bar continues from the last value (PineScript)
+        // na source: na on this bar; the next bar continues from the last value (as in PineScript)
         result.push(NaN);
       }
     }
@@ -750,13 +737,12 @@ export function rma(source: Source, length: simple_int): series_float {
  * const wma20 = ta.wma(closePrices, 20);
  * // WMA gives more weight to recent prices
  * ```
- *
  */
 export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // (nahandling-check/doc/README.md): na on a bar with an na source; otherwise the last `len` bars, each na
+  // PineScript: na on a bar with an na source; otherwise the last `len` bars, each na
   // replaced by the previous non-na value
   const filled: number[] = [];
   let last = NaN;
@@ -789,10 +775,9 @@ export function wma(source: Source, length: simple_int): series_float {
  * @returns Highest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): an `na` value ends the window, so only the values after the last `na`
+ * As in PineScript: an `na` value ends the window, so only the values after the last `na`
  * count, and a bar whose own value is `na` gives `na`.
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
- *
  */
 export function highest(source: Source, length: simple_int): series_float {
   return source.map((_, i) => {
@@ -810,9 +795,8 @@ export function highest(source: Source, length: simple_int): series_float {
  * @returns Lowest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): an `na` value ends the window, so only the values after the last `na`
+ * As in PineScript: an `na` value ends the window, so only the values after the last `na`
  * count, and a bar whose own value is `na` gives `na`.
- *
  */
 export function lowest(source: Source, length: simple_int): series_float {
   return source.map((_, i) => {
@@ -830,7 +814,7 @@ export function lowest(source: Source, length: simple_int): series_float {
  *
  * @remarks
  * - Returns the running total of all values from index 0 to current index
- * - As in PineScript (checked on 30/09/2026): an `na` value adds nothing to the sum,
+ * - As in PineScript: an `na` value adds nothing to the sum,
  *   and the result is `na` on that bar only; the sum continues on the next bars
  * - Useful for calculating total volume, total trades, etc.
  *
@@ -839,7 +823,6 @@ export function lowest(source: Source, length: simple_int): series_float {
  * const cumulativeVolume = ta.cum(volume);
  * const totalGains = ta.cum(gains);
  * ```
- *
  */
 export function cum(source: Source): series_float {
   let sum = 0;
@@ -869,7 +852,6 @@ export function cum(source: Source): series_float {
  * const crossed = ta.cross(fastMA, slowMA);
  * // Detect any MA crossover
  * ```
- *
  */
 export function cross(source1: Source, source2: Source): series_bool {
   const result: series_bool = [];
@@ -905,7 +887,6 @@ export function cross(source1: Source, source2: Source): series_bool {
  * const isRising = ta.rising(close, 3);
  * // Detect upward momentum
  * ```
- *
  */
 export function rising(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
@@ -947,7 +928,6 @@ export function rising(source: Source, length: simple_int): series_bool {
  * const isFalling = ta.falling(close, 3);
  * // Detect downward momentum
  * ```
- *
  */
 export function falling(source: Source, length: simple_int): series_bool {
   const result: series_bool = [];
@@ -990,7 +970,6 @@ export function falling(source: Source, length: simple_int): series_bool {
  * // Positive ROC indicates upward momentum
  * // Negative ROC indicates downward momentum
  * ```
- *
  */
 export function roc(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1031,7 +1010,6 @@ export function roc(source: Source, length: simple_int): series_float {
  * const mom10 = ta.mom(closePrices, 10);
  * // Measures raw price momentum over 10 bars
  * ```
- *
  */
 export function mom(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1070,11 +1048,10 @@ export function mom(source: Source, length: simple_int): series_float {
  * const dev10 = ta.dev(closePrices, 10);
  * // Measures volatility using mean absolute deviation
  * ```
- *
  */
 export function dev(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-  // (nahandling-check/doc/README.md): na when the window of `length` bars holds an na value
+  // PineScript: na when the window of `length` bars holds an na value
   const meanValues = strictWindowMean(source, length);
 
   for (let i = 0; i < source.length; i++) {
@@ -1117,12 +1094,11 @@ export function dev(source: Source, length: simple_int): series_float {
  * const variance20 = ta.variance(closePrices, 20);
  * const sampleVariance = ta.variance(closePrices, 20, false);
  * ```
- *
  */
 export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const result: series_float = [];
   const len = Math.floor(length);
-  // (nahandling-check/doc/README.md): the last `len` non-na values, as ta.sma; an na value is skipped
+  // PineScript: the last `len` non-na values, as ta.sma; an na value is skipped
   const window: number[] = [];
   for (let i = 0; i < source.length; i++) {
     const v = source[i];
@@ -1162,7 +1138,6 @@ export function variance(source: Source, length: simple_int, biased: simple_bool
  * const median20 = ta.median(closePrices, 20);
  * // Median is less affected by extreme values than SMA
  * ```
- *
  */
 export function median(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1220,7 +1195,6 @@ export function median(source: Source, length: simple_int): series_float {
  * const swma = ta.swma(closePrices);
  * // Smoothed price with symmetric weighting
  * ```
- *
  */
 export function swma(source: Source): series_float {
   const result: series_float = [];
@@ -1271,7 +1245,6 @@ export function swma(source: Source): series_float {
  * const { ta } = createContext({ chart: { high, low, close, volume } });
  * const vwma20 = ta.vwma(close, 20); // Matches PineScript!
  * ```
- *
  */
 export function vwma(source: Source, length: simple_int, volume?: Source): series_float {
   if (!volume) {
@@ -1322,7 +1295,6 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
  * const linreg20 = ta.linreg(closePrices, 20, 0);
  * const linregFuture = ta.linreg(closePrices, 20, -5); // Project 5 bars ahead
  * ```
- *
  */
 export function linreg(source: Source, length: simple_int, offset: simple_int = 0): series_float {
   const result: series_float = [];
@@ -1395,7 +1367,6 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  * const corr = ta.correlation(series1, series2, 20);
  * // Values close to +1 or -1 indicate strong relationship
  * ```
- *
  */
 export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1472,7 +1443,6 @@ export function correlation(source1: Source, source2: Source, length: simple_int
  * // Values near 100 indicate recent strength
  * // Values near 0 indicate recent weakness
  * ```
- *
  */
 export function percentrank(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1537,7 +1507,6 @@ export function percentrank(source: Source, length: simple_int): series_float {
  * // Overbought when cci > 100
  * // Oversold when cci < -100
  * \`\`\`
- *
  */
 export function cci(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1579,7 +1548,6 @@ export function cci(source: Source, length: simple_int): series_float {
  * // Smooth with SMA for %D line:
  * const stochD = ta.sma(stochK, 3);
  * \`\`\`
- *
  */
 export function stoch(source: Source, high: Source, low: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -1630,7 +1598,6 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
  * const { ta } = createContext({ chart: { high, low, close, volume } });
  * const mfi14 = ta.mfi(hlc3, 14); // Matches PineScript!
  * ```
- *
  */
 export function mfi(source: Source, length: simple_int, volume?: Source): series_float {
   if (!volume) {
@@ -1710,7 +1677,6 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
  * const hma20 = ta.hma(closePrices, 20);
  * // Faster response to price changes than SMA or EMA
  * ```
- *
  */
 export function hma(source: Source, length: simple_int): series_float {
   const halfLength = Math.floor(length / 2);
@@ -1748,7 +1714,6 @@ export function hma(source: Source, length: simple_int): series_float {
  * ```typescript
  * const sar = ta.sar(0.02, 0.02, 0.2, high, low, close);
  * ```
- *
  */
 export function sar(
   start: simple_float,
@@ -1846,7 +1811,7 @@ export function sar(
 }
 
 /**
- * Pivot detection as computes it (checked 30/09/2026, see pivot-check/doc/README.md).
+ * Pivot detection as PineScript computes it.
  *
  * The value of the pivot bar is returned `rightbars` bars later, on the bar where the pivot is
  * confirmed, so no future bar is used. A pivot high may equal values on its left but must be higher
@@ -1898,7 +1863,6 @@ function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHi
  * const pivotHighs = ta.pivothigh(high, 2, 2);
  * // pivotHighs[i] is high[i - 2] when bar i - 2 is a pivot high
  * ```
- *
  */
 export function pivothigh(
   sourceOrLeftbars: Source | simple_int,
@@ -1936,7 +1900,6 @@ export function pivothigh(
  * const pivotLows = ta.pivotlow(low, 2, 2);
  * // pivotLows[i] is low[i - 2] when bar i - 2 is a pivot low
  * ```
- *
  */
 export function pivotlow(
   sourceOrLeftbars: Source | simple_int,
@@ -1969,7 +1932,6 @@ export function pivotlow(
  * const crossovers = ta.crossover(fastMA, slowMA);
  * const barsSinceCross = ta.barssince(crossovers);
  * ```
- *
  */
 export function barssince(condition: series_bool): series_float {
   const result: series_float = [];
@@ -2005,7 +1967,6 @@ export function barssince(condition: series_bool): series_float {
  * const crossovers = ta.crossover(fastMA, slowMA);
  * const lastCrossPrice = ta.valuewhen(crossovers, close, 0);
  * ```
- *
  */
 export function valuewhen(condition: series_bool, source: Source, occurrence: simple_int): series_float {
   const result: series_float = [];
@@ -2049,7 +2010,6 @@ export function valuewhen(condition: series_bool, source: Source, occurrence: si
  * // When +DI > -DI and ADX > 25, strong uptrend
  * // When -DI > +DI and ADX > 25, strong downtrend
  * ```
- *
  */
 export function dmi(
   diLength: simple_int,
@@ -2144,7 +2104,6 @@ export function dmi(
  * // TSI > 0: bullish momentum
  * // TSI < 0: bearish momentum
  * ```
- *
  */
 export function tsi(source: Source, shortLength: simple_int, longLength: simple_int): series_float {
   const momentum: series_float = [];
@@ -2198,7 +2157,6 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
  * // CMO > 50: overbought
  * // CMO < -50: oversold
  * ```
- *
  */
 export function cmo(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -2256,7 +2214,6 @@ export function cmo(source: Source, length: simple_int): series_float {
  * // Price above upper: potential uptrend
  * // Price below lower: potential downtrend
  * ```
- *
  */
 export function kc(
   source: Source,
@@ -2323,7 +2280,6 @@ export function kc(
  * // Low BBW: potential breakout coming
  * // High BBW: high volatility period
  * ```
- *
  */
 export function bbw(source: Source, length: simple_int, mult: simple_float): series_float {
   const [basis, upper, lower] = bb(source, length, mult);
@@ -2363,7 +2319,6 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
  * // wpr < -80: oversold
  * // wpr > -20: overbought
  * ```
- *
  */
 export function wpr(high: Source, low: Source, close: Source, length: simple_int = 14): series_float {
   const result: series_float = [];
@@ -2407,9 +2362,8 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
  * @returns The VWAP series, or `[vwap, upper, lower]` when `stdev_mult` is given
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): the sums restart on anchor bars; the standard deviation is
+ * As in PineScript: the sums restart on anchor bars; the standard deviation is
  * `sqrt(Σ(volume × source²) / Σvolume − vwap²)`.
- *
  */
 export function vwap(source: Source, volume: Source, anchor?: ArrayLike<boolean | number>): series_float;
 export function vwap(
@@ -2475,7 +2429,6 @@ export function vwap(
  * // offset closer to 1: more responsive
  * // offset closer to 0: smoother
  * ```
- *
  */
 export function alma(
   source: Source,
@@ -2545,7 +2498,6 @@ export function alma(
  * // Low KCW: potential breakout coming
  * // High KCW: high volatility period
  * ```
- *
  */
 export function kcw(
   source: Source,
@@ -2576,9 +2528,8 @@ export function kcw(
  * (PineScript `ta.range(source, length)`).
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped (the window holds the last `length` non-na
+ * As in PineScript: `na` values are skipped (the window holds the last `length` non-na
  * values), and a bar whose own value is `na` still gets a result.
- *
  */
 export function range(source: Source, length: simple_int): series_float {
   return source.map((_, i) => {
@@ -2592,9 +2543,8 @@ export function range(source: Source, length: simple_int): series_float {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): on equal values the oldest bar wins; an `na` value ends the window;
+ * As in PineScript: on equal values the oldest bar wins; an `na` value ends the window;
  * 0 when the window has no value.
- *
  */
 export function highestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, (a, b) => a >= b);
@@ -2605,9 +2555,8 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): on equal values the oldest bar wins; an `na` value ends the window;
+ * As in PineScript: on equal values the oldest bar wins; an `na` value ends the window;
  * 0 when the window has no value.
- *
  */
 export function lowestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, (a, b) => a <= b);
@@ -2617,9 +2566,8 @@ export function lowestbars(source: Source, length: simple_int): series_int {
  * All-time highest value of `source` up to each bar (PineScript `ta.max(source)`).
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the value carries over `na` bars, and the
+ * As in PineScript: `na` values are skipped, the value carries over `na` bars, and the
  * result is `na` until the first non-na value.
- *
  */
 export function max(source: Source): series_float {
   let best = NaN;
@@ -2633,9 +2581,8 @@ export function max(source: Source): series_float {
  * All-time lowest value of `source` up to each bar (PineScript `ta.min(source)`).
  *
  * @remarks
- * As in PineScript (checked on 30/09/2026, see partb-check/doc/README.md): `na` values are skipped, the value carries over `na` bars, and the
+ * As in PineScript: `na` values are skipped, the value carries over `na` bars, and the
  * result is `na` until the first non-na value.
- *
  */
 export function min(source: Source): series_float {
   let best = NaN;
@@ -2665,7 +2612,6 @@ export function min(source: Source): series_float {
  * // - COG crossing above 0: potential buy signal
  * // - COG crossing below 0: potential sell signal
  * ```
- *
  */
 export function cog(source: Source, length: simple_int = 10): series_float {
   const result: series_float = [];
@@ -2718,7 +2664,6 @@ export function cog(source: Source, length: simple_int = 10): series_float {
  * - `na` values in the source series are ignored
  * - If no mode exists, returns the smallest value
  * - Returns NaN for the first (length - 1) values where there's insufficient data
- *
  */
 export function mode(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -2794,7 +2739,6 @@ export function mode(source: Source, length: simple_int): series_float {
  * - The result will NOT always be a member of the input data set
  * - Uses linear interpolation between adjacent values when needed
  * - Returns NaN for the first (length - 1) values where there's insufficient data
- *
  */
 export function percentile_linear_interpolation(
   source: Source,
@@ -2867,7 +2811,6 @@ export function percentile_linear_interpolation(
  * - The 100th percentile is defined as the largest value
  * - Using this method on lengths < 100 may result in the same value for multiple percentiles
  * - Returns NaN for the first (length - 1) values where there's insufficient data
- *
  */
 export function percentile_nearest_rank(
   source: Source,
@@ -2943,7 +2886,6 @@ export function percentile_nearest_rank(
  * - -100 indicates source consistently decreased over the period
  * - 0 indicates no directional consistency
  * - Returns NaN for the first (length - 1) values where there's insufficient data
- *
  */
 export function rci(source: Source, length: simple_int): series_float {
   const result: series_float = [];
@@ -3061,7 +3003,6 @@ export function rci(source: Source, length: simple_int): series_float {
  * - Woodie type cannot use developing=true (will error in PineScript)
  * - DM type only calculates P, R1, S1 (other levels are NaN)
  * - All calculations follow PineScript v6 specifications
- *
  */
 export function pivot_point_levels(
   type: series_float | string,
@@ -3283,7 +3224,6 @@ function calculatePivotLevels(
  * // Price above cloud = bullish trend
  * // Cloud = area between senkouSpanA and senkouSpanB
  * ```
- *
  */
 export function ichimoku(
   conversionPeriods: simple_int,
@@ -3397,7 +3337,6 @@ export function ichimoku(
  *   }
  * }
  * ```
- *
  */
 export function zigzag(
   deviation: simple_float = 5.0,
@@ -3627,8 +3566,7 @@ export function zigzag(
 // ── Volume built-in variables (ta.obv, ta.pvt, ta.accdist, ta.nvi, ta.pvi, ta.iii, ta.wad, ta.wvad) ──
 //
 // In PineScript these are series variables computed from the chart bars. Here they take the
-// bar series explicitly. The results were (30/09/2026, see
-// volume-check/doc/README.md).
+// bar series explicitly.
 
 /**
  * On Balance Volume: `ta.cum(math.sign(ta.change(close)) * volume)`.
@@ -3636,7 +3574,6 @@ export function zigzag(
  * @param close - Close price series
  * @param volume - Volume series
  * @returns OBV series (`na` on the first bar, and on bars without volume)
- *
  */
 export function obv(close: Source, volume: Source): series_float {
   return cum(close.map((c, i) => (i === 0 ? NaN : Math.sign(c - close[i - 1]!) * volume[i]!)));
@@ -3648,7 +3585,6 @@ export function obv(close: Source, volume: Source): series_float {
  * @param close - Close price series
  * @param volume - Volume series
  * @returns PVT series (`na` on the first bar, and on bars without volume)
- *
  */
 export function pvt(close: Source, volume: Source): series_float {
   return cum(
@@ -3659,7 +3595,6 @@ export function pvt(close: Source, volume: Source): series_float {
 /**
  * Accumulation/Distribution index: the running sum of
  * `(2 * close - low - high) / (high - low) * volume`, with 0 on bars where `high == low`.
- *
  */
 export function accdist(high: Source, low: Source, close: Source, volume: Source): series_float {
   return cum(
@@ -3674,11 +3609,10 @@ export function accdist(high: Source, low: Source, close: Source, volume: Source
 /**
  * Intraday Intensity Index: `(2 * close - high - low) / (high - low) * volume`.
  *
- * built-in value is this formula. The formula shown in the PineScript reference,
+ * The PineScript built-in value is this formula. The formula shown in the PineScript reference,
  * `(2 * close - high - low) / ((high - low) * volume)`, gives other values.
  *
  * @returns III series (`na` where `high == low`)
- *
  */
 export function iii(high: Source, low: Source, close: Source, volume: Source): series_float {
   return close.map((c, i) => {
@@ -3691,7 +3625,6 @@ export function iii(high: Source, low: Source, close: Source, volume: Source): s
  * Williams Variable Accumulation/Distribution: `(close - open) / (high - low) * volume`.
  *
  * @returns WVAD series (`na` where `high == low`)
- *
  */
 export function wvad(open: Source, high: Source, low: Source, close: Source, volume: Source): series_float {
   return close.map((c, i) => {
@@ -3703,7 +3636,6 @@ export function wvad(open: Source, high: Source, low: Source, close: Source, vol
 /**
  * Williams Accumulation/Distribution: the running sum of `close - min(low, close[1])` on up
  * closes, `close - max(high, close[1])` on down closes, and 0 otherwise (first bar included).
- *
  */
 export function wad(high: Source, low: Source, close: Source): series_float {
   return cum(
@@ -3739,7 +3671,6 @@ function volumeIndex(close: Source, volume: Source, use: (v: number, prevV: numb
 /**
  * Negative Volume Index: moves with the close change only on bars where volume falls.
  * Starts at 1.
- *
  */
 export function nvi(close: Source, volume: Source): series_float {
   return volumeIndex(close, volume, (v, prevV) => v < prevV);
@@ -3748,7 +3679,6 @@ export function nvi(close: Source, volume: Source): series_float {
 /**
  * Positive Volume Index: moves with the close change only on bars where volume rises.
  * Starts at 1.
- *
  */
 export function pvi(close: Source, volume: Source): series_float {
   return volumeIndex(close, volume, (v, prevV) => v > prevV);

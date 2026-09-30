@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-na handling of window functions, (`nahandling-check/doc/README.md`: 32,046 values, 0
-differences):
+na handling of window functions:
 - `ta.sma`, `math.sum`, `ta.variance` (and `ta.vwma`, `ta.bb`): the last `length` non-na values; a bar with an na
   source keeps the previous result (before: na for every window with an na value).
 - `ta.ema`: na on a bar with an na source, then continues from the last value (before: the previous value).
@@ -32,13 +31,11 @@ differences):
 
 - `color.from_gradient` follows PineScript: premultiplied byte alpha, truncated channels, transparent result for na
   inputs or an empty range, hex colours with alpha (before: its own parser lost the alpha of `#RRGGBBAA`).
-- (`gradient-check/doc/README.md`): 23 checks, 0 differences.
 
 ## [0.6.1] - 2026-09-30
 
 ### Fixed
 
-Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
 - Comparison operators: new `compare` namespace (`eq`, `ne`, `lt`, `le`, `gt`, `ge`, `EPSILON`) with PineScript's
   absolute tolerance of 1e-10 (`0.1 + 0.2 == 0.3` is true) and false for an `na` operand. The `Series` methods
   `gt`, `gte`, `lt`, `lte`, `eq`, `neq` use it (before: exact comparisons; `neq` was true with `na`).
@@ -74,7 +71,7 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
 - `input.timeframe(defval, title?, { options })`, `input.session(defval, title?, { options })` and
   `input.time(defval, title?)` in `oakscriptjs/script`; `input.timeframe/session/time` in the `input`
   helpers; `input_timeframe`, `input_session`, `input_time` in the runtime. The default is returned as
-  written (`"D"` stays `"D"`, `""` is the chart timeframe): see `input-check/doc/README.md`.
+  written, as in PineScript (`"D"` stays `"D"`, `""` is the chart timeframe).
 - `InputConfig.type` and `InputType` gained `timeframe`, `session` and `time`. `SimpleInputAdapter`
   checks `options` for timeframe and session inputs like for string inputs.
 
@@ -83,20 +80,20 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
   `oakscriptjs/script`.
 - `ta.obv`, `ta.pvt`, `ta.accdist`, `ta.nvi`, `ta.pvi`, `ta.iii`, `ta.wad`, `ta.wvad`: context-bound
   Series in `oakscriptjs/script` (PineScript variables), `ta.obv(bars)` in the Series layer and
-  `taCore.obv(close, volume)` (and the others) in the array layer. They follow PineScript's
+  `taCore.obv(close, volume)` (and the others) in the array layer. They follow the PineScript
   built-in values: an `na` input adds nothing to the running sums; `ta.iii` is
   `(2 * close - high - low) / (high - low) * volume` (the formula shown in the PineScript reference
-  divides by volume too, which does not do).
+  divides by volume too, which the built-in value does not do).
 
 **map namespace (issue #99, level 1):**
 - `map.new_map`, `put`, `put_all`, `get`, `contains`, `remove`, `size`, `clear`, `keys`, `values`,
   `copy`, and the `PineMap<K, V>` type. A map is a JS `Map`: insertion order, exact key equality,
   `put`/`remove` return the previous value or `undefined` (`na`), at most 50,000 pairs
-  (`RangeError` above, as the runtime error on PineScript).
+  (`RangeError` above, as the PineScript runtime error).
 
 **Drawing objects (issue #99, level 1):**
 - Drawing registry (`src/drawing/registry.ts`) for lines, labels, boxes, polylines and linefills,
-  with the rules: `all()` lists live objects in creation order (a copy);
+  with the PineScript rules: `all()` lists live objects in creation order (a copy);
   `delete` removes the object and makes it `na` (getters return NaN, setters do nothing, `na(obj)`
   is true); `line.delete` also deletes the linefills of the line; when a creation brings the count
   above `max_*_count + 5`, the oldest objects are deleted down to `max_*_count` (default 50; linefills
@@ -104,26 +101,15 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
 - `line.set_first_point` / `set_second_point`, `label.set_point`, `box.set_top_left_point` /
   `set_bottom_right_point` (`point.index` for `bar_index` objects, `point.time` for `bar_time` ones),
   `label.set_text_formatting`, `box.set_text_formatting` and the `text` namespace
-  (`format_none` 0, `format_bold` 1, `format_italic` 2, as encodes them).
+  (`format_none` 0, `format_bold` 1, `format_italic` 2, as PineScript encodes them).
 - `line.all()`, `label.all()`, `box.all()`, `linefill.all()`, `polyline.all()`, and `delete` aliases.
 - `oakscriptjs/script`: `line`, `label`, `box`, `linefill`, `polyline` (with `line.all` etc. read as
   properties), `text`, `chart.point` with `chart.point.now(price?)` (current `eachBar` bar), and
   `indicator()` options `max_lines_count`, `max_labels_count`, `max_boxes_count`, `max_polylines_count`.
 
-**Verification:**
-- The calendar, timestamp, session and timeframe functions were compared with values computed by
-  (30/09/2026): 100,000 calendar values, 256,000 session tests and 227
-  timestamp/timeframe/time zone items. See `calendar-check/doc/README.md` for the method, the rules
-  found and the 3 remaining differences. The input defaults were checked the same way
-  (`input-check/doc/README.md`). The volume variables and `fixnan` match on 381,415
-  values over 8 runs (`volume-check/doc/README.md`). The map behaviour was checked with 15 scripts
-  and 5 float-key probes (`map-check/doc/README.md`). The drawing rules were checked with 25 scripts
-  and 14 per-bar count studies; the registry matches the 14,000 per-bar counts of PineScript
-  (`drawing-check/doc/README.md`).
-
 **Chart context (issue #100):**
 - `executeScript(body, bars, inputs, chart)`: `chart` gives the chart timeframe, the exchange time zone,
-  the session type, the session of the bars and the regular hours in format (hours,
+  the session type, the session of the bars and the regular hours in the symbol session format (hours,
   corrections, holidays), and the unit of `Bar.time` (default seconds).
 - `oakscriptjs/script`: `timeframe.period / multiplier / isintraday / isdaily / isweekly / ismonthly /
   isminutes / isseconds / isticks / isdwm / main_period`, `timeframe.in_seconds()` of the chart,
@@ -132,10 +118,8 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
   as Series that can be called (`time("D")`, `time_close("W")`, `time(tf, session, timezone)`);
   `time_tradingday`; `session.isfirstbar / islastbar / ismarket / ispremarket / ispostmarket /
   isfirstbar_regular / islastbar_regular`; `ta.vwap(source)` restarts each trading day.
-- Trading calendar (`src/session`): session format with `F` day offsets, dated session
+- Trading calendar (`src/session`): symbol session format with `F` day offsets, dated session
   changes, corrections (early closes, days off) and holidays.
-- on 15 runs (stocks with regular and extended hours, futures, forex, crypto,
-  XETR): 954,251 values, 2 differences on a live last bar (`context-check/doc/README.md`).
 
 **Same-symbol request.security (issue #101):**
 - `oakscriptjs/script`: `request.security(symbol, timeframe, expression, gaps?, lookahead?)` for the chart
@@ -144,9 +128,8 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
   of #100 (D / W / M periods follow the regular hours); `expression` is a function that runs on them and may
   return a Series, a number or a tuple. `barmerge.*`, `ticker.*`, `syminfo.tickerid` (chart context
   `tickerid`). Other symbols and lower timeframes throw.
-- Mapping rules: 117,203 values, 0 differences; period times 23,235, 0 differences.
-  Values differ where the exchange's bars differ from bars built from the chart (official auction prices,
-  settlement, consolidated volume); see `security-check/doc/README.md`.
+- Values differ where the exchange's bars differ from bars built from the chart (official auction prices,
+  settlement, consolidated volume).
 
 **Multi-period timeframes (follow-up of #100 and #101):**
 - `time(tf)`, `time_close(tf)`, `timeframe.change(tf)`, `time_tradingday` and `request.security` accept daily,
@@ -155,8 +138,6 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
   n months from January. On intraday charts `time_close("nD")` is the start of the next period.
 - `request.security`: a chart bar completes its period only when it closes at or after the period end; a period
   whose last bars are missing completes on the first bar of the next period.
-- (13 timeframes, 13 runs): 2,308,875 timing values, 0 differences; see
-  `multiperiod-check/doc/README.md`.
 
 ### Changed (breaking)
 
@@ -169,10 +150,8 @@ Checked on (`pinerules-check/doc/README.md`: 11,067 values, 0 differences):
   PineScript. Before, every value after an `na` was NaN.
 - `oakscriptjs/script`: `ta.pivothigh(leftbars, rightbars)` and `ta.pivotlow(leftbars, rightbars)`
   (2-argument form on the chart high / low) are accepted.
-- Both were: 377,299 values, 0 differences (`pivot-check/doc/README.md`).
 
-**Part B of issue #99: PineScript signatures and behaviour** (checked on PineScript,
-see `partb-check/doc/README.md`):
+**PineScript signatures and behaviour (issue #99, part B):**
 - `ta.highestbars` / `ta.lowestbars` return 0 or negative offsets (0.5.0: positive); ties go to the
   oldest bar. `ta.highest` / `ta.lowest` / `*bars`: an `na` value ends the window.
 - `ta.stdev(source, length, biased = true)` skips `na` values; `ta.range(source, length)` (0.5.0:
@@ -181,7 +160,7 @@ see `partb-check/doc/README.md`):
   the Series layer).
 - Script API: `ta.highest(length)`, `ta.lowest(length)`, `ta.highestbars(length)`, `ta.lowestbars(length)`
   on the chart high / low, and `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume.
-- `str.tostring` formats as (Java DecimalFormat patterns, half away from zero,
+- `str.tostring` formats as PineScript (Java DecimalFormat patterns, half away from zero,
   `format.percent`, `format.volume`; `format.mintick` throws: it needs `syminfo.mintick`).
   `str.format` follows Java MessageFormat (number, integer, percent, currency, patterns, date, time,
   choice). `str.format_time(time, format, timezone)` with Java SimpleDateFormat letters.
@@ -271,7 +250,7 @@ see `partb-check/doc/README.md`):
 
 **Build & CI:**
 - Improved indicator generation workflow
-- Refactored indicator sources to use docs/official
+- Refactored indicator sources to use the official PineScript reference
 
 ### Fixed
 

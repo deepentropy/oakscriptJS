@@ -1,6 +1,6 @@
 /**
- * Timeframes with a multiplier above one day ("3D", "2W", "5M"...). Rules
- * (multiperiod-check/doc/README.md): periods restart each calendar year; "nD" groups n trading days, "nW" n weeks
+ * Timeframes with a multiplier above one day ("3D", "2W", "5M"...). PineScript rules:
+ * periods restart each calendar year; "nD" groups n trading days, "nW" n weeks
  * from the first week whose Monday is in the year, "nM" n months from January.
  */
 import { close, executeScript, request, time, time_close, time_tradingday, timeframe, type ChartContext } from '../../src/script';

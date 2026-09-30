@@ -70,7 +70,6 @@ function generateId(): string {
  *   'rgba(255, 87, 34, 0.3)'  // fill_color
  * );
  * ```
- *
  */
 export function new_polyline(
   points: ChartPoint[],
@@ -125,7 +124,6 @@ export function new_polyline(
  * const myPolyline = polyline.new(points);
  * polyline.delete(myPolyline);
  * ```
- *
  */
 export function delete_polyline(id: Polyline): void {
   remove('polyline', id);
@@ -154,7 +152,6 @@ export function get_all(): readonly Polyline[] {
 
 /**
  * All live polylines, in creation order (PineScript `polyline.all`). A new array.
- *
  */
 export function all(): Polyline[] {
   return allDrawings('polyline');

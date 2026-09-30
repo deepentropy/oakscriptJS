@@ -1,6 +1,6 @@
 # Function Inventory - OakScriptJS
 
-This document tracks the implementation status of all PineScript v6 functions against the official language reference (`docs/official/language-reference/functions/`).
+This document tracks the implementation status of all PineScript v6 functions against the official PineScript v6 language reference.
 
 **Last Updated:** July 2026 (v0.5.0)
 
@@ -134,7 +134,6 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 `ta.obv`, `ta.pvt`, `ta.accdist`, `ta.nvi`, `ta.pvi`, `ta.iii`, `ta.wad`, `ta.wvad`: context-bound Series in
 the script API (`ta.obv`), functions of the bars in `ta` (`ta.obv(bars)`) and of the columns in `taCore`
 (`taCore.obv(close, volume)`). `ta.tr` is a function (`ta.tr(handle_na)`). `fixnan()` is a top-level function.
-All were results: see `volume-check/doc/README.md`.
 
 ### Not Implemented (0 official functions)
 
@@ -369,12 +368,11 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 8. `now()` - custom addition for convenience
 
 `weekofyear()` uses ISO 8601 weeks (Monday start, week 1 contains the first Thursday). The PineScript
-reference does not define the rule. All functions of this section were
-results: see `calendar-check/doc/README.md`.
+reference does not define the rule.
 
 9. `time(timeframe, session, timezone)`, `time_close(...)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`,
    `timeframe.*` variables, `syminfo.timezone/session` - script API, with the chart context of `executeScript`
-   (chart timeframe, exchange time zone, session in format); see `context-check/doc/README.md`
+   (chart timeframe, exchange time zone, session in the symbol session format)
 
 ### Not Implemented
 
@@ -435,7 +433,7 @@ All 7 official color functions are implemented.
 
 All drawing namespaces keep a registry of live objects (`all()`; `line.all` in the script API):
 creation order, a working `delete`, and automatic deletion of the oldest objects above `max_*_count + 5`,
-as on PineScript. See `drawing-check/doc/README.md`.
+as in PineScript.
 
 ### Not Implemented (0 functions)
 
@@ -591,8 +589,8 @@ All 2 official polyline functions are implemented.
 10. `values()` - Get array of all values (insertion order)
 11. `copy()` - Create a shallow copy
 
-A map is a JS `Map`. Insertion order, exact key equality, the return values and the 50,000-pair limit
-were: see `map-check/doc/README.md`.
+A map is a JS `Map`: insertion order, exact key equality, the return values and the 50,000-pair limit
+follow PineScript.
 
 ### Not Implemented (0 functions)
 
@@ -716,4 +714,4 @@ When implementing new functions:
 6. If the function accepts arrays, implement it in the core namespace (e.g., `src/ta/`)
 7. Add a Series-based wrapper in `src/ta-series.ts` if the function is commonly used with Series
 
-For questions about priorities or implementation details, see the PineScript v6 reference documentation in `docs/official/language-reference/`.
+For questions about priorities or implementation details, see the PineScript v6 reference documentation.

@@ -34,7 +34,6 @@ type BoxExtend = 'none' | 'left' | 'right' | 'both';
  * // Gap box from bar 10 to 20, between 100 and 105, extended to the right
  * const gap = box.new(10, 105, 20, 100, '#2196F3', 1, 'solid', 'right');
  * ```
- *
  */
 export function new_box(
   top_left: ChartPoint,
@@ -134,7 +133,6 @@ export function new_box(...args: unknown[]): Box {
  *   console.log('Gap has been open for 50+ bars');
  * }
  * ```
- *
  */
 export function get_left(id: Box): number {
   return id.left;
@@ -154,7 +152,6 @@ export function get_left(id: Box): number {
  * const range = box.new(100, 155, 150, 145);
  * const width = box.get_right(range) - box.get_left(range); // Returns 50 bars
  * ```
- *
  */
 export function get_right(id: Box): number {
   return id.right;
@@ -179,7 +176,6 @@ export function get_right(id: Box): number {
  *   console.log('Gap completely filled!');
  * }
  * ```
- *
  */
 export function get_top(id: Box): number {
   return id.top;
@@ -204,7 +200,6 @@ export function get_top(id: Box): number {
  *   console.log('Price entered the gap!');
  * }
  * ```
- *
  */
 export function get_bottom(id: Box): number {
   return id.bottom;
@@ -227,7 +222,6 @@ export function get_bottom(id: Box): number {
  * // Modify copy without affecting original
  * copiedBox.top = 110;
  * ```
- *
  */
 export function copy(id: Box): Box {
   return register('box', { ...id });
@@ -249,7 +243,6 @@ export function copy(id: Box): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_left(box, 15); // Move left edge to bar 15
  * ```
- *
  */
 export function set_left(id: Box, left: number): Box {
   if (isDeleted(id)) return id;
@@ -269,7 +262,6 @@ export function set_left(id: Box, left: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_right(box, 25); // Move right edge to bar 25
  * ```
- *
  */
 export function set_right(id: Box, right: number): Box {
   if (isDeleted(id)) return id;
@@ -289,7 +281,6 @@ export function set_right(id: Box, right: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_top(box, 110); // Move top edge to price 110
  * ```
- *
  */
 export function set_top(id: Box, top: number): Box {
   if (isDeleted(id)) return id;
@@ -309,7 +300,6 @@ export function set_top(id: Box, top: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_bottom(box, 95); // Move bottom edge to price 95
  * ```
- *
  */
 export function set_bottom(id: Box, bottom: number): Box {
   if (isDeleted(id)) return id;
@@ -330,7 +320,6 @@ export function set_bottom(id: Box, bottom: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_lefttop(box, 12, 108); // Move top-left corner
  * ```
- *
  */
 export function set_lefttop(id: Box, left: number, top: number): Box {
   if (isDeleted(id)) return id;
@@ -352,7 +341,6 @@ export function set_lefttop(id: Box, left: number, top: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_rightbottom(box, 25, 98); // Move bottom-right corner
  * ```
- *
  */
 export function set_rightbottom(id: Box, right: number, bottom: number): Box {
   if (isDeleted(id)) return id;
@@ -379,7 +367,6 @@ export function set_rightbottom(id: Box, right: number, bottom: number): Box {
  * // Change to timestamp-based coordinates
  * box.set_xloc(box, 1609459200000, 1609545600000, 'bar_time');
  * ```
- *
  */
 export function set_xloc(id: Box, left: number, right: number, xloc: 'bar_index' | 'bar_time'): Box {
   if (isDeleted(id)) return id;
@@ -401,7 +388,6 @@ export function set_xloc(id: Box, left: number, right: number, xloc: 'bar_index'
  * const box = box.new(10, 105, 20, 100);
  * box.set_extend(box, 'right'); // Extend box to the right
  * ```
- *
  */
 export function set_extend(id: Box, extend: 'none' | 'left' | 'right' | 'both'): Box {
   if (isDeleted(id)) return id;
@@ -425,7 +411,6 @@ export function set_extend(id: Box, extend: 'none' | 'left' | 'right' | 'both'):
  * const box = box.new(10, 105, 20, 100);
  * box.set_border_color(box, '#FF0000'); // Red border
  * ```
- *
  */
 export function set_border_color(id: Box, borderColor: color): Box {
   if (isDeleted(id)) return id;
@@ -445,7 +430,6 @@ export function set_border_color(id: Box, borderColor: color): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_border_width(box, 2); // Thicker border
  * ```
- *
  */
 export function set_border_width(id: Box, width: number): Box {
   if (isDeleted(id)) return id;
@@ -465,7 +449,6 @@ export function set_border_width(id: Box, width: number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_border_style(box, 'dashed'); // Dashed border
  * ```
- *
  */
 export function set_border_style(id: Box, style: 'solid' | 'dotted' | 'dashed'): Box {
   if (isDeleted(id)) return id;
@@ -485,7 +468,6 @@ export function set_border_style(id: Box, style: 'solid' | 'dotted' | 'dashed'):
  * const box = box.new(10, 105, 20, 100);
  * box.set_bgcolor(box, '#00FF0030'); // Transparent green fill
  * ```
- *
  */
 export function set_bgcolor(id: Box, bgColor: color): Box {
   if (isDeleted(id)) return id;
@@ -509,7 +491,6 @@ export function set_bgcolor(id: Box, bgColor: color): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_text(box, 'Gap Filled'); // Update text
  * ```
- *
  */
 export function set_text(id: Box, text: string): Box {
   if (isDeleted(id)) return id;
@@ -529,7 +510,6 @@ export function set_text(id: Box, text: string): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_color(box, '#FFFFFF'); // White text
  * ```
- *
  */
 export function set_text_color(id: Box, textColor: color): Box {
   if (isDeleted(id)) return id;
@@ -549,7 +529,6 @@ export function set_text_color(id: Box, textColor: color): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_size(box, 'large'); // Larger text
  * ```
- *
  */
 export function set_text_size(id: Box, size: string | number): Box {
   if (isDeleted(id)) return id;
@@ -569,7 +548,6 @@ export function set_text_size(id: Box, size: string | number): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_halign(box, 'center'); // Center text horizontally
  * ```
- *
  */
 export function set_text_halign(id: Box, align: 'left' | 'center' | 'right'): Box {
   if (isDeleted(id)) return id;
@@ -589,7 +567,6 @@ export function set_text_halign(id: Box, align: 'left' | 'center' | 'right'): Bo
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_valign(box, 'center'); // Center text vertically
  * ```
- *
  */
 export function set_text_valign(id: Box, align: 'top' | 'center' | 'bottom'): Box {
   if (isDeleted(id)) return id;
@@ -609,7 +586,6 @@ export function set_text_valign(id: Box, align: 'top' | 'center' | 'bottom'): Bo
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_wrap(box, 'auto'); // Enable text wrapping
  * ```
- *
  */
 export function set_text_wrap(id: Box, wrap: 'none' | 'auto'): Box {
   if (isDeleted(id)) return id;
@@ -629,7 +605,6 @@ export function set_text_wrap(id: Box, wrap: 'none' | 'auto'): Box {
  * const box = box.new(10, 105, 20, 100);
  * box.set_text_font_family(box, 'monospace'); // Monospace font
  * ```
- *
  */
 export function set_text_font_family(id: Box, font: 'default' | 'monospace'): Box {
   if (isDeleted(id)) return id;
@@ -652,7 +627,6 @@ export function set_text_font_family(id: Box, font: 'default' | 'monospace'): Bo
  * box.delete(box);
  * // box.all() no longer contains it
  * ```
- *
  */
 export function delete_box(id: Box): void {
   remove('box', id);
@@ -666,7 +640,6 @@ function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
 
 /**
  * All live boxes, in creation order (PineScript `box.all`). A new array.
- *
  */
 export function all(): Box[] {
   return allDrawings('box');
@@ -674,7 +647,6 @@ export function all(): Box[] {
 
 /**
  * Sets the left and top borders from a chart point (`point.index` or `point.time` by xloc, and `point.price`).
- *
  */
 export function set_top_left_point(id: Box, point: ChartPoint): Box {
   if (isDeleted(id)) return id;
@@ -685,7 +657,6 @@ export function set_top_left_point(id: Box, point: ChartPoint): Box {
 
 /**
  * Sets the right and bottom borders from a chart point (`point.index` or `point.time` by xloc, and `point.price`).
- *
  */
 export function set_bottom_right_point(id: Box, point: ChartPoint): Box {
   if (isDeleted(id)) return id;
@@ -697,7 +668,6 @@ export function set_bottom_right_point(id: Box, point: ChartPoint): Box {
 /**
  * Sets the text formatting: `text.format_none`, `text.format_bold`, `text.format_italic`,
  * or `text.format_bold + text.format_italic`.
- *
  */
 export function set_text_formatting(id: Box, formatting: number): Box {
   if (isDeleted(id)) return id;

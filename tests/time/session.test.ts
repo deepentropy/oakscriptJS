@@ -34,7 +34,7 @@ describe('time.inSession', () => {
     expect(time.inSession(ny(7, 10, 30), s, NY)).toBe(false);
   });
 
-  it('uses Monday to Friday for several periods without days (as on PineScript)', () => {
+  it('uses Monday to Friday for several periods without days (as in PineScript)', () => {
     const s = '1000-1100,1400-1500';
     expect(time.inSession(ny(8, 10, 30), s, NY)).toBe(true); // Monday
     expect(time.inSession(ny(6, 10, 30), s, NY)).toBe(false); // Saturday

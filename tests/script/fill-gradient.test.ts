@@ -1,6 +1,5 @@
 /**
- * PineScript fill() overloads and gradient fills (issue #83); color.from_gradient rules
- * (gradient-check/doc/README.md).
+ * PineScript fill() overloads and gradient fills (issue #83); PineScript color.from_gradient rules.
  */
 import { color, close, executeScript, fill, hline, plot } from '../../src/script';
 import type { Bar } from '../../src/types';
@@ -49,7 +48,7 @@ describe('fill() overloads', () => {
   });
 });
 
-describe('color.from_gradient (rules)', () => {
+describe('color.from_gradient (PineScript rules)', () => {
   const red = color.rgb(255, 0, 0);
   const green = color.rgb(0, 255, 0);
   const parts = (c: string) => [color.r(c), color.g(c), color.b(c), Math.round(color.t(c))];

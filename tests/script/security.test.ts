@@ -1,6 +1,5 @@
 /**
- * request.security for the chart symbol (issue #101). The mapping rules follow PineScript
- * (security-check/doc/README.md: 117,203 mapped values and 23,429 period times equal to PineScript's).
+ * request.security for the chart symbol (issue #101). The mapping rules follow PineScript.
  */
 import {
   barmerge,

@@ -1,8 +1,8 @@
 /**
- * Trading calendar: the session periods of each trading day of a symbol, from session
- * information (issue #100). (30/09/2026, see context-check/doc/README.md).
+ * Trading calendar: the session periods of each trading day of a symbol, from the symbol session
+ * information (issue #100).
  *
- * Session format (symbol info, also PineScript session strings):
+ * Session format (symbol session information, also PineScript session strings):
  * - periods "HHMM-HHMM", several separated by commas; "24x7" is the whole day, every day
  * - a period whose end is not after its start ("1700-1600", "1700-1700") starts the day before the
  *   trading day: the session that opens Sunday 17:00 is Monday's
@@ -17,13 +17,13 @@
 
 import { zonedFields, zonedToUnix } from '../time/timezone';
 
-/** Session information of a symbol, in format. */
+/** Session information of a symbol (hours, corrections, holidays). */
 export interface SessionSpec {
   /** Session hours: "0930-1600", "1700-1600", "24x7", "0400-2000" ... */
   session: string;
-  /** Exceptions by date ("session-correction"): "0930-1300:20251128,20251224;dayoff:20250109" */
+  /** Exceptions by date (symbol info "session-correction"): "0930-1300:20251128,20251224;dayoff:20250109" */
   corrections?: string;
-  /** Exchange holidays as "YYYYMMDD" ("session_holidays"), comma-separated or as an array */
+  /** Exchange holidays as "YYYYMMDD" (symbol info "session_holidays"), comma-separated or as an array */
   holidays?: string | string[];
 }
 
@@ -102,7 +102,7 @@ export class TradingCalendar {
 
   /**
    * @param timezone - Time zone of the session hours (the exchange time zone)
-   * @param spec - Session information (format)
+   * @param spec - Session information (hours, corrections, holidays)
    * @param rule - Days without ":days": 'symbol' (Monday to Friday) or 'pine' (PineScript session strings)
    */
   constructor(

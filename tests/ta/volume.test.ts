@@ -1,15 +1,14 @@
 import { taCore, fixnan, ta } from '../../src';
 import type { Bar } from '../../src/types';
 
-// First 3 daily bars of NASDAQ:ARM (IPO 14/09/2023) and the values computed for them
-// (30/09/2026, full history, see volume-check/doc/README.md).
+// First 3 daily bars of NASDAQ:ARM (IPO 14/09/2023) and the PineScript values for them.
 const o = [56.1, 68.63, 57.95];
 const h = [66.28, 69, 58.7407];
 const l = [55.54, 60.75, 55.02];
 const c = [63.59, 60.75, 58];
 const v = [130534505, 74753091, 34571903];
 
-const TV = {
+const EXPECTED = {
   obv: [NaN, -74753091, -109324994],
   pvt: [NaN, -3338556.0377417873, -4903539.301116273],
   accdist: [65145711.99255128, -9607379.007448718, 11199690.196706448],
@@ -28,7 +27,7 @@ function expectSeries(actual: number[], expected: number[]): void {
   });
 }
 
-describe('volume built-in variables (values)', () => {
+describe('volume built-in variables (PineScript values)', () => {
   it.each([
     ['obv', () => taCore.obv(c, v)],
     ['pvt', () => taCore.pvt(c, v)],
@@ -39,7 +38,7 @@ describe('volume built-in variables (values)', () => {
     ['nvi', () => taCore.nvi(c, v)],
     ['pvi', () => taCore.pvi(c, v)],
   ] as const)('%s', (name, fn) => {
-    expectSeries(fn(), TV[name]);
+    expectSeries(fn(), EXPECTED[name]);
   });
 });
 
@@ -80,8 +79,8 @@ describe('volume variables: na and flat bars', () => {
 describe('Series layer', () => {
   it('ta.obv(bars) equals taCore.obv', () => {
     const bars: Bar[] = c.map((close, i) => ({ time: i, open: o[i]!, high: h[i]!, low: l[i]!, close, volume: v[i]! }));
-    expectSeries(ta.obv(bars).toArray(), TV.obv);
-    expectSeries(ta.accdist(bars).toArray(), TV.accdist);
+    expectSeries(ta.obv(bars).toArray(), EXPECTED.obv);
+    expectSeries(ta.accdist(bars).toArray(), EXPECTED.accdist);
   });
 });
 

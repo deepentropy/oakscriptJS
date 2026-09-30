@@ -69,7 +69,7 @@ describe('time calendar functions', () => {
     expect(time.weekofyear(NaN, 'UTC')).toBeNaN();
   });
 
-  // Accepted and rejected spellings (checked 30/09/2026)
+  // Accepted and rejected spellings as in PineScript
   it('accepts offsets up to 18 hours, with optional seconds', () => {
     const t = Date.UTC(2024, 0, 2, 14, 30);
     expect(time.hour(t, 'UTC+15')).toBe(5);

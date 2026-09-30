@@ -21,7 +21,6 @@ import type { PineMatrix, PineArray, simple_int, int, bool, float } from '../typ
  * // Create a 3x3 identity-like matrix
  * const m2 = matrix.new_matrix(3, 3, 1);
  * ```
- *
  */
 export function new_matrix<T>(
   rows: simple_int,
@@ -60,7 +59,6 @@ export function new_matrix<T>(
  * // Get element at row 0, column 0
  * const x = matrix.get(m, 0, 0); // Returns: 5
  * ```
- *
  */
 export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): T {
   if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
@@ -92,7 +90,6 @@ export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): 
  *
  * // Now m[0][1] === 3
  * ```
- *
  */
 export function set<T>(id: PineMatrix<T>, row: simple_int, column: simple_int, value: T): void {
   if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
@@ -117,7 +114,6 @@ export function set<T>(id: PineMatrix<T>, row: simple_int, column: simple_int, v
  * // Get the quantity of rows
  * const x = matrix.rows(m); // Returns: 2
  * ```
- *
  */
 export function rows<T>(id: PineMatrix<T>): int {
   return id.rows;
@@ -139,7 +135,6 @@ export function rows<T>(id: PineMatrix<T>): int {
  * // Get the quantity of columns
  * const x = matrix.columns(m); // Returns: 6
  * ```
- *
  */
 export function columns<T>(id: PineMatrix<T>): int {
   return id.columns;
@@ -161,7 +156,6 @@ export function columns<T>(id: PineMatrix<T>): int {
  * // Get total element count
  * const count = matrix.elements_count(m); // Returns: 12
  * ```
- *
  */
 export function elements_count<T>(id: PineMatrix<T>): int {
   return id.rows * id.columns;
@@ -191,7 +185,6 @@ export function elements_count<T>(id: PineMatrix<T>): int {
  * // Get the first row as an array
  * const a = matrix.row(m, 0); // Returns: [1, 2, 3]
  * ```
- *
  */
 export function row<T>(id: PineMatrix<T>, row_index: simple_int): PineArray<T> {
   if (row_index < 0 || row_index >= id.rows) {
@@ -224,7 +217,6 @@ export function row<T>(id: PineMatrix<T>, row_index: simple_int): PineArray<T> {
  * // Get the first column as an array
  * const a = matrix.col(m, 0); // Returns: [1, 2, 3]
  * ```
- *
  */
 export function col<T>(id: PineMatrix<T>, column_index: simple_int): PineArray<T> {
   if (column_index < 0 || column_index >= id.columns) {
@@ -258,7 +250,6 @@ export function col<T>(id: PineMatrix<T>, column_index: simple_int): PineArray<T
  * // m1[0][0] is still 1
  * // m2[0][0] is now 99
  * ```
- *
  */
 export function copy<T>(id: PineMatrix<T>): PineMatrix<T> {
   const newData: T[][] = id.data.map(r => [...r]);
@@ -293,7 +284,6 @@ export function copy<T>(id: PineMatrix<T>): PineMatrix<T> {
  *
  * // Result: positions [0,1], [0,2], [1,1], [1,2] are now 9
  * ```
- *
  */
 export function fill<T>(
   id: PineMatrix<T>,
@@ -331,7 +321,6 @@ export function fill<T>(
  * const m2 = matrix.new_matrix(2, 3, 0);
  * const isSquare2 = matrix.is_square(m2); // Returns: false
  * ```
- *
  */
 export function is_square<T>(id: PineMatrix<T>): bool {
   return id.rows === id.columns;
@@ -356,7 +345,6 @@ export function is_square<T>(id: PineMatrix<T>): bool {
  * matrix.set(m2, 0, 0, 1);
  * const isZero2 = matrix.is_zero(m2); // Returns: false
  * ```
- *
  */
 export function is_zero(id: PineMatrix<float>): bool {
   for (let i = 0; i < id.rows; i++) {
@@ -390,7 +378,6 @@ export function is_zero(id: PineMatrix<float>): bool {
  * matrix.set(m2, 0, 0, 2);
  * const isBinary2 = matrix.is_binary(m2); // Returns: false
  * ```
- *
  */
 export function is_binary(id: PineMatrix<float>): bool {
   for (let i = 0; i < id.rows; i++) {
@@ -438,7 +425,6 @@ export function is_binary(id: PineMatrix<float>): bool {
  * const arr = [1, 2, 3];
  * matrix.add_row(m, 0, arr);
  * ```
- *
  */
 export function add_row<T>(id: PineMatrix<T>, row?: simple_int, array_id?: PineArray<T>): void {
   const insertIndex = row ?? id.rows;
@@ -499,7 +485,6 @@ export function add_row<T>(id: PineMatrix<T>, row?: simple_int, array_id?: PineA
  * const arr = [1, 2];
  * matrix.add_col(m, 0, arr);
  * ```
- *
  */
 export function add_col<T>(id: PineMatrix<T>, column?: simple_int, array_id?: PineArray<T>): void {
   const insertIndex = column ?? id.columns;
@@ -561,7 +546,6 @@ export function add_col<T>(id: PineMatrix<T>, column?: simple_int, array_id?: Pi
  * const arr = matrix.remove_row(m, 0); // Returns: [1, 2]
  * // Matrix now has 1 row
  * ```
- *
  */
 export function remove_row<T>(id: PineMatrix<T>, row?: simple_int): PineArray<T> {
   const removeIndex = row ?? (id.rows - 1);
@@ -604,7 +588,6 @@ export function remove_row<T>(id: PineMatrix<T>, row?: simple_int): PineArray<T>
  * const arr = matrix.remove_col(m, 0); // Returns: [1, 3]
  * // Matrix now has 1 column
  * ```
- *
  */
 export function remove_col<T>(id: PineMatrix<T>, column?: simple_int): PineArray<T> {
   const removeIndex = column ?? (id.columns - 1);
@@ -646,7 +629,6 @@ export function remove_col<T>(id: PineMatrix<T>, column?: simple_int): PineArray
  * matrix.swap_rows(m, 0, 1);
  * // Now row 0 is [3, 4] and row 1 is [1, 2]
  * ```
- *
  */
 export function swap_rows<T>(id: PineMatrix<T>, row1: simple_int, row2: simple_int): void {
   if (row1 < 0 || row1 >= id.rows) {
@@ -684,7 +666,6 @@ export function swap_rows<T>(id: PineMatrix<T>, row1: simple_int, row2: simple_i
  * matrix.swap_columns(m, 0, 1);
  * // Now column 0 is [2, 4] and column 1 is [1, 3]
  * ```
- *
  */
 export function swap_columns<T>(id: PineMatrix<T>, column1: simple_int, column2: simple_int): void {
   if (column1 < 0 || column1 >= id.columns) {
@@ -725,7 +706,6 @@ export function swap_columns<T>(id: PineMatrix<T>, column1: simple_int, column2:
  * const m2 = matrix.transpose(m1);
  * // m2 = [[1, 4], [2, 5], [3, 6]]
  * ```
- *
  */
 export function transpose<T>(id: PineMatrix<T>): PineMatrix<T> {
   const newData: T[][] = [];
@@ -765,7 +745,6 @@ export function transpose<T>(id: PineMatrix<T>): PineMatrix<T> {
  * matrix.concat(m1, m2);
  * // m1 is now 4x4
  * ```
- *
  */
 export function concat<T>(id1: PineMatrix<T>, id2: PineMatrix<T>): PineMatrix<T> {
   if (id1.columns !== id2.columns) {
@@ -807,7 +786,6 @@ export function concat<T>(id1: PineMatrix<T>, id2: PineMatrix<T>): PineMatrix<T>
  * const m2 = matrix.submatrix(m1, 0, 2, 1, 3);
  * // m2 = [[2, 3], [5, 6]]
  * ```
- *
  */
 export function submatrix<T>(
   id: PineMatrix<T>,
@@ -875,7 +853,6 @@ export function submatrix<T>(
  * matrix.reshape(m, 3, 2);
  * // m = [[1, 2], [3, 4], [5, 6]]
  * ```
- *
  */
 export function reshape<T>(id: PineMatrix<T>, rows: simple_int, columns: simple_int): void {
   const totalElements = id.rows * id.columns;
@@ -931,7 +908,6 @@ export function reshape<T>(id: PineMatrix<T>, rows: simple_int, columns: simple_
  * matrix.reverse(m);
  * // m = [[4, 3], [2, 1]]
  * ```
- *
  */
 export function reverse<T>(id: PineMatrix<T>): void {
   // Reverse the order of rows
@@ -965,7 +941,6 @@ export function reverse<T>(id: PineMatrix<T>): void {
  * matrix.sort(m);
  * // m = [[1, 2], [3, 4]]
  * ```
- *
  */
 export function sort<T extends number | string>(id: PineMatrix<T>, column: simple_int = 0, order: 'ascending' | 'descending' = 'ascending'): void {
   if (column < 0 || column >= id.columns) {
@@ -1015,7 +990,6 @@ export function sort<T extends number | string>(id: PineMatrix<T>, column: simpl
  * const m4 = matrix.new_matrix(2, 3, 4);
  * const m5 = matrix.sum(m4, 1); // All elements are 5
  * ```
- *
  */
 export function sum(id1: PineMatrix<float>, id2: PineMatrix<float> | float): PineMatrix<float> {
   const newData: float[][] = [];
@@ -1079,7 +1053,6 @@ export function sum(id1: PineMatrix<float>, id2: PineMatrix<float> | float): Pin
  * const m4 = matrix.new_matrix(2, 3, 4);
  * const m5 = matrix.diff(m4, 1); // All elements are 3
  * ```
- *
  */
 export function diff(id1: PineMatrix<float>, id2: PineMatrix<float> | float): PineMatrix<float> {
   const newData: float[][] = [];
@@ -1140,7 +1113,6 @@ export function diff(id1: PineMatrix<float>, id2: PineMatrix<float> | float): Pi
  *
  * const avg = matrix.avg(m); // Returns: 2.5
  * ```
- *
  */
 export function avg(id: PineMatrix<float>): float {
   if (id.rows === 0 || id.columns === 0) {
@@ -1179,7 +1151,6 @@ export function avg(id: PineMatrix<float>): float {
  *
  * const minVal = matrix.min(m); // Returns: 1
  * ```
- *
  */
 export function min(id: PineMatrix<float>): float {
   if (id.rows === 0 || id.columns === 0) {
@@ -1216,7 +1187,6 @@ export function min(id: PineMatrix<float>): float {
  *
  * const maxVal = matrix.max(m); // Returns: 4
  * ```
- *
  */
 export function max(id: PineMatrix<float>): float {
   if (id.rows === 0 || id.columns === 0) {
@@ -1256,7 +1226,6 @@ export function max(id: PineMatrix<float>): float {
  *
  * const medianVal = matrix.median(m); // Returns: 2.5
  * ```
- *
  */
 export function median(id: PineMatrix<float>): float {
   if (id.rows === 0 || id.columns === 0) {
@@ -1309,7 +1278,6 @@ export function median(id: PineMatrix<float>): float {
  *
  * const modeVal = matrix.mode(m); // Returns: 0 (tie, so smallest)
  * ```
- *
  */
 export function mode(id: PineMatrix<float>): float {
   if (id.rows === 0 || id.columns === 0) {
@@ -1359,7 +1327,6 @@ export function mode(id: PineMatrix<float>): float {
  *
  * const tr = matrix.trace(m); // Returns: 5 (1 + 4)
  * ```
- *
  */
 export function trace(id: PineMatrix<float>): float {
   if (!is_square(id)) {
@@ -1406,7 +1373,6 @@ export function trace(id: PineMatrix<float>): float {
  *
  * const isDiag = matrix.is_diagonal(m); // Returns: true
  * ```
- *
  */
 export function is_diagonal(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1446,7 +1412,6 @@ export function is_diagonal(id: PineMatrix<float>): bool {
  *
  * const isIdent = matrix.is_identity(m); // Returns: true
  * ```
- *
  */
 export function is_identity(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1493,7 +1458,6 @@ export function is_identity(id: PineMatrix<float>): bool {
  *
  * const isSym = matrix.is_symmetric(m); // Returns: true
  * ```
- *
  */
 export function is_symmetric(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1533,7 +1497,6 @@ export function is_symmetric(id: PineMatrix<float>): bool {
  *
  * const isAntiSym = matrix.is_antisymmetric(m); // Returns: true
  * ```
- *
  */
 export function is_antisymmetric(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1581,7 +1544,6 @@ export function is_antisymmetric(id: PineMatrix<float>): bool {
  *
  * const isTri = matrix.is_triangular(m); // Returns: true
  * ```
- *
  */
 export function is_triangular(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1638,7 +1600,6 @@ export function is_triangular(id: PineMatrix<float>): bool {
  *
  * const isAntiDiag = matrix.is_antidiagonal(m); // Returns: true
  * ```
- *
  */
 export function is_antidiagonal(id: PineMatrix<float>): bool {
   if (!is_square(id)) {
@@ -1680,7 +1641,6 @@ export function is_antidiagonal(id: PineMatrix<float>): bool {
  *
  * const isStoch = matrix.is_stochastic(m); // Returns: true
  * ```
- *
  */
 export function is_stochastic(id: PineMatrix<float>): bool {
   if (id.rows === 0 || id.columns === 0) {
@@ -1759,7 +1719,6 @@ function createIdentity(n: simple_int): PineMatrix<float> {
  * const arr = [1, 1, 1];
  * const result = matrix.mult(m6, arr); // [12, 12]
  * ```
- *
  */
 export function mult(id1: PineMatrix<float>, id2: PineMatrix<float> | float | PineArray<float>): PineMatrix<float> | PineArray<float> {
   // Matrix × Scalar
@@ -1848,7 +1807,6 @@ export function mult(id1: PineMatrix<float>, id2: PineMatrix<float> | float | Pi
  * const m2 = matrix.pow(m1, 3);
  * // m2 = m1 × m1 × m1
  * ```
- *
  */
 export function pow(id: PineMatrix<float>, power: int): PineMatrix<float> {
   if (!is_square(id)) {
@@ -1914,7 +1872,6 @@ export function pow(id: PineMatrix<float>, power: int): PineMatrix<float> {
  *
  * const d = matrix.det(m); // Returns: -19
  * ```
- *
  */
 export function det(id: PineMatrix<float>): float {
   if (!is_square(id)) {
@@ -2012,7 +1969,6 @@ export function det(id: PineMatrix<float>): float {
  * const m2 = matrix.inv(m1);
  * // m2 = [[-2, 1], [1.5, -0.5]]
  * ```
- *
  */
 export function inv(id: PineMatrix<float>): PineMatrix<float> | null {
   if (!is_square(id)) {
@@ -2122,7 +2078,6 @@ export function inv(id: PineMatrix<float>): PineMatrix<float> | null {
  *
  * const m2 = matrix.pinv(m1);
  * ```
- *
  */
 export function pinv(id: PineMatrix<float>): PineMatrix<float> {
   const m = id.rows;
@@ -2201,7 +2156,6 @@ export function pinv(id: PineMatrix<float>): PineMatrix<float> {
  *
  * const r = matrix.rank(m1); // Returns: 2
  * ```
- *
  */
 export function rank(id: PineMatrix<float>): int {
   if (id.rows === 0 || id.columns === 0) {
@@ -2279,7 +2233,6 @@ export function rank(id: PineMatrix<float>): int {
  *
  * const ev = matrix.eigenvalues(m1); // Returns eigenvalues
  * ```
- *
  */
 export function eigenvalues(id: PineMatrix<float>): PineArray<float> {
   if (!is_square(id)) {
@@ -2498,7 +2451,6 @@ function qrAlgorithm(h: PineMatrix<float>, maxIter: int): float[] {
  * const evecs = matrix.eigenvectors(m1);
  * // Each column is an eigenvector
  * ```
- *
  */
 export function eigenvectors(id: PineMatrix<float>): PineMatrix<float> {
   if (!is_square(id)) {
@@ -2678,7 +2630,6 @@ function solveLinearSystem(a: float[][], b: float[]): float[] {
  * const m3 = matrix.kron(m1, m2);
  * // Result is a 4x4 matrix
  * ```
- *
  */
 export function kron(id1: PineMatrix<float>, id2: PineMatrix<float>): PineMatrix<float> {
   const m1 = id1.rows;
@@ -2736,7 +2687,6 @@ export function kron(id1: PineMatrix<float>, id2: PineMatrix<float>): PineMatrix
  * // Create a 2x2 matrix that could hold any type
  * const m = matrix.newtype(2, 2, { name: 'default', value: 0 });
  * ```
- *
  */
 export function newtype<T>(
   rows: simple_int = 0,

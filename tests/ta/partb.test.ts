@@ -1,6 +1,6 @@
 import { taCore } from '../../src';
 
-// First 9 daily bars of NASDAQ:ARM and the values returned (30/09/2026, see partb-check/doc/README.md).
+// First 9 daily bars of NASDAQ:ARM and the PineScript values for them.
 const close = [63.59, 60.75, 58, 55.17, 52.91, 52.16, 51.32, 54.44, 53.52];
 const high = [66.28, 69, 58.7407, 56.78, 55.4, 52.8, 52.9, 54.5, 54.53];
 const na7 = close.map((x, i) => (i % 7 === 3 ? NaN : x)); // na on bar 3

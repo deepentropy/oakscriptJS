@@ -25,7 +25,6 @@ import type { int, bool, float, simple_int, simple_string } from '../types';
  * str.length("Hello") // Returns: 5
  * str.length("") // Returns: 0
  * ```
- *
  */
 export function length(str: simple_string): int {
   return str.length;
@@ -40,13 +39,13 @@ export function length(str: simple_string): int {
  * @returns String representation of the value
  *
  * @remarks
- * (checked 30/09/2026, see partb-check/doc/README.md):
+ * As in PineScript:
  * - without format, numbers show up to 10 decimals ("0.3333333333"); 1e21 and more use "1E21"
  * - patterns round half away from zero on the shortest decimal form: 1.005 with "#.##" gives "1.01"
  * - "#" is an optional digit ("1.5" with "#.##"), "0" a required digit ("1.50" with "0.00"),
  *   "," groups thousands, "%" multiplies by 100, 'text' is literal text
  * - `format.percent` shows 2 decimals and "%" without multiplying; `format.volume` uses K, M, B, T
- * - `format.price` and `format.inherit` give "price1" / "inherit1" on PineScript: they are patterns
+ * - `format.price` and `format.inherit` give "price1" / "inherit1" in PineScript: they are patterns
  *   without digit characters, and oakscriptjs does the same
  * - `format.mintick` needs the symbol's tick size and throws here
  *
@@ -57,7 +56,6 @@ export function length(str: simple_string): int {
  * str.tostring(0.5, "#.00") // ".50"
  * str.tostring(12345.678, format.volume) // "12.346K"
  * ```
- *
  */
 export function tostring(value: any, format?: simple_string): string {
   if (typeof value !== 'number') return String(value);
@@ -105,7 +103,6 @@ export function tostring(value: any, format?: simple_string): string {
  * str.tonumber("abc") // Returns: null
  * str.tonumber("1e3") // Returns: 1000
  * ```
- *
  */
 export function tonumber(str: simple_string): float | null {
   const num = parseFloat(str);
@@ -131,7 +128,6 @@ export function tonumber(str: simple_string): float | null {
  * str.substring("hello world", 6) // Returns: "world"
  * str.substring("test", 1, 3) // Returns: "es"
  * ```
- *
  */
 export function substring(str: simple_string, begin: simple_int, end?: simple_int): string {
   return str.substring(begin, end);
@@ -149,7 +145,6 @@ export function substring(str: simple_string, begin: simple_int, end?: simple_in
  * str.upper("Hello World") // Returns: "HELLO WORLD"
  * str.upper("test123") // Returns: "TEST123"
  * ```
- *
  */
 export function upper(str: simple_string): string {
   return str.toUpperCase();
@@ -167,7 +162,6 @@ export function upper(str: simple_string): string {
  * str.lower("Hello World") // Returns: "hello world"
  * str.lower("TEST123") // Returns: "test123"
  * ```
- *
  */
 export function lower(str: simple_string): string {
   return str.toLowerCase();
@@ -190,7 +184,6 @@ export function lower(str: simple_string): string {
  * str.contains("hello world", "World") // Returns: false (case-sensitive)
  * str.contains("test", "xyz") // Returns: false
  * ```
- *
  */
 export function contains(source: simple_string, str: simple_string): bool {
   return source.includes(str);
@@ -214,7 +207,6 @@ export function contains(source: simple_string, str: simple_string): bool {
  * str.pos("hello world", "o") // Returns: 4 (first occurrence)
  * str.pos("hello", "xyz") // Returns: -1
  * ```
- *
  */
 export function pos(source: simple_string, str: simple_string): int {
   return source.indexOf(str);
@@ -240,7 +232,6 @@ export function pos(source: simple_string, str: simple_string): int {
  * str.replace("hello world hello", "hello", "hi") // Returns: "hi world hi"
  * str.replace("test", "xyz", "abc") // Returns: "test"
  * ```
- *
  */
 export function replace(source: simple_string, target: simple_string, replacement: simple_string, occurrence?: simple_int): string {
   if (occurrence === 0) {
@@ -270,7 +261,6 @@ export function replace(source: simple_string, target: simple_string, replacemen
  * str.replace_all("a-b-c", "-", "_") // Returns: "a_b_c"
  * str.replace_all("test", "x", "y") // Returns: "test" (no match)
  * ```
- *
  */
 export function replace_all(source: simple_string, target: simple_string, replacement: simple_string): string {
   return source.replaceAll(target, replacement);
@@ -294,7 +284,6 @@ export function replace_all(source: simple_string, target: simple_string, replac
  * str.split("hello", "") // Returns: ["h", "e", "l", "l", "o"]
  * str.split("a,,b", ",") // Returns: ["a", "", "b"]
  * ```
- *
  */
 export function split(str: simple_string, separator: simple_string): string[] {
   return str.split(separator);
@@ -312,7 +301,6 @@ export function split(str: simple_string, separator: simple_string): string[] {
  * str.concat("a", "b", "c") // Returns: "abc"
  * str.concat("test") // Returns: "test"
  * ```
- *
  */
 export function concat(...strings: simple_string[]): string {
   return strings.join('');
@@ -326,17 +314,16 @@ export function concat(...strings: simple_string[]): string {
  * @returns Formatted string
  *
  * @remarks
- * (checked 30/09/2026, see partb-check/doc/README.md): numbers in `{n}` use
+ * As in PineScript: numbers in `{n}` use
  * "#,##0.###" (1234.5678 gives "1,234.568"); number patterns round half to even on the exact
  * value; `'...'` is literal text and `''` a quote; a missing argument leaves `{n}` in the text.
- * Dates are formatted in UTC here; uses the exchange time zone.
+ * Dates are formatted in UTC here; PineScript uses the exchange time zone.
  *
  * @example
  * ```typescript
  * str.format('Close: {0,number,#.##}', 101.456) // "Close: 101.46"
  * str.format('{0} and {1}', 'a', 2) // "a and 2"
  * ```
- *
  */
 export function format(formatStr: simple_string, ...args: any[]): string {
   return formatMessage(formatStr, args, 'Etc/UTC');
@@ -359,7 +346,6 @@ export function format(formatStr: simple_string, ...args: any[]): string {
  * str.startswith("hello world", "Hello") // Returns: false (case-sensitive)
  * str.startswith("test", "testing") // Returns: false
  * ```
- *
  */
 export function startswith(source: simple_string, str: simple_string): bool {
   return source.startsWith(str);
@@ -382,7 +368,6 @@ export function startswith(source: simple_string, str: simple_string): bool {
  * str.endswith("hello world", "World") // Returns: false (case-sensitive)
  * str.endswith("testing", "test") // Returns: false
  * ```
- *
  */
 export function endswith(source: simple_string, str: simple_string): bool {
   return source.endsWith(str);
@@ -405,7 +390,6 @@ export function endswith(source: simple_string, str: simple_string): bool {
  * str.charAt("hello", 4) // Returns: "o"
  * str.charAt("hello", 10) // Returns: ""
  * ```
- *
  */
 export function charAt(str: simple_string, pos: simple_int): string {
   return str.charAt(pos);
@@ -427,7 +411,6 @@ export function charAt(str: simple_string, pos: simple_int): string {
  * str.trim("  hello world  ") // Returns: "hello world"
  * str.trim("\thello\n") // Returns: "hello"
  * ```
- *
  */
 export function trim(str: simple_string): string {
   return str.trim();
@@ -449,7 +432,6 @@ export function trim(str: simple_string): string {
  * str.trimLeft("  hello") // Returns: "hello"
  * str.trimLeft("\thello") // Returns: "hello"
  * ```
- *
  */
 export function trimLeft(str: simple_string): string {
   return str.trimStart();
@@ -471,7 +453,6 @@ export function trimLeft(str: simple_string): string {
  * str.trimRight("hello  ") // Returns: "hello"
  * str.trimRight("hello\t") // Returns: "hello"
  * ```
- *
  */
 export function trimRight(str: simple_string): string {
   return str.trimEnd();
@@ -495,7 +476,6 @@ export function trimRight(str: simple_string): string {
  * str.match("test@example.com", "^[a-z]+@[a-z]+\\.[a-z]+$") // Returns: true
  * str.match("abc", "[A-Z]+") // Returns: false
  * ```
- *
  */
 export function match(source: simple_string, regex: simple_string): bool {
   return new RegExp(regex).test(source);
@@ -536,7 +516,6 @@ export function match(source: simple_string, regex: simple_string): bool {
  * str.format_time(timestamp, "MMM d, yyyy") // Returns: "Jan 1, 2021"
  * str.format_time(timestamp, "hh:mm a") // Returns: "12:00 AM"
  * ```
- *
  */
 /**
  * Constructs a new string containing the source string repeated N times with an optional separator.
@@ -553,7 +532,6 @@ export function match(source: simple_string, regex: simple_string): bool {
  * str.repeat("hello", 0) // Returns: ""
  * str.repeat("x", 1) // Returns: "x"
  * ```
- *
  */
 export function repeat(source: simple_string, count: simple_int, separator: simple_string = ''): string | null {
   if (source == null) return null;
@@ -571,9 +549,8 @@ export function repeat(source: simple_string, count: simple_int, separator: simp
  * @returns Formatted date string
  *
  * @remarks
- * Letters (checked on 30/09/2026, see partb-check/doc/README.md): y, M, d, E, u, D, w,
+ * Letters: y, M, d, E, u, D, w,
  * H, k, K, h, a, m, s, S, Z, z; 'text' is literal text.
- *
  */
 export function format_time(time: simple_int, format: simple_string = "yyyy-MM-dd'T'HH:mm:ssZ", timezone: simple_string = 'Etc/UTC'): string {
   return formatDate(time, format, timezone);

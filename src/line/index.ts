@@ -34,7 +34,6 @@ type LineStyle = 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 
  * // Calculate price at bar 75 (extrapolated)
  * const price = line.get_price(trendLine, 75); // Returns 175
  * ```
- *
  */
 export function new_line(
   first_point: ChartPoint,
@@ -124,7 +123,6 @@ export function new_line(...args: unknown[]): Line {
  *   console.log('Breakout above trend line!');
  * }
  * ```
- *
  */
 export function get_price(id: Line, x: number): number {
   const { x1, y1, x2, y2, extend, xloc } = id;
@@ -177,7 +175,6 @@ export function get_price(id: Line, x: number): number {
  * const line = line.new(10, 100, 50, 150);
  * const x1 = line.get_x1(line); // Returns 10
  * ```
- *
  */
 export function get_x1(id: Line): number {
   return id.x1;
@@ -194,7 +191,6 @@ export function get_x1(id: Line): number {
  * const line = line.new(10, 100, 50, 150);
  * const x2 = line.get_x2(line); // Returns 50
  * ```
- *
  */
 export function get_x2(id: Line): number {
   return id.x2;
@@ -211,7 +207,6 @@ export function get_x2(id: Line): number {
  * const line = line.new(10, 100, 50, 150);
  * const y1 = line.get_y1(line); // Returns 100
  * ```
- *
  */
 export function get_y1(id: Line): number {
   return id.y1;
@@ -228,7 +223,6 @@ export function get_y1(id: Line): number {
  * const line = line.new(10, 100, 50, 150);
  * const y2 = line.get_y2(line); // Returns 150
  * ```
- *
  */
 export function get_y2(id: Line): number {
   return id.y2;
@@ -251,7 +245,6 @@ export function get_y2(id: Line): number {
  * // Modify copy without affecting original
  * copiedLine.y2 = 200;
  * ```
- *
  */
 export function copy(id: Line): Line {
   return register('line', { ...id });
@@ -269,7 +262,6 @@ export function copy(id: Line): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_x1(line, 10); // Move first point to bar 10
  * ```
- *
  */
 export function set_x1(id: Line, x: number): Line {
   if (isDeleted(id)) return id;
@@ -289,7 +281,6 @@ export function set_x1(id: Line, x: number): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_x2(line, 60); // Move second point to bar 60
  * ```
- *
  */
 export function set_x2(id: Line, x: number): Line {
   if (isDeleted(id)) return id;
@@ -309,7 +300,6 @@ export function set_x2(id: Line, x: number): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_y1(line, 110); // Move first point to price 110
  * ```
- *
  */
 export function set_y1(id: Line, y: number): Line {
   if (isDeleted(id)) return id;
@@ -329,7 +319,6 @@ export function set_y1(id: Line, y: number): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_y2(line, 160); // Move second point to price 160
  * ```
- *
  */
 export function set_y2(id: Line, y: number): Line {
   if (isDeleted(id)) return id;
@@ -350,7 +339,6 @@ export function set_y2(id: Line, y: number): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_xy1(line, 5, 105); // Move first point to (5, 105)
  * ```
- *
  */
 export function set_xy1(id: Line, x: number, y: number): Line {
   if (isDeleted(id)) return id;
@@ -372,7 +360,6 @@ export function set_xy1(id: Line, x: number, y: number): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_xy2(line, 60, 160); // Move second point to (60, 160)
  * ```
- *
  */
 export function set_xy2(id: Line, x: number, y: number): Line {
   if (isDeleted(id)) return id;
@@ -399,7 +386,6 @@ export function set_xy2(id: Line, x: number, y: number): Line {
  * // Change to timestamp-based coordinates
  * line.set_xloc(line, 1609459200000, 1609545600000, 'bar_time');
  * ```
- *
  */
 export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | 'bar_time'): Line {
   if (isDeleted(id)) return id;
@@ -421,7 +407,6 @@ export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | '
  * const line = line.new(0, 100, 50, 150);
  * line.set_extend(line, 'right'); // Extend line to the right
  * ```
- *
  */
 export function set_extend(id: Line, extend: 'none' | 'left' | 'right' | 'both'): Line {
   if (isDeleted(id)) return id;
@@ -441,7 +426,6 @@ export function set_extend(id: Line, extend: 'none' | 'left' | 'right' | 'both')
  * const line = line.new(0, 100, 50, 150);
  * line.set_color(line, '#FF0000'); // Change to red
  * ```
- *
  */
 export function set_color(id: Line, lineColor: color): Line {
   if (isDeleted(id)) return id;
@@ -461,7 +445,6 @@ export function set_color(id: Line, lineColor: color): Line {
  * const line = line.new(0, 100, 50, 150);
  * line.set_style(line, 'dashed'); // Change to dashed line
  * ```
- *
  */
 export function set_style(id: Line, style: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both'): Line {
   if (isDeleted(id)) return id;
@@ -481,7 +464,6 @@ export function set_style(id: Line, style: 'solid' | 'dotted' | 'dashed' | 'arro
  * const line = line.new(0, 100, 50, 150);
  * line.set_width(line, 3); // Make line thicker
  * ```
- *
  */
 export function set_width(id: Line, width: number): Line {
   if (isDeleted(id)) return id;
@@ -504,7 +486,6 @@ export function set_width(id: Line, width: number): Line {
  * line.delete(line);
  * // line.all() no longer contains it
  * ```
- *
  */
 export function delete_line(id: Line): void {
   remove('line', id);
@@ -518,7 +499,6 @@ function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
 
 /**
  * All live lines, in creation order (PineScript `line.all`). A new array: later changes do not affect it.
- *
  */
 export function all(): Line[] {
   return allDrawings('line');
@@ -527,7 +507,6 @@ export function all(): Line[] {
 /**
  * Sets the first point of the line from a chart point: `point.index` for `bar_index` lines,
  * `point.time` for `bar_time` lines (`na` when the point does not have it), and `point.price`.
- *
  */
 export function set_first_point(id: Line, point: ChartPoint): Line {
   if (isDeleted(id)) return id;
@@ -538,7 +517,6 @@ export function set_first_point(id: Line, point: ChartPoint): Line {
 
 /**
  * Sets the second point of the line from a chart point (see {@link set_first_point}).
- *
  */
 export function set_second_point(id: Line, point: ChartPoint): Line {
   if (isDeleted(id)) return id;

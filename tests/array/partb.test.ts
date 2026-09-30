@@ -1,6 +1,6 @@
 import { array } from '../../src';
 
-// results for the same Pine calls (30/09/2026, see partb-check/doc/README.md)
+// Expected values: PineScript results of the same calls
 describe('array: PineScript Part B forms', () => {
   const a = array.from(3, 1, 4, 1, 5, NaN, 9);
 

@@ -1,7 +1,7 @@
 /**
  * PineScript values that depend on the chart timeframe and the symbol session (issue #100):
  * `time(tf)`, `time_close(tf)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`.
- * Rules (30/09/2026, see context-check/doc/README.md):
+ * PineScript rules:
  *
  * - intraday periods are aligned on the start of the session period of the trading day: 240 minutes from
  *   09:30 gives 09:30, 13:30; `time(tf)` is the start of the period that contains the bar open
@@ -14,7 +14,7 @@
  *   period that contains the bar open as close
  * - `time_tradingday` is 00:00 UTC of the trading day (on W / M charts, of the last trading day)
  *
- * Multipliers above one day (issue #100 follow-up, multiperiod-check/doc/README.md): periods restart each
+ * Multipliers above one day (issue #100 follow-up): periods restart each
  * calendar year. "nD" groups n trading days from the first trading day of the year; "nW" groups n weeks from
  * the first week whose Monday is in the year; "nM" groups n months from January. The last group of a year
  * can be shorter.
@@ -213,7 +213,7 @@ export interface SessionFlags {
 
 /**
  * `session.*` flags for bars that open at `times` (in order). `regular` gives the regular trading
- * hours when the bars include extended hours. Rules: flags use the bar open
+ * hours when the bars include extended hours. PineScript rules: flags use the bar open
  * time; first and last bars are per session period (a trading day can have two periods, e.g. after a
  * futures holiday); pre / post market compare with the regular hours of the same trading day; on
  * D / W / M charts every bar is its own session (first, last, market, first and last regular).

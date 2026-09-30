@@ -1,5 +1,5 @@
 /**
- * PineScript rules behind three 0.6.0 bugs, (pinerules-check/doc/README.md):
+ * PineScript rules behind three 0.6.0 bugs:
  * comparison operators with a 1e-10 tolerance, ta.rsi / ta.rma with na values, color.new with hex colours.
  */
 import { Series, color, compare, taCore } from '../../src';

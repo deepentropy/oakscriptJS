@@ -1,6 +1,6 @@
 /**
  * Same-symbol `request.security` by resampling the chart bars (issue #101).
- * Rules (30/09/2026, see security-check/doc/README.md):
+ * PineScript rules:
  *
  * - `lookahead_off` (default): the value of a higher-timeframe period appears on the chart bar that
  *   completes the period; before that, the chart bars show the previous period's value
@@ -10,7 +10,6 @@
  * - a bar completes its period only if it closes at or after the end of the period (a period still
  *   trading keeps showing the previous completed value); when the bars at the end of a period are missing
  *   (data gap, a day off not in the calendar), the period completes on the first bar of the next period
- *   (multiperiod-check/doc/README.md)
  * - D / W / M periods follow the regular hours: on extended-hours charts the premarket bars still show
  *   the previous period, which completes on the last bar of its trading day
  */

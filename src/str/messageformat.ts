@@ -1,6 +1,5 @@
 /**
- * `str.format` patterns as formats them (Java MessageFormat).
- * (30/09/2026, see partb-check/doc/README.md):
+ * `str.format` patterns as PineScript formats them (Java MessageFormat):
  *
  * - `{n}` inserts argument n; numbers use "#,##0.###" (1234.5678 gives "1,234.568")
  * - `{n,number}`, `{n,number,integer}` ("#,##0"), `{n,number,percent}` ("#,##0%"),
@@ -17,7 +16,7 @@ import { formatDate } from './dateformat';
 const DATE_STYLES: Record<string, string> = {
   short: 'M/d/yy', medium: 'MMM d, yyyy', long: 'MMMM d, yyyy', full: 'EEEE, MMMM d, yyyy',
 };
-// writes a narrow no-break space (U+202F) before AM/PM in the time styles
+// PineScript writes a narrow no-break space (U+202F) before AM/PM in the time styles
 const TIME_STYLES: Record<string, string> = {
   short: 'h:mm a', medium: 'h:mm:ss a', long: 'h:mm:ss a z', full: 'h:mm:ss a z',
 };

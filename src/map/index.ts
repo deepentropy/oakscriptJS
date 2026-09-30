@@ -2,14 +2,12 @@
  * Map namespace
  * Mirrors PineScript's map.* functions.
  *
- * A PineScript map is a JS `Map`. The behaviour below was (30/09/2026,
- * see map-check/doc/README.md):
+ * A PineScript map is a JS `Map`. PineScript rules:
  * - `keys()` and `values()` follow insertion order; putting an existing key keeps its position,
  *   removing a key and putting it again moves it to the end
  * - keys are equal only when they are exactly equal (no float tolerance)
  * - `put()` and `remove()` return the previous value, or `na` (`undefined`) when there was none
  * - a map holds at most 50,000 key-value pairs
- *
  */
 
 import type { PineArray, PineMap, PineMapKey, bool, int } from '../types';
@@ -29,7 +27,6 @@ function tooLarge(size: number): RangeError {
  * const levels = map.new_map<string, number>();
  * map.put(levels, 'high', 105.2);
  * ```
- *
  */
 export function new_map<K extends PineMapKey, V>(): PineMap<K, V> {
   return new Map<K, V>();

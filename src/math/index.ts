@@ -29,7 +29,6 @@ import { Series } from '../runtime/series';
  * math.abs(-5) // Returns: 5
  * math.abs(0) // Returns: 0
  * ```
- *
  */
 export function abs(value: Series): Series;
 export function abs(value: float): float;
@@ -70,7 +69,6 @@ export function abs(value: float | Series): float | Series {
  * math.ceil(-4.2) // Returns: -4
  * math.ceil(5) // Returns: 5
  * ```
- *
  */
 export function ceil(value: Series): Series;
 export function ceil(value: float): int;
@@ -111,7 +109,6 @@ export function ceil(value: float | Series): int | Series {
  * math.floor(-4.2) // Returns: -5
  * math.floor(5) // Returns: 5
  * ```
- *
  */
 export function floor(value: Series): Series;
 export function floor(value: float): int;
@@ -154,7 +151,6 @@ export function floor(value: float | Series): int | Series {
  * math.round(4.567, 2) // Returns: 4.57
  * math.round(4.567, 1) // Returns: 4.6
  * ```
- *
  */
 export function round(value: Series, precision?: int): Series;
 export function round(value: float, precision?: int): float;
@@ -207,7 +203,6 @@ export function round(value: float | Series, precision?: int): float | Series {
  * math.max(10) // Returns: 10
  * math.max(5, 10, 3, 8) // Returns: 10
  * ```
- *
  */
 export function max(...values: (float | Series)[]): float | Series {
   // Check if any value is a Series
@@ -258,7 +253,6 @@ export function max(...values: (float | Series)[]): float | Series {
  * math.min(10) // Returns: 10
  * math.min(5, 10, 3, 8) // Returns: 3
  * ```
- *
  */
 export function min(...values: (float | Series)[]): float | Series {
   // Check if any value is a Series
@@ -308,7 +302,6 @@ export function min(...values: (float | Series)[]): float | Series {
  * math.avg(5) // Returns: 5
  * math.avg(1, 2, 3, 4, 5) // Returns: 3
  * ```
- *
  */
 export function avg(...values: (float | Series)[]): float | Series {
   // Check if any value is a Series
@@ -359,7 +352,6 @@ export function avg(...values: (float | Series)[]): float | Series {
  * math.sum([1, 2, 3, 4, 5], 3) // Returns: [NaN, NaN, 6, 9, 12]
  * // Explanation: [NaN, NaN, 1+2+3, 2+3+4, 3+4+5]
  * ```
- *
  */
 export function sum(source: Series, length: simple_int): Series;
 export function sum(source: series_float, length: simple_int): series_float;
@@ -368,7 +360,7 @@ export function sum(source: series_float | Series, length: simple_int): series_f
   const sourceArray = source instanceof Series ? source.toArray() : source;
   const result: series_float = [];
   const len = Math.floor(length);
-  // (nahandling-check/doc/README.md): the sum of the last `len` non-na values; an na value is skipped, so
+  // PineScript: the sum of the last `len` non-na values; an na value is skipped, so
   // the bar keeps the previous result
   const window: number[] = [];
   for (let i = 0; i < sourceArray.length; i++) {
@@ -412,7 +404,6 @@ export function sum(source: series_float | Series, length: simple_int): series_f
  * math.sqrt(2) // Returns: 1.414...
  * math.sqrt(0) // Returns: 0
  * ```
- *
  */
 export function sqrt(value: Series): Series;
 export function sqrt(value: float): float;
@@ -454,7 +445,6 @@ export function sqrt(value: float | Series): float | Series {
  * math.pow(5, 0) // Returns: 1
  * math.pow(2, -1) // Returns: 0.5
  * ```
- *
  */
 export function pow(base: Series, exponent: float): Series;
 export function pow(base: float, exponent: Series): Series;
@@ -504,7 +494,6 @@ export function pow(base: float | Series, exponent: float | Series): float | Ser
  * math.exp(2) // Returns: 7.389...
  * math.exp(-1) // Returns: 0.3678...
  * ```
- *
  */
 export function exp(value: Series): Series;
 export function exp(value: float): float;
@@ -547,7 +536,6 @@ export function exp(value: float | Series): float | Series {
  * math.log(10) // Returns: 2.302...
  * math.log(100) // Returns: 4.605...
  * ```
- *
  */
 export function log(value: Series): Series;
 export function log(value: float): float;
@@ -589,7 +577,6 @@ export function log(value: float | Series): float | Series {
  * math.log10(1000) // Returns: 3
  * math.log10(1) // Returns: 0
  * ```
- *
  */
 export function log10(value: Series): Series;
 export function log10(value: float): float;
@@ -631,7 +618,6 @@ export function log10(value: float | Series): float | Series {
  * math.sin(Math.PI) // Returns: 0 (approximately)
  * math.sin(Math.PI / 6) // Returns: 0.5
  * ```
- *
  */
 export function sin(value: Series): Series;
 export function sin(value: float): float;
@@ -673,7 +659,6 @@ export function sin(value: float | Series): float | Series {
  * math.cos(Math.PI) // Returns: -1
  * math.cos(Math.PI / 3) // Returns: 0.5
  * ```
- *
  */
 export function cos(value: Series): Series;
 export function cos(value: float): float;
@@ -714,7 +699,6 @@ export function cos(value: float | Series): float | Series {
  * math.tan(Math.PI / 4) // Returns: 1
  * math.tan(Math.PI / 6) // Returns: 0.577... (1/√3)
  * ```
- *
  */
 export function tan(value: Series): Series;
 export function tan(value: float): float;
@@ -756,7 +740,6 @@ export function tan(value: float | Series): float | Series {
  * math.asin(0.5) // Returns: 0.5235... (π/6)
  * math.asin(-1) // Returns: -1.5707... (-π/2)
  * ```
- *
  */
 export function asin(value: Series): Series;
 export function asin(value: float): float;
@@ -798,7 +781,6 @@ export function asin(value: float | Series): float | Series {
  * math.acos(0.5) // Returns: 1.0471... (π/3)
  * math.acos(-1) // Returns: 3.1415... (π)
  * ```
- *
  */
 export function acos(value: Series): Series;
 export function acos(value: float): float;
@@ -840,7 +822,6 @@ export function acos(value: float | Series): float | Series {
  * math.atan(-1) // Returns: -0.7853... (-π/4)
  * math.atan(Infinity) // Returns: 1.5707... (π/2)
  * ```
- *
  */
 export function atan(value: Series): Series;
 export function atan(value: float): float;
@@ -881,7 +862,6 @@ export function atan(value: float | Series): float | Series {
  * math.toradians(180) // Returns: 3.1415... (π)
  * math.toradians(360) // Returns: 6.2831... (2π)
  * ```
- *
  */
 export function toradians(degrees: Series): Series;
 export function toradians(degrees: float): float;
@@ -922,7 +902,6 @@ export function toradians(degrees: float | Series): float | Series {
  * math.todegrees(Math.PI) // Returns: 180
  * math.todegrees(2 * Math.PI) // Returns: 360
  * ```
- *
  */
 export function todegrees(radians: Series): Series;
 export function todegrees(radians: float): float;
@@ -965,7 +944,6 @@ export function todegrees(radians: float | Series): float | Series {
  * math.random(0, 10) // Returns: value between 0 and 10 (e.g., 7.45...)
  * math.random(5, 15) // Returns: value between 5 and 15 (e.g., 11.82...)
  * ```
- *
  */
 export function random(min?: float, max?: float, _seed?: int): float {
   // TODO: Implement deterministic seeding to match PineScript behavior
@@ -997,7 +975,6 @@ export function random(min?: float, max?: float, _seed?: int): float {
  * math.sign(0) // Returns: 0
  * math.sign(0.001) // Returns: 1
  * ```
- *
  */
 export function sign(value: Series): Series;
 export function sign(value: float): int;
@@ -1044,7 +1021,6 @@ export function sign(value: float | Series): int | Series {
  * const { math } = createContext({ syminfo: { mintick: 0.01 } });
  * const rounded = math.round_to_mintick(1.2345); // Returns: 1.23
  * ```
- *
  */
 export function round_to_mintick(number: Series, mintick?: float): Series;
 export function round_to_mintick(number: float, mintick?: float): float;

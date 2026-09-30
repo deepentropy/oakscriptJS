@@ -203,7 +203,7 @@ export interface FillData {
 }
 
 /**
- * Gradient of a fill, one entry per bar. Rules (gradient-check/doc/README.md): the colour
+ * Gradient of a fill, one entry per bar. PineScript rules: the colour
  * changes with the price, `topColor` at `topValue` and `bottomColor` at `bottomValue`; outside that range the end
  * colour is kept; each bar has its own gradient (the part from bar i-1 to bar i uses the values of bar i).
  */

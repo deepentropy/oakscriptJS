@@ -172,7 +172,7 @@ export function avg(id: PineArray<float>): float {
 
 /**
  * The `nth` smallest value (0 = the smallest) of the non-na elements (PineScript `array.min(id, nth)`).
- * An `nth` past the end gives the greatest value; an array without values gives NaN. 30/09/2026 (see partb-check/doc/README.md).
+ * An `nth` past the end gives the greatest value; an array without values gives NaN.
  */
 export function min(id: PineArray<float>, nth: simple_int = 0): float {
   const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
@@ -181,7 +181,7 @@ export function min(id: PineArray<float>, nth: simple_int = 0): float {
 
 /**
  * The `nth` greatest value (0 = the greatest) of the non-na elements (PineScript `array.max(id, nth)`).
- * An `nth` past the end gives the smallest value; an array without values gives NaN. 30/09/2026 (see partb-check/doc/README.md).
+ * An `nth` past the end gives the smallest value; an array without values gives NaN.
  */
 export function max(id: PineArray<float>, nth: simple_int = 0): float {
   const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => b - a);
@@ -219,7 +219,7 @@ export function mode(id: PineArray<float>): float {
 
 /**
  * Standard deviation of the non-na elements (PineScript `array.stdev(id, biased)`).
- * `biased` true (default) divides by the count, false by the count - 1. 30/09/2026 (see partb-check/doc/README.md).
+ * `biased` true (default) divides by the count, false by the count - 1.
  */
 export function stdev(id: PineArray<float>, biased: bool = true): float {
   return Math.sqrt(variance(id, biased));
@@ -227,7 +227,7 @@ export function stdev(id: PineArray<float>, biased: bool = true): float {
 
 /**
  * Variance of the non-na elements (PineScript `array.variance(id, biased)`).
- * `biased` true (default) divides by the count, false by the count - 1. 30/09/2026 (see partb-check/doc/README.md).
+ * `biased` true (default) divides by the count, false by the count - 1.
  */
 export function variance(id: PineArray<float>, biased: bool = true): float {
   const values = id.filter((v) => !Number.isNaN(v));
@@ -249,7 +249,7 @@ export function fill<T>(id: PineArray<T>, value: T, index_from: simple_int = 0, 
 
 /**
  * Creates an array from its arguments (PineScript `array.from(arg0, arg1, ...)`).
- * `na` values are kept. 30/09/2026 (see partb-check/doc/README.md).
+ * `na` values are kept.
  *
  * @example
  * ```typescript
@@ -275,7 +275,6 @@ export function from<T>(...values: T[]): PineArray<T> {
  * const arr = [1, 2, 3, 4, 5];
  * const firstElement = array.first(arr); // Returns: 1
  * ```
- *
  */
 export function first<T>(id: PineArray<T>): T {
   return id[0]!;
@@ -296,7 +295,6 @@ export function first<T>(id: PineArray<T>): T {
  * const arr = [1, 2, 3, 4, 5];
  * const lastElement = array.last(arr); // Returns: 5
  * ```
- *
  */
 export function last<T>(id: PineArray<T>): T {
   return id[id.length - 1]!;
@@ -304,7 +302,7 @@ export function last<T>(id: PineArray<T>): T {
 
 /**
  * True when at least one element of a bool array is true (PineScript `array.some(id)`).
- * An empty array gives false. 30/09/2026 (see partb-check/doc/README.md).
+ * An empty array gives false.
  */
 export function some(id: PineArray<bool>): bool {
   return id.some((v) => v === true);
@@ -312,7 +310,7 @@ export function some(id: PineArray<bool>): bool {
 
 /**
  * True when every element of a bool array is true (PineScript `array.every(id)`).
- * An empty array gives false. 30/09/2026 (see partb-check/doc/README.md).
+ * An empty array gives false, as in PineScript.
  */
 export function every(id: PineArray<bool>): bool {
   return id.length > 0 && id.every((v) => v === true);
@@ -332,7 +330,6 @@ export function every(id: PineArray<bool>): bool {
  * const arr = array.new_bool(5, true);
  * // Creates: [true, true, true, true, true]
  * ```
- *
  */
 export function new_bool(size: simple_int = 0, initial_value: bool = false): PineArray<bool> {
   return new_array<bool>(size, initial_value);
@@ -352,7 +349,6 @@ export function new_bool(size: simple_int = 0, initial_value: bool = false): Pin
  * const arr = array.new_float(5, 0.0);
  * // Creates: [0.0, 0.0, 0.0, 0.0, 0.0]
  * ```
- *
  */
 export function new_float(size: simple_int = 0, initial_value: float = NaN): PineArray<float> {
   return new_array<float>(size, initial_value);
@@ -372,7 +368,6 @@ export function new_float(size: simple_int = 0, initial_value: float = NaN): Pin
  * const arr = array.new_int(5, 0);
  * // Creates: [0, 0, 0, 0, 0]
  * ```
- *
  */
 export function new_int(size: simple_int = 0, initial_value: int = NaN): PineArray<int> {
   return new_array<int>(size, initial_value);
@@ -392,7 +387,6 @@ export function new_int(size: simple_int = 0, initial_value: int = NaN): PineArr
  * const arr = array.new_string(5, "text");
  * // Creates: ["text", "text", "text", "text", "text"]
  * ```
- *
  */
 export function new_string(size: simple_int = 0, initial_value?: string): PineArray<string> {
   return new_array<string>(size, initial_value);
@@ -412,7 +406,6 @@ export function new_string(size: simple_int = 0, initial_value?: string): PineAr
  * const arr = array.new_color(5, "#FF0000");
  * // Creates: ["#FF0000", "#FF0000", "#FF0000", "#FF0000", "#FF0000"]
  * ```
- *
  */
 export function new_color(size: simple_int = 0, initial_value?: color): PineArray<color> {
   return new_array<color>(size, initial_value);
@@ -445,7 +438,6 @@ export function new_color(size: simple_int = 0, initial_value?: color): PineArra
  * @remarks
  * Useful for managing collections of trend lines, support/resistance levels, or channel lines.
  * In PineScript, this is typically used with line.delete() to manage chart object limits.
- *
  */
 export function new_line(size: simple_int = 0, initial_value?: Line): PineArray<Line> {
   return new_array<Line>(size, initial_value);
@@ -481,7 +473,6 @@ export function new_line(size: simple_int = 0, initial_value?: Line): PineArray<
  * @remarks
  * Useful for tracking ranges, gaps, consolidation zones, or rectangle patterns.
  * Enables systematic analysis of multiple box objects.
- *
  */
 export function new_box(size: simple_int = 0, initial_value?: Box): PineArray<Box> {
   return new_array<Box>(size, initial_value);
@@ -517,7 +508,6 @@ export function new_box(size: simple_int = 0, initial_value?: Box): PineArray<Bo
  * @remarks
  * Useful for managing collections of annotations, pivot markers, or signal labels.
  * Helps limit the number of labels displayed by removing old ones.
- *
  */
 export function new_label(size: simple_int = 0, initial_value?: Label): PineArray<Label> {
   return new_array<Label>(size, initial_value);
@@ -550,7 +540,6 @@ export function new_label(size: simple_int = 0, initial_value?: Label): PineArra
  * @remarks
  * Useful for managing collections of channel fills, Bollinger Band fills, or regression channel fills.
  * Enables dynamic color changes across multiple channels.
- *
  */
 export function new_linefill(size: simple_int = 0, initial_value?: Linefill): PineArray<Linefill> {
   return new_array<Linefill>(size, initial_value);
@@ -570,7 +559,6 @@ export function new_linefill(size: simple_int = 0, initial_value?: Linefill): Pi
  * const result = array.abs(arr);
  * // Returns: [1, 2, 3, 4, 5]
  * ```
- *
  */
 export function abs(id: PineArray<float>): PineArray<float> {
   return id.map(x => Math.abs(x)) as PineArray<float>;
@@ -593,7 +581,6 @@ export function abs(id: PineArray<float>): PineArray<float> {
  *
  * @remarks
  * Returns NaN if the array is empty.
- *
  */
 export function range(id: PineArray<float>): float {
   if (id.length === 0) {
@@ -623,7 +610,6 @@ export function range(id: PineArray<float>): float {
  * - Array must be sorted in ascending order
  * - Uses standard binary search algorithm
  * - Time complexity: O(log n)
- *
  */
 export function binary_search(id: PineArray<float>, val: float): int {
   let left = 0;
@@ -674,7 +660,6 @@ export function binary_search(id: PineArray<float>, val: float): int {
  * - Array must be sorted in ascending order
  * - For duplicate values, returns leftmost occurrence
  * - When value not found, returns position of next smaller element
- *
  */
 export function binary_search_leftmost(id: PineArray<float>, val: float): int {
   let left = 0;
@@ -732,7 +717,6 @@ export function binary_search_leftmost(id: PineArray<float>, val: float): int {
  * - Array must be sorted in ascending order
  * - For duplicate values, returns rightmost occurrence
  * - When value not found, returns position of next larger element
- *
  */
 export function binary_search_rightmost(id: PineArray<float>, val: float): int {
   let left = 0;
@@ -785,7 +769,6 @@ export function binary_search_rightmost(id: PineArray<float>, val: float): int {
  * - Unbiased (false): divides by n-1 (sample covariance)
  * - Returns NaN if arrays are empty or have different lengths
  * - Formula: Cov(X,Y) = E[(X - μX)(Y - μY)]
- *
  */
 export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased: bool = true): float {
   if (id1.length === 0 || id2.length === 0) {
@@ -832,7 +815,6 @@ export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased:
  * - Result may not be a member of the array
  * - Returns NaN if array is empty
  * - Includes NaN values (will return NaN if any present)
- *
  */
 export function percentile_linear_interpolation(id: PineArray<float>, percentage: float): float {
   if (id.length === 0) {
@@ -869,7 +851,6 @@ export function percentile_linear_interpolation(id: PineArray<float>, percentage
  * - Uses nearest-rank method (no interpolation)
  * - Returns NaN if array is empty
  * - Ignores NaN values
- *
  */
 export function percentile_nearest_rank(id: PineArray<float>, percentage: float): float {
   if (id.length === 0) {
@@ -905,7 +886,6 @@ export function percentile_nearest_rank(id: PineArray<float>, percentage: float)
  * - Returns percentage of elements <= the value at given index
  * - Range: 0 to 100
  * - Returns NaN if array is empty or index out of bounds
- *
  */
 export function percentrank(id: PineArray<float>, index: int): float {
   if (id.length === 0 || index < 0 || index >= id.length) {
@@ -955,7 +935,6 @@ export function percentrank(id: PineArray<float>, index: int): float {
  * - Original array is not modified
  * - Returns indices that would sort the array
  * - Useful for maintaining correspondence with other arrays
- *
  */
 export function sort_indices(id: PineArray<float>, order: 'asc' | 'desc' = 'asc'): PineArray<int> {
   // Create array of indices
@@ -995,7 +974,6 @@ export function sort_indices(id: PineArray<float>, order: 'asc' | 'desc' = 'asc'
  * - Result has mean of 0 and standard deviation of 1
  * - Returns array of NaN if standard deviation is 0
  * - Useful for comparing values on different scales
- *
  */
 export function standardize(id: PineArray<float>): PineArray<float> {
   if (id.length === 0) {
@@ -1036,7 +1014,6 @@ export function standardize(id: PineArray<float>): PineArray<float> {
  * - This function currently works like `new_array<T>()` for basic types
  * - Full UDT support will be added in a future version
  * - See PineScript documentation for UDT usage patterns
- *
  */
 export function newtype<T>(size: simple_int = 0, initial_value?: T): PineArray<T> {
   // For now, this is just an alias for new_array
@@ -1062,7 +1039,7 @@ export function newtype<T>(size: simple_int = 0, initial_value?: T): PineArray<T
  * rendering engine and are not included.
  *
  * If you need these functions, consider:
- * 1. Using PineScript directly on PineScript
+ * 1. Using PineScript directly
  * 2. Implementing a rendering layer separately
  * 3. Using this library for calculations and another library for visualization
  */

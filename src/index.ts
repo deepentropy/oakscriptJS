@@ -182,7 +182,7 @@ export const info = {
 // These are no-ops that allow transpiled code to run without modification
 
 /**
- * alertcondition() - Stub for alert configuration
+ * alertcondition() - Stub for PineScript alert configuration
  * In PineScript, this registers an alert condition. In oakscriptjs, it's a no-op
  * since alert configuration is handled by the host application.
  */

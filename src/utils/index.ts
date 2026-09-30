@@ -43,7 +43,6 @@ export function nz(value: any, defaultValue: any = 0): any {
  * PineScript `fixnan(source)`: replaces each `na` value (NaN, null or undefined) with the
  * previous non-`na` value. Values before the first non-`na` value stay `na`.
  * Works for numeric series and for color series (arrays of color strings with `undefined` for `na`).
- *
  */
 export function fixnan<T>(source: T[]): T[] {
   let last: T | undefined;

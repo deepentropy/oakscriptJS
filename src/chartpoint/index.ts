@@ -37,7 +37,6 @@ export type { ChartPoint };
  * // Create a point with only time
  * const timePoint = chartPoint.new(1609459200000, null, 175);
  * ```
- *
  */
 export function new_point(
   time: number | null,
@@ -66,7 +65,6 @@ export function new_point(
  * // Create a point using timestamp
  * const point = chartPoint.from_time(1609459200000, 150.5);
  * ```
- *
  */
 export function from_time(time: number, price: number): ChartPoint {
   return {
@@ -91,7 +89,6 @@ export function from_time(time: number, price: number): ChartPoint {
  * // Create a point using bar index
  * const point = chartPoint.from_index(50, 150.5);
  * ```
- *
  */
 export function from_index(index: number, price: number): ChartPoint {
   return {
@@ -116,7 +113,6 @@ export function from_index(index: number, price: number): ChartPoint {
  * const original = chartPoint.from_index(10, 100);
  * const copied = chartPoint.copy(original);
  * ```
- *
  */
 export function copy(point: ChartPoint): ChartPoint {
   return {

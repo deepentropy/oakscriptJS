@@ -27,7 +27,7 @@ export function now(): int {
  *   Without a time the time is 00:00; without a time zone the time zone is GMT+0.
  * - `timestamp(timezone, year, month, day, hour?, minute?, second?)`: calendar fields in `timezone`.
  *   A wall-clock time that occurs twice resolves to the later instant; a missing one is
- *   shifted forward by the gap (as on PineScript).
+ *   shifted forward by the gap (as in PineScript).
  * - `timestamp(year, month, day, hour?, minute?, second?)`: calendar fields in the time zone
  *   of the host. PineScript reads them in the exchange time zone, which is not known here:
  *   use the `timezone` form for PineScript values.
@@ -39,7 +39,6 @@ export function now(): int {
  * time.timestamp('2024-01-02');                                // 1704153600000
  * time.timestamp('America/New_York', 2024, 1, 2, 9, 30);       // 1704205800000
  * ```
- *
  */
 export function timestamp(dateString: string): int;
 export function timestamp(
@@ -109,9 +108,7 @@ export function dayofweek(time: int, timezone: string): int {
  *
  * Weeks start on Monday and follow ISO 8601: week 1 is the week that contains the
  * first Thursday of the year, so the first days of January can be in week 52 or 53
- * of the previous year. The PineScript reference does not define the rule; it matches
- * on every day from 19/01/2013 to 30/09/2026 (checked 30/09/2026).
- *
+ * of the previous year. The PineScript reference does not define the rule.
  */
 export function weekofyear(time: int, timezone: string): int {
   return field(time, timezone, (f) => {
@@ -158,8 +155,6 @@ export function second(time: int, timezone: string): int {
  * Without days, one period covers every day and several periods cover Monday to Friday.
  * A period includes its start and excludes its end. An overnight period ("1800-0930")
  * belongs to the day it ends. "0000-0000" and "24x7" cover the whole day.
- * These rules match results on 30 and 60 minute bars (checked 30/09/2026).
- *
  */
 export function inSession(time: int, session: string, timezone: string): boolean {
   return sessionContains(time, session, timezone);

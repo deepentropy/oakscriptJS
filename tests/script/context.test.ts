@@ -1,6 +1,5 @@
 /**
- * Chart context (issue #100, step 1). Expected values: results of the same Pine code
- * (30/09/2026, NASDAQ:AAPL and BITSTAMP:BTCUSD, see context-check/doc/README.md).
+ * Chart context (issue #100, step 1). Expected values: PineScript results of the same code.
  */
 import {
   executeScript,

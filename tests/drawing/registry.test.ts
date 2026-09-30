@@ -1,6 +1,5 @@
 /**
- * Drawing registry rules. Each expected value is the result of the same Pine code
- * (30/09/2026, BITSTAMP:BTCUSD 1D, 5,490 bars, see drawing-check/doc/README.md).
+ * Drawing registry rules. Each expected value is the PineScript result of the same code.
  */
 import { box, chart, eachBar, executeScript, indicator, label, line, linefill, na, polyline, text } from '../../src/script';
 import type { Bar } from '../../src/types';
@@ -23,7 +22,7 @@ function run<T>(options: Parameters<typeof indicator>[1], perBar: (i: number) =>
   return result as T;
 }
 
-describe('maximum counts (keeps up to max + 5, then deletes the oldest down to max)', () => {
+describe('maximum counts (PineScript keeps up to max + 5, then deletes the oldest down to max)', () => {
   const lines = (max?: number) =>
     run({ max_lines_count: max }, (i) => line.new(i, 1, i + 1, 1), () => [line.all.length, line.all[0]!.x1, line.all.at(-1)!.x1]);
 
@@ -160,7 +159,7 @@ describe('points', () => {
     expect(() => executeScript(() => chart.point.now(), input)).toThrow('inside eachBar');
   });
 
-  it('text formatting flags add up like (bold + italic = 3)', () => {
+  it('text formatting flags add up like PineScript (bold + italic = 3)', () => {
     expect(onLast(() => {
       const l = label.new(0, 1, 'b');
       label.set_text_formatting(l, text.format_bold + text.format_italic);

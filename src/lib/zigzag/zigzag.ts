@@ -4,7 +4,7 @@
  * Identifies trend reversals by connecting pivot highs and lows
  * that exceed a specified percentage deviation threshold.
  *
- * Based on ZigZag library v8.
+ * Based on the PineScript ZigZag library v8.
  */
 
 import type { Bar } from '../../types';

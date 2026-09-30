@@ -1,7 +1,7 @@
 import { time } from '../../src';
 
 describe('time.timestamp', () => {
-  // Expected values: results (checked 30/09/2026), see calendar-check/
+  // Expected values: PineScript results
   describe('date string form (GMT+0 when no time zone is given)', () => {
     it.each([
       ['2020-02-20', Date.UTC(2020, 1, 20)],
@@ -42,7 +42,7 @@ describe('time.timestamp', () => {
       expect(() => time.timestamp('2024-13-01')).toThrow(SyntaxError);
       expect(() => time.timestamp('2024-01-01 25:00')).toThrow(SyntaxError);
       expect(() => time.timestamp('01 Foo 2024')).toThrow(SyntaxError);
-      // compile errors on PineScript
+      // compile errors in PineScript
       expect(() => time.timestamp('2024-01-01T09:30:00Z')).toThrow(SyntaxError);
       expect(() => time.timestamp('2024-01-01T09:30:00 GMT')).toThrow(SyntaxError);
       expect(() => time.timestamp('2024-01-01 24:30')).toThrow(SyntaxError);

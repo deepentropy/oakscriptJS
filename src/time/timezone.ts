@@ -5,12 +5,11 @@
  * - UTC/GMT offset notation: "UTC", "UTC-5", "UTC+05:30", "GMT+0530", "GMT+05:30:00", up to ±18:00
  * - IANA time zone database names, case-sensitive: "America/New_York", "Etc/UTC", "US/Eastern", "CET"
  *
- * The accepted spellings were (30/09/2026): "utc+2", "america/new_york",
- * "UTC+5:3", "UTC+5:30:15", "GMT+18:01", "EST", "MST" and "HST" are errors there, and so here.
+ * "utc+2", "america/new_york", "UTC+5:3", "UTC+5:30:15", "GMT+18:01", "EST", "MST" and "HST" are
+ * errors in PineScript, and so here.
  *
  * Offsets of IANA zones (daylight saving time and historical changes included)
  * come from the host's `Intl.DateTimeFormat`, so no time zone data ships with the library.
- *
  */
 
 const MS_PER_SECOND = 1000;
@@ -19,7 +18,7 @@ const MAX_OFFSET_SECONDS = 18 * 3600;
 
 const OFFSET_NOTATION = /^(?:UTC|GMT)(?:([+-])(\d{1,2})(?::?(\d{2})(?::?(\d{2}))?)?)?$/;
 
-/** Time zone database names that rejects although `Intl` accepts them. */
+/** Time zone database names that PineScript rejects although `Intl` accepts them. */
 const REJECTED_NAMES = new Set(['EST', 'MST', 'HST']);
 
 let canonicalNames: Map<string, string> | undefined;
@@ -127,7 +126,7 @@ export function zonedFields(time: number, timezone: string): ZonedFields {
  * Converts a wall-clock date and time in `timezone` to a UNIX time (ms).
  * Out-of-range fields roll over like `Date.UTC` (month 13 is January of the next year).
  *
- *: wall-clock times that occur twice (end of daylight saving time)
+ * As in PineScript: wall-clock times that occur twice (end of daylight saving time)
  * resolve to the later instant, and wall-clock times that do not exist (start of
  * daylight saving time) are shifted forward by the length of the gap.
  */

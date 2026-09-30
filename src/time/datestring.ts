@@ -12,9 +12,8 @@
  * Without a time the time is 00:00. Without a time zone the time zone is GMT+0.
  * "24:00" is midnight at the end of the day.
  *
- * (30/09/2026): "Z", "2024-01-01T09:30:00 GMT", "24:30" and "09:30:60"
- * are compile errors there, and errors here.
- *
+ * "Z", "2024-01-01T09:30:00 GMT", "24:30" and "09:30:60" are compile errors in PineScript, and
+ * errors here.
  */
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];

@@ -1,6 +1,6 @@
 import { color } from '../../src';
 
-// PineScript v6 colour constants, (pinerules-check/doc/README.md)
+// PineScript v6 colour constants
 const PINE_V6: Record<string, [string, number, number, number]> = {
   aqua: ['#00BCD4', 0, 188, 212],
   black: ['#363A45', 54, 58, 69],

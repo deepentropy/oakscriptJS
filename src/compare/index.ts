@@ -1,7 +1,7 @@
 /**
  * PineScript comparison operators (`==`, `!=`, `<`, `<=`, `>`, `>=`) on numbers.
  *
- * Rules (pinerules-check/doc/README.md):
+ * PineScript rules:
  * - the operators use an absolute tolerance of 1e-10: `a == b` when `|a - b| <= 1e-10`, `a < b` when
  *   `b - a > 1e-10` (the same for every magnitude; `0.1 + 0.2 == 0.3` is true)
  * - every comparison with an `na` operand is false, `!=` included

@@ -1,7 +1,5 @@
 /**
- * Session values of the script API (issue #100, step 2). The expected values follow the rules measured on
- * (30/09/2026, context-check/doc/README.md); the full comparison with is
- * context-check/code/compare_script.mjs (954,251 values).
+ * Session values of the script API (issue #100, step 2). The expected values follow the PineScript rules.
  */
 import {
   executeScript,
@@ -64,8 +62,8 @@ describe('time and time_close', () => {
   it('time with an explicit session is na outside it', () => {
     const t = run(BARS, AAPL, () => time('60', '1000-1200').toArray());
     expect(Number.isNaN(t[0]!)).toBe(true); // 09:30 bar
-    // periods align on the explicit session start (10:00), as does (calendar-check sessions_60:
-    // time("60", "0930-1600") on bars at :00 returned the bar time - 30 minutes)
+    // periods align on the explicit session start (10:00), as in PineScript (time("60", "0930-1600") on bars
+    // at :00 gives the bar time - 30 minutes)
     expect(t[1]).toBe(ms(4, 10));
   });
 

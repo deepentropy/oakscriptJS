@@ -4,11 +4,10 @@
  * Format `<periods>[:<days>]`:
  * - a period is "HHmm-HHmm"; several periods are separated by commas
  * - days are digits 1 (Sunday) to 7 (Saturday). Without days, a single period covers every
- *   day, and several periods cover Monday to Friday ("23456") (checked 30/09/2026)
+ *   day, and several periods cover Monday to Friday ("23456"), as in PineScript
  * - an end before the start is an overnight period that ends on the next day, and it
  *   belongs to the day it ends: "1700-1700:23456" starts Sunday 17:00 and covers Monday
  * - "0000-0000" and "24x7" are the 24-hour session of every day
- *
  */
 
 import { zonedFields } from './timezone';

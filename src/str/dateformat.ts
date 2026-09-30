@@ -1,7 +1,6 @@
 /**
- * Date patterns of `str.format_time` and `str.format("{0,date,...}")`, as formats them
- * (Java SimpleDateFormat letters, English names). (30/09/2026, see
- * partb-check/doc/README.md):
+ * Date patterns of `str.format_time` and `str.format("{0,date,...}")`, as PineScript formats them
+ * (Java SimpleDateFormat letters, English names):
  *
  * y year, M month (M, MM, MMM, MMMM), d day, E weekday (EEE, EEEE), u weekday number (1 = Monday),
  * D day of year, w week of year (weeks start on Sunday, week 1 contains 1 January), H hour 0-23,
@@ -9,7 +8,7 @@
  * Z offset (+0530), z time zone name, 'text' literal text ('' is a quote).
  *
  * `z` gives "UTC" for Etc/UTC, "GMT" for "UTC"/"GMT", "GMT+05:00" for other offsets, and the
- * host's short English name for IANA zones (names can differ, e.g. "IST" for Asia/Kolkata).
+ * host's short English name for IANA zones (PineScript's names can differ, e.g. "IST" for Asia/Kolkata).
  */
 
 import { zonedFields, zoneOffset } from '../time/timezone';

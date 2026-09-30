@@ -49,7 +49,3 @@ Thumbs.db
 .claude/
 CLAUDE.md
 indicators/tsconfig.build.json
-
-# Temporary bundles of the check scripts
-context-check/.tmp/
-security-check/.tmp/

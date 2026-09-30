@@ -47,7 +47,7 @@ export type Source = series_float;
 export type PineArray<T> = Array<T>;
 
 // Map types
-// PineScript maps are JS Maps: keys in insertion order, exact key equality (checked on PineScript).
+// PineScript maps are JS Maps: keys in insertion order, exact key equality.
 export type PineMapKey = number | string | boolean;
 export type PineMap<K extends PineMapKey, V> = Map<K, V>;
 

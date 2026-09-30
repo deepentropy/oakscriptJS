@@ -1,6 +1,6 @@
 /**
  * Registry of the live drawing objects (lines, labels, boxes, polylines, linefills), as PineScript
- * keeps them. The rules were (30/09/2026, see drawing-check/doc/README.md):
+ * keeps them. PineScript rules:
  *
  * - `line.all`, `label.all`, ... list the live objects in creation order (a copy of the list)
  * - `delete` removes an object; the object becomes `na`: its getters return NaN and its setters
@@ -29,7 +29,7 @@ interface DrawingTypes {
 
 /** Default `max_lines_count`, `max_labels_count`, `max_boxes_count`, `max_polylines_count`. */
 export const DEFAULT_MAX_COUNT = 50;
-/** Objects above the maximum that keeps before it deletes the oldest ones. */
+/** Objects above the maximum that PineScript keeps before it deletes the oldest ones. */
 const SLACK = 5;
 
 export type DrawingLimits = Partial<Record<Exclude<DrawingKind, 'linefill'>, number>>;

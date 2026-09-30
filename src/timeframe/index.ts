@@ -5,9 +5,6 @@
  * Timeframe strings: a multiplier and a unit letter, "S" seconds, "D" days,
  * "W" weeks, "M" months, "T" ticks, no letter for minutes ("60" is one hour, "1H" is not valid).
  * Without a multiplier, 1 is used ("D" is "1D").
- *
- * The behaviour outside the reference examples was (30/09/2026).
- *
  */
 
 import type { int, simple_string } from '../types';
@@ -34,7 +31,7 @@ const SECOND_TIMEFRAMES = [1, 5, 10, 15, 30];
 /**
  * Converts a timeframe string into seconds.
  *
- *: months count 2,628,003 seconds (365/12 days), any multiplier is
+ * As in PineScript: months count 2,628,003 seconds (365/12 days), any multiplier is
  * accepted ("13M", "1441", "7S"), and tick timeframes ("1T") give NaN.
  *
  * @param timeframe - Timeframe string, e.g. "1", "60", "1D", "W", "3M", "30S"
@@ -48,14 +45,13 @@ const SECOND_TIMEFRAMES = [1, 5, 10, 15, 30];
  * timeframe.in_seconds('1D');  // 86400
  * timeframe.in_seconds('M');   // 2628003
  * ```
- *
  */
 export function in_seconds(timeframe: simple_string): int {
   const text = timeframe.trim();
   if (text === '') {
     throw new RangeError('timeframe.in_seconds() needs a timeframe: the chart timeframe is not known here');
   }
-  // Multiplier before the unit ("30S"), or after it ("S30"), as accepts both.
+  // Multiplier before the unit ("30S"), or after it ("S30"), as PineScript accepts both.
   const before = /^(\d*)([SDWMT]?)$/.exec(text);
   const after = before ? null : /^([SDWMT])(\d+)$/.exec(text);
   if (!before && !after) throw new RangeError(`Invalid timeframe "${timeframe}"`);
@@ -68,7 +64,7 @@ export function in_seconds(timeframe: simple_string): int {
 /**
  * Converts a number of seconds into a valid timeframe string.
  *
- * Rules (PineScript reference, completed with results):
+ * PineScript rules:
  * - when no valid timeframe has exactly this duration, the next higher one is returned:
  *   1 second or less gives "1S", 2-5 seconds give "5S", 31-60 seconds give "1",
  *   604,799 seconds give "7D"
@@ -85,7 +81,6 @@ export function in_seconds(timeframe: simple_string): int {
  * timeframe.from_seconds(86400);   // "1D"
  * timeframe.from_seconds(604800);  // "1W"
  * ```
- *
  */
 export function from_seconds(seconds: int): simple_string {
   if (Number.isNaN(seconds)) throw new RangeError('timeframe.from_seconds() needs a number of seconds');
@@ -122,8 +117,7 @@ export interface TimeframeInfo {
 }
 
 /**
- * Describes a chart timeframe like PineScript's `timeframe.*` variables (checked on PineScript
- * 30/09/2026 for 1S, 30S, 1, 5, 60, 240, 1D, 3D, 1W, 2W, 1M, 3M, 12M; see context-check/doc/README.md).
+ * Describes a chart timeframe like PineScript's `timeframe.*` variables.
  * The period always carries its multiplier: "D" becomes "1D".
  *
  * @param timeframe - Chart timeframe string, e.g. "5", "60", "D", "1W", "30S"

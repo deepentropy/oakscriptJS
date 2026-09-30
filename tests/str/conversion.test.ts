@@ -45,7 +45,7 @@ describe('str.tostring', () => {
     expect(str.tostring(123.456, '#.##')).toBe('123.46');
     expect(str.tostring(123.456, '#.#')).toBe('123.5');
     expect(str.tostring(123.456, '#')).toBe('123');
-    // (30/09/2026): '#' digits are optional, '0' digits are required
+    // PineScript: '#' digits are optional, '0' digits are required
     expect(str.tostring(123, '#.##')).toBe('123');
     expect(str.tostring(123, '0.00')).toBe('123.00');
     expect(str.tostring(1.005, '#.##')).toBe('1.01');

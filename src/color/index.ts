@@ -33,7 +33,6 @@ import type { color, int, float, simple_int, simple_float } from '../types';
  * color.rgb(0, 255, 0, 50) // Returns: "rgba(0, 255, 0, 0.5)" - Semi-transparent green
  * color.rgb(300, 0, 0) // Returns: "rgb(255, 0, 0)" - Clamped to 255
  * ```
- *
  */
 export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp?: simple_float): color {
   const r = Math.max(0, Math.min(255, red));
@@ -67,7 +66,6 @@ export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp
  * color.from_hex("#0000FF") // Returns: "rgb(0, 0, 255)" - Blue
  * color.from_hex("FFA500") // Returns: "rgb(255, 165, 0)" - Orange
  * ```
- *
  */
 export function from_hex(hex: string, transp?: simple_float): color {
   // Remove # if present
@@ -99,7 +97,6 @@ export function from_hex(hex: string, transp?: simple_float): color {
  * color.new_color(red, 0) // Returns: "rgb(255, 0, 0)" - Fully opaque
  * color.new_color(red, 100) // Returns: "rgba(255, 0, 0, 0)" - Fully transparent
  * ```
- *
  */
 export function new_color(baseColor: color, transp: simple_float): color {
   // Parse the color and apply transparency
@@ -119,7 +116,6 @@ export function new_color(baseColor: color, transp: simple_float): color {
  * color.r(color.from_hex("#FF0000")) // Returns: 255
  * color.r(color.from_hex("#FFA500")) // Returns: 255 (orange)
  * ```
- *
  */
 export function r(clr: color): int {
   return parseColor(clr).r;
@@ -137,7 +133,6 @@ export function r(clr: color): int {
  * color.g(color.from_hex("#00FF00")) // Returns: 255
  * color.g(color.from_hex("#FFA500")) // Returns: 165 (orange)
  * ```
- *
  */
 export function g(clr: color): int {
   return parseColor(clr).g;
@@ -155,7 +150,6 @@ export function g(clr: color): int {
  * color.b(color.from_hex("#0000FF")) // Returns: 255
  * color.b(color.from_hex("#FFA500")) // Returns: 0 (orange)
  * ```
- *
  */
 export function b(clr: color): int {
   return parseColor(clr).b;
@@ -177,7 +171,6 @@ export function b(clr: color): int {
  * color.t(color.rgb(255, 0, 0, 50)) // Returns: 50
  * color.t(color.rgb(255, 0, 0, 100)) // Returns: 100 (fully transparent)
  * ```
- *
  */
 export function t(clr: color): float {
   return parseColor(clr).t;
@@ -214,7 +207,7 @@ function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
   return { r: 0, g: 0, b: 0, t: 0 };
 }
 
-// Predefined color constants of PineScript v6, (pinerules-check/doc/README.md).
+// Predefined color constants of PineScript v6.
 // PineScript v5 differs for red (#FF5252), teal (#00897B) and yellow (#FFEB3B).
 /**
  * Aqua/Cyan color constant
@@ -329,7 +322,7 @@ export const yellow = '#FDD835';
  * @returns Color calculated from linear gradient
  *
  * @remarks
- * Rules (gradient-check/doc/README.md):
+ * PineScript rules:
  * - If value <= bottom_value, returns bottom_color; else if value >= top_value, returns top_color
  * - Otherwise the colours are mixed with their transparency (premultiplied alpha); the RGB channels are truncated
  * - An na value or bottom_value / top_value, or bottom_value == top_value, gives a fully transparent colour
@@ -348,7 +341,6 @@ export const yellow = '#FDD835';
  * const lowColor = color.from_gradient(-10, 0, 100, red, green); // Returns red
  * const highColor = color.from_gradient(150, 0, 100, red, green); // Returns green
  * ```
- *
  */
 export function from_gradient(
   value: float,
@@ -395,6 +387,5 @@ export function from_gradient(
  * const redColor = color.rgb(255, 0, 0);
  * const transparentRed = color.new(redColor, 50); // 50% transparent red
  * ```
- *
  */
 export { new_color as new };
