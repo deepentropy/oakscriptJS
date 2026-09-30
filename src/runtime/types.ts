@@ -93,6 +93,8 @@ export interface PlotConfig {
     offset?: number;
     /** Histogram base value */
     histbase?: number;
+    /** Line style (PineScript `linestyle`); default solid. A constant or an input value, not per bar */
+    linestyle?: 'solid' | 'dashed' | 'dotted';
 }
 
 /**

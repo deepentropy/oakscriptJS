@@ -128,6 +128,18 @@ describe('executeScript', () => {
     expect(data[4]!.color).toBe(color.green); // close=105
   });
 
+  test('plot linestyle lands in the plot config (default: not set, solid)', () => {
+    const run = executeScript(() => {
+      indicator('Levels', { overlay: false });
+      plot(close, 'Dashed', { linestyle: 'dashed' });
+      plot(close, 'Dotted', { linestyle: 'dotted', style: 'stepline' });
+      plot(close, 'Solid');
+    }, BARS);
+    expect(run.plotConfig[0]).toMatchObject({ id: 'plot0', linestyle: 'dashed' });
+    expect(run.plotConfig[1]).toMatchObject({ id: 'plot1', linestyle: 'dotted', style: 'stepline' });
+    expect(run.plotConfig[2]!.linestyle).toBeUndefined();
+  });
+
   test('hline and hline-to-hline fill produce configs', () => {
     const run = executeScript(() => {
       indicator('Bands', { overlay: false });

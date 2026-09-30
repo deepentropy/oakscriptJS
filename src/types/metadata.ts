@@ -31,6 +31,8 @@ export interface PlotOptions {
   linewidth?: number;
   /** Plot style */
   style?: PlotStyle;
+  /** Line style (PineScript `linestyle`); default solid. A constant or an input value, not per bar */
+  linestyle?: LineStyle;
   /** Track price on price scale */
   trackprice?: boolean;
   /** Histogram base value */

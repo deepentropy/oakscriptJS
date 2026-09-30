@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `linestyle` of plots (`'solid' | 'dashed' | 'dotted'`, as for hlines; PineScript `plot(..., linestyle)`) in
+  `PlotConfig`, `PlotOptions` and the script API `plot()` options, passed to the plot config. Not set means solid.
+  PineScript accepts it with every plot style; the value is a constant or an input, not a per-bar series (#105).
+
 ### Fixed
 
 - `color.new` and `color.rgb` clamp the transparency to 0..100 (`color.new(c, 140)` is fully transparent,

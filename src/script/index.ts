@@ -530,6 +530,8 @@ export interface ScriptPlotOptions {
   color?: string | string[];
   linewidth?: number;
   style?: PlotConfig['style'];
+  /** Line style (PineScript `linestyle`); default solid. A constant or an input value, not per bar. */
+  linestyle?: PlotConfig['linestyle'];
   display?: PlotConfig['display'];
   histbase?: number;
 }
@@ -546,6 +548,7 @@ export function plot(series: Series, title?: string, options: ScriptPlotOptions 
     color: staticColor,
     lineWidth: options.linewidth,
     style: options.style,
+    linestyle: options.linestyle,
     display: options.display,
     histbase: options.histbase,
   });
