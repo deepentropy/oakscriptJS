@@ -265,4 +265,20 @@ describe('ta.percentrank', () => {
     // i=7, previous 5 = [30,40,50,60,70], current=80. All 5 <= 80. 100
     expect(prank[7]).toBe(100);
   });
+
+  it('counts an na value in the window as not <= the current value', () => {
+    const prank = ta.percentrank([NaN, NaN, NaN, 1, 2, 3, 4, 5, 6, 7, 8, 9], 4);
+    expect(prank.slice(0, 4).every(Number.isNaN)).toBe(true);
+    // i=4: window [NaN, NaN, NaN, 1], current 2 -> only 1 <= 2
+    expect(prank.slice(4, 8)).toEqual([25, 50, 75, 100]);
+  });
+
+  it('is na when the current value is na', () => {
+    expect(ta.percentrank([1, 2, 3, NaN], 3)[3]).toBeNaN();
+  });
+
+  it('compares with the 1e-10 tolerance', () => {
+    const prank = ta.percentrank([1, 2, 3, 0.04322762477874278, 5, 6, 0.04322762477874277], 3);
+    expect(prank[6]).toBeCloseTo(100 / 3, 10);
+  });
 });

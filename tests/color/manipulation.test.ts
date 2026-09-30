@@ -1,6 +1,14 @@
 import { color } from '../../src';
 
 describe('color.new_color', () => {
+  it('clamps the transparency to 0..100; na is fully transparent (PineScript)', () => {
+    expect(color.new('#DD1A1A', 101)).toBe('rgba(221, 26, 26, 0)');
+    expect(color.new('#DD1A1A', 140)).toBe('rgba(221, 26, 26, 0)');
+    expect(color.new('#DD1A1A', -5)).toBe('rgb(221, 26, 26)');
+    expect(color.new('#DD1A1A', NaN)).toBe('rgba(221, 26, 26, 0)');
+    expect(color.t(color.new(color.rgb(255, 0, 0, 20), 150))).toBe(100);
+  });
+
   it('should set transparency on RGB color', () => {
     const red = color.rgb(255, 0, 0);
     expect(color.new_color(red, 50)).toBe('rgba(255, 0, 0, 0.5)');

@@ -5,6 +5,22 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `color.new` and `color.rgb` clamp the transparency to 0..100 (`color.new(c, 140)` is fully transparent,
+  `color.new(c, -5)` is opaque; before: an invalid `rgba()` text); an `na` transparency is fully transparent (#102).
+- `color.rgb` takes an `na` channel as 0 (`color.rgb(255, 0, na)` is red; before: `'rgb(255, 0, NaN)'`) and truncates
+  a fractional channel (`127.6` is 127; before: the text kept the fraction and `color.r` read it as black) (#102).
+- `color.t` returns an integer, from the alpha byte (`color.t(color.new(c, 33.3))` is 33) (#102).
+- `color.from_gradient` truncates the mixed alpha byte, and mixes the channels in another operation order. On 5,000
+  PineScript cases the alpha is equal on all (before: 2,649), the RGB channels on 4,627 (before: 3,724); the other
+  cases differ by 1 unit, when the exact channel is an integer (#102).
+- `ta.percentrank` gives a value from bar `length` on when the current value is not na; an na value in the window
+  counts as not `<=` (before: na until the window held `length` non-na values). The comparison uses the 1e-10
+  tolerance (#103).
+
 ## [0.8.0] - 2026-09-30
 
 ### Added

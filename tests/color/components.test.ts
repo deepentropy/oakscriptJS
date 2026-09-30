@@ -111,6 +111,13 @@ describe('color.t', () => {
     expect(color.t(color.rgb(0, 0, 0, 10))).toBeCloseTo(10, 1);
     expect(color.t(color.rgb(0, 0, 0, 90))).toBeCloseTo(90, 1);
   });
+
+  it('returns an integer from the alpha byte (PineScript)', () => {
+    expect(color.t(color.rgb(255, 0, 0, 33.3))).toBe(33); // alpha byte 170
+    expect(color.t(color.new('#FF8040', 0.5))).toBe(0); // alpha byte 254
+    expect(color.t(color.new('#FF8040', 0.6))).toBe(1); // alpha byte 253
+    expect(color.t('rgba(255, 0, 0, 0.4980392156862745)')).toBe(50); // alpha byte 127
+  });
 });
 
 describe('color components - integration', () => {

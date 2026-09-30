@@ -27,6 +27,20 @@ describe('color.rgb', () => {
     expect(color.rgb(256, 256, 256)).toBe('rgb(255, 255, 255)');
   });
 
+  it('takes an na channel as 0 and truncates fractions (PineScript)', () => {
+    expect(color.rgb(255, 0, NaN)).toBe('rgb(255, 0, 0)');
+    expect(color.rgb(NaN, 128, 64)).toBe('rgb(0, 128, 64)');
+    expect(color.rgb(255, 0, NaN, 50)).toBe('rgba(255, 0, 0, 0.5)');
+    expect(color.rgb(127.4, 127.5, 127.6)).toBe('rgb(127, 127, 127)');
+    expect(color.rgb(0.5, 1.5, 2.5)).toBe('rgb(0, 1, 2)');
+  });
+
+  it('clamps the transparency to 0..100; na is fully transparent (PineScript)', () => {
+    expect(color.rgb(255, 0, 0, 140)).toBe('rgba(255, 0, 0, 0)');
+    expect(color.rgb(255, 0, 0, -5)).toBe('rgb(255, 0, 0)');
+    expect(color.rgb(255, 0, 0, NaN)).toBe('rgba(255, 0, 0, 0)');
+  });
+
   it('should handle black color', () => {
     expect(color.rgb(0, 0, 0)).toBe('rgb(0, 0, 0)');
     expect(color.rgb(0, 0, 0, 0)).toBe('rgb(0, 0, 0)');

@@ -1437,7 +1437,12 @@ export function correlation(source1: Source, source2: Source, length: simple_int
  * - 100 = current value is highest in the period
  * - 50 = current value is at median
  * - Useful for identifying relative strength within a period
- * - `na` values in the source series are included in calculations and will produce an `na` result
+ *
+ * PineScript rules:
+ * - percentrank = count(source[k] <= source, k = 1..length) / length * 100
+ * - a value from bar `length` on, when the current source is not `na`; an `na` value in the window counts as not
+ *   `<=` the current value
+ * - the comparison uses the 1e-10 tolerance
  *
  * @example
  * ```typescript
@@ -1450,38 +1455,17 @@ export function percentrank(source: Source, length: simple_int): series_float {
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length) {
+    const currentValue = source[i]!;
+    if (i < length || Number.isNaN(currentValue)) {
       result.push(NaN);
-    } else {
-      // Check for NaN in current value or any of the previous length values
-      if (isNaN(source[i]!)) {
-        result.push(NaN);
-        continue;
-      }
-      let hasNaN = false;
-      for (let j = 1; j <= length; j++) {
-        if (isNaN(source[i - j]!)) {
-          hasNaN = true;
-          break;
-        }
-      }
-
-      if (hasNaN) {
-        result.push(NaN);
-      } else {
-        const currentValue = source[i]!;
-        let countLessOrEqual = 0;
-
-        // Count how many of the previous length values are <= current value
-        for (let j = 1; j <= length; j++) {
-          if (source[i - j]! <= currentValue) {
-            countLessOrEqual++;
-          }
-        }
-
-        result.push((countLessOrEqual / length) * 100);
-      }
+      continue;
     }
+    // le() is false for an na value in the window
+    let countLessOrEqual = 0;
+    for (let j = 1; j <= length; j++) {
+      if (le(source[i - j]!, currentValue)) countLessOrEqual++;
+    }
+    result.push((countLessOrEqual / length) * 100);
   }
 
   return result;

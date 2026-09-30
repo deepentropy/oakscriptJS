@@ -64,6 +64,13 @@ describe('color.from_gradient (PineScript rules)', () => {
     expect(parts(color.from_gradient(50, 0, 100, '#08998133', '#F23645'))).toEqual([203, 70, 79, 40]);
   });
 
+  it('truncates the mixed alpha byte', () => {
+    // PineScript gives #4CAE50 with alpha 0x4B (75.9 truncated)
+    const c = color.from_gradient(2, 1, 11, color.new('#4CAF50', 78), '#4CAF50');
+    expect(c).toBe(`rgba(76, 174, 80, ${75 / 255})`);
+    expect(color.t(c)).toBe(71);
+  });
+
   it('is fully transparent for na inputs or an empty range', () => {
     expect(color.t(color.from_gradient(NaN, 0, 100, red, green))).toBe(100);
     expect(color.t(color.from_gradient(50, 50, 50, red, green))).toBe(100);

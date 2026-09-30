@@ -12,6 +12,14 @@
 
 import type { color, int, float, simple_int, simple_float } from '../types';
 
+/** Channel of color.rgb: na is 0, a fraction is truncated. */
+const channel = (v: number): int =>
+  v === null || v === undefined || Number.isNaN(v) ? 0 : Math.max(0, Math.min(255, Math.trunc(v)));
+
+/** Alpha (0-1) of a transparency given to color.rgb / color.new: na is fully transparent, clamped to 0..100. */
+const alphaOf = (transp: number): float =>
+  transp === null || Number.isNaN(transp) ? 0 : 1 - Math.max(0, Math.min(100, transp)) / 100;
+
 /**
  * Creates a color from RGB values with optional transparency.
  *
@@ -27,6 +35,11 @@ import type { color, int, float, simple_int, simple_float } from '../types';
  * - Transparency > 0 results in rgba() format
  * - Transparency is converted to alpha channel (0-1 range)
  *
+ * PineScript rules:
+ * - an `na` channel is 0; a fractional channel is truncated (127.6 is 127)
+ * - the transparency is clamped to 0..100 (140 is fully transparent, -5 is opaque); an `na` transparency is fully
+ *   transparent
+ *
  * @example
  * ```typescript
  * color.rgb(255, 0, 0) // Returns: "rgb(255, 0, 0)" - Red
@@ -35,10 +48,10 @@ import type { color, int, float, simple_int, simple_float } from '../types';
  * ```
  */
 export function rgb(red: simple_int, green: simple_int, blue: simple_int, transp?: simple_float): color {
-  const r = Math.max(0, Math.min(255, red));
-  const g = Math.max(0, Math.min(255, green));
-  const b = Math.max(0, Math.min(255, blue));
-  const a = transp !== undefined ? 1 - (transp / 100) : 1;
+  const r = channel(red);
+  const g = channel(green);
+  const b = channel(blue);
+  const a = transp !== undefined ? alphaOf(transp) : 1;
 
   if (a === 1) {
     return `rgb(${r}, ${g}, ${b})`;
@@ -89,6 +102,8 @@ export function from_hex(hex: string, transp?: simple_float): color {
  * - Preserves the RGB values from the base color
  * - Replaces the transparency with the new value
  * - Useful for creating semi-transparent versions of existing colors
+ * - PineScript clamps the transparency to 0..100 (`color.new(c, 140)` is fully transparent, `color.new(c, -5)` is
+ *   opaque); an `na` transparency is fully transparent
  *
  * @example
  * ```typescript
@@ -164,6 +179,8 @@ export function b(clr: color): int {
  * @remarks
  * - Returns 0 for colors without transparency (rgb format)
  * - Converts alpha channel (0-1) to transparency (0-100)
+ * - PineScript stores the alpha as a byte (0-255) and returns an integer transparency:
+ *   `color.t(color.new(c, 33.3))` is 33
  *
  * @example
  * ```typescript
@@ -173,7 +190,8 @@ export function b(clr: color): int {
  * ```
  */
 export function t(clr: color): float {
-  return parseColor(clr).t;
+  const alpha = Math.round((1 - parseColor(clr).t / 100) * 255);
+  return Math.round((1 - alpha / 255) * 100);
 }
 
 /**
@@ -324,7 +342,9 @@ export const yellow = '#FDD835';
  * @remarks
  * PineScript rules:
  * - If value <= bottom_value, returns bottom_color; else if value >= top_value, returns top_color
- * - Otherwise the colours are mixed with their transparency (premultiplied alpha); the RGB channels are truncated
+ * - Otherwise the colours are mixed with their transparency (premultiplied alpha, alpha as a byte); the RGB channels
+ *   and the alpha are truncated. PineScript's float rounding order is not known: a channel can differ by 1 when the
+ *   exact result is an integer (same RGB at both ends)
  * - An na value or bottom_value / top_value, or bottom_value == top_value, gives a fully transparent colour
  * - An na colour counts as fully transparent
  * - Works with rgb(), rgba() and hex (#RRGGBB, #RRGGBBAA) colours
@@ -362,13 +382,13 @@ export function from_gradient(
   };
   const c1 = rgba(bottom_color);
   const c2 = rgba(top_color);
-  const w1 = c1.a * (1 - k);
-  const w2 = c2.a * k;
-  const a = w1 + w2;
+  const a = c1.a * (1 - k) + c2.a * k;
   if (a === 0) return transparent;
-  const mix = (x1: number, x2: number) => Math.floor((x1 * w1 + x2 * w2) / a);
+  // operation order with the fewest differences to PineScript (channels as 0-1, alpha as a byte)
+  const mix = (x1: number, x2: number) => Math.floor((((x1 / 255) * c1.a) * (1 - k) + ((x2 / 255) * c2.a) * k) / (a / 255));
   const [r, g, b] = [mix(c1.r, c2.r), mix(c1.g, c2.g), mix(c1.b, c2.b)];
-  return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+  const alpha = Math.floor(a);
+  return alpha === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
 }
 
 /**
