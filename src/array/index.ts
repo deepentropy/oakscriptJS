@@ -163,10 +163,11 @@ export function sum(id: PineArray<float>): float {
 }
 
 /**
- * Returns the average of all elements (numeric arrays only)
+ * Average of the non-na elements (PineScript `array.avg(id)`); an array without values gives NaN.
  */
 export function avg(id: PineArray<float>): float {
-  return sum(id) / size(id);
+  const values = id.filter((v) => !Number.isNaN(v));
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN;
 }
 
 /**

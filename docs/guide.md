@@ -400,7 +400,15 @@ an `if` block and, since v6, in the right operand of `and` / `or`, which run onl
 decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` is true). A vectorized Series call
 sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
-`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()` in a bar loop.
+`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()` in a bar loop.
+`callsite.lowest()` / `highest()` also give `ta.lowest` / `ta.highest` with a series length (a different length on
+each bar), which PineScript computes with a state kept between calls:
+
+```typescript
+// Pine: lowPrice = ta.lowest(close[1], lookback)   // lookback changes per bar
+const lowPrice = callsite.lowest();
+const lows = closes.map((_, i) => lowPrice(i > 0 ? closes[i - 1]! : NaN, lookback[i]!));
+```
 
 ```typescript
 import { callsite } from 'oakscriptjs';

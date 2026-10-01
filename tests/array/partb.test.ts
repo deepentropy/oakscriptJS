@@ -26,4 +26,11 @@ describe('array: PineScript Part B forms', () => {
     expect(array.variance(a)).toBeCloseTo(7.4722222222, 10);
     expect(array.variance(a, false)).toBeCloseTo(8.9666666667, 10);
   });
+
+  it('avg skips na; an array without values gives na (#124)', () => {
+    expect(array.avg(array.from(1, NaN, 3))).toBe(2);
+    expect(array.avg(array.from(10.9, NaN, NaN))).toBe(10.9);
+    expect(array.avg(array.from(NaN, NaN))).toBeNaN();
+    expect(array.avg([])).toBeNaN();
+  });
 });

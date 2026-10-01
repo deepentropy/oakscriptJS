@@ -76,4 +76,27 @@ describe('color.from_gradient (PineScript rules)', () => {
     expect(color.t(color.from_gradient(50, 50, 50, red, green))).toBe(100);
     expect(parts(color.from_gradient(50, 0, 100, null as unknown as string, green))).toEqual([0, 255, 0, 50]);
   });
+
+  it('an inverted range (bottom_value > top_value) gives bottom_color wherever the value is (#121)', () => {
+    // PineScript: #00E676 and #787B86 alpha 0x4D (the bottom colours)
+    expect(color.from_gradient(3.0683396268358347, 0.04239173455150783, 0.0, '#00E676', color.new(color.gray, 70))).toBe(
+      'rgb(0, 230, 118)'
+    );
+    expect(color.from_gradient(0.19886148884144617, 0.0, -0.0978266120094954, color.new(color.gray, 70), '#F44336')).toBe(
+      `rgba(120, 123, 134, ${77 / 255})`
+    );
+    expect(parts(color.from_gradient(-5, 10, 0, red, green))).toEqual([255, 0, 0, 0]);
+    expect(parts(color.from_gradient(5, 10, 0, red, green))).toEqual([255, 0, 0, 0]);
+  });
+
+  it('reads an rgba() alpha as its byte: 0.1 is 26 (#122); color.new(c, 90) stays 25', () => {
+    // PineScript stores the input default color.new(#FFFFE0, 90) as rgba(255,255,224,0.1): alpha byte 26.
+    // PineScript: RGB (255, 64, 56), alpha 58
+    expect(color.from_gradient(0.4285315888041461, 0, 1, 'rgba(255, 255, 224, 0.1)', 'rgba(255, 0, 0, 0.4)')).toBe(
+      `rgba(255, 64, 56, ${58 / 255})`
+    );
+    expect(color.from_gradient(0, 0, 1, 'rgba(255, 255, 224, 0.1)', red)).toBe(`rgba(255, 255, 224, ${26 / 255})`);
+    // a series color.new(c, 90) has the alpha byte 25 in PineScript (issue #102 probe)
+    expect(color.from_gradient(0, 0, 1, color.new('#FFFFE0', 90), red)).toBe(`rgba(255, 255, 224, ${25 / 255})`);
+  });
 });

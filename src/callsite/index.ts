@@ -9,6 +9,8 @@
  * - {@link whenCalled}: vectorized, when the bars of the calls are known in advance.
  * - {@link crossover} / {@link crossunder} / {@link cross} / {@link barssince}: one stateful call site for bar
  *   loops, called only on the bars where the Pine call runs.
+ * - {@link lowest} / {@link highest}: `ta.lowest` / `ta.highest` with a series length (a different length on each
+ *   call), which PineScript computes with a state kept between calls.
  *
  * Since PineScript v6, `and` / `or` are lazy: the right operand runs only when the left operand does not decide
  * the result. A ta.* call in the right operand of `a or b` runs on the bars where `a` is false, in `a and b` on the
@@ -101,4 +103,76 @@ export function barssince(): (condition: boolean | number) => number {
 /** One `ta.cross(a, b)` call site: false on its first call, as its history is na. */
 export function cross(): (a: number, b: number) => boolean {
   return twoSeriesSite((a, b, pa, pb) => (a > b && pa <= pb) || (a < b && pa >= pb));
+}
+
+/** One `ta.lowest` / `ta.highest` call site with a series length; rules in {@link lowest}. */
+function extremeSite(isLowest: boolean): (value: number, length: number) => number {
+  const better = isLowest ? (a: number, b: number) => a < b : (a: number, b: number) => a > b;
+  const values: number[] = [];
+  let extreme = NaN;
+  let extremeAt = -1;
+  let prevLength = NaN;
+  const keep = (v: number, at: number) => {
+    extreme = v;
+    extremeAt = at;
+  };
+  const rescan = (i: number, length: number) => {
+    extreme = NaN;
+    for (let b = i; b > i - length && b >= 0; b--) {
+      const v = values[b]!;
+      if (!Number.isNaN(v) && (Number.isNaN(extreme) || !better(extreme, v))) keep(v, b);
+    }
+  };
+  return (value, length) => {
+    const i = values.length;
+    values.push(value);
+    if (Number.isNaN(value)) {
+      extreme = NaN;
+      prevLength = length;
+      return NaN;
+    }
+    if (length > prevLength) {
+      const from = Math.max(0, i - length + 1);
+      const to = Math.max(0, i - prevLength + 1);
+      if (values.slice(from, to).some(Number.isNaN)) keep(value, i);
+      else {
+        for (let b = from; b < to; b++) if (Number.isNaN(extreme) || better(values[b]!, extreme)) keep(values[b]!, b);
+        if (Number.isNaN(extreme) || better(value, extreme)) keep(value, i);
+      }
+    } else if (length < prevLength || Number.isNaN(extreme) || i - extremeAt >= length) rescan(i, length);
+    else if (better(value, extreme)) keep(value, i);
+    prevLength = length;
+    return i < length - 1 ? NaN : extreme;
+  };
+}
+
+/**
+ * One `ta.lowest(source, length)` call site with a series length (a different length on each call), called with
+ * `(value, length)`.
+ *
+ * PineScript rules (measured with a length that changes on each bar):
+ * - the extreme is kept with its bar; a new value that passes it replaces it; when the kept extreme is `length`
+ *   calls old, the last `length` values are scanned again (na skipped, the oldest wins a tie)
+ * - a length smaller than on the previous call: the last `length` values are scanned again
+ * - a length larger than on the previous call: the values that enter the window at its old end are compared with the
+ *   extreme; when one of them is na, the extreme restarts from the current value (the values in between are not read)
+ * - an na value gives na and resets the extreme; na before call `length - 1`
+ *
+ * @example
+ * ```typescript
+ * // Pine:  lowPrice = ta.lowest(close[1], lookback)   // lookback changes per bar
+ * const lowPrice = callsite.lowest();
+ * const out = closes.map((_, i) => lowPrice(i > 0 ? closes[i - 1]! : NaN, lookback[i]!));
+ * ```
+ */
+export function lowest(): (value: number, length: number) => number {
+  return extremeSite(true);
+}
+
+/**
+ * One `ta.highest(source, length)` call site with a series length (a different length on each call), called with
+ * `(value, length)`. Same rules as {@link lowest}.
+ */
+export function highest(): (value: number, length: number) => number {
+  return extremeSite(false);
 }

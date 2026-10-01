@@ -74,3 +74,33 @@ describe('callsite.barssince', () => {
     expect(up.map((u, i) => u || eager[i]! <= 3)).not.toEqual(up);
   });
 });
+
+describe('callsite.lowest / highest (series length, #126)', () => {
+  const run = (site: (v: number, l: number) => number, values: number[], lengths: number[]) =>
+    values.map((v, i) => site(v, lengths[i]!));
+
+  it('with a fixed length and no na: the extreme of the last length values', () => {
+    const x = [5, 3, 4, 6, 7, 2, 8, 8, 1];
+    const len = x.map(() => 3);
+    expect(run(callsite.lowest(), x, len)).toEqual(taCore.lowest(x, 3));
+    expect(run(callsite.highest(), x, len)).toEqual(taCore.highest(x, 3));
+  });
+
+  it('a smaller length scans the window again', () => {
+    expect(run(callsite.lowest(), [1, 5, 4, 6, 7], [5, 5, 5, 5, 2])).toEqual([NaN, NaN, NaN, NaN, 6]);
+  });
+
+  it('a larger length compares the values that enter the window with the extreme', () => {
+    expect(run(callsite.lowest(), [NaN, 1, 5, 4, 3], [2, 2, 2, 2, 4])).toEqual([NaN, 1, 1, 4, 1]);
+  });
+
+  it('an na value among the entering values restarts the extreme from the current value', () => {
+    // the plain minimum of the last 5 values would be 1
+    expect(run(callsite.lowest(), [NaN, 1, 5, 4, 6, 7], [2, 2, 2, 2, 5, 5])).toEqual([NaN, 1, 1, 4, 6, 6]);
+  });
+
+  it('an na value gives na and resets the extreme; the next call scans the window again', () => {
+    expect(run(callsite.highest(), [4, 9, NaN, 2, 3], [3, 3, 3, 3, 3])).toEqual([NaN, NaN, NaN, 9, 3]);
+  });
+});
+

@@ -127,6 +127,8 @@ export function ema(source: Source, length: simple_int): series_float {
  * - RSI values below 30 typically indicate oversold conditions
  * - Uses `ta.rma()` (Relative Moving Average) for smoothing, matching PineScript v6
  * - Formula: RSI = 100 - (100 / (1 + RS)), where RS = Average Gain / Average Loss
+ * - As in PineScript (`down == 0 ? 100 : up == 0 ? 0 : ...`): 100 when the average loss is 0, else 0 when the
+ *   average gain is 0, both with the 1e-10 tolerance of the comparison operators
  * - Average Gain and Average Loss are calculated using RMA (alpha = 1 / length)
  * - `na` values in the source series are ignored
  *
@@ -158,8 +160,10 @@ export function rsi(source: Source, length: simple_int): series_float {
   result.push(NaN); // First value is NaN
 
   for (let i = 0; i < avgGains.length; i++) {
-    if (avgLosses[i]! === 0) {
+    if (eq(avgLosses[i]!, 0)) {
       result.push(100);
+    } else if (eq(avgGains[i]!, 0)) {
+      result.push(0);
     } else {
       const rs = avgGains[i]! / avgLosses[i]!;
       result.push(100 - (100 / (1 + rs)));
@@ -1476,6 +1480,7 @@ export function percentrank(source: Source, length: simple_int): series_float {
  * - Typical Price = (High + Low + Close) / 3
  * - Mean Deviation = Average of absolute differences from mean
  * - Scaled by 0.015 to provide more readable numbers
+ * - As in PineScript: when the mean deviation is 0 (1e-10 tolerance, a flat window), the CCI of the previous bar
  * - Values above +100 indicate overbought conditions
  * - Values below -100 indicate oversold conditions
  * - \`na\` values in the source series are ignored
@@ -1493,8 +1498,10 @@ export function cci(source: Source, length: simple_int): series_float {
   const devValues = dev(source, length);
 
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(smaValues[i]!) || isNaN(devValues[i]!) || devValues[i]! === 0) {
+    if (isNaN(smaValues[i]!) || isNaN(devValues[i]!)) {
       result.push(NaN);
+    } else if (eq(devValues[i]!, 0)) {
+      result.push(i > 0 ? result[i - 1]! : NaN);
     } else {
       const cci = (source[i]! - smaValues[i]!) / (0.015 * devValues[i]!);
       result.push(cci);

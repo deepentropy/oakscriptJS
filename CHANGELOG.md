@@ -5,6 +5,25 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `callsite.lowest()` / `callsite.highest()`: `ta.lowest` / `ta.highest` with a series length (a different length on
+  each call), called with `(value, length)`. PineScript keeps a state between calls for a series length; equal to
+  PineScript on every bar of two full daily histories (5,490 and 11,536 bars, 4 series each) (#126)
+
+### Fixed
+
+- `color.from_gradient` with an inverted range (`bottom_value > top_value`) returns `bottom_color` wherever the value
+  is; it returned `top_color` when the value was above both ends (#121)
+- `color.from_gradient`, `color.t`: an `rgba()` alpha is read as its byte `round(alpha * 255)`; `rgba(r, g, b, 0.1)`
+  gave the byte 25 instead of 26. `color.new(c, 90)` keeps the byte 25, as in PineScript (#122)
+- `ta.rsi` is 100 when the average loss is 0 within 1e-10 and 0 when the average gain is 0 within 1e-10
+  (PineScript `down == 0 ? 100 : up == 0 ? 0 : ...`) (#123)
+- `array.avg` skips na elements (na when there is none) (#124)
+- `ta.cci` keeps the previous value when the mean deviation is 0 within 1e-10 (flat window); it returned na (#125)
+
 ## [0.9.0] - 2026-10-01
 
 ### Fixed

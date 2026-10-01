@@ -192,4 +192,24 @@ describe('ta.rsi', () => {
     // Changes should be relatively smooth (not jumping 50+ points)
     expect(maxChange).toBeLessThan(30);
   });
+
+  it('is 100 when the average loss is 0 within 1e-10 (PineScript down == 0) (#123)', () => {
+    // one loss, then gains: the average loss decays below 1e-10 after about 100 bars
+    const source = [10, 9];
+    for (let i = 0; i < 140; i++) source.push(source[source.length - 1]! + 1);
+    const losses = source.map((v, i) => (i ? Math.max(0, source[i - 1]! - v) : NaN)).slice(1);
+    const avgLoss = ta.rma(losses, 5);
+    const rsi = ta.rsi(source, 5);
+    const first = avgLoss.findIndex((v) => v <= 1e-10);
+    expect(avgLoss[first - 1]!).toBeGreaterThan(1e-10);
+    expect(rsi[first]).toBeLessThan(100); // avg loss just above 1e-10: formula
+    expect(rsi[first + 1]).toBe(100);
+    expect(rsi[source.length - 1]).toBe(100);
+  });
+
+  it('is 0 when the average gain is 0 within 1e-10 (PineScript up == 0)', () => {
+    const source = [10, 11];
+    for (let i = 0; i < 140; i++) source.push(source[source.length - 1]! - 1);
+    expect(ta.rsi(source, 5)[source.length - 1]).toBe(0);
+  });
 });

@@ -630,7 +630,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
 | `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
-| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince` |
+| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince`, `lowest`, `highest` (also for a series length) |
 
 ### Run result (`IndicatorResult`)
 

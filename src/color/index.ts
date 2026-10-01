@@ -16,7 +16,10 @@ import type { color, int, float, simple_int, simple_float } from '../types/index
 const channel = (v: number): int =>
   v === null || v === undefined || Number.isNaN(v) ? 0 : Math.max(0, Math.min(255, Math.trunc(v)));
 
-/** Alpha (0-1) of a transparency given to color.rgb / color.new: na is fully transparent, clamped to 0..100. */
+/**
+ * Alpha (0-1) of a transparency given to color.rgb / color.new: na is fully transparent, clamped to 0..100.
+ * `1 - t / 100` as in PineScript: `color.new(c, 90)` has the alpha byte 25 (0.09999999999999998 * 255 rounded).
+ */
 const alphaOf = (transp: number): float =>
   transp === null || Number.isNaN(transp) ? 0 : 1 - Math.max(0, Math.min(100, transp)) / 100;
 
@@ -190,8 +193,7 @@ export function b(clr: color): int {
  * ```
  */
 export function t(clr: color): float {
-  const alpha = Math.round((1 - parseColor(clr).t / 100) * 255);
-  return Math.round((1 - alpha / 255) * 100);
+  return Math.round((1 - alphaByte(parseColor(clr).a) / 255) * 100);
 }
 
 /**
@@ -199,9 +201,9 @@ export function t(clr: color): float {
  *
  * @internal
  * @param clr - The color string to parse
- * @returns Object containing r, g, b (0-255) and t (0-100) components
+ * @returns Object containing r, g, b (0-255) and a (alpha, 0-1) components
  */
-function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
+function parseColor(clr: color): { r: int; g: int; b: int; a: float } {
   if (typeof clr === 'string') {
     // Hex: #RRGGBB, #RRGGBBAA (PineScript literals), #RGB, #RGBA
     const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(clr.trim());
@@ -209,7 +211,7 @@ function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
       let digits = hex[1]!;
       if (digits.length <= 4) digits = [...digits].map((c) => c + c).join('');
       const byte = (k: number) => parseInt(digits.slice(k, k + 2), 16);
-      return { r: byte(0), g: byte(2), b: byte(4), t: digits.length === 8 ? (1 - byte(6) / 255) * 100 : 0 };
+      return { r: byte(0), g: byte(2), b: byte(4), a: digits.length === 8 ? byte(6) / 255 : 1 };
     }
     // Handle rgb() or rgba() format
     const match = clr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
@@ -218,12 +220,15 @@ function parseColor(clr: color): { r: int; g: int; b: int; t: float } {
         r: parseInt(match[1]!),
         g: parseInt(match[2]!),
         b: parseInt(match[3]!),
-        t: match[4] ? (1 - parseFloat(match[4])) * 100 : 0,
+        a: match[4] ? parseFloat(match[4]) : 1,
       };
     }
   }
-  return { r: 0, g: 0, b: 0, t: 0 };
+  return { r: 0, g: 0, b: 0, a: 1 };
 }
+
+/** Alpha byte (0-255) of an alpha (0-1), as PineScript stores it. */
+const alphaByte = (a: float): int => Math.round(a * 255);
 
 // Predefined color constants of PineScript v6.
 // PineScript v5 differs for red (#FF5252), teal (#00897B) and yellow (#FFEB3B).
@@ -342,6 +347,7 @@ export const yellow = '#FDD835';
  * @remarks
  * PineScript rules:
  * - If value <= bottom_value, returns bottom_color; else if value >= top_value, returns top_color
+ * - An inverted range (bottom_value > top_value) returns bottom_color, wherever the value is
  * - Otherwise the colours are mixed with their transparency (premultiplied alpha, alpha as a byte); the RGB channels
  *   and the alpha are truncated. PineScript's float rounding order is not known: a channel can differ by 1 when the
  *   exact result is an integer (same RGB at both ends)
@@ -373,12 +379,17 @@ export function from_gradient(
   if ([value, bottom_value, top_value].some((v) => v === null || v === undefined || Number.isNaN(v)) || bottom_value === top_value) {
     return transparent;
   }
-  const k = value <= bottom_value ? 0 : value >= top_value ? 1 : (value - bottom_value) / (top_value - bottom_value);
+  const k =
+    value <= bottom_value || bottom_value > top_value
+      ? 0
+      : value >= top_value
+        ? 1
+        : (value - bottom_value) / (top_value - bottom_value);
   // alpha as a byte (0-255), as PineScript stores it; an na colour (null / undefined) is fully transparent
   const rgba = (c: color) => {
     if (c === null || c === undefined) return { r: 0, g: 0, b: 0, a: 0 };
     const p = parseColor(c);
-    return { r: p.r, g: p.g, b: p.b, a: Math.round((1 - p.t / 100) * 255) };
+    return { r: p.r, g: p.g, b: p.b, a: alphaByte(p.a) };
   };
   const c1 = rgba(bottom_color);
   const c2 = rgba(top_color);
