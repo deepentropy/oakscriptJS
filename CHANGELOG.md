@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ta.wma` (and so `ta.hma`) gives na until `length` non-na source values were received (before: a value as soon as
+  the last `length` bars, na bars included, were filled), and sums the window from the oldest bar to the newest, as
+  PineScript. Equal to PineScript, bit for bit, on two full daily histories (BTCUSD 5,490 bars, AAPL 11,535 bars) for
+  `ta.wma` / `ta.hma` of close, volume and of series with na values (24 series, 0 different values; before, the
+  summation order alone differed on 1,520 to 6,971 bars per series) (#120).
 - `ta.median` skips na values: the median of the last `length` non-na values (going back as many bars as needed), na
   until `length` non-na values exist; a bar with an na value still gets a result (before: the median of the non-na
   values of the last `length` bars). Equal to PineScript on all 11,535 bars of a full daily history (#116).

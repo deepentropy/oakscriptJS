@@ -717,7 +717,8 @@ export function rma(source: Source, length: simple_int): series_float {
  * - Weighting factors decrease in arithmetical progression
  * - Most recent value has weight `length`, previous has `length-1`, etc.
  * - Formula: `sum(source[i]! * (length - i)) / sum(length - i)` for i = 0 to length-1
- * - `na` values in the source series are ignored
+ * - As in PineScript: na on a bar whose source is `na` (also +/-Infinity) and until `length` non-`na` values were
+ *   received; an `na` value inside the window is replaced by the previous non-`na` value
  * - More responsive to recent price changes than SMA
  *
  * @example
@@ -730,22 +731,27 @@ export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // PineScript: na on a bar with an na source (also +/-Infinity); otherwise the last `len` bars,
-  // each na replaced by the previous non-na value
+  // PineScript: na on a bar with an na source (also +/-Infinity) and until `len` non-na values were received;
+  // otherwise the last `len` bars, each na replaced by the previous non-na value
   const filled: number[] = [];
   let last = NaN;
+  let count = 0;
   for (let i = 0; i < source.length; i++) {
     const v = source[i];
     const isNa = v === undefined || v === null || !Number.isFinite(v);
-    if (!isNa) last = v;
+    if (!isNa) {
+      last = v;
+      count++;
+    }
     filled.push(last);
-    if (isNa || i < len - 1) {
+    if (isNa || count < len) {
       result.push(NaN);
       continue;
     }
+    // Summed from the oldest bar (weight 1) to the newest (weight len), as PineScript (bit for bit)
     let sum = 0;
     let weightSum = 0;
-    for (let j = 0; j < len; j++) {
+    for (let j = len - 1; j >= 0; j--) {
       const weight = len - j;
       sum += filled[i - j]! * weight;
       weightSum += weight;
