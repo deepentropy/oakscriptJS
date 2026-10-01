@@ -175,4 +175,15 @@ describe('ta.supertrend', () => {
     const uniqueDirections = new Set(direction);
     expect(uniqueDirections.size).toBeGreaterThanOrEqual(1);
   });
+
+  it('is 0 on bar 0 and na while the ATR is na, as the PineScript reference (nz of the previous bands) (#128)', () => {
+    const high = [11, 12, 13, 14, 15, 16];
+    const low = [9, 10, 11, 12, 13, 14];
+    const close = [10, 11, 12, 13, 14, 15];
+    const [supertrend, direction] = ta.supertrend(0.6, 4, high, low, close);
+    // bar 0: close[1] is na, both bands take nz(na) = 0; bars 1 and 2: the upper band stays na (close[1] > 0)
+    expect(supertrend.slice(0, 3)).toEqual([0, NaN, NaN]);
+    expect(supertrend[3]).toBeGreaterThan(0);
+    expect(direction.slice(0, 4)).toEqual([1, 1, 1, 1]);
+  });
 });

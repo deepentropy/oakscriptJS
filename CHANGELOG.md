@@ -5,6 +5,15 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `ta.supertrend` follows the PineScript reference implementation (`nz` of the previous bands): the supertrend is 0
+  on bar 0 (was na), na on the next bars while the ATR is na. Equal to PineScript on every bar of two full daily
+  histories (5,490 and 11,536 bars) (#128)
+- `ta.cmo` is na on a flat window (`0 / 0`); it returned 0 (#127)
+
 ## [0.9.1] - 2026-10-01
 
 ### Added

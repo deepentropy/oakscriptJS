@@ -573,6 +573,7 @@ export function atr(length: simple_int, high?: Source, low?: Source, close?: Sou
  * - Direction: 1 = downtrend (red), -1 = uptrend (green)
  * - Uses hl2 (average of high and low) as the source
  * - SuperTrend helps identify the current market trend and potential reversal points
+ * - As in PineScript (`nz` of the previous bands): 0 on bar 0, na on the next bars while the ATR is na
  *
  * @example
  * ```typescript
@@ -612,41 +613,35 @@ export function supertrend(
   // Calculate ATR
   const atrValues = atr(atrPeriod, high, low, close);
 
-  // Track previous values across iterations
-  let prevLowerBand = NaN;
-  let prevUpperBand = NaN;
+  // PineScript reference implementation (bar by bar):
+  //   prevLowerBand = nz(lowerBand[1]), prevUpperBand = nz(upperBand[1])
+  //   lowerBand := lowerBand > prevLowerBand or close[1] < prevLowerBand ? lowerBand : prevLowerBand
+  //   upperBand := upperBand < prevUpperBand or close[1] > prevUpperBand ? upperBand : prevUpperBand
+  //   direction = na(atr[1]) ? 1 : prevSuperTrend == prevUpperBand ? (close > upperBand ? -1 : 1) : (close < lowerBand ? 1 : -1)
+  // A comparison with na is false: on bar 0 (close[1] na) both bands take nz(na) = 0, so the supertrend is 0.
+  const nz = (v: number) => (isNaN(v) ? 0 : v);
+  let lastLowerBand = NaN;
+  let lastUpperBand = NaN;
   let prevSuperTrend = NaN;
 
   for (let i = 0; i < source.length; i++) {
     const atrValue = atrValues[i]! * factor;
-
-    // Skip calculation if ATR is not available yet
-    if (isNaN(atrValue)) {
-      supertrendValues.push(NaN);
-      directions.push(1);
-      continue;
-    }
-
-    // Calculate initial bands
     let upperBand = source[i]! + atrValue;
     let lowerBand = source[i]! - atrValue;
+    const prevLowerBand = nz(lastLowerBand);
+    const prevUpperBand = nz(lastUpperBand);
 
-    // Determine which price to use for comparison
+    // Price compared with the bands: close, or low / high with wicks
     const highPrice = wicks ? high[i]! : close[i]!;
     const lowPrice = wicks ? low[i]! : close[i]!;
-    const prevLowPrice = i > 0 ? (wicks ? low[i - 1]! : close[i - 1]!) : 0;
-    const prevHighPrice = i > 0 ? (wicks ? high[i - 1]! : close[i - 1]!) : 0;
+    const prevLowPrice = i > 0 ? (wicks ? low[i - 1]! : close[i - 1]!) : NaN;
+    const prevHighPrice = i > 0 ? (wicks ? high[i - 1]! : close[i - 1]!) : NaN;
 
-    // Update bands conditionally (trailing behavior) - only if previous bands are valid
-    if (i > 0 && !isNaN(prevLowerBand) && !isNaN(prevUpperBand)) {
-      lowerBand = (lowerBand > prevLowerBand || prevLowPrice < prevLowerBand) ? lowerBand : prevLowerBand;
-      upperBand = (upperBand < prevUpperBand || prevHighPrice > prevUpperBand) ? upperBand : prevUpperBand;
-    }
+    lowerBand = lowerBand > prevLowerBand || prevLowPrice < prevLowerBand ? lowerBand : prevLowerBand;
+    upperBand = upperBand < prevUpperBand || prevHighPrice > prevUpperBand ? upperBand : prevUpperBand;
 
-    // Determine trend direction
     let currentDirection: int;
-    if (isNaN(prevSuperTrend)) {
-      // Initial direction when we don't have previous supertrend
+    if (i === 0 || isNaN(atrValues[i - 1]!)) {
       currentDirection = 1;
     } else if (prevSuperTrend === prevUpperBand) {
       // Was in downtrend (following upper band)
@@ -656,15 +651,12 @@ export function supertrend(
       currentDirection = lowPrice < lowerBand ? 1 : -1;
     }
 
-    // Calculate supertrend value based on direction
     const superTrendValue = currentDirection === -1 ? lowerBand : upperBand;
-
     supertrendValues.push(superTrendValue);
     directions.push(currentDirection);
 
-    // Update previous values for next iteration
-    prevLowerBand = lowerBand;
-    prevUpperBand = upperBand;
+    lastLowerBand = lowerBand;
+    lastUpperBand = upperBand;
     prevSuperTrend = superTrendValue;
   }
 
@@ -2086,6 +2078,7 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
  * - CMO > +50: overbought conditions
  * - CMO < -50: oversold conditions
  * - Unlike RSI, CMO uses sum of gains/losses instead of averages
+ * - na on a flat window (every change 0), as in PineScript
  * - More volatile than RSI
  *
  * @example
@@ -2116,9 +2109,10 @@ export function cmo(source: Source, length: simple_int): series_float {
       }
     }
 
+    // PineScript: 100 * (sm1 - sm2) / (sm1 + sm2), so a flat window (0 / 0) is na
     const totalMovement = sumGains + sumLosses;
     if (totalMovement === 0) {
-      result.push(0);
+      result.push(NaN);
     } else {
       const cmoValue = ((sumGains - sumLosses) / totalMovement) * 100;
       result.push(cmoValue);
