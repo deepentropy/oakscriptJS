@@ -11,7 +11,7 @@
  * host's short English name for IANA zones (PineScript's names can differ, e.g. "IST" for Asia/Kolkata).
  */
 
-import { zonedFields, zoneOffset } from '../time/timezone';
+import { zonedFields, zoneOffset } from '../time/timezone.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
   'October', 'November', 'December'];

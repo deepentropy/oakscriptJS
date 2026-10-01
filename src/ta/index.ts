@@ -8,9 +8,9 @@
  * @version 6
  */
 
-import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
-import { eq, ge, gt, le, lt } from '../compare';
-import { runningSum, runningVariance } from './running-sum';
+import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types/index.js';
+import { eq, ge, gt, le, lt } from '../compare/index.js';
+import { runningSum, runningVariance } from './running-sum.js';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -285,29 +285,64 @@ function lastValues(source: Source, i: number, length: number): number[] | null 
 }
 
 /**
- * The values of the window of `length` bars ending at bar `i`, with their offsets (0 = bar `i`,
- * -1 = previous bar...). The window stops at the first `na` value, as PineScript does for
- * ta.highest / ta.lowest / ta.highestbars / ta.lowestbars.
+ * The extreme of the window of `length` bars ending at each bar, in one pass (monotonic deque): the bar index of
+ * the oldest highest (or lowest) value, or -1 when the window is empty. As PineScript does for ta.highest /
+ * ta.lowest / ta.highestbars / ta.lowestbars, the window stops at the first `na` value going back, so a bar whose
+ * own value is `na` has an empty window. `zeros[i]` tells whether the window holds a +0 (highest) or a -0
+ * (lowest), the zero that `Math.max` / `Math.min` return when the extreme is 0.
  */
-function windowUntilNa(source: Source, i: number, length: number): Array<[number, number]> {
-  const values: Array<[number, number]> = [];
-  for (let j = 0; j < length && i - j >= 0; j++) {
-    const x = source[i - j]!;
-    if (Number.isNaN(x)) break;
-    values.push([x, -j]);
+function windowExtremes(source: Source, length: number, lowest: boolean): { at: Int32Array; zeros: Uint8Array } {
+  const n = source.length;
+  const span = length > 0 ? Math.ceil(length) : 0; // the bars j = 0, 1... with j < length
+  const at = new Int32Array(n).fill(-1);
+  const zeros = new Uint8Array(n);
+  const queue = new Int32Array(n); // bar indices; values from best to worst, the oldest first among equal values
+  const preferredZero = lowest ? -0 : 0;
+  let head = 0;
+  let tail = 0;
+  let zeroCount = 0; // preferred zeros in the queue
+  let lastNa = -1;
+  const isPreferredZero = (k: number) => Object.is(source[k], preferredZero);
+  for (let i = 0; i < n; i++) {
+    const x = source[i]!;
+    if (Number.isNaN(x)) {
+      lastNa = i;
+      head = tail = 0;
+      zeroCount = 0;
+      continue;
+    }
+    // drop the values that the new one beats; equal values stay (the oldest wins ties)
+    while (tail > head && (lowest ? source[queue[tail - 1]!]! > x : source[queue[tail - 1]!]! < x)) {
+      if (isPreferredZero(queue[--tail]!)) zeroCount--;
+    }
+    queue[tail++] = i;
+    if (isPreferredZero(i)) zeroCount++;
+    const start = Math.max(i - span + 1, lastNa + 1);
+    while (head < tail && queue[head]! < start) {
+      if (isPreferredZero(queue[head++]!)) zeroCount--;
+    }
+    if (head < tail) {
+      at[i] = queue[head]!;
+      zeros[i] = zeroCount > 0 ? 1 : 0;
+    }
   }
-  return values;
+  return { at, zeros };
 }
 
 /** Offset of the best value of the window; on ties the oldest bar wins. 0 when the window is empty. */
-function extremeOffset(source: Source, length: simple_int, isHigher: (a: number, b: number) => boolean): series_int {
+function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
+  const { at } = windowExtremes(source, length, lowest);
+  // -(i - at): -0 when the extreme is the current bar, as the offset -j of the window scan
+  return source.map((_, i) => (i < length - 1 ? NaN : at[i]! < 0 ? 0 : -(i - at[i]!)));
+}
+
+/** Best value of the window (`na` when the window is empty), with the zero sign of `Math.max` / `Math.min`. */
+function extremeValue(source: Source, length: simple_int, lowest: boolean): series_float {
+  const { at, zeros } = windowExtremes(source, length, lowest);
   return source.map((_, i) => {
-    if (i < length - 1) return NaN;
-    const w = windowUntilNa(source, i, length);
-    if (w.length === 0) return 0;
-    let best = w[0]!;
-    for (const item of w) if (isHigher(item[0], best[0])) best = item; // w runs from new to old: >= keeps the oldest
-    return best[1];
+    if (i < length - 1 || at[i]! < 0) return NaN;
+    const v = source[at[i]!]!;
+    return v === 0 && zeros[i] ? (lowest ? -0 : 0) : v;
   });
 }
 
@@ -774,11 +809,7 @@ export function wma(source: Source, length: simple_int): series_float {
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  */
 export function highest(source: Source, length: simple_int): series_float {
-  return source.map((_, i) => {
-    if (i < length - 1) return NaN;
-    const w = windowUntilNa(source, i, length);
-    return w.length ? Math.max(...w.map((x) => x[0])) : NaN;
-  });
+  return extremeValue(source, length, false);
 }
 
 /**
@@ -793,11 +824,7 @@ export function highest(source: Source, length: simple_int): series_float {
  * count, and a bar whose own value is `na` gives `na`.
  */
 export function lowest(source: Source, length: simple_int): series_float {
-  return source.map((_, i) => {
-    if (i < length - 1) return NaN;
-    const w = windowUntilNa(source, i, length);
-    return w.length ? Math.min(...w.map((x) => x[0])) : NaN;
-  });
+  return extremeValue(source, length, true);
 }
 
 /**
@@ -1109,13 +1136,37 @@ export function variance(source: Source, length: simple_int, biased: simple_bool
  */
 export function median(source: Source, length: simple_int): series_float {
   const len = Math.floor(length);
-  return source.map((_, i) => {
-    const values = lastValues(source, i, len);
-    if (!values) return NaN;
-    values.sort((a, b) => a - b);
-    const mid = Math.floor(len / 2);
-    return len % 2 === 0 ? (values[mid - 1]! + values[mid]!) / 2 : values[mid]!;
-  });
+  const n = source.length;
+  const out: series_float = new Array<number>(n).fill(NaN);
+  if (!(len >= 1)) return out;
+  // The last `len` non-na values, sorted; equal values (also +0 / -0) from the newest to the oldest, which is the
+  // order a stable sort of the window gives, so the middle values are the same numbers.
+  const sorted: number[] = [];
+  const kept = new Float64Array(n); // the non-na values in bar order
+  let count = 0;
+  /** First position whose value is >= v (`after`: > v). */
+  const bound = (v: number, after: boolean): number => {
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (after ? sorted[m]! <= v : sorted[m]! < v) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  };
+  const mid = Math.floor(len / 2);
+  for (let i = 0; i < n; i++) {
+    const x = source[i]!;
+    if (!Number.isNaN(x)) {
+      kept[count++] = x;
+      sorted.splice(bound(x, false), 0, x); // before the equal values: the newest first
+      // the value leaving the window is the oldest, so the last of its equal values
+      if (count > len) sorted.splice(bound(kept[count - 1 - len]!, true) - 1, 1);
+    }
+    if (count >= len) out[i] = len % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+  }
+  return out;
 }
 
 /**
@@ -1312,53 +1363,55 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  */
 export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
   const result: series_float = [];
+  // the non-NaN pairs of the window, newest first (reused on every bar)
+  const span = length > 0 ? Math.ceil(length) : 0;
+  const a = new Float64Array(span);
+  const b = new Float64Array(span);
 
   for (let i = 0; i < source1.length; i++) {
     if (i < length - 1) {
       result.push(NaN);
-    } else {
-      // Collect non-NaN pairs
-      const pairs: Array<[number, number]> = [];
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source1[i - j]!) && !isNaN(source2[i - j]!)) {
-          pairs.push([source1[i - j]!, source2[i - j]!]);
-        }
-      }
-
-      if (pairs.length === 0) {
-        result.push(NaN);
-      } else {
-        // Calculate means
-        let sum1 = 0;
-        let sum2 = 0;
-        for (const [v1, v2] of pairs) {
-          sum1 += v1;
-          sum2 += v2;
-        }
-        const mean1 = sum1 / pairs.length;
-        const mean2 = sum2 / pairs.length;
-
-        // Calculate correlation components
-        let numerator = 0;
-        let sum1Sq = 0;
-        let sum2Sq = 0;
-
-        for (const [v1, v2] of pairs) {
-          const dev1 = v1 - mean1;
-          const dev2 = v2 - mean2;
-          numerator += dev1 * dev2;
-          sum1Sq += dev1 * dev1;
-          sum2Sq += dev2 * dev2;
-        }
-
-        const denominator = Math.sqrt(sum1Sq * sum2Sq);
-        if (denominator === 0) {
-          result.push(NaN);
-        } else {
-          result.push(numerator / denominator);
-        }
+      continue;
+    }
+    let m = 0;
+    for (let j = 0; j < length; j++) {
+      const v1 = source1[i - j]!;
+      const v2 = source2[i - j]!;
+      if (!isNaN(v1) && !isNaN(v2)) {
+        a[m] = v1;
+        b[m] = v2;
+        m++;
       }
     }
+    if (m === 0) {
+      result.push(NaN);
+      continue;
+    }
+
+    // Calculate means
+    let sum1 = 0;
+    let sum2 = 0;
+    for (let k = 0; k < m; k++) {
+      sum1 += a[k]!;
+      sum2 += b[k]!;
+    }
+    const mean1 = sum1 / m;
+    const mean2 = sum2 / m;
+
+    // Calculate correlation components
+    let numerator = 0;
+    let sum1Sq = 0;
+    let sum2Sq = 0;
+    for (let k = 0; k < m; k++) {
+      const dev1 = a[k]! - mean1;
+      const dev2 = b[k]! - mean2;
+      numerator += dev1 * dev2;
+      sum1Sq += dev1 * dev1;
+      sum2Sq += dev2 * dev2;
+    }
+
+    const denominator = Math.sqrt(sum1Sq * sum2Sq);
+    result.push(denominator === 0 ? NaN : numerator / denominator);
   }
 
   return result;
@@ -2425,7 +2478,7 @@ export function range(source: Source, length: simple_int): series_float {
  * 0 when the window has no value.
  */
 export function highestbars(source: Source, length: simple_int): series_int {
-  return extremeOffset(source, length, (a, b) => a >= b);
+  return extremeOffset(source, length, false);
 }
 
 /**
@@ -2437,7 +2490,7 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * 0 when the window has no value.
  */
 export function lowestbars(source: Source, length: simple_int): series_int {
-  return extremeOffset(source, length, (a, b) => a <= b);
+  return extremeOffset(source, length, true);
 }
 
 /**

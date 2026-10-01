@@ -10,8 +10,8 @@
  * @version 6
  */
 
-import type { ChartPoint, Polyline, color } from '../types';
-import { all as allDrawings, register, remove } from '../drawing/registry';
+import type { ChartPoint, Polyline, color } from '../types/index.js';
+import { all as allDrawings, register, remove } from '../drawing/registry.js';
 
 // Re-export the Polyline type for convenience
 export type { Polyline };

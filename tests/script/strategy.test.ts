@@ -184,16 +184,18 @@ describe('strategy.eachBar', () => {
     })).toThrow('strategy.entry() must be called inside strategy.eachBar()');
   });
 
-  it('variables can be read after the loop (final state)', () => {
-    let after = NaN;
-    run(() => {
+  it('per-bar variables and trades must be read inside the loop (no final state for earlier bars)', () => {
+    const body = (read: () => unknown) => () => {
       strategy('S');
       strategy.eachBar((c) => {
         if (c.i === 0) strategy.entry('S', strategy.short);
       });
-      after = strategy.position_size;
-    });
-    expect(after).toBe(-1);
+      read();
+    };
+    expect(() => run(body(() => strategy.position_size))).toThrow('strategy.position_size must be read inside strategy.eachBar()');
+    expect(() => run(body(() => strategy.opentrade(0)))).toThrow('strategy.opentrade() must be read inside strategy.eachBar()');
+    expect(() => run(body(() => strategy.closedtrade(0)))).toThrow('strategy.closedtrade() must be read inside strategy.eachBar()');
+    expect(() => run(body(() => strategy.default_entry_qty(10)))).toThrow('must be read inside strategy.eachBar()');
   });
 });
 
@@ -220,7 +222,7 @@ describe('engine errors and optional features', () => {
     expect(currency).toBe('USD');
     expect(() => run(() => {
       strategy('S');
-      return strategy.max_drawdown;
+      strategy.eachBar(() => strategy.max_drawdown);
     })).toThrow('strategy.max_drawdown is not provided by the strategy engine');
   });
 
@@ -234,7 +236,9 @@ describe('engine errors and optional features', () => {
       strategy('S');
       strategy.risk.allow_entry_in(strategy.direction.long);
       strategy.risk.max_intraday_loss(2, strategy.percent_of_equity);
-      got = [strategy.opentrade(0), strategy.opentrade(1), strategy.default_entry_qty(10)];
+      strategy.eachBar((c) => {
+        if (c.i === 0) got = [strategy.opentrade(0), strategy.opentrade(1), strategy.default_entry_qty(10)];
+      });
     }, BARS, {}, {}, {
       strategyEngine: (setup) => Object.assign(new FakeEngine(setup), {
         trades: [trade],

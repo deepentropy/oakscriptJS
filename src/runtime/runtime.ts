@@ -4,7 +4,7 @@
  * @module runtime/runtime
  */
 
-import type { OakScriptContext, SeriesHandle, SeriesOptions } from './types';
+import type { OakScriptContext, SeriesHandle, SeriesOptions } from './types.js';
 
 // Global context state
 let context: OakScriptContext | null = null;

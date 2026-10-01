@@ -12,9 +12,11 @@
  *   (data gap, a day off not in the calendar), the period completes on the first bar of the next period
  * - D / W / M periods follow the regular hours: on extended-hours charts the premarket bars still show
  *   the previous period, which completes on the last bar of its trading day
+ * - a higher-timeframe bar only holds the chart bars up to the bar that completes it: the premarket bars
+ *   that still show the previous period are not part of its bar (no value from after the completion)
  */
 
-import type { Bar } from '../types';
+import type { Bar } from '../types/index.js';
 
 /** Higher-timeframe bars and the period index of each chart bar. */
 export interface Resampled {
@@ -69,6 +71,17 @@ export function periodsOf(starts: number[], dayPeriods: number[], reaches: boole
     latest.push(done);
   });
   return { group, latest };
+}
+
+/**
+ * True for the chart bars that come after the bar that completed their period: on extended-hours charts
+ * the premarket bars of the next trading day still show the previous D / W / M period, but they are not
+ * part of its higher-timeframe bar. A period's first bar is never after its completion.
+ * @param group - Period index of each chart bar
+ * @param latest - Latest completed period at each chart bar
+ */
+export function afterCompletion(group: number[], latest: number[]): boolean[] {
+  return group.map((g, i) => i > 0 && group[i - 1] === g && latest[i - 1]! >= g);
 }
 
 /**

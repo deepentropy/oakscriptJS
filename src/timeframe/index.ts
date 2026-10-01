@@ -7,7 +7,7 @@
  * Without a multiplier, 1 is used ("D" is "1D").
  */
 
-import type { int, simple_string } from '../types';
+import type { int, simple_string } from '../types/index.js';
 
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_DAY = 86_400;

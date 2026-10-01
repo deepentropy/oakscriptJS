@@ -10,7 +10,7 @@
  * - "0000-0000" and "24x7" are the 24-hour session of every day
  */
 
-import { zonedFields } from './timezone';
+import { zonedFields } from './timezone.js';
 
 interface Period {
   /** Minutes after midnight, 0-1439 */

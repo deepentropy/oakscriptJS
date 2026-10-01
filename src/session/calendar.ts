@@ -15,7 +15,7 @@
  *   dates (early closes, days off); holidays ("session_holidays") are dates without session
  */
 
-import { zonedFields, zonedToUnix } from '../time/timezone';
+import { zonedFields, zonedToUnix } from '../time/timezone.js';
 
 /** Session information of a symbol (hours, corrections, holidays). */
 export interface SessionSpec {

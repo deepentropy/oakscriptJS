@@ -4,8 +4,8 @@
  * @module runtime/series
  */
 
-import * as compare from '../compare';
-import type { Bar } from '../types';
+import * as compare from '../compare/index.js';
+import type { Bar } from '../types/index.js';
 
 /**
  * Function that computes a value for each bar
@@ -237,9 +237,20 @@ export class Series {
    * @param bars - Bar data (Bar[] or BarData) for time alignment
    * @param values - Array of values
    * @returns Series
+   * @throws When read on other bars with a different length than `values` (e.g. a series computed on the
+   *   chart bars and read inside a `request.security` expression, which runs on the higher-timeframe bars)
    */
   static fromArray(bars: Bar[] | BarData, values: number[]): Series {
-    return new Series(bars, (_bar, i) => values[i] ?? NaN);
+    const origin = bars instanceof BarData ? bars.bars : bars;
+    return new Series(bars, (_bar, i, data) => {
+      if (data !== origin && data.length !== values.length) {
+        throw new Error(
+          `Series values were computed on other bars (${values.length} values, ${data.length} bars). ` +
+            'Inside request.security(), compute the series inside the expression, e.g. () => ta.ema(close, 10).'
+        );
+      }
+      return values[i] ?? NaN;
+    });
   }
 
   // ============================================
@@ -499,10 +510,12 @@ export class Series {
 
   /**
    * Access previous bars (like close[1] in PineScript)
-   * @param offset - Number of bars back (positive = past)
+   * @param offset - Number of bars back (0 or more)
    * @returns New Series with offset values
+   * @throws RangeError when `offset` is negative
    */
   offset(offset: number): Series {
+    if (offset < 0) throw new RangeError(`Series.offset(${offset}): the offset cannot be negative (it would read a future bar).`);
     return new Series(this.dataSource, (_bar, i, data) => {
       const targetIndex = i - offset;
       if (targetIndex < 0 || targetIndex >= data.length) {

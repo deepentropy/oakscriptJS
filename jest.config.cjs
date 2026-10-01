@@ -14,6 +14,8 @@ module.exports = {
   verbose: true,
   moduleNameMapper: {
       '^lightweight-charts$': '<rootDir>/tests/__mocks__/lightweight-charts.ts',
-      '^oakscriptjs$': '<rootDir>/src/index.ts'
+      '^oakscriptjs$': '<rootDir>/src/index.ts',
+      // the sources import with .js extensions (ESM output); jest resolves the .ts files
+      '^(\.{1,2}/.*)\.js$': '$1'
   },
 };

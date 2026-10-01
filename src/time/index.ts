@@ -7,10 +7,10 @@
  * default time zone (the exchange time zone, `syminfo.timezone`) is not known here.
  */
 
-import type { int, simple_int } from '../types';
-import { zonedFields, zonedToUnix } from './timezone';
-import { parseDateString } from './datestring';
-import { inSession as sessionContains } from './session';
+import type { int, simple_int } from '../types/index.js';
+import { zonedFields, zonedToUnix } from './timezone.js';
+import { parseDateString } from './datestring.js';
+import { inSession as sessionContains } from './session.js';
 
 /**
  * Returns the current time in milliseconds

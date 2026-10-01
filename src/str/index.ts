@@ -9,10 +9,10 @@
  * @version 6
  */
 
-import { formatNumber } from './numberformat';
-import { formatMessage } from './messageformat';
-import { formatDate } from './dateformat';
-import type { int, bool, float, simple_int, simple_string } from '../types';
+import { formatNumber } from './numberformat.js';
+import { formatMessage } from './messageformat.js';
+import { formatDate } from './dateformat.js';
+import type { int, bool, float, simple_int, simple_string } from '../types/index.js';
 
 /**
  * Returns the length of a string.

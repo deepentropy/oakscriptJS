@@ -20,7 +20,7 @@
  * can be shorter.
  */
 
-import { info, in_seconds, type TimeframeInfo } from '../timeframe';
+import { info, in_seconds, type TimeframeInfo } from '../timeframe/index.js';
 import {
   TradingCalendar,
   addDays,
@@ -29,7 +29,7 @@ import {
   monthStart,
   weekStart,
   type DateNum,
-} from './calendar';
+} from './calendar.js';
 
 type Unit = 'D' | 'W' | 'M';
 

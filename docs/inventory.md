@@ -2,14 +2,14 @@
 
 This document tracks the implementation status of all PineScript v6 functions against the official PineScript v6 language reference.
 
-**Last Updated:** July 2026 (v0.5.0)
+**Last Updated:** 01/10/2026 (v0.9.0)
 
 ## Architecture Overview
 
 OakScriptJS is a **simplified PineScript-like library** providing:
 
 1. **Core Functions** (array-based): Pure calculation functions from `ta.*`, `math.*`, `array.*`, etc.
-2. **Series Class**: Lazy evaluation with operator chaining for native PineScript-like syntax
+2. **Series Class**: Lazy evaluation with method chaining (`close.sub(open)`)
    - **BarData**: Versioned wrapper for automatic cache invalidation
    - **materialize()**: Breaks closure chains for memory efficiency
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
@@ -19,7 +19,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
    `eachBar()` for per-bar stateful logic. See the [Script API section](#script-api-oakscriptjsscript).
 5. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills, markers, bar colors)
 
-**No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the `@oakscript/indicators` package.
+**No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the [`lightweight-charts-indicators`](https://www.npmjs.com/package/lightweight-charts-indicators) package.
 
 ## Summary
 
@@ -104,7 +104,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 35. `percentile_linear_interpolation()` - Percentile using linear interpolation
 36. `percentile_nearest_rank()` - Percentile using nearest rank
 37. `percentrank()` - Percent rank over a period
-38. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla)
+38. `pivot_point_levels()` - Pivot point levels (Traditional, Fibonacci, Woodie, Classic, DM, Camarilla); array API only (`taCore.pivot_point_levels`)
 39. `pivothigh()` - Detects pivot high points
 40. `pivotlow()` - Detects pivot low points
 41. `range()` - High-Low Range
@@ -699,7 +699,7 @@ These functions are implemented in OakScriptJS but do not exist in the official 
    - **Core TA** (`taCore`): Array-based functions like `taCore.sma(priceArray, 14)`
    - **TA-Series** (`ta`): Series-based wrappers like `ta.sma(closeSeries, 14)`
 
-2. **Series Class**: The `Series` class provides lazy evaluation and operator chaining. When used with the Babel plugin, it enables native PineScript-like syntax: `(close - open) / (high - low)`.
+2. **Series Class**: The `Series` class provides lazy evaluation and method chaining. JavaScript has no operator overloading, so `(close - open) / (high - low)` is written `close.sub(open).div(high.sub(low))`; inside `eachBar()` the values are plain numbers and native operators work.
 
 3. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
 

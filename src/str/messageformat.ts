@@ -10,8 +10,8 @@
  * - `'...'` is literal text and `''` is a quote; a missing argument leaves `{n}` in the text
  */
 
-import { formatNumber } from './numberformat';
-import { formatDate } from './dateformat';
+import { formatNumber } from './numberformat.js';
+import { formatDate } from './dateformat.js';
 
 const DATE_STYLES: Record<string, string> = {
   short: 'M/d/yy', medium: 'MMM d, yyyy', long: 'MMMM d, yyyy', full: 'EEEE, MMMM d, yyyy',

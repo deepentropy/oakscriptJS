@@ -238,6 +238,11 @@ describe('SimpleInputAdapter', () => {
 describe('LightweightChartsAdapter', () => {
   // Import and test the adapter with a mock chart
   const { LightweightChartsAdapter } = require('../../src/runtime/adapters/LightweightChartsAdapter');
+  // Stand-ins for the lightweight-charts series definitions (the host passes the library's own exports)
+  const LineSeries = { type: 'Line' };
+  const HistogramSeries = { type: 'Histogram' };
+  const AreaSeries = { type: 'Area' };
+  const DEFS = { LineSeries, HistogramSeries, AreaSeries };
 
   // Create mock lightweight-charts objects
   function createMockChart() {
@@ -245,7 +250,7 @@ describe('LightweightChartsAdapter', () => {
     
     return {
       series,
-      addSeries: jest.fn((seriesDefinition: { type: string }, options: unknown) => {
+      addSeries: jest.fn((seriesDefinition: { type: string }, options: unknown, _pane?: number) => {
         const s = {
           type: seriesDefinition.type,
           options,
@@ -265,12 +270,12 @@ describe('LightweightChartsAdapter', () => {
   describe('addSeries', () => {
     it('should add a line series', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       const handle = adapter.addSeries('line', { color: '#FF0000' });
       
       expect(mockChart.addSeries).toHaveBeenCalledWith(
-        { type: 'Line' },
+        LineSeries,
         { color: '#FF0000' }
       );
       expect(handle.setData).toBeDefined();
@@ -278,31 +283,31 @@ describe('LightweightChartsAdapter', () => {
 
     it('should add a histogram series', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       adapter.addSeries('histogram');
       
       expect(mockChart.addSeries).toHaveBeenCalledWith(
-        { type: 'Histogram' },
+        HistogramSeries,
         {}
       );
     });
 
     it('should add an area series', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       adapter.addSeries('area');
       
       expect(mockChart.addSeries).toHaveBeenCalledWith(
-        { type: 'Area' },
+        AreaSeries,
         {}
       );
     });
 
     it('should convert options correctly', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       adapter.addSeries('line', {
         color: '#00FF00',
@@ -312,7 +317,7 @@ describe('LightweightChartsAdapter', () => {
       });
       
       expect(mockChart.addSeries).toHaveBeenCalledWith(
-        { type: 'Line' },
+        LineSeries,
         {
           color: '#00FF00',
           lineWidth: 2,
@@ -323,10 +328,28 @@ describe('LightweightChartsAdapter', () => {
     });
   });
 
+  describe('series definitions', () => {
+    it('passes the given definition objects themselves, and the pane index', () => {
+      const mockChart = createMockChart();
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
+
+      adapter.addSeries('histogram', { pane: 1 });
+
+      expect(mockChart.addSeries.mock.calls[0]![0]).toBe(HistogramSeries);
+      expect(mockChart.addSeries).toHaveBeenCalledWith(HistogramSeries, {}, 1);
+    });
+
+    it('throws a clear error without definitions or without the needed one', () => {
+      expect(() => new LightweightChartsAdapter(createMockChart())).toThrow('pass the lightweight-charts series definitions');
+      const adapter = new LightweightChartsAdapter(createMockChart(), { LineSeries });
+      expect(() => adapter.addSeries('baseline')).toThrow("a 'baseline' series needs BaselineSeries");
+    });
+  });
+
   describe('removeSeries', () => {
     it('should remove a series from the chart', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       const handle = adapter.addSeries('line');
       adapter.removeSeries(handle);
@@ -338,7 +361,7 @@ describe('LightweightChartsAdapter', () => {
   describe('setData', () => {
     it('should set data on the series handle', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       const handle = adapter.addSeries('line');
       const data = [
@@ -355,7 +378,7 @@ describe('LightweightChartsAdapter', () => {
   describe('getMainSeries', () => {
     it('should return undefined when no main series is provided', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       expect(adapter.getMainSeries()).toBeUndefined();
     });
@@ -365,7 +388,7 @@ describe('LightweightChartsAdapter', () => {
       const mockMainSeries = {
         setData: jest.fn(),
       };
-      const adapter = new LightweightChartsAdapter(mockChart, mockMainSeries);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS, mockMainSeries);
 
       const mainSeries = adapter.getMainSeries();
       expect(mainSeries).toBeDefined();
@@ -376,7 +399,7 @@ describe('LightweightChartsAdapter', () => {
   describe('createPane', () => {
     it('should return incrementing pane indices', () => {
       const mockChart = createMockChart();
-      const adapter = new LightweightChartsAdapter(mockChart);
+      const adapter = new LightweightChartsAdapter(mockChart, DEFS);
 
       const pane1 = adapter.createPane();
       const pane2 = adapter.createPane();

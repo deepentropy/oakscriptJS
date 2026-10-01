@@ -5,6 +5,56 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-01
+
+### Fixed
+
+- `request.security` D / W / M on extended-hours charts used future values: the premarket bars of the next trading
+  day were added to the previous period's higher-timeframe bar, whose value appears on the last bar of its own
+  trading day (e.g. the daily close shown at 19:00 was the close of 09:00 the next morning). A higher-timeframe bar
+  now holds only the chart bars up to the bar that completes it. The mapping rules (when a period's value appears)
+  do not change.
+- `request.security` read a series computed outside its expression (e.g. `const e = ta.ema(close, 10)` then
+  `request.security('', 'D', () => e)`) by higher-timeframe bar index, which gave wrong values with no error. It now
+  throws and asks to compute the series inside the expression.
+- A negative history offset read future bars: `Series.offset(-1)` and `c.get(src, -1)` now throw a `RangeError`.
+- `LightweightChartsAdapter` did not work with lightweight-charts v5: it passed `{ type: 'Line' }` objects, which
+  `chart.addSeries()` rejects. The host now passes the library's own series definitions:
+  `new LightweightChartsAdapter(chart, { LineSeries, HistogramSeries }, mainSeries)` (breaking: the second argument
+  was the main series). `SeriesOptions.pane` is passed to lightweight-charts as the pane index.
+- Docs: the guide examples run as written (the script body is a function passed to `executeScript()`, numeric bar
+  times, `math.sum(source, length)`, `ta.*` results are not recomputed by `BarData`); removed the references to a
+  transpiler, a Babel plugin, a JSR package and `@oakscript/indicators`; added the bar shape, which API to use,
+  `request.security` and the PineScript comparison rules (`compare.*`) in `eachBar()`.
+- `strategy.*` per-bar values (`position_size`, `equity`, `opentrade(i)`, `closedtrade(i)`,
+  `default_entry_qty()`...) could be read outside `strategy.eachBar()`, where they returned the engine's final
+  state (a future value for every earlier bar). They now throw outside the loop. `strategy.initial_capital` and
+  `strategy.account_currency` can still be read anywhere.
+
+### Changed
+
+- Package layout: unbundled ES modules in `dist/esm` and CommonJS modules in `dist/cjs`, each with its own type
+  declarations. The types now resolve with every TypeScript `moduleResolution` (`node16`, `nodenext`, `bundler`,
+  `node10`), for `import` and `require`. The root, `/runtime` and `/script` entries share their modules, so
+  `Series`, `BarData` and the drawing registry are the same objects in all entries (before: each entry had its own
+  copy). `"sideEffects": false` lets bundlers drop unused code (e.g. `import { compare } from 'oakscriptjs'` bundles
+  to 0.5 KB instead of 87 KB). Deep imports of the old `dist/index.mjs` / `dist/script/index.cjs` files no longer
+  work; use the package entries.
+- The type declarations keep the documentation comments (editor hover help); the sources are shipped for the
+  source maps.
+- `lightweight-charts` is an optional peer dependency (no code imports it).
+- Faster, with the same results bit for bit (checked against v0.8.2 on 721 cases: na windows, ties, +0 / -0,
+  infinities, non-integer and negative lengths, 8 time zones over 1990-2037):
+  - `ta.highest`, `ta.lowest`, `ta.highestbars`, `ta.lowestbars`: one pass over the bars (monotonic queue) instead
+    of a scan of each window. 1M bars, length 200: 3,174 ms to 37 ms.
+  - `ta.median`: a sorted window updated on each bar instead of a sort of each window. 1M bars, length 101:
+    7,411 ms to 109 ms.
+  - `ta.correlation`: no arrays created per bar. 1M bars, length 20: 608 ms to 74 ms.
+  - Time zone offsets (`hour()`, `dayofweek()`, `time()` sessions, `timeframe.change()`...): computed once per UTC
+    hour and cached, instead of one `Intl` call per bar. `hour(time, 'America/New_York')` on 1M bars: 3,222 ms
+    to 127 ms.
+- LICENSE: copyright line `2025-2026 Odyssée` (was `2024 OakScriptJS`).
+
 ## [0.8.2] - 2026-10-01
 
 ### Added

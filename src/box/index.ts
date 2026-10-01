@@ -12,8 +12,8 @@
  * @version 6
  */
 
-import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
-import type { ChartPoint, Box, color } from '../types';
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry.js';
+import type { ChartPoint, Box, color } from '../types/index.js';
 
 type BoxXloc = 'bar_index' | 'bar_time';
 type BoxExtend = 'none' | 'left' | 'right' | 'both';

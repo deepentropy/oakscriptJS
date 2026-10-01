@@ -4,7 +4,7 @@
  * @module runtime/types
  */
 
-import type { FillGradient } from '../types/metadata';
+import type { FillGradient } from '../types/metadata.js';
 
 /**
  * Handle returned by ChartAdapter.addSeries

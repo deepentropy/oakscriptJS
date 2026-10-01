@@ -4,9 +4,9 @@
  * @module ta-series
  */
 
-import * as taCore from './ta';
-import { Series } from './runtime/series';
-import type { Bar } from './types';
+import * as taCore from './ta/index.js';
+import { Series } from './runtime/series.js';
+import type { Bar } from './types/index.js';
 
 /**
  * Simple Moving Average

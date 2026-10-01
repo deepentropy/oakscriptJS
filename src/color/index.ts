@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import type { color, int, float, simple_int, simple_float } from '../types';
+import type { color, int, float, simple_int, simple_float } from '../types/index.js';
 
 /** Channel of color.rgb: na is 0, a fraction is truncated. */
 const channel = (v: number): int =>

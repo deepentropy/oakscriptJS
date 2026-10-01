@@ -9,9 +9,9 @@
  * @version 6
  */
 
-import type { float, int, simple_int, series_float } from '../types';
-import { Series } from '../runtime/series';
-import { runningSum } from '../ta/running-sum';
+import type { float, int, simple_int, series_float } from '../types/index.js';
+import { Series } from '../runtime/series.js';
+import { runningSum } from '../ta/running-sum.js';
 
 /**
  * Returns the absolute value of a number.

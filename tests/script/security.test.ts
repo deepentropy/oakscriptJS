@@ -4,6 +4,8 @@
 import {
   barmerge,
   close,
+  eachBar,
+  high,
   executeScript,
   request,
   syminfo,
@@ -82,5 +84,55 @@ describe('request.security', () => {
     expect(() => run(() => request.security('NASDAQ:MSFT', 'D', () => close))).toThrow('external data');
     expect(() => run(() => request.security('', '5', () => close))).toThrow('lower than the chart timeframe');
     expect(() => run(() => syminfo.tickerid, { timeframe: '60' })).toThrow('chart symbol is not known');
+  });
+});
+
+describe('request.security: no value from after the period completes', () => {
+  // Two extended-hours days of 60-minute bars, 04:00 to 19:00 New York, closes 1..32
+  const EXT: ChartContext = {
+    tickerid: 'NASDAQ:AAPL', timeframe: '60', timezone: 'America/New_York', sessionType: 'extended',
+    session: { session: '0400-2000' }, regularSession: { session: '0930-1600' },
+  };
+  const ext: Bar[] = [8, 9].flatMap((d, k) =>
+    Array.from({ length: 16 }, (_, j) => {
+      const c = k * 16 + j + 1;
+      return { time: Date.UTC(2026, 8, d, j + 8) / 1000, open: c, high: c, low: c, close: c, volume: 1 };
+    })
+  );
+
+  it('the daily bar completed at 19:00 does not hold the next premarket bars', () => {
+    const v = run(() => [request.security('', 'D', () => close).toArray(), request.security('', 'D', () => high).toArray()], EXT, ext);
+    // 08/09 completes on its 19:00 bar (close 16); the premarket of 09/09 still shows it
+    for (const values of v) {
+      expect(values.slice(15, 22)).toEqual([16, 16, 16, 16, 16, 16, 16]);
+      expect(values[31]).toBe(32);
+    }
+    // lookahead on: the 09/09 premarket bars still show the 08/09 period
+    const on = run(() => request.security('', 'D', () => close, barmerge.gaps_off, barmerge.lookahead_on).toArray(), EXT, ext);
+    expect(on.slice(16, 22)).toEqual([16, 16, 16, 16, 16, 16]);
+  });
+
+  it('a series computed outside the expression throws instead of being read by period index', () => {
+    expect(() => run(() => {
+      const s = ta.sma(close, 2);
+      return request.security('', 'D', () => s);
+    })).toThrow(/compute the series inside the expression/i);
+    expect(() => run(() => {
+      const s = eachBar((c) => c.close);
+      return request.security('', 'D', () => s.add(1));
+    })).toThrow(/compute the series inside the expression/i);
+    // on the chart timeframe the bars are the same: no error
+    expect(run(() => {
+      const s = ta.sma(close, 1);
+      return request.security('', '60', () => s).toArray();
+    })).toEqual(BARS.map((b) => b.close));
+  });
+});
+
+describe('history offsets cannot read future bars', () => {
+  it('a negative offset throws', () => {
+    expect(() => run(() => close.offset(-1))).toThrow(RangeError);
+    expect(() => run(() => eachBar((c) => c.get(close, -1)))).toThrow('cannot be negative');
+    expect(run(() => eachBar((c) => c.get(close, 1)).toArray()[1])).toBe(BARS[0]!.close);
   });
 });

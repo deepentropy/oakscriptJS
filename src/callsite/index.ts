@@ -37,7 +37,7 @@
  * @module callsite
  */
 
-import type { Source } from '../types';
+import type { Source } from '../types/index.js';
 
 /**
  * Runs `fn` on the bars where `called` is true only, like a ta.* call inside an `if` block.

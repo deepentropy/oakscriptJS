@@ -10,7 +10,7 @@
  * - a map holds at most 50,000 key-value pairs
  */
 
-import type { PineArray, PineMap, PineMapKey, bool, int } from '../types';
+import type { PineArray, PineMap, PineMapKey, bool, int } from '../types/index.js';
 
 /** Maximum number of key-value pairs in a PineScript map. */
 export const MAX_SIZE = 50_000;

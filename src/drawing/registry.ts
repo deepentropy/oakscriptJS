@@ -15,7 +15,7 @@
  * @module drawing/registry
  */
 
-import type { Box, Label, Line, Linefill, Polyline } from '../types';
+import type { Box, Label, Line, Linefill, Polyline } from '../types/index.js';
 
 export type DrawingKind = 'line' | 'label' | 'box' | 'polyline' | 'linefill';
 

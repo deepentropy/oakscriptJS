@@ -9,7 +9,7 @@
  * @version 6
  */
 
-import type { ChartPoint } from '../types';
+import type { ChartPoint } from '../types/index.js';
 
 // Re-export the ChartPoint type for convenience
 export type { ChartPoint };

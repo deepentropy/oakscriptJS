@@ -2,49 +2,48 @@
  * OakScriptJS - Simplified PineScript-like library for JavaScript
  *
  * This library provides Series-based lazy evaluation and technical analysis functions
- * for building trading indicators. Complexity is handled by the OakScriptEngine transpiler.
+ * for building trading indicators. The PineScript-style script API is in `oakscriptjs/script`.
  *
  * Key features:
- * - Series class for lazy evaluation and operator chaining
+ * - Series class for lazy evaluation and method chaining
  * - Core TA functions (array-based)
  * - TA-Series wrappers (Series-based)
- * - Native operator support via Babel plugin
  *
  * @packageDocumentation
  */
 
 // Export all types
-export * from './types';
-export * from './types/metadata';
+export * from './types/index.js';
+export * from './types/metadata.js';
 
 // Export core namespaces (array-based functions)
-import * as taCore from './ta';
-import * as math from './math';
-import * as array from './array';
-import * as map from './map';
-import * as str from './str';
-import * as color from './color';
-import * as time from './time';
-import * as timeframe from './timeframe';
-import * as matrix from './matrix';
-import * as line from './line';
-import * as box from './box';
-import * as label from './label';
-import * as linefill from './linefill';
-import * as chartPoint from './chartpoint';
-import * as polyline from './polyline';
-import * as text from './text';
-import * as compare from './compare';
-import * as callsite from './callsite';
+import * as taCore from './ta/index.js';
+import * as math from './math/index.js';
+import * as array from './array/index.js';
+import * as map from './map/index.js';
+import * as str from './str/index.js';
+import * as color from './color/index.js';
+import * as time from './time/index.js';
+import * as timeframe from './timeframe/index.js';
+import * as matrix from './matrix/index.js';
+import * as line from './line/index.js';
+import * as box from './box/index.js';
+import * as label from './label/index.js';
+import * as linefill from './linefill/index.js';
+import * as chartPoint from './chartpoint/index.js';
+import * as polyline from './polyline/index.js';
+import * as text from './text/index.js';
+import * as compare from './compare/index.js';
+import * as callsite from './callsite/index.js';
 
 export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text, compare, callsite };
 
 // Export Series class (self-contained, no context)
-export { Series, BarData } from './runtime/series';
-export type { SeriesExtractor } from './runtime/series';
+export { Series, BarData } from './runtime/series.js';
+export type { SeriesExtractor } from './runtime/series.js';
 
 // Export TA-Series namespace (Series-based wrappers)
-import * as ta from './ta-series';
+import * as ta from './ta-series.js';
 export { ta };
 
 // Export metadata types for indicator return values
@@ -66,21 +65,21 @@ export type {
   LineStyle,
   PlotDisplay,
   InputType
-} from './types/metadata';
+} from './types/metadata.js';
 
 // Re-export commonly used functions for convenience
-export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr, cum, vwap } from './ta-series';
-export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math';
-export { rgb, from_hex as color_from_hex, new_color } from './color';
+export { sma, ema, rsi, macd, bb, stdev, crossover, crossunder, change, tr, atr, cum, vwap } from './ta-series.js';
+export { abs, ceil, floor, round, max, min, avg, sum, sqrt, pow, exp, log, sin, cos, tan } from './math/index.js';
+export { rgb, from_hex as color_from_hex, new_color } from './color/index.js';
 
 // Export chart data utilities
-export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSource, getSourceSeries, at, div } from './utils';
+export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSource, getSourceSeries, at, div } from './utils/index.js';
 
 // Export libraries (ZigZag, etc.)
-export * from './lib';
+export * from './lib/index.js';
 
 // Export helper functions for generated indicators (PineScript compatibility)
-export {isNA as na, nz, fixnan} from './utils';
+export {isNA as na, nz, fixnan} from './utils/index.js';
 
 // Export indicator infrastructure
 export {
@@ -90,7 +89,7 @@ export {
   type IndicatorContext,
   type IndicatorInstance,
   type IndicatorConstructor,
-} from './indicator';
+} from './indicator.js';
 
 export {
   input,
@@ -102,7 +101,7 @@ export {
   type StringInputOptions,
   type TimeInputOptions,
   type SourceType,
-} from './input';
+} from './input.js';
 
 export {
   plot as plotHelper,
@@ -111,9 +110,9 @@ export {
   type TimeValuePair,
   type PlotOptions as PlotHelperOptions,
   type PlotResult,
-} from './plot';
+} from './plot.js';
 
-// Runtime exports - global context runtime for transpiler-generated indicators
+// Runtime exports - global context runtime (setContext, plot, hline) drawing through a ChartAdapter
 export {
   setContext,
   clearContext,
@@ -123,7 +122,7 @@ export {
   plot,
   hline,
   clearPlots,
-} from './runtime/runtime';
+} from './runtime/runtime.js';
 
 export {
   input_int,
@@ -134,7 +133,7 @@ export {
   input_timeframe,
   input_session,
   input_time,
-} from './runtime/inputs';
+} from './runtime/inputs.js';
 
 export type {
   OakScriptContext,
@@ -149,7 +148,7 @@ export type {
   HLineConfig,
   FillConfig,
   ArrowConfig,
-} from './runtime/types';
+} from './runtime/types.js';
 
 // Strategy types and constants (the script API forwards strategy.* calls to a host engine)
 export {
@@ -157,14 +156,15 @@ export {
   STRATEGY_DEFAULTS,
   STRATEGY_NUMBER_VARIABLES,
   STRATEGY_TEXT_VARIABLES,
-} from './strategy';
-export type * from './strategy';
+} from './strategy/index.js';
+export type * from './strategy/index.js';
 
-export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter';
-export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter';
+export { LightweightChartsAdapter } from './runtime/adapters/LightweightChartsAdapter.js';
+export type { LightweightSeriesDefinitions } from './runtime/adapters/LightweightChartsAdapter.js';
+export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter.js';
 
 // Version
-export const VERSION = '0.8.2';
+export const VERSION = '0.9.0';
 
 /**
  * Library information
@@ -175,11 +175,10 @@ export const info = {
   description: 'Simplified PineScript-like library - Series + TA functions',
   features: {
     series: 'Lazy evaluation with Series class',
-    operators: 'Native operators with Babel plugin (high - low)',
     ta: 'Technical analysis functions (Series and array-based)',
-    runtime: 'Global context runtime for transpiler-generated indicators',
-    indicator: 'Indicator function with automatic pane management',
-    minimal: 'No DSL layer - complexity in transpiler'
+    script: 'PineScript-style script API (oakscriptjs/script): indicator, strategy, inputs, plots, request.security',
+    runtime: 'Global context runtime drawing through a ChartAdapter',
+    indicator: 'Indicator function with automatic pane management'
   },
   namespaces: {
     core: ['ta', 'math', 'array', 'map', 'str', 'color', 'time', 'timeframe', 'matrix'],
@@ -190,7 +189,7 @@ export const info = {
 };
 
 // PineScript compatibility stubs - functions that have no runtime effect
-// These are no-ops that allow transpiled code to run without modification
+// These are no-ops so that PineScript-style code runs without modification
 
 /**
  * alertcondition() - Stub for PineScript alert configuration

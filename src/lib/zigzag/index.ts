@@ -10,4 +10,4 @@ export {
   type ZigZagPoint,
   type ZigZagPivot,
   type ZigZagResult,
-} from './zigzag';
+} from './zigzag.js';

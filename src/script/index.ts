@@ -33,7 +33,7 @@
  * @module script
  */
 
-import type { Bar } from '../types';
+import type { Bar } from '../types/index.js';
 import type {
   ArrowData,
   BarColorData,
@@ -45,7 +45,7 @@ import type {
   MarkerSize,
   ShapeStyle,
   TimeValue,
-} from '../types/metadata';
+} from '../types/metadata.js';
 import type {
   ArrowConfig,
   BarColorConfig,
@@ -54,28 +54,28 @@ import type {
   InputConfig,
   PlotConfig,
   ShapeConfig,
-} from '../runtime/types';
-import { BarData, Series } from '../runtime/series';
-import * as taSeries from '../ta-series';
-import * as colorCore from '../color';
-import { fixnan as fixnanValues, isNA, nz } from '../utils';
-import * as lineCore from '../line';
-import * as labelCore from '../label';
-import * as boxCore from '../box';
-import * as linefillCore from '../linefill';
-import * as polylineCore from '../polyline';
-import * as chartPointCore from '../chartpoint';
-import * as textCore from '../text';
-import * as mathCore from '../math';
-import { resetDrawings, setDrawingLimits } from '../drawing/registry';
-import * as timeframeCore from '../timeframe';
-import * as timeCore from '../time';
-import * as strCore from '../str';
-import { formatMessage } from '../str/messageformat';
-import { TradingCalendar, type SessionSpec } from '../session/calendar';
-import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars';
-import { heikinAshi, mapToChart, periodsOf, resample } from '../security/resample';
-import type { ChartPoint } from '../types';
+} from '../runtime/types.js';
+import { BarData, Series } from '../runtime/series.js';
+import * as taSeries from '../ta-series.js';
+import * as colorCore from '../color/index.js';
+import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
+import * as lineCore from '../line/index.js';
+import * as labelCore from '../label/index.js';
+import * as boxCore from '../box/index.js';
+import * as linefillCore from '../linefill/index.js';
+import * as polylineCore from '../polyline/index.js';
+import * as chartPointCore from '../chartpoint/index.js';
+import * as textCore from '../text/index.js';
+import * as mathCore from '../math/index.js';
+import { resetDrawings, setDrawingLimits } from '../drawing/registry.js';
+import * as timeframeCore from '../timeframe/index.js';
+import * as timeCore from '../time/index.js';
+import * as strCore from '../str/index.js';
+import { formatMessage } from '../str/messageformat.js';
+import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
+import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars.js';
+import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
+import type { ChartPoint } from '../types/index.js';
 import {
   STRATEGY_CONSTANTS,
   STRATEGY_DEFAULTS,
@@ -96,7 +96,7 @@ import {
   type StrategyTextVariable,
   type StrategyTrade,
   type StrategyVariable,
-} from '../strategy';
+} from '../strategy/index.js';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -1000,6 +1000,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
       return b[idx]!.volume ?? NaN;
     },
     get(src: Series, offset: number = 0): number {
+      if (offset < 0) throw new RangeError(`c.get(): the offset cannot be negative (${offset} would read a future bar).`);
       let vals = cache.get(src);
       if (!vals) {
         vals = src.toArray();
@@ -1064,8 +1065,20 @@ function given<T extends object>(options: T): T {
   return out as T;
 }
 
+/** The engine for a `strategy.*` read: the values are per bar, so they are read inside strategy.eachBar(). */
+function readEngine(caller: string): StrategyEngine {
+  const engine = strategyEngine(caller);
+  if (!strategyRun(caller).inLoop) throw new Error(`${caller} must be read inside strategy.eachBar().`);
+  return engine;
+}
+
+/** `strategy.*` variables that do not change from bar to bar, readable anywhere in the script. */
+const STRATEGY_CONSTANT_VARIABLES: ReadonlySet<StrategyVariable> = new Set(['initial_capital', 'account_currency']);
+
 function strategyVariable(name: StrategyVariable): number | string {
-  const value = strategyEngine(`strategy.${name}`).get(name);
+  const caller = `strategy.${name}`;
+  const engine = STRATEGY_CONSTANT_VARIABLES.has(name) ? strategyEngine(caller) : readEngine(caller);
+  const value = engine.get(name);
   if (value === undefined) throw new Error(`strategy.${name} is not provided by the strategy engine.`);
   return value;
 }
@@ -1187,13 +1200,13 @@ const strategyMembers = {
     orderEngine('strategy.cancel_all()').cancel_all();
   },
   opentrade(index: number): StrategyTrade | undefined {
-    return strategyEngine('strategy.opentrade()').openTrade(index);
+    return readEngine('strategy.opentrade()').openTrade(index);
   },
   closedtrade(index: number): StrategyTrade | undefined {
-    return strategyEngine('strategy.closedtrade()').closedTrade(index);
+    return readEngine('strategy.closedtrade()').closedTrade(index);
   },
   default_entry_qty(fill_price: number): number {
-    const engine = strategyEngine('strategy.default_entry_qty()');
+    const engine = readEngine('strategy.default_entry_qty()');
     if (!engine.defaultEntryQty) throw new Error('strategy.default_entry_qty() is not provided by the strategy engine.');
     return engine.defaultEntryQty(fill_price);
   },
@@ -1627,7 +1640,14 @@ export const ticker = {
 export type SecurityValue = Series | number | boolean | Array<Series | number | boolean>;
 
 function valuesOf(value: Series | number | boolean, length: number): number[] {
-  return value instanceof Series ? value.toArray().slice() : new Array<number>(length).fill(Number(value));
+  if (!(value instanceof Series)) return new Array<number>(length).fill(Number(value));
+  if (value.bars !== ctxBars.bars) {
+    throw new Error(
+      'request.security(): the expression returned a series computed on the chart bars. ' +
+        'Compute the series inside the expression, e.g. () => ta.ema(close, 10).'
+    );
+  }
+  return value.toArray().slice();
 }
 
 /**
@@ -1681,7 +1701,10 @@ function security<T extends SecurityValue>(
     const reaches = times.map((t) => loaded.closeOf(t, chart.period) >= calendar.periodEnd(t, tf));
     ({ group, latest } = periodsOf(starts, dayPeriods, reaches));
     const unit = chartCtx.timeUnit === 'ms' ? 1 : 1000;
-    htf = resample(chartBars, starts.map((s) => s / unit)).bars;
+    // a higher-timeframe bar ends at the bar that completes it (no value from after the completion)
+    const after = afterCompletion(group, latest);
+    const kept = (_: unknown, i: number): boolean => !after[i];
+    htf = resample(chartBars.filter(kept), starts.map((s) => s / unit).filter(kept)).bars;
   }
   if (heikin) htf = heikinAshi(htf);
 
@@ -1791,7 +1814,7 @@ export function alertcondition(condition: Series, title: string, message?: strin
 // ── Convenience re-exports ───────────────────────────────────────────────────
 
 export { Series, BarData, isNA as na, nz };
-export { STRATEGY_DEFAULTS } from '../strategy';
+export { STRATEGY_DEFAULTS } from '../strategy/index.js';
 export type {
   StrategyCloseAllOptions,
   StrategyCloseOptions,
@@ -1811,7 +1834,7 @@ export type {
   StrategyTextVariable,
   StrategyTrade,
   StrategyVariable,
-} from '../strategy';
+} from '../strategy/index.js';
 
 /** PineScript `math.*`; `math.round_to_mintick(x)` uses `syminfo.mintick` of the chart context. */
 export const math = {
@@ -1821,7 +1844,7 @@ export const math = {
     return number instanceof Series ? mathCore.round_to_mintick(number, tick) : mathCore.round_to_mintick(number, tick);
   }) as typeof mathCore.round_to_mintick,
 };
-export * as compare from '../compare';
+export * as compare from '../compare/index.js';
 export type {
   Bar,
   IndicatorResult,

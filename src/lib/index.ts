@@ -5,4 +5,4 @@
  * ported from PineScript libraries.
  */
 
-export * from './zigzag';
+export * from './zigzag/index.js';

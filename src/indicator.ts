@@ -5,7 +5,7 @@
  * @module indicator
  */
 
-import type { Bar } from './types';
+import type { Bar } from './types/index.js';
 
 /**
  * Indicator metadata that defines how the indicator should be displayed

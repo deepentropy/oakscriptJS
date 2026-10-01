@@ -6,8 +6,8 @@
  * @module runtime/inputs
  */
 
-import type { InputConfig, InputOptions } from './types';
-import { getContext, recalculate } from './runtime';
+import type { InputConfig, InputOptions } from './types.js';
+import { getContext, recalculate } from './runtime.js';
 
 // Track registered inputs for idempotent registration
 const registeredInputs = new Map<string, boolean>();

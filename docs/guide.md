@@ -15,7 +15,33 @@
 
 ## Introduction
 
-OakScriptJS is a simplified JavaScript/TypeScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations**. For pre-built indicators, see the `@oakscript/indicators` package.
+OakScriptJS is a simplified JavaScript/TypeScript library that provides the computational core of PineScript's API. It focuses on **calculations and data transformations**. For pre-built indicators, see the [`lightweight-charts-indicators`](https://www.npmjs.com/package/lightweight-charts-indicators) package, built on OakScriptJS.
+
+### Which API to use
+
+| Need | API | Import |
+|------|-----|--------|
+| Write an indicator or a strategy the PineScript way (declarations, inputs, plots, `strategy.*`) | Script API | `oakscriptjs/script` |
+| Compute an indicator on plain number arrays, no chart | Array API (`taCore`, `math`, `array`...) | `oakscriptjs` |
+| Chain calculations on bar data in your own code | Series API (`Series`, `ta`) | `oakscriptjs` |
+
+The package works with `import` and `require`, in Node.js 18+, browsers and web workers.
+
+### Bars
+
+All APIs that take bars use this shape:
+
+```typescript
+import type { Bar } from 'oakscriptjs';
+
+const bars: Bar[] = [
+  { time: 1704067200, open: 100, high: 105, low: 99, close: 103, volume: 1200 },
+  { time: 1704153600, open: 103, high: 107, low: 102, close: 106, volume: 1500 },
+];
+```
+
+`time` is a UNIX time in seconds (the lightweight-charts unit). The script API also accepts milliseconds with
+`executeScript(body, bars, inputs, { timeUnit: 'ms' })`. Bars are in time order, oldest first.
 
 ### Core Capabilities
 
@@ -65,9 +91,6 @@ npm install oakscriptjs
 
 # pnpm
 pnpm add oakscriptjs
-
-# JSR
-npx jsr add oakscriptjs
 ```
 
 ### Quick Start: Basic Calculations
@@ -96,8 +119,8 @@ The Series class enables lazy evaluation and operator chaining:
 import {Series, ta} from 'oakscriptjs';
 
 const bars = [
-  { time: '2024-01-01', open: 100, high: 105, low: 99, close: 103 },
-  { time: '2024-01-02', open: 103, high: 107, low: 102, close: 106 },
+  { time: 1704067200, open: 100, high: 105, low: 99, close: 103 },
+  { time: 1704153600, open: 103, high: 107, low: 102, close: 106 },
   // ... more bars
 ];
 
@@ -125,23 +148,22 @@ import {BarData, Series, ta} from 'oakscriptjs';
 // Create BarData wrapper
 const barData = new BarData(bars);
 const close = Series.fromBars(barData, 'close');
-const sma = ta.sma(close, 20);
-
-// First computation - values are cached
-const values1 = sma.toArray();
+const range = close.sub(Series.fromBars(barData, 'open'));
+const values1 = range.toArray();  // computed and cached
 
 // Add new bar - version increments automatically
-barData.push({ time: '2024-01-03', open: 106, high: 108, low: 105, close: 107 });
+barData.push({ time: 1704240000, open: 106, high: 108, low: 105, close: 107 });
 
-// Series detects version change and recomputes automatically
-const values2 = sma.toArray();  // Fresh computation with new data
+// Lazy Series (fromBars, arithmetic, offset) detect the version change and recompute
+const values2 = range.toArray();  // one more value
+
+// ta.* results are computed when ta.* is called: call it again after the bars change
+const sma = ta.sma(close, 20).toArray();
 ```
 
-**Benefits:**
-- Automatic cache invalidation when data changes
-- No manual cache management required
-- Backward compatible - Series still accepts `Bar[]` directly
-- Efficient for streaming/real-time data updates
+- Lazy Series recompute when the bars change; there is no manual cache management.
+- A `ta.*` result keeps the values of the bars it was computed on.
+- `Series` still accepts `Bar[]` directly.
 
 ### Breaking Closure Chains with materialize()
 
@@ -154,6 +176,7 @@ const close = Series.fromBars(bars, 'close');
 const open = Series.fromBars(bars, 'open');
 const high = Series.fromBars(bars, 'high');
 const low = Series.fromBars(bars, 'low');
+const volume = Series.fromBars(bars, 'volume');
 
 // Without materialize: keeps all intermediate Series in memory
 const complex = close.sub(open).mul(high).div(low).add(volume);
@@ -209,7 +232,7 @@ math.abs(x)
 math.max(...values)
 math.min(...values)
 math.avg(...values)
-math.sum(...values)
+math.sum(source, length)   // sliding sum over `length` bars (PineScript math.sum)
 math.sqrt(x)
 math.pow(x, y)
 math.sin(x), math.cos(x), math.tan(x)
@@ -238,28 +261,35 @@ PineScript-style script: one statement per fact, no calculate() function and
 no separate config objects.
 
 ```typescript
-import { indicator, input, plot, hline, ta, color, volume } from 'oakscriptjs/script';
+import { executeScript, indicator, input, plot, hline, ta, color, volume } from 'oakscriptjs/script';
 
-indicator('Kinetic Slippage Index (KSI)', { shorttitle: 'KSI', overlay: false, precision: 6 });
+function ksiScript() {
+  indicator('Kinetic Slippage Index (KSI)', { shorttitle: 'KSI', overlay: false, precision: 6 });
 
-const volEmaLength = input.int(20, 'Volume EMA Period', { minval: 1 });
-const sigLength    = input.int(9,  'Signal Line Period', { minval: 1 });
-const sigSpike     = input.float(0, 'Spike Signal Level', { minval: 0 });
+  const volEmaLength = input.int(20, 'Volume EMA Period', { minval: 1 });
+  const sigLength    = input.int(9,  'Signal Line Period', { minval: 1 });
+  const sigSpike     = input.float(0, 'Spike Signal Level', { minval: 0 });
 
-const trueRange = ta.tr(true);
-const emaVolume = ta.ema(volume, volEmaLength);
-const ksi       = emaVolume.gt(0).iff(trueRange.pow(2).div(volume.mul(emaVolume)), 0).mul(1_000_000);
-const signal    = ta.ema(ksi, sigLength);
+  const trueRange = ta.tr(true);
+  const emaVolume = ta.ema(volume, volEmaLength);
+  const ksi       = emaVolume.gt(0).iff(trueRange.pow(2).div(volume.mul(emaVolume)), 0).mul(1_000_000);
+  const signal    = ta.ema(ksi, sigLength);
 
-const histColor = color.when(ksi.gt(signal), color.new(color.green, 30), color.new(color.red, 30));
+  const histColor = color.when(ksi.gt(signal), color.new(color.green, 30), color.new(color.red, 30));
 
-plot(ksi, 'KSI Histogram', { color: histColor, style: 'histogram', linewidth: 2 });
-plot(signal, 'Signal Line', { color: color.orange, linewidth: 1 });
-hline(0, 'Zero Line', { color: color.gray, linestyle: 'dashed' });
-hline(sigSpike, 'Spike Line', { color: color.orange, linestyle: 'dashed' });
+  plot(ksi, 'KSI Histogram', { color: histColor, style: 'histogram', linewidth: 2 });
+  plot(signal, 'Signal Line', { color: color.orange, linewidth: 1 });
+  hline(0, 'Zero Line', { color: color.gray, linestyle: 'dashed' });
+  hline(sigSpike, 'Spike Line', { color: color.orange, linestyle: 'dashed' });
+}
+
+const run = executeScript(ksiScript, bars);
 ```
 
 Key points:
+
+- The script body is a function: `executeScript()` runs it on the bars. The script API calls (`indicator`,
+  `input.*`, `plot`, `ta.*` on the builtins, `eachBar`...) work only while the body runs.
 
 - `indicator(title, opts)` declares metadata once.
 - `input.*(defval, title, opts)` declares the input AND returns its current
@@ -323,6 +353,7 @@ The Series API is vectorized. For logic PineScript writes with persistent state
 (`var`, `:=`) or imperative loops, `eachBar(fn)` runs a callback once per bar and
 collects the returns into a Series. Inside the callback values are plain numbers,
 so native JS operators, `if`/`for`/`while` and closure `let` variables work.
+`eachBar()` is called inside the script body, like the other script API calls.
 
 ```typescript
 import { eachBar, seriesOf, close, high } from 'oakscriptjs/script';
@@ -339,6 +370,28 @@ The bar context `c` exposes `c.open/high/low/close/volume`, `c.i` (bar_index),
 `c.n`, `c.time`, `c.get(series, offset)` for history on any Series, and
 `c.prev(offset)` for this block's own previous output. Accumulate a side array in
 the closure and wrap it with `seriesOf(values)` for a second output.
+
+- Compute the `ta.*` Series before `eachBar()` and read them with `c.get()`. A `ta.*` call inside the callback
+  does not keep a per-bar history (see callsite below for the stateful versions).
+- `c.get(src, k)` needs `k >= 0`: a negative offset would read a future bar, so it throws.
+- JS comparison operators do not follow the PineScript rules: PineScript compares with a 1e-10 tolerance, and a
+  comparison with `na` is false. Use `compare.eq/ne/lt/le/gt/ge(a, b)` from `oakscriptjs` for the PineScript
+  result (e.g. `compare.gt(c.close, c.get(ma))`).
+
+### Higher timeframes (request.security)
+
+`request.security(symbol, timeframe, expression, gaps?, lookahead?)` runs `expression` on higher-timeframe bars
+built from the chart bars (chart symbol only: `''`, `syminfo.tickerid`, `ticker.heikinashi(...)`).
+
+```typescript
+import { request, ta, close } from 'oakscriptjs/script';
+
+const dailyEma = request.security('', 'D', () => ta.ema(close, 20));
+```
+
+- With the default `barmerge.lookahead_off`, a period's value appears on the chart bar that completes it.
+- Compute the series **inside** the expression. A series computed outside runs on the chart bars, not on the
+  higher-timeframe bars, so `request.security('', 'D', () => myEma)` throws.
 
 ### ta.* calls in conditional code (callsite)
 
@@ -392,8 +445,10 @@ properties in `strategyConfig`.
 
 - Order options use the PineScript argument names (`from_entry`, `qty_percent`, `trail_points`...). An
   `na` (NaN) option is removed before the call; the deprecated `when` argument does not exist.
-- Order calls must be inside `strategy.eachBar()`. Variables (`strategy.position_size`,
-  `strategy.equity`...) can also be read after it (final state).
+- Order calls must be inside `strategy.eachBar()`, and so must the reads of per-bar values
+  (`strategy.position_size`, `strategy.equity`, `strategy.opentrade(i)`, `strategy.default_entry_qty()`...):
+  outside the loop they throw, because the engine's final state would be a future value for the earlier
+  bars. `strategy.initial_capital` and `strategy.account_currency` do not change and can be read anywhere.
 - `strategy.opentrades.entry_price(i)` is written `strategy.opentrade(i)?.entry_price`, and
   `strategy.closedtrades.profit(i)` is written `strategy.closedtrade(i)?.profit`.
 - A variable, `strategy.risk.*` rule or `strategy.default_entry_qty()` that the engine does not provide
@@ -518,6 +573,24 @@ class BarData {
   static from(bars: Bar[]): BarData
 }
 ```
+
+#### LightweightChartsAdapter
+
+`ChartAdapter` for lightweight-charts v5, used by the global-context runtime (`setContext`, `plot`, `hline`).
+OakScriptJS does not import lightweight-charts: pass the library's series definitions.
+
+```typescript
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { LightweightChartsAdapter } from 'oakscriptjs';
+
+const chart = createChart(container);
+const candles = chart.addSeries(CandlestickSeries);
+const adapter = new LightweightChartsAdapter(chart, { LineSeries, HistogramSeries }, candles);
+adapter.addSeries('histogram', { color: '#26a69a', pane: 1 });  // pane: lightweight-charts pane index
+```
+
+`LineSeries` is required; `HistogramSeries`, `AreaSeries`, `BaselineSeries` and `BarSeries` are needed only for
+those series types.
 
 #### Metadata Types
 

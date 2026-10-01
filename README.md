@@ -14,6 +14,16 @@ OakScriptJS is a TypeScript/JavaScript library that provides PineScript v6 compa
 npm install oakscriptjs
 ```
 
+### Which API to use
+
+| Need | API | Import |
+|------|-----|--------|
+| Write an indicator or a strategy the PineScript way | Script API | `oakscriptjs/script` |
+| Compute an indicator on plain number arrays | Array API (`taCore`, `math`, `array`...) | `oakscriptjs` |
+| Chain calculations on bar data in your own code | Series API (`Series`, `ta`) | `oakscriptjs` |
+
+ES modules and CommonJS, with TypeScript types. Node.js 18+, browsers and web workers. No runtime dependencies.
+
 ### Calculate an indicator (array API)
 
 ```typescript
@@ -31,6 +41,14 @@ The `oakscriptjs/script` entry reads like PineScript: one statement per fact.
 
 ```typescript
 import { executeScript, indicator, input, plot, plotshape, bgcolor, ta, color, close } from 'oakscriptjs/script';
+import type { Bar } from 'oakscriptjs';
+
+// time: UNIX seconds (the lightweight-charts unit); oldest bar first
+const bars: Bar[] = [
+  { time: 1704067200, open: 100, high: 105, low: 99, close: 103, volume: 1200 },
+  { time: 1704153600, open: 103, high: 107, low: 102, close: 106, volume: 1500 },
+  // ...
+];
 
 function body() {
   indicator('SMA cross', { overlay: true });
@@ -47,17 +65,21 @@ const run = executeScript(body, bars);
 // run.result.plots / markers / bgcolors, run.inputConfig, run.plotConfig, ...
 ```
 
-For stateful logic PineScript writes with `var`/`:=`/loops, use `eachBar` (values are plain numbers, so native JS operators work):
+For stateful logic PineScript writes with `var`/`:=`/loops, use `eachBar` inside the script body. The values are plain numbers, so JS operators and `if`/`for` work. For PineScript comparison rules (1e-10 tolerance, `na` compares false), use `compare.gt(a, b)`, `compare.eq(a, b)`... from `oakscriptjs`.
 
 ```typescript
-import { eachBar, close } from 'oakscriptjs/script';
+import { executeScript, indicator, plot, eachBar, close } from 'oakscriptjs/script';
 
-let dir = 0;                              // var dir = 0
-const trend = eachBar((c) => {
-  if (c.close > c.get(close, 1)) dir = 1; // dir := 1
-  else if (c.close < c.get(close, 1)) dir = -1;
-  return dir;
-});
+executeScript(() => {
+  indicator('Trend');
+  let dir = 0;                              // var dir = 0
+  const trend = eachBar((c) => {
+    if (c.close > c.get(close, 1)) dir = 1; // dir := 1
+    else if (c.close < c.get(close, 1)) dir = -1;
+    return dir;
+  });
+  plot(trend, 'Trend');
+}, bars);
 ```
 
 ## Documentation

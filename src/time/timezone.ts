@@ -33,7 +33,16 @@ function hasTimeZoneCase(name: string): boolean {
 
 type Zone =
   | { readonly kind: 'fixed'; readonly offsetMs: number }
-  | { readonly kind: 'iana'; readonly format: Intl.DateTimeFormat };
+  | {
+      readonly kind: 'iana';
+      readonly format: Intl.DateTimeFormat;
+      /** Offset of each UTC hour (`floor(time / 1 h)`); null for an hour with an offset change inside */
+      readonly hours: Map<number, number | null>;
+    };
+
+const MS_PER_HOUR = 3_600_000;
+/** Cached hours per zone before the cache restarts (about 11 years of hours) */
+const MAX_CACHED_HOURS = 100_000;
 
 const zones = new Map<string, Zone>();
 
@@ -71,18 +80,36 @@ function resolveZone(timezone: string): Zone {
     } catch {
       throw invalid();
     }
-    zone = { kind: 'iana', format };
+    zone = { kind: 'iana', format, hours: new Map() };
   }
   zones.set(timezone, zone);
   return zone;
 }
 
-/** Offset of the zone from UTC at instant `time`, in milliseconds (local = UTC + offset). */
+/**
+ * Offset of the zone from UTC at instant `time`, in milliseconds (local = UTC + offset).
+ * An offset change happens at most once in a UTC hour, so when the first and the last second of the hour have the
+ * same offset, the whole hour has it: it is computed once and cached.
+ */
 function offsetAt(zone: Zone, time: number): number {
   if (zone.kind === 'fixed') return zone.offsetMs;
+  const hour = Math.floor(time / MS_PER_HOUR);
+  let offset = zone.hours.get(hour);
+  if (offset === undefined) {
+    const first = formattedOffset(zone.format, hour * MS_PER_HOUR);
+    const last = formattedOffset(zone.format, hour * MS_PER_HOUR + MS_PER_HOUR - MS_PER_SECOND);
+    offset = first === last ? first : null;
+    if (zone.hours.size >= MAX_CACHED_HOURS) zone.hours.clear();
+    zone.hours.set(hour, offset);
+  }
+  return offset ?? formattedOffset(zone.format, time);
+}
+
+/** Offset of the zone at instant `time` (whole second), from the host's `Intl` time zone data. */
+function formattedOffset(format: Intl.DateTimeFormat, time: number): number {
   const wholeSecond = Math.floor(time / 1000) * 1000;
   const f: Record<string, number> = {};
-  for (const part of zone.format.formatToParts(wholeSecond)) {
+  for (const part of format.formatToParts(wholeSecond)) {
     if (part.type !== 'literal') f[part.type] = Number(part.value);
   }
   const local = Date.UTC(f.year!, f.month! - 1, f.day!, f.hour!, f.minute!, f.second!);

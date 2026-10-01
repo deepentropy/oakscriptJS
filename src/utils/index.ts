@@ -3,10 +3,10 @@
  * These are internal helpers and not part of the PineScript API
  */
 
-import type { series_float, int, float, Source, Bar, OHLC } from '../types';
-import { sma, ema, wma, rma } from '../ta';
-import { Series } from '../runtime/series';
-import { isDeleted } from '../drawing/registry';
+import type { series_float, int, float, Source, Bar, OHLC } from '../types/index.js';
+import { sma, ema, wma, rma } from '../ta/index.js';
+import { Series } from '../runtime/series.js';
+import { isDeleted } from '../drawing/registry.js';
 
 /**
  * Validates that a series has sufficient data for a given length

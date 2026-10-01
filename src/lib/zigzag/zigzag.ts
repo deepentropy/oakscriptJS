@@ -7,7 +7,7 @@
  * Based on the PineScript ZigZag library v8.
  */
 
-import type { Bar } from '../../types';
+import type { Bar } from '../../types/index.js';
 
 // ============ Types ============
 

@@ -1,43 +1,56 @@
 {
   "name": "oakscriptjs",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "type": "module",
   "description": "PineScript v6 compatible technical analysis library for JavaScript/TypeScript",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     },
     "./runtime": {
-      "types": "./dist/runtime/index.d.ts",
-      "import": "./dist/runtime/index.mjs",
-      "require": "./dist/runtime/index.cjs"
+      "import": {
+        "types": "./dist/esm/runtime/index.d.ts",
+        "default": "./dist/esm/runtime/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/runtime/index.d.ts",
+        "default": "./dist/cjs/runtime/index.js"
+      }
     },
     "./script": {
-      "types": "./dist/script/index.d.ts",
-      "import": "./dist/script/index.mjs",
-      "require": "./dist/script/index.cjs"
-    }
+      "import": {
+        "types": "./dist/esm/script/index.d.ts",
+        "default": "./dist/esm/script/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/script/index.d.ts",
+        "default": "./dist/cjs/script/index.js"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:runtime:esm && npm run build:runtime:cjs && npm run build:script:esm && npm run build:script:cjs && npm run build:types",
-    "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.cjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:runtime:esm": "esbuild src/runtime/index.ts --bundle --format=esm --outfile=dist/runtime/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:runtime:cjs": "esbuild src/runtime/index.ts --bundle --format=cjs --outfile=dist/runtime/index.cjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:script:esm": "esbuild src/script/index.ts --bundle --format=esm --outfile=dist/script/index.mjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:script:cjs": "esbuild src/script/index.ts --bundle --format=cjs --outfile=dist/script/index.cjs --platform=neutral --external:@types/* --external:lightweight-charts",
-    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json --outDir dist/esm",
+    "build:cjs": "esbuild \"src/**/*.ts\" --outdir=dist/cjs --format=cjs --platform=neutral --target=es2022 --sourcemap --log-level=warning && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist/cjs && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\"",
+    "check:package": "attw --pack .",
     "clean": "rimraf dist",
     "dev": "tsc --watch",
     "test": "jest",
@@ -74,7 +87,13 @@
   "peerDependencies": {
     "lightweight-charts": "^5.0.0"
   },
+  "peerDependenciesMeta": {
+    "lightweight-charts": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
     "@types/jest": "^29.5.11",
     "@types/node": "^22.10.0",
@@ -90,5 +109,16 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "typesVersions": {
+    "*": {
+      "runtime": [
+        "./dist/cjs/runtime/index.d.ts"
+      ],
+      "script": [
+        "./dist/cjs/script/index.d.ts"
+      ]
+    }
+  },
+  "sideEffects": false
 }

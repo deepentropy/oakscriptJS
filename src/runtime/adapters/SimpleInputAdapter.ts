@@ -4,7 +4,7 @@
  * @module runtime/adapters/SimpleInputAdapter
  */
 
-import type { InputAdapter, InputConfig } from '../types';
+import type { InputAdapter, InputConfig } from '../types.js';
 
 /**
  * Simple in-memory input adapter

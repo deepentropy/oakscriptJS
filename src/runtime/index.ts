@@ -1,7 +1,7 @@
 /**
  * @fileoverview OakScriptJS Runtime Module
  * Provides global context management, plot functions, and input handling
- * for transpiler-generated indicators
+ * for indicators that draw through a ChartAdapter
  * @module runtime
  */
 
@@ -16,7 +16,7 @@ export {
   hline,
   clearPlots,
   getActivePlots,
-} from './runtime';
+} from './runtime.js';
 
 // Input function exports
 export {
@@ -31,7 +31,7 @@ export {
   enableAutoRecalculate,
   disableAutoRecalculate,
   resetInputs,
-} from './inputs';
+} from './inputs.js';
 
 // Type exports
 export type {
@@ -44,8 +44,9 @@ export type {
   InputOptions,
   OhlcvData,
     PlotConfig,
-} from './types';
+} from './types.js';
 
 // Adapter exports
-export { LightweightChartsAdapter } from './adapters/LightweightChartsAdapter';
-export { SimpleInputAdapter } from './adapters/SimpleInputAdapter';
+export { LightweightChartsAdapter } from './adapters/LightweightChartsAdapter.js';
+export type { LightweightSeriesDefinitions } from './adapters/LightweightChartsAdapter.js';
+export { SimpleInputAdapter } from './adapters/SimpleInputAdapter.js';

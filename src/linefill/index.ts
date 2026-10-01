@@ -10,8 +10,8 @@
  * @version 6
  */
 
-import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
-import type { Linefill, Line, color } from '../types';
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry.js';
+import type { Linefill, Line, color } from '../types/index.js';
 
 /**
  * Creates a new linefill object that fills the area between two lines.

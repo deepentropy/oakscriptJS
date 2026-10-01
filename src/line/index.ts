@@ -10,8 +10,8 @@
  * @version 6
  */
 
-import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry';
-import type { ChartPoint, Line, color } from '../types';
+import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry.js';
+import type { ChartPoint, Line, color } from '../types/index.js';
 
 type LineXloc = 'bar_index' | 'bar_time';
 type LineExtend = 'none' | 'left' | 'right' | 'both';
