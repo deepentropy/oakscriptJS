@@ -74,7 +74,7 @@ function strictWindowMean(source: Source, length: simple_int): series_float {
  * @remarks
  * - In EMA, weighting factors decrease exponentially
  * - Formula: `EMA = alpha * source + (1 - alpha) * EMA[1]`, where `alpha = 2 / (length + 1)`
- * - `na` values in the source series are ignored
+ * - `na` values (also +/-Infinity) in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
  * - May cause indicator repainting
  *
@@ -89,14 +89,15 @@ export function ema(source: Source, length: simple_int): series_float {
   const len = Math.floor(length);
   const multiplier = 2 / (len + 1);
 
-  // SMA seed: slide past leading NaN, then collect `len` valid values
+  // SMA seed: slide past leading NaN, then collect `len` valid values.
+  // An infinite value is na, as in PineScript.
   let firstValidIndex = -1;
   let validCount = 0;
   let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
     const val = source[i];
-    if (val !== undefined && !isNaN(val)) {
+    if (val !== undefined && Number.isFinite(val)) {
       initSum += val;
       validCount++;
       if (validCount === len) {
@@ -116,7 +117,7 @@ export function ema(source: Source, length: simple_int): series_float {
       result.push(emaValue);
     } else {
       const val = source[i];
-      if (val !== undefined && !isNaN(val)) {
+      if (val !== undefined && Number.isFinite(val)) {
         emaValue = (val - emaValue) * multiplier + emaValue;
         result.push(emaValue);
       } else {
@@ -276,13 +277,13 @@ export function bb(
  * @returns Standard deviation series (na until `length` non-na values exist)
  *
  * @remarks
- * As in PineScript: `na` values are skipped, the window holds the last `length` non-na
- * values, and a bar whose own value is `na` still gets a result.
+ * As in PineScript: `na` values (also +/-Infinity) are skipped, the window holds the last
+ * `length` non-na values, and a bar whose own value is `na` still gets a result.
  */
 export function stdev(source: Source, length: simple_int, biased: simple_bool = true): series_float {
   const len = Math.floor(length);
   return source.map((_, i) => {
-    const values = lastValues(source, i, len);
+    const values = lastValues(source, i, len, isNotFinite);
     if (!values) return NaN;
     const mean = values.reduce((a, b) => a + b, 0) / len;
     const squares = values.reduce((a, b) => a + (b - mean) * (b - mean), 0);
@@ -290,12 +291,22 @@ export function stdev(source: Source, length: simple_int, biased: simple_bool = 
   });
 }
 
-/** The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist. */
-function lastValues(source: Source, i: number, length: number): number[] | null {
+const isNotFinite = (x: number): boolean => !Number.isFinite(x);
+
+/**
+ * The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist.
+ * `isNa` tells which values are skipped (NaN by default).
+ */
+function lastValues(
+  source: Source,
+  i: number,
+  length: number,
+  isNa: (x: number) => boolean = Number.isNaN
+): number[] | null {
   const values: number[] = [];
   for (let j = i; j >= 0 && values.length < length; j--) {
     const x = source[j]!;
-    if (!Number.isNaN(x)) values.push(x);
+    if (!isNa(x)) values.push(x);
   }
   return values.length === length ? values : null;
 }
@@ -658,8 +669,9 @@ export function supertrend(
  * - Moving average used in RSI calculation
  * - Alpha = 1 / length (different from EMA which uses alpha = 2 / (length + 1))
  * - First value is initialized with SMA, then uses exponential smoothing
- * - Formula: `RMA = alpha * source + (1 - alpha) * RMA[1]`
- * - `na` values in the source series are ignored
+ * - Formula: `RMA = (source + (length - 1) * RMA[1]) / length`, evaluated in this order as in PineScript
+ *   (equal to `alpha * source + (1 - alpha) * RMA[1]`, but bit for bit)
+ * - `na` values (also +/-Infinity) in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
  *
  * @example
@@ -672,18 +684,18 @@ export function supertrend(
  */
 export function rma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
-    // Floor the length to match PineScript's auto-truncation of float to int
-    const len = Math.floor(length);
-    const alpha = 1 / len;
+  // Floor the length to match PineScript's auto-truncation of float to int
+  const len = Math.floor(length);
 
-  // Find the first index where we have enough non-NaN values for SMA initialization
+  // Find the first index where we have enough non-na values for SMA initialization.
+  // An infinite value is na, as in PineScript.
   let firstValidIndex = -1;
   let validCount = 0;
   let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
     const val = source[i];
-    if (val !== undefined && !isNaN(val)) {
+    if (val !== undefined && Number.isFinite(val)) {
       initSum += val;
       validCount++;
       if (validCount === len) {
@@ -706,9 +718,10 @@ export function rma(source: Source, length: simple_int): series_float {
       result.push(rmaValue);
     } else {
       const val = source[i];
-      if (val !== undefined && !isNaN(val)) {
-        // RMA formula: alpha * source + (1 - alpha) * RMA[1]
-        rmaValue = alpha * val + (1 - alpha) * rmaValue;
+      if (val !== undefined && Number.isFinite(val)) {
+        // PineScript evaluates (source + (length - 1) * RMA[1]) / length; the form
+        // alpha * source + (1 - alpha) * RMA[1] differs in the last bits
+        rmaValue = (val + (len - 1) * rmaValue) / len;
         result.push(rmaValue);
       } else {
         // na source: na on this bar; the next bar continues from the last value (as in PineScript)
@@ -744,13 +757,13 @@ export function wma(source: Source, length: simple_int): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // PineScript: na on a bar with an na source; otherwise the last `len` bars, each na
-  // replaced by the previous non-na value
+  // PineScript: na on a bar with an na source (also +/-Infinity); otherwise the last `len` bars,
+  // each na replaced by the previous non-na value
   const filled: number[] = [];
   let last = NaN;
   for (let i = 0; i < source.length; i++) {
     const v = source[i];
-    const isNa = v === undefined || v === null || Number.isNaN(v);
+    const isNa = v === undefined || v === null || !Number.isFinite(v);
     if (!isNa) last = v;
     filled.push(last);
     if (isNa || i < len - 1) {
@@ -1118,9 +1131,10 @@ export function variance(source: Source, length: simple_int, biased: simple_bool
  *
  * @remarks
  * - Returns the middle value when values are sorted
- * - For even-length series, returns average of two middle values
- * - `na` values in the source series are ignored
- * - The function calculates on the `length` quantity of non-`na` values
+ * - For an even length, returns the average of the two middle values
+ * - As in PineScript: `na` values are skipped, the window holds the last `length` non-na values
+ *   (going back as many bars as needed), and a bar whose own value is `na` still gets a result
+ * - Returns NaN until `length` non-na values exist
  * - More robust to outliers than mean (SMA)
  *
  * @example
@@ -1130,40 +1144,14 @@ export function variance(source: Source, length: simple_int, biased: simple_bool
  * ```
  */
 export function median(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-    } else {
-      // Collect non-NaN values
-      const values: number[] = [];
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j]!)) {
-          values.push(source[i - j]!);
-        }
-      }
-
-      if (values.length === 0) {
-        result.push(NaN);
-      } else {
-        // Sort values
-        values.sort((a, b) => a - b);
-        
-        // Calculate median
-        const mid = Math.floor(values.length / 2);
-        if (values.length % 2 === 0) {
-          // Even number of values - average of two middle values
-          result.push((values[mid - 1]! + values[mid]!) / 2);
-        } else {
-          // Odd number of values - middle value
-          result.push(values[mid]!);
-        }
-      }
-    }
-  }
-
-  return result;
+  const len = Math.floor(length);
+  return source.map((_, i) => {
+    const values = lastValues(source, i, len);
+    if (!values) return NaN;
+    values.sort((a, b) => a - b);
+    const mid = Math.floor(len / 2);
+    return len % 2 === 0 ? (values[mid - 1]! + values[mid]!) / 2 : values[mid]!;
+  });
 }
 
 /**

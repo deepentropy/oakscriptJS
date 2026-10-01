@@ -108,6 +108,8 @@ export interface PlotConfig {
     histbase?: number;
     /** Line style (PineScript `linestyle`); default solid. A constant or an input value, not per bar */
     linestyle?: 'solid' | 'dashed' | 'dotted';
+    /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
+    forceOverlay?: boolean;
 }
 
 /**
@@ -132,6 +134,8 @@ export interface ArrowConfig {
     offset?: number;
     /** Display mode */
     display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
+    forceOverlay?: boolean;
 }
 
 /**
@@ -205,6 +209,8 @@ export interface ShapeConfig {
     size?: 'auto' | 'tiny' | 'small' | 'normal' | 'large' | 'huge';
     /** Offset in bars (applied to the emitted marker times) */
     offset?: number;
+    /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
+    forceOverlay?: boolean;
 }
 
 /**
@@ -219,6 +225,9 @@ export interface BarColorConfig {
     title?: string;
     /** Offset in bars (bgcolor only, already baked into emitted data) */
     offset?: number;
+    /** bgcolor only: drawn on the main chart pane even when the script is not an overlay (PineScript
+     *  `force_overlay`); default false */
+    forceOverlay?: boolean;
 }
 
 /**

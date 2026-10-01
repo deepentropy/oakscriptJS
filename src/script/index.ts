@@ -578,6 +578,8 @@ export interface ScriptPlotOptions {
   linestyle?: PlotConfig['linestyle'];
   display?: PlotConfig['display'];
   histbase?: number;
+  /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
+  force_overlay?: boolean;
 }
 
 /** PineScript `plot()` — declares the plot and supplies its data in one call. */
@@ -595,6 +597,7 @@ function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {
     linestyle: options.linestyle,
     display: options.display,
     histbase: options.histbase,
+    forceOverlay: options.force_overlay,
   });
   const values = series.toArray();
   const b = bars();
@@ -759,6 +762,8 @@ export interface PlotShapeOptions {
   offset?: number;
   /** Hover tooltip (extension over PineScript, for label.new-style ports). */
   tooltip?: string;
+  /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
+  force_overlay?: boolean;
 }
 
 export interface PlotCharOptions extends Omit<PlotShapeOptions, 'style'> {
@@ -790,6 +795,7 @@ function emitMarkers(
     textcolor: options.textcolor,
     size: options.size,
     offset: options.offset,
+    forceOverlay: options.force_overlay,
   });
   const values = condition.toArray();
   const b = bars();
@@ -837,6 +843,8 @@ export interface PlotArrowOptions {
   /** Maximal arrow height in pixels (default 100). */
   maxheight?: number;
   display?: ArrowConfig['display'];
+  /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
+  force_overlay?: boolean;
 }
 
 /**
@@ -860,6 +868,7 @@ export function plotarrow(series: Series, title?: string, options: PlotArrowOpti
     maxheight: options.maxheight ?? 100,
     offset: options.offset,
     display: options.display,
+    forceOverlay: options.force_overlay,
   });
   const values = series.toArray();
   const b = bars();
@@ -881,11 +890,11 @@ export function plotarrow(series: Series, title?: string, options: PlotArrowOpti
 function emitBarColors(
   kind: 'bgcolor' | 'barcolor',
   colors: string | Array<string | undefined>,
-  options: { offset?: number; title?: string }
+  options: { offset?: number; title?: string; force_overlay?: boolean }
 ): void {
   const c = collector();
   const id = `${kind}${c.barColorConfig.filter((x) => x.kind === kind).length}`;
-  c.barColorConfig.push({ id, kind, title: options.title, offset: options.offset });
+  c.barColorConfig.push({ id, kind, title: options.title, offset: options.offset, forceOverlay: options.force_overlay });
   const b = bars();
   const off = options.offset ?? 0;
   const target = kind === 'bgcolor' ? c.bgcolors : c.barcolors;
@@ -898,10 +907,13 @@ function emitBarColors(
   }
 }
 
-/** PineScript `bgcolor()` — per-bar background color. */
+/**
+ * PineScript `bgcolor()` — per-bar background color. `force_overlay: true` colors the main chart pane even when the
+ * script is not an overlay.
+ */
 export function bgcolor(
   colors: string | Array<string | undefined>,
-  options: { offset?: number; title?: string } = {}
+  options: { offset?: number; title?: string; force_overlay?: boolean } = {}
 ): void {
   emitBarColors('bgcolor', colors, options);
 }

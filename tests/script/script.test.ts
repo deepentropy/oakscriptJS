@@ -8,6 +8,10 @@ import {
   plot,
   hline,
   fill,
+  plotshape,
+  plotchar,
+  plotarrow,
+  bgcolor,
   alertcondition,
   ta,
   color,
@@ -138,6 +142,23 @@ describe('executeScript', () => {
     expect(run.plotConfig[0]).toMatchObject({ id: 'plot0', linestyle: 'dashed' });
     expect(run.plotConfig[1]).toMatchObject({ id: 'plot1', linestyle: 'dotted', style: 'stepline' });
     expect(run.plotConfig[2]!.linestyle).toBeUndefined();
+  });
+
+  test('force_overlay lands in the configs of plot, plotshape, plotchar, plotarrow and bgcolor (default: not set)', () => {
+    const run = executeScript(() => {
+      indicator('Pane', { overlay: false });
+      plot(close, 'Main', { force_overlay: true });
+      plot(close, 'Pane');
+      plotshape(close.gt(103), 'Shape', { force_overlay: true });
+      plotchar(close.gt(103), 'Char', { force_overlay: true });
+      plotarrow(close.sub(103), 'Arrow', { force_overlay: true });
+      bgcolor(color.red, { force_overlay: true });
+    }, BARS);
+    expect(run.plotConfig[0]).toMatchObject({ id: 'plot0', forceOverlay: true });
+    expect(run.plotConfig[1]!.forceOverlay).toBeUndefined();
+    expect(run.shapeConfig.map((s) => s.forceOverlay)).toEqual([true, true]);
+    expect(run.arrowConfig[0]).toMatchObject({ forceOverlay: true });
+    expect(run.barColorConfig[0]).toMatchObject({ kind: 'bgcolor', forceOverlay: true });
   });
 
   test('plot.style_*, plot.linestyle_* and hline.style_* constants (PineScript)', () => {

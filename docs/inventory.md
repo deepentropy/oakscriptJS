@@ -613,13 +613,13 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
 | input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, copied to `InputConfig` |
-| `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset; `plot.style_*`, `plot.linestyle_*` constants |
+| `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset, force_overlay; `plot.style_*`, `plot.linestyle_*` constants |
 | `hline()` | Implemented | static level, color, linestyle (default dashed), linewidth; `hline.style_*` constants |
 | `fill()` | Implemented | plot-to-plot or hline-to-hline |
-| `plotshape()` | Implemented | per-bar marker; style, location, color, text, size, offset, tooltip |
-| `plotchar()` | Implemented | per-bar character marker |
-| `plotarrow()` | Implemented | up / down arrow per bar by the sign of the value; colorup, colordown, minheight, maxheight, offset; `arrowConfig` + `result.arrows` |
-| `bgcolor()` | Implemented | per-bar background color (static or `color.when` array), offset |
+| `plotshape()` | Implemented | per-bar marker; style, location, color, text, size, offset, tooltip, force_overlay |
+| `plotchar()` | Implemented | per-bar character marker; force_overlay |
+| `plotarrow()` | Implemented | up / down arrow per bar by the sign of the value; colorup, colordown, minheight, maxheight, offset, force_overlay; `arrowConfig` + `result.arrows` |
+| `bgcolor()` | Implemented | per-bar background color (static or `color.when` array), offset, force_overlay |
 | `barcolor()` | Implemented | per-bar candle color override |
 | `alertcondition()` | Implemented | collected for the host alert engine |
 

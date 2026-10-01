@@ -47,6 +47,8 @@ export interface PlotOptions {
   display?: PlotDisplay;
   /** Transparency (0-100) */
   transp?: number;
+  /** Draw the plot on the main chart pane even when the indicator is not an overlay; default false */
+  force_overlay?: boolean;
 }
 
 /**

@@ -5,6 +5,32 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `force_overlay` option (PineScript `force_overlay`) in the script API `plot()`, `plotshape()`, `plotchar()`,
+  `plotarrow()` and `bgcolor()`, copied to `PlotConfig.forceOverlay`, `ShapeConfig.forceOverlay`,
+  `ArrowConfig.forceOverlay` and `BarColorConfig.forceOverlay` (bgcolor), and `force_overlay` in `PlotOptions`. A host
+  draws these outputs on the main chart pane when the script is not an overlay. Not set means false. PineScript has no
+  `force_overlay` on `fill()`, `hline()` and `barcolor()`: a fill between two force_overlay plots follows its
+  plots (#115, #117).
+
+### Changed
+
+- `ta.rma` (and so `ta.rsi`, `ta.atr`, `ta.dmi`) evaluates `(source + (length - 1) * rma[1]) / length`, as
+  PineScript (before: `alpha * source + (1 - alpha) * rma[1]`, equal in theory but different in the last bits).
+  `ta.rsi(close, 14)` is now bit-identical to PineScript on all bars of two full daily histories (5,476 and 11,521
+  bars; before: 2,493 and 4,865) (#118).
+- `ta.ema`, `ta.rma`, `ta.wma` and `ta.stdev` treat +/-Infinity as na, as PineScript (before: an infinite input gave
+  Infinity on its bar and NaN on every later bar for `ta.ema` / `ta.rma`) (#119).
+
+### Fixed
+
+- `ta.median` skips na values: the median of the last `length` non-na values (going back as many bars as needed), na
+  until `length` non-na values exist; a bar with an na value still gets a result (before: the median of the non-na
+  values of the last `length` bars). Equal to PineScript on all 11,535 bars of a full daily history (#116).
+
 ## [0.8.1] - 2026-09-30
 
 ### Added
