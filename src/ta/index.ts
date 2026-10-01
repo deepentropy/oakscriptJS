@@ -10,6 +10,7 @@
 
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types';
 import { eq, ge, gt, le, lt } from '../compare';
+import { runningSum, runningVariance } from './running-sum';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -19,9 +20,11 @@ import { eq, ge, gt, le, lt } from '../compare';
  * @returns Simple moving average of source for length bars back
  *
  * @remarks
- * - `na` values in the source series are ignored: the mean of the last `length` non-`na` values, and a bar with an
- *   `na` source keeps the previous result (as in PineScript)
+ * - `na` values (also +/-Infinity) in the source series are ignored: the mean of the last `length` non-`na`
+ *   values, and a bar with an `na` source keeps the previous result (as in PineScript)
  * - Returns NaN until `length` non-`na` values are available
+ * - The sum is a compensated running sum, as in PineScript, so the result can differ from the exact window mean in
+ *   the last bits (bit for bit with PineScript)
  *
  * @example
  * ```typescript
@@ -30,27 +33,9 @@ import { eq, ge, gt, le, lt } from '../compare';
  * ```
  */
 export function sma(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
-  // PineScript: the mean of the last `len` non-na values; an na value (also +/-Infinity) is skipped,
-  // so the bar keeps the previous result
-  const window: number[] = [];
-  for (let i = 0; i < source.length; i++) {
-    const v = source[i];
-    if (v !== undefined && v !== null && Number.isFinite(v)) {
-      window.push(v);
-      if (window.length > len) window.shift();
-    }
-    if (window.length < len) {
-      result.push(NaN);
-    } else {
-      let sum = 0;
-      for (const x of window) sum += x;
-      result.push(sum / len);
-    }
-  }
-  return result;
+  return runningSum(source, len).map((sum) => sum / len);
 }
 
 /** Mean of the last `length` bars; na when the window holds an na value (used by ta.dev). */
@@ -278,35 +263,23 @@ export function bb(
  *
  * @remarks
  * As in PineScript: `na` values (also +/-Infinity) are skipped, the window holds the last
- * `length` non-na values, and a bar whose own value is `na` still gets a result.
+ * `length` non-na values, and a bar whose own value is `na` keeps the previous result.
+ * The result is the square root of {@link variance} (0 when the variance is not positive), computed from
+ * compensated running sums of the values and of their squares, bit for bit as PineScript.
  */
 export function stdev(source: Source, length: simple_int, biased: simple_bool = true): series_float {
-  const len = Math.floor(length);
-  return source.map((_, i) => {
-    const values = lastValues(source, i, len, isNotFinite);
-    if (!values) return NaN;
-    const mean = values.reduce((a, b) => a + b, 0) / len;
-    const squares = values.reduce((a, b) => a + (b - mean) * (b - mean), 0);
-    return Math.sqrt(squares / (biased ? len : len - 1));
-  });
+  return variance(source, length, biased).map((v) => (Number.isNaN(v) ? NaN : v > 0 ? Math.sqrt(v) : 0));
 }
-
-const isNotFinite = (x: number): boolean => !Number.isFinite(x);
 
 /**
  * The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist.
  * `isNa` tells which values are skipped (NaN by default).
  */
-function lastValues(
-  source: Source,
-  i: number,
-  length: number,
-  isNa: (x: number) => boolean = Number.isNaN
-): number[] | null {
+function lastValues(source: Source, i: number, length: number): number[] | null {
   const values: number[] = [];
   for (let j = i; j >= 0 && values.length < length; j--) {
     const x = source[j]!;
-    if (!isNa(x)) values.push(x);
+    if (!Number.isNaN(x)) values.push(x);
   }
   return values.length === length ? values : null;
 }
@@ -1091,6 +1064,8 @@ export function dev(source: Source, length: simple_int): series_float {
  * - `na` values in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
  * - Relationship: `stdev = sqrt(variance)`
+ * - Computed as PineScript, bit for bit, from compensated running sums of the values and of their squares:
+ *   biased `sumSq / length - mean * mean`, unbiased `sumSq / (length - 1) - mean * sum / (length - 1)`
  *
  * @example
  * ```typescript
@@ -1099,27 +1074,10 @@ export function dev(source: Source, length: simple_int): series_float {
  * ```
  */
 export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
-  const result: series_float = [];
   const len = Math.floor(length);
-  // PineScript: the last `len` non-na values, as ta.sma; an na value is skipped
-  const window: number[] = [];
-  for (let i = 0; i < source.length; i++) {
-    const v = source[i];
-    if (v !== undefined && v !== null && !Number.isNaN(v)) {
-      window.push(v);
-      if (window.length > len) window.shift();
-    }
-    const divisor = biased ? len : len - 1;
-    if (window.length < len || divisor <= 0) {
-      result.push(NaN);
-      continue;
-    }
-    const mean = window.reduce((a, x) => a + x, 0) / len;
-    let sumSquares = 0;
-    for (const x of window) sumSquares += (x - mean) * (x - mean);
-    result.push(sumSquares / divisor);
-  }
-  return result;
+  // PineScript: the last `len` non-na values (also +/-Infinity skipped), as ta.sma
+  if ((biased ? len : len - 1) <= 0) return source.map(() => NaN);
+  return runningVariance(source, len, biased);
 }
 
 /**
@@ -1582,13 +1540,9 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
     upperFlow.push(le(change, 0) ? 0 : flow);
     lowerFlow.push(ge(change, 0) ? 0 : flow);
   }
-  // math.sum: the sum of the last `length` non-na values
-  const sumAt = (flow: number[], i: number): number => {
-    const values = lastValues(flow, i, Math.floor(length));
-    return values ? values.reduce((a, b) => a + b, 0) : NaN;
-  };
-  const upper = upperFlow.map((_, i) => sumAt(upperFlow, i));
-  const lower = lowerFlow.map((_, i) => sumAt(lowerFlow, i));
+  // math.sum: the compensated running sum of the last `length` non-na values (as PineScript, bit for bit)
+  const upper = runningSum(upperFlow, length);
+  const lower = runningSum(lowerFlow, length);
 
   return upper.map((u, i) => {
     const l = lower[i]!;

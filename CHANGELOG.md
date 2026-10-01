@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `math.sum`, `ta.sma`, `ta.stdev`, `ta.variance` and `ta.mfi` compute their window sums as PineScript does, bit for
+  bit: a compensated (Kahan) running sum that removes the compensated value stored for the value leaving the window,
+  and takes the sum again from the window values (newest first) when the compensation would be lost on the new value
+  (#114). The results can differ from the exact window sum in the last bits, as in PineScript (e.g. `ta.sma` of a
+  window `[0, 0]` can be `1.8e-15`, `ta.stdev` `1.7e-7`), which changes `z = std > 0 ? ... : 0` style tests.
+  Checked against PineScript on two full daily histories (BTCUSD 5,490 bars, AAPL 11,535 bars): `ta.sma` lengths 2 to
+  70, `ta.stdev` / `ta.variance` biased and unbiased, `math.sum`, `ta.mfi(hlc3, 14)`, series with na values: 0
+  different values out of about 430,000.
+- `ta.stdev` / `ta.variance`: biased `sumSq / n - mean * mean`, unbiased `sumSq / (n - 1) - mean * sum / (n - 1)`
+  from the running sums (before: two-pass deviations); `ta.stdev` is 0 when the variance is not positive.
+- `math.sum` and `ta.variance` skip +/-Infinity like na (before: only NaN).
 - `ta.rma` (and so `ta.rsi`, `ta.atr`, `ta.dmi`) evaluates `(source + (length - 1) * rma[1]) / length`, as
   PineScript (before: `alpha * source + (1 - alpha) * rma[1]`, equal in theory but different in the last bits).
   `ta.rsi(close, 14)` is now bit-identical to PineScript on all bars of two full daily histories (5,476 and 11,521

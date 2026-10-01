@@ -11,6 +11,7 @@
 
 import type { float, int, simple_int, series_float } from '../types';
 import { Series } from '../runtime/series';
+import { runningSum } from '../ta/running-sum';
 
 /**
  * Returns the absolute value of a number.
@@ -342,9 +343,11 @@ export function avg(...values: (float | Series)[]): float | Series {
  * @returns Series or array with rolling sum values
  *
  * @remarks
- * - Calculates sum of last `length` values at each point
- * - Returns NaN for first `length-1` values (insufficient data)
- * - Window slides forward one value at a time
+ * - Calculates the sum of the last `length` non-`na` values at each point; an `na` value (also +/-Infinity) is
+ *   skipped and the bar keeps the previous result (as in PineScript)
+ * - Returns NaN until `length` non-`na` values are available
+ * - A compensated running sum, as in PineScript, so the result can differ from the exact window sum in the last
+ *   bits (bit for bit with PineScript)
  * - When passed a Series, returns a Series; when passed an array, returns an array
  *
  * @example
@@ -358,25 +361,9 @@ export function sum(source: series_float, length: simple_int): series_float;
 export function sum(source: series_float | Series, length: simple_int): series_float | Series {
   // Handle Series objects - extract to array first
   const sourceArray = source instanceof Series ? source.toArray() : source;
-  const result: series_float = [];
-  const len = Math.floor(length);
-  // PineScript: the sum of the last `len` non-na values; an na value is skipped, so
-  // the bar keeps the previous result
-  const window: number[] = [];
-  for (let i = 0; i < sourceArray.length; i++) {
-    const v = sourceArray[i];
-    if (v !== undefined && v !== null && !Number.isNaN(v)) {
-      window.push(v);
-      if (window.length > len) window.shift();
-    }
-    if (window.length < len) {
-      result.push(NaN);
-    } else {
-      let total = 0;
-      for (const x of window) total += x;
-      result.push(total);
-    }
-  }
+  // PineScript: the sum of the last `length` non-na values (also +/-Infinity skipped); an na bar keeps the previous
+  // result. A compensated running sum, bit for bit as PineScript.
+  const result: series_float = runningSum(sourceArray, length);
 
   // If input was a Series, return a Series
   if (source instanceof Series) {
