@@ -58,6 +58,7 @@ import type {
 import { BarData, Series } from '../runtime/series.js';
 import * as taSeries from '../ta-series.js';
 import * as colorCore from '../color/index.js';
+import { inputColorDefault } from '../color/parse.js';
 import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
 import * as lineCore from '../line/index.js';
 import * as labelCore from '../label/index.js';
@@ -404,8 +405,12 @@ export const input = {
   string(defval: string, title?: string, opts: StringInputOptions = {}): string {
     return registerInput<string>({ type: 'string', defval, title, options: opts.options, ...common(opts) }, 'input_string');
   },
+  /**
+   * Declares a colour input. As in PineScript, the default keeps an alpha of 2 decimals: an input default
+   * `color.new(c, 90)` has the alpha byte 26 (25 in the script). A value given by the host is not changed.
+   */
   color(defval: string, title?: string, opts: InputOptions = {}): string {
-    return registerInput<string>({ type: 'color', defval, title, ...common(opts) }, 'input_color');
+    return registerInput<string>({ type: 'color', defval: inputColorDefault(defval), title, ...common(opts) }, 'input_color');
   },
   /** Declares a source input and returns it as a Series. */
   source(defval: string = 'close', title?: string, opts: InputOptions = {}): Series {

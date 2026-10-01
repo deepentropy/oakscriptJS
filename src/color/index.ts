@@ -11,6 +11,7 @@
  */
 
 import type { color, int, float, simple_int, simple_float } from '../types/index.js';
+import { alphaByte, parseColor } from './parse.js';
 
 /** Channel of color.rgb: na is 0, a fraction is truncated. */
 const channel = (v: number): int =>
@@ -195,40 +196,6 @@ export function b(clr: color): int {
 export function t(clr: color): float {
   return Math.round((1 - alphaByte(parseColor(clr).a) / 255) * 100);
 }
-
-/**
- * Helper function to parse color string to RGBA components.
- *
- * @internal
- * @param clr - The color string to parse
- * @returns Object containing r, g, b (0-255) and a (alpha, 0-1) components
- */
-function parseColor(clr: color): { r: int; g: int; b: int; a: float } {
-  if (typeof clr === 'string') {
-    // Hex: #RRGGBB, #RRGGBBAA (PineScript literals), #RGB, #RGBA
-    const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(clr.trim());
-    if (hex) {
-      let digits = hex[1]!;
-      if (digits.length <= 4) digits = [...digits].map((c) => c + c).join('');
-      const byte = (k: number) => parseInt(digits.slice(k, k + 2), 16);
-      return { r: byte(0), g: byte(2), b: byte(4), a: digits.length === 8 ? byte(6) / 255 : 1 };
-    }
-    // Handle rgb() or rgba() format
-    const match = clr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-    if (match) {
-      return {
-        r: parseInt(match[1]!),
-        g: parseInt(match[2]!),
-        b: parseInt(match[3]!),
-        a: match[4] ? parseFloat(match[4]) : 1,
-      };
-    }
-  }
-  return { r: 0, g: 0, b: 0, a: 1 };
-}
-
-/** Alpha byte (0-255) of an alpha (0-1), as PineScript stores it. */
-const alphaByte = (a: float): int => Math.round(a * 255);
 
 // Predefined color constants of PineScript v6.
 // PineScript v5 differs for red (#FF5252), teal (#00897B) and yellow (#FFEB3B).

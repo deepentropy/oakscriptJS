@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is; it returned `top_color` when the value was above both ends (#121)
 - `color.from_gradient`, `color.t`: an `rgba()` alpha is read as its byte `round(alpha * 255)`; `rgba(r, g, b, 0.1)`
   gave the byte 25 instead of 26. `color.new(c, 90)` keeps the byte 25, as in PineScript (#122)
+- `input.color` default: PineScript keeps an alpha of 2 decimals for the default (`(100 - trunc(t)) / 100` for
+  `color.new` / `color.rgb`, `round(AA / 255, 2)` for a hex literal), then the byte `round(255 * alpha)`. An input
+  default `color.new(c, 90)` now has the byte 26 (25 before), `color.new(c, 9.9)` the byte 232 (230 before). Equal
+  to PineScript on 1,338 defaults. A value given by the host is not changed (#122)
 - `ta.rsi` is 100 when the average loss is 0 within 1e-10 and 0 when the average gain is 0 within 1e-10
   (PineScript `down == 0 ? 100 : up == 0 ? 0 : ...`) (#123)
 - `array.avg` skips na elements (na when there is none) (#124)
