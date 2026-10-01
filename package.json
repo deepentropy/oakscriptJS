@@ -1,6 +1,6 @@
 {
   "name": "oakscriptjs",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "type": "module",
   "description": "PineScript v6 compatible technical analysis library for JavaScript/TypeScript",
   "main": "./dist/cjs/index.js",
