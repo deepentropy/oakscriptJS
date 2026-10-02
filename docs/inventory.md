@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions against the official PineScript v6 language reference.
 
-**Last Updated:** 01/10/2026 (v0.9.2)
+**Last Updated:** 02/10/2026 (v0.9.3)
 
 ## Architecture Overview
 
