@@ -952,12 +952,13 @@ export function random(min?: float, max?: float, _seed?: int): float {
  * Returns the sign of a number.
  *
  * @param value - The number to check or Series
- * @returns 1 for positive, -1 for negative, 0 for zero
+ * @returns 1 for positive, -1 for negative, 0 for zero, na for na
  *
  * @remarks
  * - Returns 1 if value > 0
  * - Returns -1 if value < 0
  * - Returns 0 if value = 0
+ * - Returns na if value is na (as PineScript)
  * - Useful for determining direction or polarity
  * - If value is a Series, returns a Series; if value is a number, returns a number
  *
@@ -967,6 +968,7 @@ export function random(min?: float, max?: float, _seed?: int): float {
  * math.sign(-3) // Returns: -1
  * math.sign(0) // Returns: 0
  * math.sign(0.001) // Returns: 1
+ * math.sign(NaN) // Returns: NaN
  * ```
  */
 export function sign(value: Series): Series;
@@ -980,13 +982,13 @@ export function sign(value: float | Series): int | Series {
     const result: number[] = [];
     for (let i = 0; i < length; i++) {
       const v = valueArray[i] ?? NaN;
-      result.push(v > 0 ? 1 : v < 0 ? -1 : 0);
+      result.push(v > 0 ? 1 : v < 0 ? -1 : v === 0 ? 0 : NaN);
     }
     
     return Series.fromArray(bars, result);
   }
   
-  return value > 0 ? 1 : value < 0 ? -1 : 0;
+  return value > 0 ? 1 : value < 0 ? -1 : value === 0 ? 0 : NaN;
 }
 
 /**

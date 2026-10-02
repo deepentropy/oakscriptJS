@@ -6,6 +6,17 @@ import { math, taCore } from '../../src';
 const src = [1, 2, 3, 4, NaN, 5, 6];
 
 describe('na handling', () => {
+  it('ta.crossover / crossunder / cross: compared with the last bar where both values were not na (#134)', () => {
+    // bar 1: b is na; bar 2 is compared with bar 0
+    expect(taCore.crossover([-98, -94, -85], [-87, NaN, -86])).toEqual([false, false, true]);
+    expect(taCore.crossunder([2, 5, 0], [1, NaN, 1])).toEqual([false, false, true]);
+    expect(taCore.cross([0, NaN, NaN, 2], [1, 1, NaN, 1])).toEqual([false, false, false, true]);
+    // a bar with only one na value does not replace the last pair
+    expect(taCore.crossover([0, 5, 2], [1, NaN, 1])).toEqual([false, false, true]);
+    // false on a bar with an na value, and before the first pair
+    expect(taCore.crossover([NaN, 2, NaN, 0, 2], [1, NaN, 1, 1, 1])).toEqual([false, false, false, false, true]);
+  });
+
   it('ta.sma: the mean of the last length non-na values; an na bar keeps the previous result', () => {
     expect(taCore.sma(src, 3)).toEqual([NaN, NaN, 2, 3, 3, 4, 5]);
     expect(taCore.sma([NaN, NaN, 1, 2, 3], 3)).toEqual([NaN, NaN, NaN, NaN, 2]);

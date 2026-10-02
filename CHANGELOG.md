@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `array.binary_search_rightmost`: a value above every element gives the array size (was -1);
   `array.binary_search_leftmost`: a value below every element gives 0 (was -1). `na` counts as greater than every
   number in both (#133)
+- `ta.crossover` / `ta.crossunder` / `ta.cross` and `callsite.crossover()` / `crossunder()` / `cross()`: after a bar
+  (or call) with an na value, compared with the last bar where both values were not na, as PineScript (was the
+  previous bar only, so a crossing right after an na bar was missed). Comparisons stay exact (#134)
+- `math.sign(na)` is na, as PineScript (was 0) (#135)
 
 ## [0.9.4] - 2026-10-02
 

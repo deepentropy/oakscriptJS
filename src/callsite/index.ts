@@ -67,24 +67,35 @@ export function whenCalled<T extends number | boolean>(
   return out;
 }
 
-/** A call site that keeps the two previous arguments (na before the first call). */
+/**
+ * A call site that keeps the arguments of the last call where both were not na (na before such a call), as
+ * ta.crossover / ta.crossunder / ta.cross.
+ */
 function twoSeriesSite(test: (a: number, b: number, prevA: number, prevB: number) => boolean) {
   let prevA = NaN;
   let prevB = NaN;
   return (a: number, b: number): boolean => {
     const result = test(a, b, prevA, prevB);
-    prevA = a;
-    prevB = b;
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      prevA = a;
+      prevB = b;
+    }
     return result;
   };
 }
 
-/** One `ta.crossover(a, b)` call site: false on its first call, as its history is na. */
+/**
+ * One `ta.crossover(a, b)` call site: compared with the last call where both arguments were not na; false before
+ * such a call.
+ */
 export function crossover(): (a: number, b: number) => boolean {
   return twoSeriesSite((a, b, pa, pb) => a > b && pa <= pb);
 }
 
-/** One `ta.crossunder(a, b)` call site: false on its first call, as its history is na. */
+/**
+ * One `ta.crossunder(a, b)` call site: compared with the last call where both arguments were not na; false before
+ * such a call.
+ */
 export function crossunder(): (a: number, b: number) => boolean {
   return twoSeriesSite((a, b, pa, pb) => a < b && pa >= pb);
 }
@@ -102,7 +113,10 @@ export function barssince(): (condition: boolean | number) => number {
   };
 }
 
-/** One `ta.cross(a, b)` call site: false on its first call, as its history is na. */
+/**
+ * One `ta.cross(a, b)` call site: compared with the last call where both arguments were not na; false before such
+ * a call.
+ */
 export function cross(): (a: number, b: number) => boolean {
   return twoSeriesSite((a, b, pa, pb) => (a > b && pa <= pb) || (a < b && pa >= pb));
 }

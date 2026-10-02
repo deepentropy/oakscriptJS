@@ -146,6 +146,10 @@ describe('math.sign', () => {
     expect(math.sign(-0)).toBe(0);
   });
 
+  it('should return na for na (#135)', () => {
+    expect(math.sign(NaN)).toBeNaN();
+  });
+
   it('should handle very large numbers', () => {
     expect(math.sign(1e10)).toBe(1);
     expect(math.sign(-1e10)).toBe(-1);

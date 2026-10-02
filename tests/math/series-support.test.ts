@@ -458,12 +458,12 @@ describe('math functions with Series support', () => {
 
   describe('math.sign', () => {
     it('should accept Series input', () => {
-      const inputSeries = Series.fromArray(bars, [5, -3, 0, 100, -0.001]);
+      const inputSeries = Series.fromArray(bars, [5, -3, 0, 100, NaN]);
       const result = math.sign(inputSeries);
       
       expect(result).toBeInstanceOf(Series);
       const values = result.toArray();
-      expect(values).toEqual([1, -1, 0, 1, -1]);
+      expect(values).toEqual([1, -1, 0, 1, NaN]);
     });
 
     it('should return scalar when input is scalar', () => {

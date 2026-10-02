@@ -351,6 +351,32 @@ function extremeValue(source: Source, length: simple_int, lowest: boolean): seri
 }
 
 /**
+ * Compares each bar with the last earlier bar where both values were not na (PineScript rule for ta.crossover,
+ * ta.crossunder and ta.cross): false while there is no such bar, and false on a bar with an na value.
+ *
+ * @internal
+ */
+function crossTest(
+  series1: Source,
+  series2: Source,
+  test: (a: number, b: number, prevA: number, prevB: number) => boolean,
+): series_bool {
+  const result: series_bool = [];
+  let prevA = NaN;
+  let prevB = NaN;
+  for (let i = 0; i < series1.length; i++) {
+    const a = series1[i]!;
+    const b = series2[i]!;
+    result.push(test(a, b, prevA, prevB));
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      prevA = a;
+      prevB = b;
+    }
+  }
+  return result;
+}
+
+/**
  * Crossover - returns true when series1 crosses over series2 (moves from below to above).
  *
  * @param series1 - First series
@@ -358,8 +384,10 @@ function extremeValue(source: Source, length: simple_int, lowest: boolean): seri
  * @returns Boolean series (true at crossover points)
  *
  * @remarks
- * - True when: series1[i]! > series2[i]! AND series1[i-1] <= series2[i-1]
+ * - True when: series1[i] > series2[i] AND series1[j] <= series2[j], where j is the last bar before i where both
+ *   values were not na (PineScript rule: a crossing right after an na bar is not missed)
  * - First value is always false (no previous value to compare)
+ * - Comparisons are exact (no tolerance)
  * - Useful for detecting bullish signals (e.g., fast MA crossing over slow MA)
  *
  * @example
@@ -368,17 +396,7 @@ function extremeValue(source: Source, length: simple_int, lowest: boolean): seri
  * ```
  */
 export function crossover(series1: Source, series2: Source): series_bool {
-  const result: series_bool = [];
-
-  for (let i = 0; i < series1.length; i++) {
-    if (i === 0) {
-      result.push(false);
-    } else {
-      result.push(series1[i]! > series2[i]! && series1[i - 1]! <= series2[i - 1]!);
-    }
-  }
-
-  return result;
+  return crossTest(series1, series2, (a, b, pa, pb) => a > b && pa <= pb);
 }
 
 /**
@@ -389,8 +407,10 @@ export function crossover(series1: Source, series2: Source): series_bool {
  * @returns Boolean series (true at crossunder points)
  *
  * @remarks
- * - True when: series1[i]! < series2[i]! AND series1[i-1] >= series2[i-1]
+ * - True when: series1[i] < series2[i] AND series1[j] >= series2[j], where j is the last bar before i where both
+ *   values were not na
  * - First value is always false (no previous value to compare)
+ * - Comparisons are exact (no tolerance)
  * - Useful for detecting bearish signals (e.g., fast MA crossing under slow MA)
  *
  * @example
@@ -399,17 +419,7 @@ export function crossover(series1: Source, series2: Source): series_bool {
  * ```
  */
 export function crossunder(series1: Source, series2: Source): series_bool {
-  const result: series_bool = [];
-
-  for (let i = 0; i < series1.length; i++) {
-    if (i === 0) {
-      result.push(false);
-    } else {
-      result.push(series1[i]! < series2[i]! && series1[i - 1]! >= series2[i - 1]!);
-    }
-  }
-
-  return result;
+  return crossTest(series1, series2, (a, b, pa, pb) => a < b && pa >= pb);
 }
 
 /**
@@ -859,8 +869,9 @@ export function cum(source: Source): series_float {
  * @returns Boolean series (true at cross points)
  *
  * @remarks
- * - True when: (source1[i]! > source2[i]! AND source1[i-1] <= source2[i-1]) OR
- *              (source1[i]! < source2[i]! AND source1[i-1] >= source2[i-1])
+ * - True when: (source1[i] > source2[i] AND source1[j] <= source2[j]) OR
+ *              (source1[i] < source2[i] AND source1[j] >= source2[j]),
+ *   where j is the last bar before i where both values were not na
  * - First value is always false (no previous value to compare)
  * - Detects any crossing (either over or under)
  * - Use `ta.crossover()` or `ta.crossunder()` for directional crosses
@@ -872,19 +883,7 @@ export function cum(source: Source): series_float {
  * ```
  */
 export function cross(source1: Source, source2: Source): series_bool {
-  const result: series_bool = [];
-
-  for (let i = 0; i < source1.length; i++) {
-    if (i === 0) {
-      result.push(false);
-    } else {
-      const crossedUp = source1[i]! > source2[i]! && source1[i - 1]! <= source2[i - 1]!;
-      const crossedDown = source1[i]! < source2[i]! && source1[i - 1]! >= source2[i - 1]!;
-      result.push(crossedUp || crossedDown);
-    }
-  }
-
-  return result;
+  return crossTest(source1, source2, (a, b, pa, pb) => (a > b && pa <= pb) || (a < b && pa >= pb));
 }
 
 /**

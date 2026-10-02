@@ -38,6 +38,13 @@ describe('callsite.crossover / crossunder / cross', () => {
     expect([over(NaN, 1), over(2, 1)]).toEqual([false, false]);
   });
 
+  it('compares with the last call where both arguments were not na (#134)', () => {
+    const over = callsite.crossover();
+    expect([over(-98, -87), over(-94, NaN), over(-85, -86)]).toEqual([false, false, true]);
+    const cross = callsite.cross();
+    expect([cross(2, 1), cross(NaN, 1), cross(0, NaN), cross(0, 1)]).toEqual([false, false, false, true]);
+  });
+
   it('called on every bar, equals the vectorized ta.crossover', () => {
     const a = [1, 3, 2, 5, 4, 6, 1, 7];
     const b = [2, 2, 3, 3, 5, 5, 2, 2];
