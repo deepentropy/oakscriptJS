@@ -46,7 +46,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
     "build:esm": "tsc -p tsconfig.json --outDir dist/esm",
     "build:cjs": "esbuild \"src/**/*.ts\" --outdir=dist/cjs --format=cjs --platform=neutral --target=es2022 --sourcemap --log-level=warning && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist/cjs && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }))\"",

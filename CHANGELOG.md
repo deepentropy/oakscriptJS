@@ -5,6 +5,13 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `prepare` script (was `prepublishOnly`): `dist/` is built when the package is installed from a git commit
+  (`npm install github:deepentropy/oakScriptJS#<sha>`); `dist/` is not in git.
+
 ## [0.9.4] - 2026-10-02
 
 ### Added
