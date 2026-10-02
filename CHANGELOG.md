@@ -5,14 +5,7 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- `prepare` script (was `prepublishOnly`): `dist/` is built when the package is installed from a git commit
-  (`npm install github:deepentropy/oakScriptJS#<sha>`); `dist/` is not in git.
-
-## [Unreleased]
+## [0.9.5] - 2026-10-02
 
 ### Added
 
@@ -20,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   history kept by bar, called with `(barIndex, value, length)`. PineScript keeps the values in a ring of `length + 1`
   slots indexed by the bar index, filled with 0 at the start; a value that passes the kept extreme replaces it, else
   the window is read again from the ring when the kept extreme is `length` bars old; na before bar `length - 1` (#138)
+
+### Changed
+
+- `prepare` script (was `prepublishOnly`): `dist/` is built when the package is installed from a git commit
+  (`npm install github:deepentropy/oakScriptJS#<sha>`); `dist/` is not in git.
 
 ### Fixed
 
