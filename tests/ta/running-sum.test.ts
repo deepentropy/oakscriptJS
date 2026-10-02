@@ -99,3 +99,26 @@ describe('PineScript running sums (#114)', () => {
     expect(taCore.sma(withInf, 3)).toEqual(taCore.sma(withNa, 3));
   });
 });
+
+describe('ta.ema seed (#136)', () => {
+  it('the first value is ta.sma on that bar (running sum), not a plain loop sum', () => {
+    // plain sum: (0.1 + 0.2 + 0.3) / 3 = 0.20000000000000004; running sum: 0.19999999999999998
+    expect(taCore.ema([0.1, 0.2, 0.3], 3)[2]).toBe(0.19999999999999998);
+    const x = [NaN, 1e-16, 1, Infinity, -1, 0.1, 0.2];
+    expect(taCore.ema(x, 3)[4]).toBe(taCore.sma(x, 3)[4]);
+  });
+});
+
+describe('running sum resync test at a negative power of two (#136)', () => {
+  it('rounds on the finer grid toward +infinity: x = -4 after a negative compensation keeps the Kahan step', () => {
+    // periodic series of 30 bars; PineScript math.sum(x, 2) on the bars of phase 6 .. 11 (steady state)
+    const at: Record<number, number> = { 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: 3.057299181000204, 8: -4 };
+    const x = Array.from({ length: 41 * 30 }, (_, i) => at[i % 30] ?? 0);
+    const sum = math.sum(x, 2);
+    const last = 40 * 30;
+    expect(sum.slice(last + 6, last + 12)).toEqual([
+      53.3681210331428, 56.425420214143, -0.9427008189998105, -4.000000000000014, -1.4654943925052066e-14,
+      -1.4210854715202004e-14,
+    ]);
+  });
+});

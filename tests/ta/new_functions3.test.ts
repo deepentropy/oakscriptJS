@@ -207,7 +207,7 @@ describe('ta.correlation', () => {
 });
 
 describe('ta.percentrank', () => {
-  // PineScript percentrank: count of previous `length` values <= current / length * 100
+  // PineScript percentrank: count of previous `length` values <= current * 100 / length
   // Current value is NOT in the comparison window. First valid at index `length`.
 
   it('should return 100 when current is higher than all previous values', () => {
@@ -271,6 +271,15 @@ describe('ta.percentrank', () => {
     expect(prank.slice(0, 4).every(Number.isNaN)).toBe(true);
     // i=4: window [NaN, NaN, NaN, 1], current 2 -> only 1 <= 2
     expect(prank.slice(4, 8)).toEqual([25, 50, 75, 100]);
+  });
+
+  it('gives the bits of count * 100 / length (#137)', () => {
+    // 58, 56 and 7 of 200 values <= the current value: (count / 200) * 100 is 28.999999999999996,
+    // 28.000000000000004 and 3.5000000000000004
+    for (const [count, expected] of [[58, 29], [56, 28], [7, 3.5]] as const) {
+      const source = [...Array<number>(count).fill(0), ...Array<number>(200 - count).fill(2), 1];
+      expect(ta.percentrank(source, 200)[200]).toBe(expected);
+    }
   });
 
   it('is na when the current value is na', () => {

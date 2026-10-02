@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `callsite.lowestByBar()` / `callsite.highestByBar()`: `ta.lowest` / `ta.highest` in a conditional branch with the
+  history kept by bar, called with `(barIndex, value, length)`. PineScript keeps the values in a ring of `length + 1`
+  slots indexed by the bar index, filled with 0 at the start; a value that passes the kept extreme replaces it, else
+  the window is read again from the ring when the kept extreme is `length` bars old; na before bar `length - 1` (#138)
+
 ### Fixed
 
 - `ta.cmo` uses the PineScript definition with the running sums of `math.sum`
@@ -26,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (or call) with an na value, compared with the last bar where both values were not na, as PineScript (was the
   previous bar only, so a crossing right after an na bar was missed). Comparisons stay exact (#134)
 - `math.sign(na)` is na, as PineScript (was 0) (#135)
+- `ta.percentrank` gives the bits of `count * 100 / length`, as PineScript (`(count / length) * 100` differed in the
+  last bit, e.g. 28.999999999999996 instead of 29) (#137)
+- `ta.ema`: the first value is `ta.sma` on that bar (the running sum of `math.sum`), as PineScript (was a plain loop
+  sum, different in the last bits) (#136)
+- `math.sum` / `ta.sma` / `ta.stdev` / `ta.variance` running sum: the resync test rounds on the grid of the new value
+  toward +infinity, which is half as fine for a negative power of two. A value of -1, -2, -4... after a compensation
+  of the same sign now keeps the Kahan step, as PineScript (#136)
 
 ## [0.9.4] - 2026-10-02
 

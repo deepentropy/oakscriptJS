@@ -6,7 +6,8 @@
  * - each bar first removes, with a Kahan step, the compensated value that was added for the value that leaves the
  *   window, then adds the new value with a Kahan step and keeps its compensated value;
  * - when the compensation of the previous step would be lost when applied to the new value, the sum is computed
- *   again from the window values (newest first) and the compensation is reset.
+ *   again from the window values (newest first) and the compensation is reset. The test rounds on the grid of the
+ *   new value toward +infinity: for a negative power of two, the finer grid of the binade below (#136).
  *
  * So the result can differ from the exact window sum in the last bits (e.g. a small residue on a window of zeros),
  * as in PineScript.
@@ -24,17 +25,28 @@ function exponentOf(x: number): number {
 }
 
 /**
+ * Distance from a finite non-zero `x` to the next number toward +infinity: the spacing of the binade of `x`, or half
+ * of it when `x` is a negative power of two (the next number up is in the binade below).
+ */
+function spacingUp(x: number): number {
+  const e = exponentOf(x);
+  const powerOfTwo = (view.getUint16(0) & 0xf) === 0 && view.getUint16(2) === 0 && view.getUint32(4) === 0;
+  return 2 ** (e - (x < 0 && powerOfTwo && e > -1022 ? 53 : 52));
+}
+
+/**
  * Whether the compensation `c` is (partly) lost when it is applied to `x`: `x - c` rounded on the grid of `x`
- * (spacing of the binade of `x`, ties to an even mantissa) applies less than `c`.
+ * (spacing {@link spacingUp}, ties to an even mantissa) applies less than `c`.
  */
 function compensationLost(x: number, c: number): boolean {
   if (c === 0 || x === 0) return false;
-  const ulp = 2 ** (exponentOf(x) - 52);
+  const ulp = spacingUp(x);
   const q = c / ulp;
   const mantissa = x / ulp;
   const f = Math.floor(q);
   const d = q - f;
-  const applied = d > 0.5 ? f + 1 : d < 0.5 ? f : (mantissa - f) % 2 === 0 ? f : f + 1;
+  // parity of mantissa - f from each part: the mantissa can be 2^53 (half spacing), where mantissa - f is not exact
+  const applied = d > 0.5 ? f + 1 : d < 0.5 ? f : Math.abs(mantissa % 2) === Math.abs(f % 2) ? f : f + 1;
   return Math.abs(applied) < Math.abs(q);
 }
 

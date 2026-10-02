@@ -11,7 +11,8 @@
  *   loops, called only on the bars where the Pine call runs.
  * - {@link lowest} / {@link highest}: `ta.lowest` / `ta.highest` with a series length (a different length on each
  *   call), which PineScript computes with a state kept between calls.
- * - {@link linreg}: `ta.linreg` in a conditional block, whose window is kept by bar (not by call).
+ * - {@link lowestByBar} / {@link highestByBar} / {@link linreg}: `ta.lowest` / `ta.highest` / `ta.linreg` in a
+ *   conditional block, whose history is kept by bar (not by call).
  *
  * Since PineScript v6, `and` / `or` are lazy: the right operand runs only when the left operand does not decide
  * the result. A ta.* call in the right operand of `a or b` runs on the bars where `a` is false, in `a and b` on the
@@ -191,6 +192,71 @@ export function lowest(): (value: number, length: number) => number {
  */
 export function highest(): (value: number, length: number) => number {
   return extremeSite(false);
+}
+
+/** One `ta.lowest` / `ta.highest` call site whose history is kept by bar; rules in {@link lowestByBar}. */
+function extremeByBarSite(isLowest: boolean): (barIndex: number, value: number, length: number) => number {
+  const better = isLowest ? (a: number, b: number) => a < b : (a: number, b: number) => a > b;
+  let ring: number[] = [];
+  let extreme = NaN;
+  let extremeAt = -1;
+  return (barIndex, value, length) => {
+    const len = Math.floor(length);
+    if (ring.length !== len + 1) {
+      ring = new Array<number>(len + 1).fill(0);
+      extreme = NaN;
+    }
+    ring[barIndex % (len + 1)] = value;
+    if (Number.isNaN(extreme) || better(value, extreme)) {
+      extreme = value;
+      extremeAt = barIndex;
+    } else if (barIndex - extremeAt >= len) {
+      extreme = NaN;
+      for (let b = barIndex - len + 1; b <= barIndex; b++) {
+        const v = ring[b % (len + 1)]!;
+        if (!Number.isNaN(v) && (Number.isNaN(extreme) || better(v, extreme))) {
+          extreme = v;
+          extremeAt = b;
+        }
+      }
+    }
+    return barIndex < len - 1 ? NaN : extreme;
+  };
+}
+
+/**
+ * One `ta.lowest(source, length)` call site in a conditional block whose history is kept by bar (not by call), called
+ * with `(barIndex, value, length)` on the bars where the Pine call runs.
+ *
+ * PineScript rules (measured on a call in a ternary branch, length 6):
+ * - the values are kept in a ring of `length + 1` slots indexed by the bar index, filled with 0 at the start and
+ *   written only on the bars where the call runs: a bar before the first call counts as 0, and a bar without a call
+ *   holds the value of the call `length + 1` bars earlier (0 if there was none)
+ * - on a call, the value replaces the kept extreme when there is none or when it is strictly lower; only otherwise,
+ *   when the kept extreme is `length` bars old, the last `length` bars are read again from the ring (the oldest bar
+ *   wins a tie)
+ * - na before bar `length - 1` (by bar, not by call)
+ *
+ * {@link lowest} keeps the history by call instead; both rules were measured, on different scripts.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  lo = cond ? ta.lowest(low, 6) : na
+ * const site = callsite.lowestByBar();
+ * const lo = lows.map((v, i) => (cond[i] ? site(i, v, 6) : NaN));
+ * ```
+ */
+export function lowestByBar(): (barIndex: number, value: number, length: number) => number {
+  return extremeByBarSite(true);
+}
+
+/**
+ * One `ta.highest(source, length)` call site in a conditional block whose history is kept by bar, called with
+ * `(barIndex, value, length)`. Same rules as {@link lowestByBar} (a value replaces the kept extreme when it is
+ * strictly higher).
+ */
+export function highestByBar(): (barIndex: number, value: number, length: number) => number {
+  return extremeByBarSite(false);
 }
 
 /**

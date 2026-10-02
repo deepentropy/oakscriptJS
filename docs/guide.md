@@ -406,9 +406,12 @@ an `if` block and, since v6, in the right operand of `and` / `or`, which run onl
 decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` is true). A vectorized Series call
 sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
-`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()`, `linreg()` in a bar loop.
+`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()`, `lowestByBar()`,
+`highestByBar()`, `linreg()` in a bar loop.
 `callsite.linreg()` takes the bar index: PineScript's `ta.linreg` keeps its window by bar, so in an `if` block the
 bars before the first call count as 0 (`site(bar_index, close, 10, 0)` on the bars where the block runs).
+`callsite.lowestByBar()` / `highestByBar()` are `ta.lowest` / `ta.highest` in a branch with the history kept by bar
+in the same way (`site(bar_index, low, 6)`); `callsite.lowest()` / `highest()` keep a history by call.
 `callsite.lowest()` / `highest()` also give `ta.lowest` / `ta.highest` with a series length (a different length on
 each bar), which PineScript computes with a state kept between calls:
 

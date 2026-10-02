@@ -74,26 +74,21 @@ export function ema(source: Source, length: simple_int): series_float {
   const len = Math.floor(length);
   const multiplier = 2 / (len + 1);
 
-  // SMA seed: slide past leading NaN, then collect `len` valid values.
-  // An infinite value is na, as in PineScript.
+  // SMA seed on the bar of the `len`-th valid value. An infinite value is na, as in PineScript.
   let firstValidIndex = -1;
   let validCount = 0;
-  let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
     const val = source[i];
-    if (val !== undefined && Number.isFinite(val)) {
-      initSum += val;
-      validCount++;
-      if (validCount === len) {
-        firstValidIndex = i;
-        break;
-      }
+    if (val !== undefined && Number.isFinite(val) && ++validCount === len) {
+      firstValidIndex = i;
+      break;
     }
   }
 
-  let emaValue = validCount > 0 ? initSum / validCount : NaN;
   const emaInitialized = firstValidIndex >= 0;
+  // The seed is ta.sma on that bar: the running sum of math.sum (PineScript bits), not a plain loop sum
+  let emaValue = emaInitialized ? runningSum(source.slice(0, firstValidIndex + 1), len)[firstValidIndex]! / len : NaN;
 
   for (let i = 0; i < source.length; i++) {
     if (!emaInitialized || i < firstValidIndex) {
@@ -1427,7 +1422,7 @@ export function correlation(source1: Source, source2: Source, length: simple_int
  * - Useful for identifying relative strength within a period
  *
  * PineScript rules:
- * - percentrank = count(source[k] <= source, k = 1..length) / length * 100
+ * - percentrank = count(source[k] <= source, k = 1..length) * 100 / length (in this order: the PineScript bits)
  * - a value from bar `length` on, when the current source is not `na`; an `na` value in the window counts as not
  *   `<=` the current value
  * - the comparison uses the 1e-10 tolerance
@@ -1453,7 +1448,7 @@ export function percentrank(source: Source, length: simple_int): series_float {
     for (let j = 1; j <= length; j++) {
       if (le(source[i - j]!, currentValue)) countLessOrEqual++;
     }
-    result.push((countLessOrEqual / length) * 100);
+    result.push((countLessOrEqual * 100) / length);
   }
 
   return result;

@@ -145,3 +145,34 @@ describe('callsite.linreg (ta.linreg in a conditional block, #131)', () => {
   });
 });
 
+
+describe('callsite.lowestByBar / highestByBar (history kept by bar, #138)', () => {
+  it('a bar before the first call counts as 0 when the window is read again', () => {
+    const lo = callsite.lowestByBar();
+    expect(lo(0, 300, 6)).toBeNaN(); // na before bar length - 1
+    expect(lo(6, 310, 6)).toBe(0); // 310 is not lower; 300 is 6 bars old: bars 1..5 are 0 slots
+  });
+
+  it('na before bar length - 1 by bar, not by call', () => {
+    const lo = callsite.lowestByBar();
+    expect(lo(5, 305, 6)).toBe(305);
+  });
+
+  it('a value that passes the kept extreme replaces it before the age check', () => {
+    // called on bars 0..16 and 21; 501 on bar 10 is out of the last 6 calls, but its slot is read for bar 17
+    const values = Array.from({ length: 17 }, (_, i) => (i === 10 ? 501 : i === 12 ? 400 : 100));
+    const hi = callsite.highestByBar();
+    const out = values.map((v, i) => hi(i, v, 6));
+    expect(out[16]).toBe(400);
+    expect(hi(21, 403, 6)).toBe(403); // reading the ring again would give 501
+    expect(hi(22, 100, 6)).toBe(403);
+  });
+
+  it('called on every bar, equals ta.lowest / ta.highest', () => {
+    const x = [5, 3, 8, 1, 9, 2, 7, 7, 4, 6, 1, 1, 3, 9, 0, 2];
+    const lo = callsite.lowestByBar();
+    const hi = callsite.highestByBar();
+    expect(x.map((v, i) => lo(i, v, 4))).toEqual(taCore.lowest(x, 4));
+    expect(x.map((v, i) => hi(i, v, 4))).toEqual(taCore.highest(x, 4));
+  });
+});
