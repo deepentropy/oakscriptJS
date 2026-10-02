@@ -78,9 +78,9 @@ describe('Array Binary Search Functions', () => {
       expect(array.binary_search_leftmost(arr, 0)).toBe(1);
     });
 
-    it('should handle value smaller than all elements', () => {
+    it('gives 0 for a value smaller than all elements (PineScript, #133)', () => {
       const arr = [5, 10, 15, 20];
-      expect(array.binary_search_leftmost(arr, 3)).toBe(-1);
+      expect(array.binary_search_leftmost(arr, 3)).toBe(0);
     });
 
     it('should handle value larger than all elements', () => {
@@ -111,7 +111,7 @@ describe('Array Binary Search Functions', () => {
     it('should work with single element not found', () => {
       const arr = [5];
       expect(array.binary_search_leftmost(arr, 10)).toBe(0);
-      expect(array.binary_search_leftmost(arr, 3)).toBe(-1);
+      expect(array.binary_search_leftmost(arr, 3)).toBe(0);
     });
 
     it('should handle empty array', () => {
@@ -142,9 +142,9 @@ describe('Array Binary Search Functions', () => {
       expect(array.binary_search_rightmost(arr, 3)).toBe(0); // Index of 5
     });
 
-    it('should handle value larger than all elements', () => {
+    it('gives the size for a value larger than all elements (PineScript, #133)', () => {
       const arr = [5, 10, 15, 20];
-      expect(array.binary_search_rightmost(arr, 25)).toBe(-1);
+      expect(array.binary_search_rightmost(arr, 25)).toBe(4);
     });
 
     it('should return rightmost for multiple duplicates at start', () => {
@@ -169,13 +169,25 @@ describe('Array Binary Search Functions', () => {
 
     it('should work with single element not found', () => {
       const arr = [5];
-      expect(array.binary_search_rightmost(arr, 10)).toBe(-1);
+      expect(array.binary_search_rightmost(arr, 10)).toBe(1);
       expect(array.binary_search_rightmost(arr, 3)).toBe(0);
     });
 
     it('should handle empty array', () => {
       const arr: number[] = [];
       expect(array.binary_search_rightmost(arr, 5)).toBe(-1);
+    });
+  });
+
+  describe('array.binary_search_leftmost / rightmost: PineScript results (#133)', () => {
+    const a = [1, 2, 3, 4, 5];
+
+    it('rightmost: 6 and na give 5; inside the array, exact comparison', () => {
+      expect([6, NaN, 0, 3.5, 3, 3 + 1e-12, 3 - 1e-12, 5].map((v) => array.binary_search_rightmost(a, v))).toEqual([5, 5, 0, 3, 2, 3, 2, 4]);
+    });
+
+    it('leftmost: 0 gives 0, na gives 4; inside the array, exact comparison', () => {
+      expect([0, NaN, 6, 3.5, 3, 3 + 1e-12, 3 - 1e-12, 1].map((v) => array.binary_search_leftmost(a, v))).toEqual([0, 4, 4, 2, 2, 2, 1, 0]);
     });
   });
 

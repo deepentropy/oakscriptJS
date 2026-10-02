@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `prepare` script (was `prepublishOnly`): `dist/` is built when the package is installed from a git commit
   (`npm install github:deepentropy/oakScriptJS#<sha>`); `dist/` is not in git.
 
+## [Unreleased]
+
+### Fixed
+
+- `ta.cmo` uses the PineScript definition with the running sums of `math.sum`
+  (`100 * (sm1 - sm2) / (sm1 + sm2)`): equal to PineScript bit for bit (was equal in the last bits on 55 of 5,477
+  bars; a true value of 0 could change sign) (#132)
+- `array.binary_search_rightmost`: a value above every element gives the array size (was -1);
+  `array.binary_search_leftmost`: a value below every element gives 0 (was -1). `na` counts as greater than every
+  number in both (#133)
+
 ## [0.9.4] - 2026-10-02
 
 ### Added

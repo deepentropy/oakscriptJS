@@ -2078,7 +2078,8 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
  * - CMO > +50: overbought conditions
  * - CMO < -50: oversold conditions
  * - Unlike RSI, CMO uses sum of gains/losses instead of averages
- * - na on a flat window (every change 0), as in PineScript
+ * - As in PineScript: the sums are the running sums of `math.sum` (bit for bit), and a flat window (every change 0)
+ *   is `0 / 0` = na
  * - More volatile than RSI
  *
  * @example
@@ -2089,37 +2090,20 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
  * ```
  */
 export function cmo(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-
+  // PineScript definition: mom = ta.change(src), sm1 = math.sum(mom >= 0 ? mom : 0, length),
+  // sm2 = math.sum(mom >= 0 ? 0 : -mom, length), cmo = 100 * (sm1 - sm2) / (sm1 + sm2), with the running sums of
+  // math.sum (bit for bit). A comparison with na is false: an na change adds 0 to sm1 and na (skipped) to sm2.
+  const up: number[] = [];
+  const down: number[] = [];
   for (let i = 0; i < source.length; i++) {
-    if (i < length) {
-      result.push(NaN);
-      continue;
-    }
-
-    let sumGains = 0;
-    let sumLosses = 0;
-
-    for (let j = 0; j < length; j++) {
-      const change = source[i - j]! - source[i - j - 1]!;
-      if (change > 0) {
-        sumGains += change;
-      } else {
-        sumLosses += Math.abs(change);
-      }
-    }
-
-    // PineScript: 100 * (sm1 - sm2) / (sm1 + sm2), so a flat window (0 / 0) is na
-    const totalMovement = sumGains + sumLosses;
-    if (totalMovement === 0) {
-      result.push(NaN);
-    } else {
-      const cmoValue = ((sumGains - sumLosses) / totalMovement) * 100;
-      result.push(cmoValue);
-    }
+    const mom = i > 0 ? source[i]! - source[i - 1]! : NaN;
+    up.push(mom >= 0 ? mom : 0);
+    down.push(mom >= 0 ? 0 : -mom);
   }
-
-  return result;
+  const sm1 = runningSum(up, length);
+  const sm2 = runningSum(down, length);
+  // a flat window is 0 / 0 = na
+  return sm1.map((s1, i) => (100 * (s1 - sm2[i]!)) / (s1 + sm2[i]!));
 }
 
 /**

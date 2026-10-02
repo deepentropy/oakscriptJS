@@ -660,33 +660,36 @@ export function binary_search(id: PineArray<float>, val: float): int {
  * - Array must be sorted in ascending order
  * - For duplicate values, returns leftmost occurrence
  * - When value not found, returns position of next smaller element
+ * - PineScript rules: a value below every element gives 0; `na` counts as greater than every number (an array
+ *   without na gives `size - 1`); the comparison is exact (no 1e-10 tolerance)
  */
 export function binary_search_leftmost(id: PineArray<float>, val: float): int {
-  let left = 0;
-  let right = id.length - 1;
-  let result = -1;
-  let found = false;
+  if (id.length === 0) return -1;
+  const at = searchBound(id, val, false);
+  return at < id.length && compareSorted(id[at]!, val) === 0 ? at : Math.max(0, at - 1);
+}
 
-  while (left <= right) {
-    const mid = Math.floor((left + right) / 2);
+/**
+ * Order of the PineScript binary searches: numbers in ascending order, na above every number (equal to na).
+ */
+function compareSorted(a: float, b: float): number {
+  const an = Number.isNaN(a);
+  const bn = Number.isNaN(b);
+  if (an || bn) return an === bn ? 0 : an ? 1 : -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
-    if (id[mid]! < val) {
-      if (!found) {
-        result = mid; // Track the last element smaller than val (only if not found)
-      }
-      left = mid + 1;
-    } else if (id[mid]! === val) {
-      result = mid;
-      found = true;
-      // Continue searching to the left for leftmost occurrence
-      right = mid - 1;
-    } else {
-      // id[mid] > val
-      right = mid - 1;
-    }
+/** First index whose element is >= `val` (`after` false) or > `val` (`after` true); `id.length` when none. */
+function searchBound(id: PineArray<float>, val: float, after: boolean): int {
+  let lo = 0;
+  let hi = id.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    const c = compareSorted(id[mid]!, val);
+    if (c < 0 || (after && c === 0)) lo = mid + 1;
+    else hi = mid;
   }
-
-  return result;
+  return lo;
 }
 
 /**
@@ -717,33 +720,13 @@ export function binary_search_leftmost(id: PineArray<float>, val: float): int {
  * - Array must be sorted in ascending order
  * - For duplicate values, returns rightmost occurrence
  * - When value not found, returns position of next larger element
+ * - PineScript rules: a value above every element gives `size` (the position after the last element); `na` counts
+ *   as greater than every number (an array without na gives `size`); the comparison is exact (no 1e-10 tolerance)
  */
 export function binary_search_rightmost(id: PineArray<float>, val: float): int {
-  let left = 0;
-  let right = id.length - 1;
-  let result = -1;
-  let found = false;
-
-  while (left <= right) {
-    const mid = Math.floor((left + right) / 2);
-
-    if (id[mid]! <= val) {
-      if (id[mid]! === val) {
-        result = mid;
-        found = true;
-      }
-      // Continue searching to the right for rightmost occurrence
-      left = mid + 1;
-    } else {
-      // id[mid] > val
-      if (!found) {
-        result = mid; // Track the first element greater than val (only if not found)
-      }
-      right = mid - 1;
-    }
-  }
-
-  return result;
+  if (id.length === 0) return -1;
+  const at = searchBound(id, val, true);
+  return at > 0 && compareSorted(id[at - 1]!, val) === 0 ? at - 1 : at;
 }
 
 /**
