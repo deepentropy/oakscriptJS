@@ -5,6 +5,13 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- `math.log10`, `math.exp`, `math.log`, `math.pow`, `math.sin`, `math.cos`, `math.tan`: known difference of 1 or 2
+  units in the last place from PineScript on part of the inputs (JavaScript `Math` is used) (#130)
+
 ## [0.9.2] - 2026-10-01
 
 ### Fixed

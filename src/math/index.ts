@@ -6,6 +6,12 @@
  * All math functions in this namespace follow PineScript v6 API specifications.
  * Functions include basic arithmetic, algebraic operations, trigonometry, and combinatorics.
  *
+ * Known difference: `log10`, `exp`, `log`, `pow`, `sin`, `cos`, `tan` use JavaScript's `Math`. PineScript uses
+ * other algorithms, whose results differ by 1 or 2 units in the last place on part of the inputs (`log10` about 4 %,
+ * `exp` about 9 %, `sin` / `cos` / `tan` about 3 %, `log` 0.4 %, `pow` 0.05 % of random inputs). A constant argument
+ * (`math.log10(2)`) can differ by up to 3 units in the last place. This is visible only when a script amplifies
+ * these tiny differences (e.g. `ma > ma[1]` on values of 1e195); `sqrt`, `atan`, `asin`, `acos` are equal.
+ *
  * @version 6
  */
 
