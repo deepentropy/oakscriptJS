@@ -11,6 +11,7 @@
  *   loops, called only on the bars where the Pine call runs.
  * - {@link lowest} / {@link highest}: `ta.lowest` / `ta.highest` with a series length (a different length on each
  *   call), which PineScript computes with a state kept between calls.
+ * - {@link linreg}: `ta.linreg` in a conditional block, whose window is kept by bar (not by call).
  *
  * Since PineScript v6, `and` / `or` are lazy: the right operand runs only when the left operand does not decide
  * the result. A ta.* call in the right operand of `a or b` runs on the bars where `a` is false, in `a and b` on the
@@ -40,6 +41,7 @@
  */
 
 import type { Source } from '../types/index.js';
+import { linreg as linregSeries } from '../ta/index.js';
 
 /**
  * Runs `fn` on the bars where `called` is true only, like a ta.* call inside an `if` block.
@@ -176,3 +178,34 @@ export function lowest(): (value: number, length: number) => number {
 export function highest(): (value: number, length: number) => number {
   return extremeSite(false);
 }
+
+/**
+ * One `ta.linreg(source, length, offset)` call site in a conditional block, called with
+ * `(barIndex, value, length, offset)` on the bars where the Pine call runs.
+ *
+ * PineScript rules (measured): `ta.linreg` keeps the values it receives in a ring of `length + 1` slots indexed by the
+ * bar index, filled with 0 at the start and written only on the bars where it is called. The window is read from the
+ * ring for the last `length` bars: a bar before the first call counts as 0, and a bar without a call holds the value of
+ * the call `length + 1` bars earlier (0 if there was none). The result is na before bar `length - 1`. Called on every
+ * bar, it equals `ta.linreg`.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  if bar_index >= 20
+ * //            a := ta.linreg(close, 10, 0)
+ * const site = callsite.linreg();
+ * const a = closes.map((c, i) => (i >= 20 ? site(i, c, 10, 0) : NaN));
+ * ```
+ */
+export function linreg(): (barIndex: number, value: number, length: number, offset?: number) => number {
+  let ring: number[] = [];
+  return (barIndex, value, length, offset = 0) => {
+    const len = Math.floor(length);
+    if (ring.length !== len + 1) ring = new Array<number>(len + 1).fill(0);
+    ring[barIndex % (len + 1)] = value;
+    if (barIndex < len - 1) return NaN;
+    const window = Array.from({ length: len }, (_, k) => ring[(barIndex - len + 1 + k) % (len + 1)]!);
+    return linregSeries(window, len, offset)[len - 1]!;
+  };
+}
+

@@ -104,3 +104,37 @@ describe('callsite.lowest / highest (series length, #126)', () => {
   });
 });
 
+describe('callsite.linreg (ta.linreg in a conditional block, #131)', () => {
+  const x = [3, 5, 4, 6, 8, 7, 9, 12, 10, 11, 13, 15, 14, 16, 18, 17];
+  const L = 4;
+  const last = (w: number[], off = 0) => taCore.linreg(w, L, off)[L - 1]!;
+
+  it('called on every bar: equal to ta.linreg', () => {
+    const site = callsite.linreg();
+    expect(x.map((v, i) => site(i, v, L))).toEqual(taCore.linreg(x, L));
+  });
+
+  it('first call on a later bar: the bars before it count as 0', () => {
+    const site = callsite.linreg();
+    const got = x.map((v, i) => (i >= 6 ? site(i, v, L, 1) : NaN));
+    expect(got[6]).toBe(last([0, 0, 0, x[6]!], 1));
+    expect(got[8]).toBe(last([0, x[6]!, x[7]!, x[8]!], 1));
+    expect(got[9]).toBe(taCore.linreg(x, L, 1)[9]); // the window holds only called bars
+  });
+
+  it('na before bar length - 1, even when called', () => {
+    const site = callsite.linreg();
+    expect([0, 1, 2].map((i) => site(i, x[i]!, L))).toEqual([NaN, NaN, NaN]);
+  });
+
+  it('a bar without a call holds the value of the call length + 1 bars earlier (ring of length + 1 by bar)', () => {
+    // calls on even bars from bar 2, ring of 5 slots (bar % 5). Window of bar 10 = bars 7..10:
+    // bar 7 (slot 2, last written on bar 2), bar 8, bar 9 (slot 4, written on bar 4), bar 10
+    const site = callsite.linreg();
+    const got = x.map((v, i) => (i >= 2 && i % 2 === 0 ? site(i, v, L) : NaN));
+    expect(got[10]).toBe(last([x[2]!, x[8]!, x[4]!, x[10]!]));
+    // window of bar 6 = bars 3..6: bar 3 (slot 3, never written) is 0, bar 5 (slot 0, never written) is 0
+    expect(got[6]).toBe(last([0, x[4]!, 0, x[6]!]));
+  });
+});
+

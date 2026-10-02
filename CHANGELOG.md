@@ -5,6 +5,16 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `callsite.linreg()`: `ta.linreg` in a conditional block, called with `(barIndex, value, length, offset)`. PineScript
+  keeps the window in a ring of `length + 1` slots by bar index, 0 at the start and written only on called bars: the
+  bars before the first call count as 0, a bar without a call holds the value of the call `length + 1` bars earlier.
+  Equal to PineScript on every bar of a daily history (4 call patterns, first call on bar 5 or 20, every bar or every
+  second bar) (#131)
+
 ## [0.9.3] - 2026-10-02
 
 ### Documentation
