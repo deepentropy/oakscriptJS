@@ -17,7 +17,7 @@
 
 import type { float, int, simple_int, series_float } from '../types/index.js';
 import { Series } from '../runtime/series.js';
-import { runningSum } from '../ta/running-sum.js';
+import { runningSum, runningSumSeries } from '../ta/running-sum.js';
 
 /**
  * Returns the absolute value of a number.
@@ -345,7 +345,7 @@ export function avg(...values: (float | Series)[]): float | Series {
  * Returns the sum of values over a sliding window.
  *
  * @param source - Series of values or array
- * @param length - Window length for summation
+ * @param length - Window length for summation, or one length per bar (a series length: array or Series)
  * @returns Series or array with rolling sum values
  *
  * @remarks
@@ -355,6 +355,11 @@ export function avg(...values: (float | Series)[]): float | Series {
  * - A compensated running sum, as in PineScript, so the result can differ from the exact window sum in the last
  *   bits (bit for bit with PineScript)
  * - When passed a Series, returns a Series; when passed an array, returns an array
+ * - With a series length, PineScript moves the running sum to the new length when the length changes, with Kahan
+ *   steps of the raw values: a smaller length removes the values that leave the window (oldest first); a larger
+ *   length adds back the values from the one before the old window down to the one `length` values back (newest
+ *   first), then the usual step removes the stored value of the one `length` values back. A bar with an `na` value
+ *   gives the sum of the last `length` earlier values
  *
  * @example
  * ```typescript
@@ -362,14 +367,20 @@ export function avg(...values: (float | Series)[]): float | Series {
  * // Explanation: [NaN, NaN, 1+2+3, 2+3+4, 3+4+5]
  * ```
  */
-export function sum(source: Series, length: simple_int): Series;
-export function sum(source: series_float, length: simple_int): series_float;
-export function sum(source: series_float | Series, length: simple_int): series_float | Series {
+export function sum(source: Series, length: simple_int | ArrayLike<number> | Series): Series;
+export function sum(source: series_float, length: simple_int | ArrayLike<number> | Series): series_float;
+export function sum(
+  source: series_float | Series,
+  length: simple_int | ArrayLike<number> | Series
+): series_float | Series {
   // Handle Series objects - extract to array first
   const sourceArray = source instanceof Series ? source.toArray() : source;
   // PineScript: the sum of the last `length` non-na values (also +/-Infinity skipped); an na bar keeps the previous
   // result. A compensated running sum, bit for bit as PineScript.
-  const result: series_float = runningSum(sourceArray, length);
+  const result: series_float =
+    typeof length === 'number'
+      ? runningSum(sourceArray, length)
+      : runningSumSeries(sourceArray, length instanceof Series ? length.toArray() : length, 'math.sum');
 
   // If input was a Series, return a Series
   if (source instanceof Series) {

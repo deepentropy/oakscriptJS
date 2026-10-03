@@ -13,6 +13,7 @@
  *   call), which PineScript computes with a state kept between calls.
  * - {@link lowestByBar} / {@link highestByBar} / {@link linreg}: `ta.lowest` / `ta.highest` / `ta.linreg` in a
  *   conditional block, whose history is kept by bar (not by call).
+ * - {@link sum} / {@link sma}: `math.sum` / `ta.sma` in a `for` / `while` loop, called several times on one bar.
  *
  * Since PineScript v6, `and` / `or` are lazy: the right operand runs only when the left operand does not decide
  * the result. A ta.* call in the right operand of `a or b` runs on the bars where `a` is false, in `a and b` on the
@@ -43,6 +44,7 @@
 
 import type { Source } from '../types/index.js';
 import { linreg as linregSeries } from '../ta/index.js';
+import { RunningSum, isNa } from '../ta/running-sum.js';
 
 /**
  * Runs `fn` on the bars where `called` is true only, like a ta.* call inside an `if` block.
@@ -289,3 +291,87 @@ export function linreg(): (barIndex: number, value: number, length: number, offs
   };
 }
 
+
+/** One `math.sum` call site in a loop; rules in {@link sum}. */
+function loopSumSite(name: string): (barIndex: number, value: number, length: number) => number {
+  const running = new RunningSum();
+  let siteLength = NaN;
+  let lastBar = NaN;
+  let pending = false;
+  let kept = NaN;
+  let pendingOut = NaN;
+  return (barIndex, value, length) => {
+    const len = Math.floor(length);
+    if (Number.isNaN(siteLength)) {
+      if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
+      siteLength = len;
+    } else if (len !== siteLength) {
+      throw new Error(`callsite.${name}: the length must be the same on every call (${siteLength}, then ${length})`);
+    }
+    if (barIndex !== lastBar) {
+      if (pending) {
+        running.commit();
+        kept = pendingOut;
+      }
+      pending = false;
+      lastBar = barIndex;
+    }
+    if (isNa(value)) {
+      pending = false;
+      return kept;
+    }
+    pendingOut = running.step(value, len);
+    pending = true;
+    return pendingOut;
+  };
+}
+
+/**
+ * One `math.sum(source, length)` call site inside a `for` / `while` loop, called with `(barIndex, value, length)` on
+ * each call.
+ *
+ * PineScript rules (measured on calls in loops, 1 to 3 calls per bar, and bars without a call):
+ * - the call site keeps one history value per bar: the value of its last call on that bar
+ * - every call on a bar starts from the state of the earlier bars, so it gives the sum of its value and the last
+ *   `length - 1` kept values; the last call of the bar is the one kept for the later bars
+ * - a bar without a call is not in the history (as a call in an `if` block)
+ * - the sum is the same compensated running sum as `math.sum` (bit for bit)
+ *
+ * An na value is skipped as in `math.sum` (it returns the sum of the earlier bars); when it is the last call of a bar,
+ * the bar is not in the history (not measured). The length must be the same on every call.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  for i = 0 to 2
+ * //            s = math.sum(close * (1 + 0.01 * i), 7)
+ * const site = callsite.sum();
+ * for (let b = 0; b < closes.length; b++) {
+ *   for (let i = 0; i <= 2; i++) {
+ *     const s = site(b, closes[b]! * (1 + 0.01 * i), 7);
+ *   }
+ * }
+ * ```
+ */
+export function sum(): (barIndex: number, value: number, length: number) => number {
+  return loopSumSite('sum');
+}
+
+/**
+ * One `ta.sma(source, length)` call site inside a `for` / `while` loop, called with `(barIndex, value, length)` on
+ * each call: {@link sum} divided by the length (same rules).
+ *
+ * @example
+ * ```typescript
+ * // Pine:  evaluate(ratio) => ta.sma(gann(ratio), n)   // called once per ratio in a while loop
+ * const site = callsite.sma();
+ * for (let b = 0; b < closes.length; b++) {
+ *   for (const ratio of ratios) {
+ *     const avg = site(b, gann(b, ratio), n);
+ *   }
+ * }
+ * ```
+ */
+export function sma(): (barIndex: number, value: number, length: number) => number {
+  const site = loopSumSite('sma');
+  return (barIndex, value, length) => site(barIndex, value, length) / Math.floor(length);
+}

@@ -10,13 +10,13 @@
 
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types/index.js';
 import { eq, ge, gt, le, lt } from '../compare/index.js';
-import { runningSum, runningVariance } from './running-sum.js';
+import { runningSum, runningSumSeries, runningVariance, runningVarianceSeries } from './running-sum.js';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
  *
  * @param source - Series of values to process
- * @param length - Number of bars (length)
+ * @param length - Number of bars (length), or one length per bar (a series length)
  * @returns Simple moving average of source for length bars back
  *
  * @remarks
@@ -25,14 +25,21 @@ import { runningSum, runningVariance } from './running-sum.js';
  * - Returns NaN until `length` non-`na` values are available
  * - The sum is a compensated running sum, as in PineScript, so the result can differ from the exact window mean in
  *   the last bits (bit for bit with PineScript)
+ * - With a series length, the running sum is moved to the new length when the length changes, as PineScript does
+ *   (see {@link math.sum}); a bar with an `na` source gives the mean of the last `length` earlier values
  *
  * @example
  * ```typescript
  * const closePrices = [10, 11, 12, 13, 14];
  * const sma5 = ta.sma(closePrices, 5); // Returns: [NaN, NaN, NaN, NaN, 12]
+ * const smaVar = ta.sma(closePrices, [2, 2, 2, 3, 2]); // Returns: [NaN, 10.5, 11.5, 12, 13.5]
  * ```
  */
-export function sma(source: Source, length: simple_int): series_float {
+export function sma(source: Source, length: simple_int | ArrayLike<number>): series_float {
+  if (typeof length !== 'number') {
+    const sums = runningSumSeries(source, length, 'ta.sma');
+    return sums.map((sum, i) => sum / Math.floor(length[i]!));
+  }
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
   return runningSum(source, len).map((sum) => sum / len);
@@ -256,7 +263,7 @@ export function bb(
  * Standard deviation over the last `length` non-na values.
  *
  * @param source - Series of values to process
- * @param length - Number of values
+ * @param length - Number of values, or one length per bar (a series length, see {@link sma})
  * @param biased - true (default): biased estimate (divides by `length`); false: unbiased (by `length - 1`)
  * @returns Standard deviation series (na until `length` non-na values exist)
  *
@@ -266,8 +273,12 @@ export function bb(
  * The result is the square root of {@link variance} (0 when the variance is not positive), computed from
  * compensated running sums of the values and of their squares, bit for bit as PineScript.
  */
-export function stdev(source: Source, length: simple_int, biased: simple_bool = true): series_float {
-  return variance(source, length, biased).map((v) => (Number.isNaN(v) ? NaN : v > 0 ? Math.sqrt(v) : 0));
+export function stdev(
+  source: Source,
+  length: simple_int | ArrayLike<number>,
+  biased: simple_bool = true
+): series_float {
+  return varianceOf(source, length, biased, 'ta.stdev').map((v) => (Number.isNaN(v) ? NaN : v > 0 ? Math.sqrt(v) : 0));
 }
 
 /**
@@ -743,6 +754,15 @@ export function rma(source: Source, length: simple_int): series_float {
 }
 
 /**
+ * One step of the PineScript ta.wma sum: `a + b`, or 0 when `|a + b| <= 1e-10 * max(1, |a| + |b|)`.
+ * Measured bit for bit: a sum that cancels to a tiny residue (relative to the operands, or below 1e-10) is 0.
+ */
+function wmaAdd(a: number, b: number): number {
+  const sum = a + b;
+  return Math.abs(sum) <= 1e-10 * Math.max(1, Math.abs(a) + Math.abs(b)) ? 0 : sum;
+}
+
+/**
  * Weighted Moving Average (WMA) - moving average with linearly decreasing weights.
  *
  * @param source - Series of values to process
@@ -755,6 +775,8 @@ export function rma(source: Source, length: simple_int): series_float {
  * - Formula: `sum(source[i]! * (length - i)) / sum(length - i)` for i = 0 to length-1
  * - As in PineScript: na on a bar whose source is `na` (also +/-Infinity) and until `length` non-`na` values were
  *   received; an `na` value inside the window is replaced by the previous non-`na` value
+ * - Summed from the oldest value to the newest; as PineScript, a partial sum `s + t` with
+ *   `|s + t| <= 1e-10 * max(1, |s| + |t|)` is 0 (a cancellation residue, or values below 1e-10)
  * - More responsive to recent price changes than SMA
  *
  * @example
@@ -789,7 +811,7 @@ export function wma(source: Source, length: simple_int): series_float {
     let weightSum = 0;
     for (let j = len - 1; j >= 0; j--) {
       const weight = len - j;
-      sum += filled[i - j]! * weight;
+      sum = wmaAdd(sum, filled[i - j]! * weight);
       weightSum += weight;
     }
     result.push(sum / weightSum);
@@ -1096,7 +1118,25 @@ export function dev(source: Source, length: simple_int): series_float {
  * const sampleVariance = ta.variance(closePrices, 20, false);
  * ```
  */
-export function variance(source: Source, length: simple_int, biased: simple_bool = true): series_float {
+export function variance(
+  source: Source,
+  length: simple_int | ArrayLike<number>,
+  biased: simple_bool = true
+): series_float {
+  return varianceOf(source, length, biased, 'ta.variance');
+}
+
+/** {@link variance} with a fixed or a series length; `name` is used in the error messages. */
+function varianceOf(
+  source: Source,
+  length: simple_int | ArrayLike<number>,
+  biased: boolean,
+  name: string
+): series_float {
+  if (typeof length !== 'number') {
+    const result = runningVarianceSeries(source, length, biased, name);
+    return biased ? result : result.map((v, i) => (Math.floor(length[i]!) > 1 ? v : NaN));
+  }
   const len = Math.floor(length);
   // PineScript: the last `len` non-na values (also +/-Infinity skipped), as ta.sma
   if ((biased ? len : len - 1) <= 0) return source.map(() => NaN);
@@ -1269,6 +1309,9 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
  * @remarks
  * - Calculates line of best fit using least squares method
  * - Formula: `linreg = intercept + slope * (length - 1 - offset)`
+ * - As PineScript (bit for bit): x = 1 (oldest) .. length (newest), sums from the oldest value,
+ *   `slope = (length * sumXY - sumX * sumY) / (length * sumX2 - sumX * sumX)`,
+ *   `intercept = sumY / length - slope * sumX / length + slope`
  * - offset=0 gives current fitted value, offset<0 gives future projection
  * - `na` values in the source series are included in calculations and will produce an `na` result
  * - Useful for trend detection and prediction
@@ -1300,27 +1343,23 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
       if (hasNaN) {
         result.push(NaN);
       } else {
-        // Calculate least squares regression
+        // Least squares as PineScript: x = 1 (oldest) .. len (newest), summed from the oldest value; the intercept
+        // is the fitted value at x = 1
         let sumX = 0;
         let sumY = 0;
         let sumXY = 0;
         let sumX2 = 0;
-
-          for (let j = 0; j < len; j++) {
-          const x = j;
-              const y = source[i - (len - 1 - j)]!;
+        for (let j = 0; j < len; j++) {
+          const x = j + 1;
+          const y = source[i - (len - 1 - j)]!;
           sumX += x;
           sumY += y;
           sumXY += x * y;
           sumX2 += x * x;
         }
-
-          const slope = (len * sumXY - sumX * sumY) / (len * sumX2 - sumX * sumX);
-          const intercept = (sumY - slope * sumX) / len;
-
-        // Calculate linreg value at offset
-          const x = len - 1 - offset;
-        result.push(intercept + slope * x);
+        const slope = (len * sumXY - sumX * sumY) / (len * sumX2 - sumX * sumX);
+        const intercept = sumY / len - (slope * sumX) / len + slope;
+        result.push(intercept + slope * (len - 1 - offset));
       }
     }
   }
@@ -2012,10 +2051,12 @@ export function dmi(
  * @param source - Series of values to process
  * @param shortLength - Short smoothing length
  * @param longLength - Long smoothing length
- * @returns TSI series
+ * @returns TSI series, a value in [-1, 1]
  *
  * @remarks
- * - TSI oscillates between +100 and -100
+ * - As PineScript: `ta.ema(ta.ema(m, longLength), shortLength) / ta.ema(ta.ema(math.abs(m), longLength), shortLength)`
+ *   with `m = source - source[1]` (not scaled by 100)
+ * - na when the denominator is 0 (a constant source), as a PineScript division by zero
  * - Positive values indicate bullish momentum
  * - Negative values indicate bearish momentum
  * - Crossovers of zero line can signal trend changes
@@ -2047,17 +2088,11 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
   const absMomentum = momentum.map(Math.abs);
   const smoothedAbsMomentum = ema(ema(absMomentum, longLength), shortLength);
 
-  // Calculate TSI
-  const result: series_float = [];
-  for (let i = 0; i < source.length; i++) {
-    if (smoothedAbsMomentum[i]! === 0) {
-      result.push(0);
-    } else {
-      result.push((smoothedMomentum[i]! / smoothedAbsMomentum[i]!) * 100);
-    }
-  }
-
-  return result;
+  // PineScript: a value in [-1, 1]; a division by zero is na
+  return smoothedMomentum.map((m, i) => {
+    const d = smoothedAbsMomentum[i]!;
+    return d === 0 ? NaN : m / d;
+  });
 }
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Per-call history of ta.* calls in a conditional block (PineScript rule).
  */
-import { callsite, taCore } from '../../src';
+import { callsite, math, taCore } from '../../src';
 
 describe('callsite.whenCalled', () => {
   it('the function sees only the values of the bars where it is called', () => {
@@ -174,5 +174,51 @@ describe('callsite.lowestByBar / highestByBar (history kept by bar, #138)', () =
     const hi = callsite.highestByBar();
     expect(x.map((v, i) => lo(i, v, 4))).toEqual(taCore.lowest(x, 4));
     expect(x.map((v, i) => hi(i, v, 4))).toEqual(taCore.highest(x, 4));
+  });
+});
+
+describe('callsite.sum / sma (ta.* call in a loop, #139)', () => {
+  const x = [0.1, 0.7, 0.3, 1.9, 2.2, 0.4, 5.1, 0.25, 3.3, 0.6];
+
+  it('called once per bar, equals math.sum / ta.sma bit for bit', () => {
+    const sum = callsite.sum();
+    const sma = callsite.sma();
+    expect(x.map((v, b) => sum(b, v, 3))).toEqual(math.sum(x, 3));
+    expect(x.map((v, b) => sma(b, v, 4))).toEqual(taCore.sma(x, 4));
+  });
+
+  it('every call on a bar starts from the earlier bars; the last call of the bar is kept', () => {
+    const sum = callsite.sum();
+    const first: number[] = [];
+    const last: number[] = [];
+    x.forEach((v, b) => {
+      first.push(sum(b, v, 3));
+      sum(b, v + 100, 3);
+      last.push(sum(b, v + 10, 3));
+    });
+    const kept = x.map((v) => v + 10);
+    const lastRef = math.sum(kept, 3);
+    expect(last).toEqual(lastRef);
+    // the first call: its own value plus the last two kept values
+    expect(first.slice(0, 2)).toEqual([NaN, NaN]);
+    x.slice(2).forEach((v, k) => expect(first[k + 2]).toBeCloseTo(kept[k]! + kept[k + 1]! + v, 12));
+  });
+
+  it('a bar without a call is not in the history', () => {
+    const sma = callsite.sma();
+    const called = x.map((_, b) => b % 3 !== 0);
+    const out = x.map((v, b) => (called[b] ? sma(b, v, 2) : NaN));
+    expect(out).toEqual(callsite.whenCalled(called, (v) => taCore.sma(v, 2), x));
+  });
+
+  it('an na value returns the sum of the earlier bars', () => {
+    const sum = callsite.sum();
+    expect([sum(0, 1, 2), sum(1, 2, 2), sum(2, NaN, 2), sum(3, 4, 2)]).toEqual([NaN, 3, 3, 6]);
+  });
+
+  it('throws when the length changes', () => {
+    const sum = callsite.sum();
+    sum(0, 1, 3);
+    expect(() => sum(1, 1, 4)).toThrow(/same on every call/);
   });
 });

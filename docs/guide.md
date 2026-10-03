@@ -407,7 +407,7 @@ decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` 
 sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
 `callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()`, `lowestByBar()`,
-`highestByBar()`, `linreg()` in a bar loop.
+`highestByBar()`, `linreg()`, `sum()`, `sma()` in a bar loop.
 `callsite.linreg()` takes the bar index: PineScript's `ta.linreg` keeps its window by bar, so in an `if` block the
 bars before the first call count as 0 (`site(bar_index, close, 10, 0)` on the bars where the block runs).
 `callsite.lowestByBar()` / `highestByBar()` are `ta.lowest` / `ta.highest` in a branch with the history kept by bar
@@ -419,6 +419,30 @@ each bar), which PineScript computes with a state kept between calls:
 // Pine: lowPrice = ta.lowest(close[1], lookback)   // lookback changes per bar
 const lowPrice = callsite.lowest();
 const lows = closes.map((_, i) => lowPrice(i > 0 ? closes[i - 1]! : NaN, lookback[i]!));
+```
+
+`ta.sma`, `ta.stdev`, `ta.variance` and `math.sum` take a series length directly, with no call site: pass one length
+per bar (an array or a Series), as PineScript's series int length. The running sum moves to the new length as
+PineScript does, bit for bit:
+
+```typescript
+// Pine: avg = ta.sma(close, lookback)   // lookback changes per bar
+const avg = taCore.sma(closes, lookback);
+```
+
+A `ta.*` call inside a `for` / `while` loop is one call site too: it keeps one history value per bar, the value of
+its last call on that bar, and every call on the bar starts from the earlier bars. `callsite.sum()` / `sma()`
+(`math.sum` / `ta.sma`) take the bar index to tell the bars apart:
+
+```typescript
+// Pine: for i = 0 to 2
+//           avg = ta.sma(close * (1 + 0.01 * i), 10)
+const avgSite = callsite.sma();
+for (let b = 0; b < closes.length; b++) {
+  for (let i = 0; i <= 2; i++) {
+    const avg = avgSite(b, closes[b]! * (1 + 0.01 * i), 10);
+  }
+}
 ```
 
 ```typescript

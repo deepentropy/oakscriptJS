@@ -114,15 +114,15 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 45. `roc()` - Rate of Change
 46. `rsi()` - Relative Strength Index
 47. `sar()` - Parabolic SAR
-48. `sma()` - Simple Moving Average
-49. `stdev()` - Standard deviation
+48. `sma()` - Simple Moving Average (also with a series length)
+49. `stdev()` - Standard deviation (also with a series length)
 50. `stoch()` - Stochastic oscillator
 51. `supertrend()` - SuperTrend indicator
 52. `swma()` - Symmetrically Weighted Moving Average
 53. `tr()` - True Range
-54. `tsi()` - True Strength Index
+54. `tsi()` - True Strength Index (in [-1, 1])
 55. `valuewhen()` - Returns value when condition was true
-56. `variance()` - Variance
+56. `variance()` - Variance (also with a series length)
 57. `vwap()` - Volume Weighted Average Price
 58. `vwma()` - Volume Weighted Moving Average
 59. `wma()` - Weighted Moving Average
@@ -165,7 +165,7 @@ All 59 official ta functions are implemented. `ichimoku()` and `zigzag()` are cu
 18. `sign()` - Sign of number (-1, 0, 1)
 19. `sin()` - Sine
 20. `sqrt()` - Square root
-21. `sum()` - Sum over a series/window
+21. `sum()` - Sum over a series/window (also with a series length)
 22. `tan()` - Tangent
 23. `todegrees()` - Convert radians to degrees
 24. `toradians()` - Convert degrees to radians
@@ -630,7 +630,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
 | `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
-| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar) |
+| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar), `sum`, `sma` (calls in a loop) |
 
 ### Run result (`IndicatorResult`)
 

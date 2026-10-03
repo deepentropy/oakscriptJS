@@ -14,10 +14,10 @@ import type { Bar } from './types/index.js';
  * @param length - Period length
  * @returns Series with SMA values
  */
-export function sma(source: Series, length: number): Series {
+export function sma(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const result = taCore.sma(sourceValues, length);
+  const result = taCore.sma(sourceValues, length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 
@@ -124,9 +124,10 @@ export function bb(source: Series, length: number, mult: number): [Series, Serie
      * @param biased - true (default): divide by length; false: by length - 1
      * @returns Series with standard deviation values
      */
-    export function stdev(source: Series, length: number, biased: boolean = true): Series {
+    export function stdev(source: Series, length: number | Series, biased: boolean = true): Series {
       const bars = source.bars as Bar[];
-      return Series.fromArray(bars, taCore.stdev(source.toArray(), length, biased));
+      const len = length instanceof Series ? length.toArray() : length;
+      return Series.fromArray(bars, taCore.stdev(source.toArray(), len, biased));
     }
     
 
@@ -600,9 +601,9 @@ export function dev(source: Series, length: number): Series {
  * @param biased - Use biased estimation (default: true)
  * @returns Series with variance values
  */
-export function variance(source: Series, length: number, biased: boolean = true): Series {
+export function variance(source: Series, length: number | Series, biased: boolean = true): Series {
   const bars = source.bars as Bar[];
-  const result = taCore.variance(source.toArray(), length, biased);
+  const result = taCore.variance(source.toArray(), length instanceof Series ? length.toArray() : length, biased);
   return Series.fromArray(bars, result);
 }
 
@@ -757,7 +758,7 @@ export function dmi(bars: Bar[], diLength: number, adxSmoothing: number): [Serie
  * @param source - Source series
  * @param shortLength - Short smoothing period
  * @param longLength - Long smoothing period
- * @returns Series with TSI values
+ * @returns Series with TSI values, in [-1, 1] as PineScript
  */
 export function tsi(source: Series, shortLength: number, longLength: number): Series {
   const bars = source.bars as Bar[];

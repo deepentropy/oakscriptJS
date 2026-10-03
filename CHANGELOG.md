@@ -5,6 +5,32 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `callsite.sum()` / `callsite.sma()`: `math.sum` / `ta.sma` called inside a `for` / `while` loop, called with
+  `(barIndex, value, length)`. PineScript keeps one history value per bar (the value of the last call on that bar);
+  every call on a bar starts from the earlier bars; a bar without a call is not in the history; same compensated
+  running sum as `math.sum` (bit for bit) (#139)
+- `ta.sma()`, `ta.stdev()`, `ta.variance()`, `math.sum()`: a series length (one length per bar, array or Series), as
+  PineScript's series int length. When the length changes, PineScript moves the running sum to the new length with
+  Kahan steps of the raw values (a smaller length removes the leaving values, oldest first; a larger length adds back
+  the earlier values, newest first); an `na` bar applies the new length and gives the sum of the last `length` earlier
+  values. Bit for bit with PineScript on 625,058 probe values (#140)
+
+### Fixed
+
+- `ta.tsi()`: a value in [-1, 1] as PineScript (it was 100 times that value); na when the denominator is 0 (a
+  constant source), as a PineScript division by zero (#141)
+- `ta.wma()` (and `ta.hma()`): as PineScript, a partial sum `s + t` of the weighted values (oldest first) is 0
+  when `|s + t| <= 1e-10 * max(1, |s| + |t|)`: a sum that cancels to a tiny residue, or a value below 1e-10. Bit
+  for bit with PineScript on 203,242 wma and 85,145 hma probe values (#136)
+- `ta.linreg()` (and `callsite.linreg()`): PineScript's least-squares arithmetic, bit for bit: x = 1 (oldest) ..
+  length, sums from the oldest value, `intercept = sumY / length - slope * sumX / length + slope` (the fitted value at
+  x = 1), result `intercept + slope * (length - 1 - offset)`. Was within 1.7e-15 (relative) before; now 0 different
+  on 255,265 probe values (15 series, offsets -2 to 9)
+
 ## [0.9.5] - 2026-10-02
 
 ### Added
