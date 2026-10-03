@@ -1550,8 +1550,8 @@ export function cci(source: Source, length: simple_int): series_float {
  * - Measures where close is relative to the high-low range
  * - Values above 80 typically indicate overbought
  * - Values below 20 typically indicate oversold
- * - Returns NaN when range is zero (high equals low)
- * - \`na\` values in the source series are ignored
+ * - As PineScript: when the source, \`highest(high, length)\` or \`lowest(low, length)\` is \`na\`, or the range is 0, the
+ *   result is the previous result of the call (\`na\` until a first value)
  *
  * @example
  * \`\`\`typescript
@@ -1565,18 +1565,14 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
   const lowestValues = lowest(low, length);
   const highestValues = highest(high, length);
 
+  // PineScript: an na input or a zero range keeps the previous result
+  let previous = NaN;
   for (let i = 0; i < source.length; i++) {
-    if (isNaN(lowestValues[i]!) || isNaN(highestValues[i]!)) {
-      result.push(NaN);
-    } else {
-      const range = highestValues[i]! - lowestValues[i]!;
-      if (range === 0) {
-        result.push(NaN);
-      } else {
-        const stochValue = 100 * (source[i]! - lowestValues[i]!) / range;
-        result.push(stochValue);
-      }
-    }
+    const value = source[i]!;
+    const lo = lowestValues[i]!;
+    const range = highestValues[i]! - lo;
+    if (!Number.isNaN(value) && !Number.isNaN(range) && range !== 0) previous = (100 * (value - lo)) / range;
+    result.push(previous);
   }
 
   return result;

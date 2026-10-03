@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `|fl(x + |c|) - x| < |c|` (the compensation moved toward +infinity in floating point). Same results as before on all
   real data; also right for a positive value just below a power of two (it was wrong on 5 designed series). 0
   different on 546,176 saved and 999,544 new probe values (#142)
+- `ta.stoch()`: when the source, `highest(high, length)` or `lowest(low, length)` is na, or the range is 0, the result
+  is the previous result of the call (na until a first value), as PineScript (it was na). 0 different on 204,348 probe
+  values (#145)
 
 ## [0.9.5] - 2026-10-02
 
