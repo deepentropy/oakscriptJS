@@ -192,3 +192,30 @@ describe('series length (#140)', () => {
     expect(() => taCore.sma([1, 2, 3], [2, 2])).toThrow(/2 values for 3 bars/);
   });
 });
+
+describe('running sum resync test just below a power of two (#142)', () => {
+  // periodic series of 30 bars; PineScript math.sum(x, 2) on the bars of phase 6 .. 11 (steady state). The test moves
+  // x toward +infinity by |c|: just below a power of two this crosses into the coarser binade above
+  const phases = (B: number, C: number) => lastPeriodSum2({ 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: B, 8: C }).slice(6, 12);
+
+  it('c < 0: the step up crosses the power of two and loses part of c (sum taken again)', () => {
+    expect(phases(3.057299181000204, 1.9999999999999998)).toEqual([
+      53.3681210331428, 56.425420214143, 5.057299181000204, 1.9999999999999996, -2.220446049250313e-16,
+      -2.220446049250313e-16,
+    ]);
+    expect(phases(1.4142135623730951, 0.9999999999999999)).toEqual([
+      53.3681210331428, 54.78233459551589, 2.414213562373095, 0.9999999999999998, -1.1102230246251565e-16,
+      -1.1102230246251565e-16,
+    ]);
+  });
+
+  it('c > 0: the decision follows x + c on the grid above, not x - c on the grid of x', () => {
+    expect(phases(0.1, 1.9999999999999998)).toEqual([
+      53.3681210331428, 53.4681210331428, 2.099999999999987, 1.999999999999987, -1.2878587085651816e-14,
+      -1.2961853812498703e-14,
+    ]);
+    expect(phases(0.1, 7.999999999999999)).toEqual([
+      53.3681210331428, 53.4681210331428, 8.1, 8, 8.881784197001252e-16, 1.2490009027033011e-15,
+    ]);
+  });
+});

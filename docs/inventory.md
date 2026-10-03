@@ -234,7 +234,7 @@ All 24 official math functions are implemented.
 50. `sort_indices()` - Get indices that would sort the array
 51. `standardize()` - Standardize array (z-score normalization)
 52. `stdev()` - Standard deviation of array
-53. `sum()` - Sum of array elements
+53. `sum()` - Sum of array elements (skips na)
 54. `unshift()` - Add element to beginning
 55. `variance()` - Variance of array
 
@@ -630,7 +630,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
 | `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
-| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar), `sum`, `sma` (calls in a loop) |
+| `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar), `sum`, `sma`, `stdev` (calls in a loop, one or several lengths) |
 
 ### Run result (`IndicatorResult`)
 

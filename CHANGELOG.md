@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Kahan steps of the raw values (a smaller length removes the leaving values, oldest first; a larger length adds back
   the earlier values, newest first); an `na` bar applies the new length and gives the sum of the last `length` earlier
   values. Bit for bit with PineScript on 625,058 probe values (#140)
+- `callsite.sum()` / `callsite.sma()` accept a different length on each call (one call site in a loop over several
+  lengths): every call starts from the state of the earlier bars and moves it to its own length as a series length
+  does; the last call of the bar is kept. New `callsite.stdev()` with the same rules. Bit for bit with PineScript on
+  221,377 probe values (#143)
 
 ### Fixed
 
@@ -30,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   length, sums from the oldest value, `intercept = sumY / length - slope * sumX / length + slope` (the fitted value at
   x = 1), result `intercept + slope * (length - 1 - offset)`. Was within 1.7e-15 (relative) before; now 0 different
   on 255,265 probe values (15 series, offsets -2 to 9)
+- `array.sum()`: skips na elements as PineScript (it returned NaN); an array without values gives NaN. Added from left
+  to right; the running sum is set to 0 after a step when its absolute value is <= 1e-10 (an absolute threshold,
+  unlike `ta.wma`); `array.avg()` does not use this rule (#144)
+- Running sums of `math.sum()`, `ta.sma()`, `ta.stdev()`, `ta.variance()`, `ta.mfi()`: the resync test is now
+  `|fl(x + |c|) - x| < |c|` (the compensation moved toward +infinity in floating point). Same results as before on all
+  real data; also right for a positive value just below a power of two (it was wrong on 5 designed series). 0
+  different on 546,176 saved and 999,544 new probe values (#142)
 
 ## [0.9.5] - 2026-10-02
 

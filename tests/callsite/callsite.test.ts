@@ -216,9 +216,21 @@ describe('callsite.sum / sma (ta.* call in a loop, #139)', () => {
     expect([sum(0, 1, 2), sum(1, 2, 2), sum(2, NaN, 2), sum(3, 4, 2)]).toEqual([NaN, 3, 3, 6]);
   });
 
-  it('throws when the length changes', () => {
+  it('several lengths on one bar: each call moves the kept sum to its length, as PineScript (#143)', () => {
+    // Pine: for i = 0 to 2 / v = math.sum(close, i == 0 ? 5 : i == 1 ? 2 : 10); daily BTCUSD closes
+    const closes = [10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8];
     const sum = callsite.sum();
-    sum(0, 1, 3);
-    expect(() => sum(1, 1, 4)).toThrow(/same on every call/);
+    const out: number[][] = [[], [], []];
+    closes.forEach((c, b) => [5, 2, 10].forEach((len, k) => out[k]!.push(sum(b, c, len))));
+    // a separate math.sum(close, 2) gives 20.5 on bar 6
+    expect(out[1]!.slice(1, 8)).toEqual([22.59, 23.39, 23.4, 23.4, 22.2, 20.499999999999996, 18]);
+    expect(out[0]!.slice(4, 8)).toEqual([57.69, 57.29, 55.599999999999994, 51.9]);
+    expect(out[2]!.slice(9, 12)).toEqual([103.28999999999999, 101.28, 97.59]);
+  });
+
+  it('stdev: running sums of the values and of their squares, as ta.stdev', () => {
+    const dev = callsite.stdev();
+    const out = x.map((v, b) => dev(b, v, 3));
+    expect(out).toEqual(taCore.stdev(x, 3));
   });
 });

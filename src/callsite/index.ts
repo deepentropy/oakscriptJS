@@ -292,37 +292,37 @@ export function linreg(): (barIndex: number, value: number, length: number, offs
 }
 
 
-/** One `math.sum` call site in a loop; rules in {@link sum}. */
-function loopSumSite(name: string): (barIndex: number, value: number, length: number) => number {
+/**
+ * One `math.sum` call site in a loop; rules in {@link sum}. With `squares`, it also keeps the running sum of the
+ * squared values (for {@link stdev}). Returns `[sum, sumOfSquares]` (NaN when not kept).
+ */
+function loopSumSite(
+  name: string,
+  squares: boolean
+): (barIndex: number, value: number, length: number) => [number, number] {
   const running = new RunningSum();
-  let siteLength = NaN;
+  const runningSq = new RunningSum();
   let lastBar = NaN;
   let pending = false;
-  let kept = NaN;
-  let pendingOut = NaN;
   return (barIndex, value, length) => {
     const len = Math.floor(length);
-    if (Number.isNaN(siteLength)) {
-      if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
-      siteLength = len;
-    } else if (len !== siteLength) {
-      throw new Error(`callsite.${name}: the length must be the same on every call (${siteLength}, then ${length})`);
-    }
+    if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
     if (barIndex !== lastBar) {
       if (pending) {
         running.commit();
-        kept = pendingOut;
+        if (squares) runningSq.commit();
       }
       pending = false;
       lastBar = barIndex;
     }
     if (isNa(value)) {
       pending = false;
-      return kept;
+      return [running.stepNa(len), squares ? runningSq.stepNa(len) : NaN];
     }
-    pendingOut = running.step(value, len);
+    const x = value;
+    const out: [number, number] = [running.step(x, len), squares ? runningSq.step(x * x, len) : NaN];
     pending = true;
-    return pendingOut;
+    return out;
   };
 }
 
@@ -334,11 +334,13 @@ function loopSumSite(name: string): (barIndex: number, value: number, length: nu
  * - the call site keeps one history value per bar: the value of its last call on that bar
  * - every call on a bar starts from the state of the earlier bars, so it gives the sum of its value and the last
  *   `length - 1` kept values; the last call of the bar is the one kept for the later bars
+ * - the length can change from one call to the next (also on the same bar): each call first moves the kept sum to
+ *   its own length as `math.sum` with a series length does (Kahan steps of the raw values)
  * - a bar without a call is not in the history (as a call in an `if` block)
  * - the sum is the same compensated running sum as `math.sum` (bit for bit)
  *
- * An na value is skipped as in `math.sum` (it returns the sum of the earlier bars); when it is the last call of a bar,
- * the bar is not in the history (not measured). The length must be the same on every call.
+ * An na value is skipped as in `math.sum` (it returns the sum of the last `length` earlier values); when it is the
+ * last call of a bar, the bar is not in the history (not measured).
  *
  * @example
  * ```typescript
@@ -353,7 +355,8 @@ function loopSumSite(name: string): (barIndex: number, value: number, length: nu
  * ```
  */
 export function sum(): (barIndex: number, value: number, length: number) => number {
-  return loopSumSite('sum');
+  const site = loopSumSite('sum', false);
+  return (barIndex, value, length) => site(barIndex, value, length)[0];
 }
 
 /**
@@ -372,6 +375,37 @@ export function sum(): (barIndex: number, value: number, length: number) => numb
  * ```
  */
 export function sma(): (barIndex: number, value: number, length: number) => number {
-  const site = loopSumSite('sma');
-  return (barIndex, value, length) => site(barIndex, value, length) / Math.floor(length);
+  const site = loopSumSite('sma', false);
+  return (barIndex, value, length) => site(barIndex, value, length)[0] / Math.floor(length);
+}
+
+/**
+ * One `ta.stdev(source, length, biased)` call site inside a `for` / `while` loop, called with
+ * `(barIndex, value, length, biased?)` on each call: the running sums of the values and of their squares follow the
+ * rules of {@link sum}; the result is computed from them as `ta.stdev` (bit for bit).
+ *
+ * @example
+ * ```typescript
+ * // Pine:  for len in lengths
+ * //            [mid, up, lo] = ta.bb(close, len, 2)
+ * const avgSite = callsite.sma();
+ * const devSite = callsite.stdev();
+ * for (let b = 0; b < closes.length; b++) {
+ *   for (const len of lengths) {
+ *     const mid = avgSite(b, closes[b]!, len);
+ *     const dev = devSite(b, closes[b]!, len);
+ *   }
+ * }
+ * ```
+ */
+export function stdev(): (barIndex: number, value: number, length: number, biased?: boolean) => number {
+  const site = loopSumSite('stdev', true);
+  return (barIndex, value, length, biased = true) => {
+    const len = Math.floor(length);
+    const [s, sq] = site(barIndex, value, length);
+    const mean = s / len;
+    const variance = biased ? sq / len - mean * mean : sq / (len - 1) - (mean * s) / (len - 1);
+    if (!biased && len <= 1) return NaN;
+    return Number.isNaN(variance) ? NaN : variance > 0 ? Math.sqrt(variance) : 0;
+  };
 }

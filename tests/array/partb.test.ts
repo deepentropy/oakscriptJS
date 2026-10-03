@@ -33,4 +33,21 @@ describe('array: PineScript Part B forms', () => {
     expect(array.avg(array.from(NaN, NaN))).toBeNaN();
     expect(array.avg([])).toBeNaN();
   });
+
+  it('sum skips na, adds left to right and sets the running sum to 0 when |sum| <= 1e-10, as PineScript (#144)', () => {
+    expect(array.sum(array.from(1, NaN))).toBe(1);
+    expect(array.sum(array.from(NaN, NaN))).toBeNaN();
+    expect(array.sum([])).toBeNaN();
+    expect(array.sum(array.from(0.1, 0.2, 0.3))).toBe(0.6000000000000001);
+    expect(array.sum(array.from(0.3, 0.2, 0.1))).toBe(0.6);
+    expect(array.sum(array.from(1e-11, 1))).toBe(1);
+    expect(array.sum(array.from(1, 1e-11))).toBe(1.00000000001);
+    expect(array.sum(array.from(1e-10, 1))).toBe(1);
+    expect(array.sum(array.from(1, -0.99999999995))).toBe(0);
+    expect(array.sum(array.from(1e15, 1, -1e15))).toBe(1);
+    expect(array.sum(array.from(NaN, 1e-11))).toBe(0);
+    expect(array.sum(array.from(1e-4, 9.9e-11, 2e-4))).toBe(0.000300000099);
+    // avg does not use this rule
+    expect(array.avg(array.from(1e-11, 1))).toBe(0.500000000005);
+  });
 });

@@ -407,7 +407,7 @@ decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` 
 sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
 `callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()`, `lowestByBar()`,
-`highestByBar()`, `linreg()`, `sum()`, `sma()` in a bar loop.
+`highestByBar()`, `linreg()`, `sum()`, `sma()`, `stdev()` in a bar loop.
 `callsite.linreg()` takes the bar index: PineScript's `ta.linreg` keeps its window by bar, so in an `if` block the
 bars before the first call count as 0 (`site(bar_index, close, 10, 0)` on the bars where the block runs).
 `callsite.lowestByBar()` / `highestByBar()` are `ta.lowest` / `ta.highest` in a branch with the history kept by bar
@@ -431,8 +431,10 @@ const avg = taCore.sma(closes, lookback);
 ```
 
 A `ta.*` call inside a `for` / `while` loop is one call site too: it keeps one history value per bar, the value of
-its last call on that bar, and every call on the bar starts from the earlier bars. `callsite.sum()` / `sma()`
-(`math.sum` / `ta.sma`) take the bar index to tell the bars apart:
+its last call on that bar, and every call on the bar starts from the earlier bars. `callsite.sum()` / `sma()` /
+`stdev()` (`math.sum` / `ta.sma` / `ta.stdev`) take the bar index to tell the bars apart. The length can change from
+one call to the next (for example a loop over several lengths): each call moves the kept sum to its own length, as a
+series length does:
 
 ```typescript
 // Pine: for i = 0 to 2

@@ -156,10 +156,19 @@ export function sort<T>(id: PineArray<T>, order: 'asc' | 'desc' = 'asc'): void {
 }
 
 /**
- * Returns the sum of all elements (numeric arrays only)
+ * Sum of the non-na elements (PineScript `array.sum(id)`), added from left to right; an array without values gives NaN.
+ * As PineScript, the running sum is set to 0 after a step when its absolute value is <= 1e-10.
  */
 export function sum(id: PineArray<float>): float {
-  return id.reduce((acc, val) => acc + val, 0);
+  let total = 0;
+  let count = 0;
+  for (const v of id) {
+    if (Number.isNaN(v)) continue;
+    count++;
+    total += v;
+    if (Math.abs(total) <= 1e-10) total = 0;
+  }
+  return count ? total : NaN;
 }
 
 /**
