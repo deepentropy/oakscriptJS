@@ -44,15 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ta.stoch()`: when the source, `highest(high, length)` or `lowest(low, length)` is na, or the range is 0, the result
   is the previous result of the call (na until a first value), as PineScript (it was na). 0 different on 204,348 probe
   values (#145)
-- `color.from_gradient()` at the ends (value at or outside the range, k = 0 / 1): each channel is
-  `floor(x * a / a)` with the alpha as byte / 255, as PineScript (0 different on 21,756 probe colours and 99 / 99 end
-  colours of the earlier grid). This is the end colour itself (0.8.0 result for the reported colours), or one unit less
-  for some channel / alpha pairs. Inside the range the order is unchanged (#146)
-- `ta.rci()`: first value on bar `length` (one bar later); values within 1e-10 of the first value of a sorted group
-  are ties (average rank); a window where all values are ties gives na; the result is
-  `100 * cov / (stdev(ranks) * stdev(times))`, as PineScript. 199,901 / 204,360 probe values bit for bit (all windows
-  without ties); windows with ties can differ in the last bit (relative 4e-16). A bar with an na source keeps the
-  previous result (3,194 / 3,194 na bars) (#147)
+- `color.from_gradient()`: PineScript's mixing order, bit for bit: premultiplied channels
+  `((alpha / 255) * channel) * weight`, divided by the byte-alpha mix / 255, truncated. At an end (k = 0 / 1) this is
+  the end colour or one unit less (e.g. green 98 with transparency 7 gives 97). 0 different on 116,927 probe channels
+  (the order was found in PyneCore's open source and checked on our probes) (#146)
+- `ta.rci()`: as PineScript, bit for bit: first value on bar `length`; ranks from an ascending sweep where a group
+  collects the values less than 1e-10 above its smallest value (average rank, counted from the largest value); a
+  window where all values are ties gives na; moment-form variances of the bar positions and the ranks and
+  `(100 * cov) / (sd_x * sd_y)` (the arithmetic order was found in PyneCore's open source and checked on our probes).
+  The values sit in a ring of `length + 1` slots by bar index, 0 at the start and not written on na bars: a bar with
+  an na source keeps the previous result, and a later window sees the value of `length + 1` bars earlier where the
+  na was. 0 different on 292,799 probe values (ties, na, double na, early bars) (#147)
 - `ta.correlation()`: PineScript's running-sum formula `cov = sma(x * y) - sma(x) * sma(y)`,
   `r = cov / sqrt(variance(x) * variance(y))` (each running sum skips its own na values); `|cov| <= 1e-10` gives 0, a
   zero variance gives na. 0 different on 170,300 probe values (the measured limit lies between 9.999999999999986e-11

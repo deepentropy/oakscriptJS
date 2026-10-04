@@ -124,6 +124,13 @@ describe('Newly Implemented TA Functions', () => {
       ]);
     });
 
+    it('windows with ties: PineScript values bit for bit (length 5)', () => {
+      expect(ta.rci(closes, 5).slice(5)).toEqual([
+        -22.360679774997898, -89.44271909999159, -97.46794344808963, -89.99999999999999, -59.999999999999986, 0,
+        20.519567041703077,
+      ]);
+    });
+
     it('perfectly increasing / decreasing windows give +/-100 (within the last bit)', () => {
       const result = ta.rci([1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1], 5);
       expect(result[4]).toBeNaN();
@@ -138,10 +145,14 @@ describe('Newly Implemented TA Functions', () => {
       expect(ta.rci(chain, 3)[3]).toBe(86.60254037844385);
     });
 
-    it('should return NaN if any value is NaN', () => {
-      const values = [0, 1, 2, NaN, 4, 5];
-      const result = ta.rci(values, 5);
-      expect(result[5]).toBeNaN();
+    it('na: a ring of length + 1 slots (0 at the start, not written on na bars), as PineScript', () => {
+      // the window of bar 5 sees 0 where the na of bar 3 is (no value length + 1 bars earlier)
+      expect(ta.rci([0, 1, 2, NaN, 4, 5], 5)[5]).toBe(ta.rci([9, 1, 2, 0, 4, 5], 5)[5]);
+      // PineScript: values 0, 2, 4, na, 1, 3 with length 3
+      expect(ta.rci([0, 2, 4, NaN, 1, 3], 3).slice(3)).toEqual([NaN, -49.99999999999999, 99.99999999999999]);
+      // the na of bar 7 is seen as the value of bar 3 (length + 1 bars earlier)
+      const x = [5, 1, 4, 2, 8, 3, 7, NaN, 6, 9];
+      expect(ta.rci(x, 3)[8]).toBe(ta.rci([...x.slice(0, 7), 2, 6, 9], 3)[8]);
     });
   });
 

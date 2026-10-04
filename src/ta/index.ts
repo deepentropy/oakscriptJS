@@ -2758,65 +2758,72 @@ export function percentile_nearest_rank(
  * - +100 indicates source consistently increased over the period
  * - -100 indicates source consistently decreased over the period
  * - 0 indicates no directional consistency
- * - As PineScript: the first value is on bar `length`; values within 1e-10 of each other (from the first value of a
- *   sorted group) are ties with their average rank; a window where all values are ties gives `na`; the result is
- *   `100 * cov / (stdev(ranks) * stdev(times))` (biased, mean-centered)
- * - A bar with an `na` source keeps the previous result; a later window that still holds the `na` gives `na` (not
- *   measured to the bit)
+ * - As PineScript (bit for bit): the first value is on bar `length`; values less than 1e-10 above the smallest value
+ *   of a group (ascending sweep) are ties with their average rank; a window where all values are ties gives `na`;
+ *   moment-form variances of the bar positions and the ranks, `(100 * cov) / (sd_x * sd_y)`
+ * - A bar with an `na` source keeps the previous result; the values are kept in a ring of `length + 1` slots by bar
+ *   index (0 at the start, not written on `na` bars), so a later window sees the value of `length + 1` bars earlier
+ *   where the `na` was
  */
 export function rci(source: Source, length: simple_int): series_float {
   const len = Math.floor(length);
   const result: series_float = [];
-  const times = Array.from({ length: len }, (_, j) => j + 1);
-  // mean-centered sum of products divided by the length (covariance / variance), as PineScript
-  const centered = (x: number[], y: number[]) => {
-    let sx = 0;
-    let sy = 0;
-    for (let j = 0; j < len; j++) {
-      sx += x[j]!;
-      sy += y[j]!;
-    }
-    const mx = sx / len;
-    const my = sy / len;
-    let s = 0;
-    for (let j = 0; j < len; j++) s += (x[j]! - mx) * (y[j]! - my);
-    return s / len;
-  };
+  // PineScript keeps the values in a ring of `length + 1` slots indexed by the bar index, filled with 0 at the start
+  // and written only on bars with a value: a bar with an na source keeps the previous result, and later windows see
+  // the value of `length + 1` bars earlier in that slot
+  const ring = new Array<number>(len + 1).fill(0);
   for (let i = 0; i < source.length; i++) {
-    // PineScript: the first value is on bar `length` (one bar after the window is full)
+    const v = source[i]!;
+    if (Number.isNaN(v)) {
+      result.push(i > 0 ? result[i - 1]! : NaN);
+      continue;
+    }
+    ring[i % (len + 1)] = v;
+    // the first value is on bar `length` (one bar after the window is full)
     if (i < len) {
       result.push(NaN);
       continue;
     }
-    // PineScript: a bar with an na source keeps the previous result
-    if (Number.isNaN(source[i]!)) {
-      result.push(result[i - 1]!);
-      continue;
-    }
-    const values = Array.from({ length: len }, (_, j) => source[i - len + 1 + j]!);
-    if (values.some((v) => Number.isNaN(v))) {
-      result.push(NaN);
-      continue;
-    }
-    // Ranks from the smallest value; values within 1e-10 of the first value of a group (sorted) are ties and share
-    // their average rank
-    const order = values.map((_, j) => j).sort((a, b) => values[a]! - values[b]! || a - b);
+    // window newest first (position 0 = this bar)
+    const values = Array.from({ length: len }, (_, j) => ring[(i - j) % (len + 1)]!);
+    // Ranks: ascending sweep; a group collects the values less than 1e-10 above its smallest value; each group gets
+    // its average 0-based rank counted from the largest value
+    const order = values.map((_, j) => j).sort((a, b) => values[a]! - values[b]!);
     const ranks = new Array<number>(len);
-    for (let j = 0; j < len; ) {
-      let tieCount = 1;
-      while (j + tieCount < len && values[order[j + tieCount]!]! - values[order[j]!]! <= 1e-10) tieCount++;
-      const avgRank = (j + 1 + (j + tieCount)) / 2;
-      for (let k = 0; k < tieCount; k++) ranks[order[j + k]!] = avgRank;
-      j += tieCount;
+    for (let g = 0; g < len; ) {
+      const anchor = values[order[g]!]!;
+      let end = g + 1;
+      while (end < len && values[order[end]!]! - anchor < 1e-10) end++;
+      const avgRank = len - 1 - (g + g + (end - g) - 1) / 2;
+      for (let k = g; k < end; k++) ranks[order[k]!] = avgRank;
+      g = end;
     }
+    // moment-form variances, covariance from deviation products, (100 * cov) / (sd_x * sd_y): this operation order
+    // gives PineScript's values bit for bit
+    let sumX = 0;
+    let sumY = 0;
+    let sumX2 = 0;
+    let sumY2 = 0;
+    for (let k = 0; k < len; k++) {
+      const y = ranks[k]!;
+      sumX += k;
+      sumY += y;
+      sumX2 += k * k;
+      sumY2 += y * y;
+    }
+    const meanX = sumX / len;
+    const meanY = sumY / len;
+    const varX = sumX2 / len - meanX * meanX;
+    const varY = sumY2 / len - meanY * meanY;
     // a window where all values are ties has no correlation
-    if (ranks.every((r) => r === ranks[0])) {
+    if (!(varX > 0) || !(varY > 0)) {
       result.push(NaN);
       continue;
     }
-    // Pearson correlation of the value ranks and the time ranks, scaled to -100 .. 100
-    const cov = centered(ranks, times);
-    result.push((100 * cov) / (Math.sqrt(centered(ranks, ranks)) * Math.sqrt(centered(times, times))));
+    let cov = 0;
+    for (let k = 0; k < len; k++) cov += (k - meanX) * (ranks[k]! - meanY);
+    cov /= len;
+    result.push((100 * cov) / (Math.sqrt(varX) * Math.sqrt(varY)));
   }
   return result;
 }
