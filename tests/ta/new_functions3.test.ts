@@ -171,8 +171,8 @@ describe('ta.correlation', () => {
     const source2 = [1, 2, 3, 4, 5]; // Linear
     const corr = ta.correlation(source1, source2, 5);
 
-    // Correlation with constant is undefined (NaN)
-    expect(corr[4]).toBeNaN();
+    // PineScript: the covariance of a constant is 0 (|cov| <= 1e-10 gives 0) (#148)
+    expect(corr[4]).toBe(0);
   });
 
   it('should handle varying correlation over time', () => {

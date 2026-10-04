@@ -51,6 +51,12 @@ describe('Newly Implemented TA Functions', () => {
       expect(p75[values.length - 1]).toBeCloseTo(8);
     });
 
+    it('a bar with an na source keeps the previous result (PineScript)', () => {
+      const result = ta.rci([0, 1, 2, 3, 4, 5, NaN, 7], 3);
+      expect(result[6]).toBe(result[5]);
+      expect(result[5]).toBe(99.99999999999999);
+    });
+
     it('should return NaN if any value is NaN', () => {
       const values = [1, 2, NaN, 4, 5];
       const result = ta.percentile_linear_interpolation(values, values.length, 50);
@@ -108,37 +114,34 @@ describe('Newly Implemented TA Functions', () => {
   });
 
   describe('ta.rci', () => {
-    it('should return +100 for perfectly increasing series', () => {
-      const values = [1, 2, 3, 4, 5];
-      const result = ta.rci(values, values.length);
-      expect(result[values.length - 1]).toBeCloseTo(100, 5);
+    // Daily BTCUSD closes, first 12 bars; expected values are PineScript outputs (#147)
+    const closes = [10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8];
+
+    it('first value on bar length; a window of ties gives na; PineScript values bit for bit', () => {
+      expect(ta.rci(closes, 3)).toEqual([
+        NaN, NaN, NaN, 86.60254037844385, NaN, -86.60254037844385, -99.99999999999999, -99.99999999999999,
+        -49.99999999999999, 99.99999999999999, 99.99999999999999, -49.99999999999999,
+      ]);
     });
 
-    it('should return -100 for perfectly decreasing series', () => {
-      const values = [5, 4, 3, 2, 1];
-      const result = ta.rci(values, values.length);
-      expect(result[values.length - 1]).toBeCloseTo(-100, 5);
+    it('perfectly increasing / decreasing windows give +/-100 (within the last bit)', () => {
+      const result = ta.rci([1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1], 5);
+      expect(result[4]).toBeNaN();
+      expect(result[5]).toBeCloseTo(100, 12);
+      expect(result[10]).toBeCloseTo(-100, 12);
     });
 
-    it('should return value between -100 and 100 for mixed data', () => {
-      const values = [1, 5, 2, 4, 3];
-      const result = ta.rci(values, values.length);
-      // RCI for this series should be between -100 and 100
-      expect(result[values.length - 1]).toBeGreaterThan(-100);
-      expect(result[values.length - 1]).toBeLessThan(100);
-    });
-
-    it('should handle rolling window', () => {
-      const values = [1, 2, 3, 4, 5, 4, 3, 2, 1];
-      const result = ta.rci(values, 5);
-      expect(result[4]).toBeCloseTo(100, 5); // [1,2,3,4,5]
-      expect(result[8]).toBeCloseTo(-100, 5); // [5,4,3,2,1]
+    it('values within 1e-10 of the first value of a sorted group are ties', () => {
+      // PineScript ta.rci(2 + 0.6e-10 * (bar_index % 4), 3) on bar 3: window 2 + 6e-11, 2 + 1.2e-10, 2 + 1.8e-10; the
+      // first two are ties, the third is more than 1e-10 from the first: 86.60254037844385
+      const chain = [0, 1, 2, 3].map((k) => 2 + 0.6e-10 * k);
+      expect(ta.rci(chain, 3)[3]).toBe(86.60254037844385);
     });
 
     it('should return NaN if any value is NaN', () => {
-      const values = [1, 2, NaN, 4, 5];
-      const result = ta.rci(values, values.length);
-      expect(result[values.length - 1]).toBeNaN();
+      const values = [0, 1, 2, NaN, 4, 5];
+      const result = ta.rci(values, 5);
+      expect(result[5]).toBeNaN();
     });
   });
 

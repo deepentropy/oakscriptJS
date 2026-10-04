@@ -1381,8 +1381,9 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  * - -1 = perfect negative correlation
  * - 0 = no correlation
  * - Measures linear relationship between two series
- * - `na` values in the source series are ignored
- * - The function calculates on the `length` quantity of non-`na` values
+ * - As PineScript: `cov = sma(x * y) - sma(x) * sma(y)`, `r = cov / sqrt(variance(x) * variance(y))` with the
+ *   compensated running sums of `ta.sma` / `ta.variance` (each skips its own `na` values); `|cov| <= 1e-10` gives 0, a
+ *   zero variance gives `na`
  *
  * @example
  * ```typescript
@@ -1391,59 +1392,26 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  * ```
  */
 export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
-  const result: series_float = [];
-  // the non-NaN pairs of the window, newest first (reused on every bar)
-  const span = length > 0 ? Math.ceil(length) : 0;
-  const a = new Float64Array(span);
-  const b = new Float64Array(span);
-
-  for (let i = 0; i < source1.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-    let m = 0;
-    for (let j = 0; j < length; j++) {
-      const v1 = source1[i - j]!;
-      const v2 = source2[i - j]!;
-      if (!isNaN(v1) && !isNaN(v2)) {
-        a[m] = v1;
-        b[m] = v2;
-        m++;
-      }
-    }
-    if (m === 0) {
-      result.push(NaN);
-      continue;
-    }
-
-    // Calculate means
-    let sum1 = 0;
-    let sum2 = 0;
-    for (let k = 0; k < m; k++) {
-      sum1 += a[k]!;
-      sum2 += b[k]!;
-    }
-    const mean1 = sum1 / m;
-    const mean2 = sum2 / m;
-
-    // Calculate correlation components
-    let numerator = 0;
-    let sum1Sq = 0;
-    let sum2Sq = 0;
-    for (let k = 0; k < m; k++) {
-      const dev1 = a[k]! - mean1;
-      const dev2 = b[k]! - mean2;
-      numerator += dev1 * dev2;
-      sum1Sq += dev1 * dev1;
-      sum2Sq += dev2 * dev2;
-    }
-
-    const denominator = Math.sqrt(sum1Sq * sum2Sq);
-    result.push(denominator === 0 ? NaN : numerator / denominator);
-  }
-
-  return result;
+  // PineScript: from compensated running sums, cov = sma(x * y) - sma(x) * sma(y), r = cov / sqrt(var(x) * var(y))
+  // (biased variances); each running sum skips its own na values
+  const product = Array.from({ length: source1.length }, (_, i) => {
+    const v1 = source1[i];
+    const v2 = source2[i];
+    return v1 === null || v1 === undefined || v2 === null || v2 === undefined ? NaN : v1 * v2;
+  });
+  const meanXY = sma(product, length);
+  const meanX = sma(source1, length);
+  const meanY = sma(source2, length);
+  const varX = variance(source1, length);
+  const varY = variance(source2, length);
+  return meanXY.map((mxy, i) => {
+    const cov = mxy - meanX[i]! * meanY[i]!;
+    if (Number.isNaN(cov)) return NaN;
+    // a covariance within 1e-10 of 0 gives 0; a zero denominator gives na (a division by zero)
+    if (Math.abs(cov) <= 1e-10) return 0;
+    const denominator = Math.sqrt(varX[i]! * varY[i]!);
+    return denominator === 0 ? NaN : cov / denominator;
+  });
 }
 
 /**
@@ -2790,95 +2758,66 @@ export function percentile_nearest_rank(
  * - +100 indicates source consistently increased over the period
  * - -100 indicates source consistently decreased over the period
  * - 0 indicates no directional consistency
- * - Returns NaN for the first (length - 1) values where there's insufficient data
+ * - As PineScript: the first value is on bar `length`; values within 1e-10 of each other (from the first value of a
+ *   sorted group) are ties with their average rank; a window where all values are ties gives `na`; the result is
+ *   `100 * cov / (stdev(ranks) * stdev(times))` (biased, mean-centered)
+ * - A bar with an `na` source keeps the previous result; a later window that still holds the `na` gives `na` (not
+ *   measured to the bit)
  */
 export function rci(source: Source, length: simple_int): series_float {
+  const len = Math.floor(length);
   const result: series_float = [];
-
+  const times = Array.from({ length: len }, (_, j) => j + 1);
+  // mean-centered sum of products divided by the length (covariance / variance), as PineScript
+  const centered = (x: number[], y: number[]) => {
+    let sx = 0;
+    let sy = 0;
+    for (let j = 0; j < len; j++) {
+      sx += x[j]!;
+      sy += y[j]!;
+    }
+    const mx = sx / len;
+    const my = sy / len;
+    let s = 0;
+    for (let j = 0; j < len; j++) s += (x[j]! - mx) * (y[j]! - my);
+    return s / len;
+  };
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+    // PineScript: the first value is on bar `length` (one bar after the window is full)
+    if (i < len) {
       result.push(NaN);
       continue;
     }
-
-    // Collect values in the window
-    const values: number[] = [];
-    for (let j = 0; j < length; j++) {
-      values.push(source[i - length + 1 + j]!);
+    // PineScript: a bar with an na source keeps the previous result
+    if (Number.isNaN(source[i]!)) {
+      result.push(result[i - 1]!);
+      continue;
     }
-
-    // Check for NaN values
-    if (values.some(v => isNaN(v))) {
+    const values = Array.from({ length: len }, (_, j) => source[i - len + 1 + j]!);
+    if (values.some((v) => Number.isNaN(v))) {
       result.push(NaN);
       continue;
     }
-
-    // Create array of indices with their values for ranking
-    const indexed = values.map((value, index) => ({ value, index }));
-
-    // Sort by value to get ranks
-    const sorted = [...indexed].sort((a, b) => a.value - b.value);
-
-    // Assign ranks (handling ties by averaging ranks)
-    const ranks = new Array(length).fill(0);
-    let currentRank = 1;
-    for (let j = 0; j < sorted.length; j++) {
-      // Count ties
+    // Ranks from the smallest value; values within 1e-10 of the first value of a group (sorted) are ties and share
+    // their average rank
+    const order = values.map((_, j) => j).sort((a, b) => values[a]! - values[b]! || a - b);
+    const ranks = new Array<number>(len);
+    for (let j = 0; j < len; ) {
       let tieCount = 1;
-      while (j + tieCount < sorted.length && sorted[j]!.value === sorted[j + tieCount]!.value) {
-        tieCount++;
-      }
-
-      // Average rank for ties
-      const avgRank = (currentRank + (currentRank + tieCount - 1)) / 2;
-
-      // Assign average rank to all tied values
-      for (let k = 0; k < tieCount; k++) {
-        ranks[sorted[j + k]!.index] = avgRank;
-      }
-
-      j += tieCount - 1;
-      currentRank += tieCount;
-    }
-
-    // Calculate D² = sum of (price_rank - time_rank)²
-    let sumSquaredDiff = 0;
-    for (let j = 0; j < length; j++) {
-      const timeRank = j + 1;
-      const diff = ranks[j] - timeRank;
-      sumSquaredDiff += diff * diff;
-    }
-
-    const n = length;
-    const base = (n * n * n - n) / 12;
-
-    // Compute tie correction for price ranks
-    // Count tied groups from the sorted array
-    let tieCorrection = 0;
-    for (let j = 0; j < sorted.length; ) {
-      let tieCount = 1;
-      while (j + tieCount < sorted.length && sorted[j]!.value === sorted[j + tieCount]!.value) {
-        tieCount++;
-      }
-      if (tieCount > 1) {
-        tieCorrection += (tieCount * tieCount * tieCount - tieCount) / 12;
-      }
+      while (j + tieCount < len && values[order[j + tieCount]!]! - values[order[j]!]! <= 1e-10) tieCount++;
+      const avgRank = (j + 1 + (j + tieCount)) / 2;
+      for (let k = 0; k < tieCount; k++) ranks[order[j + k]!] = avgRank;
       j += tieCount;
     }
-
-    const A = base - tieCorrection; // Corrected for tied price ranks
-    const B = base;                 // Time ranks have no ties
-
-    let rho: number;
-    if (A === 0 || B === 0) {
-      rho = 0;
-    } else {
-      rho = (A + B - sumSquaredDiff) / (2 * Math.sqrt(A * B));
+    // a window where all values are ties has no correlation
+    if (ranks.every((r) => r === ranks[0])) {
+      result.push(NaN);
+      continue;
     }
-
-    result.push(rho * 100);
+    // Pearson correlation of the value ranks and the time ranks, scaled to -100 .. 100
+    const cov = centered(ranks, times);
+    result.push((100 * cov) / (Math.sqrt(centered(ranks, ranks)) * Math.sqrt(centered(times, times))));
   }
-
   return result;
 }
 

@@ -82,3 +82,15 @@ describe('color.new_color', () => {
     expect(color.new_color(gray, 75)).toBe('rgba(128, 128, 128, 0.25)');
   });
 });
+
+describe('color.from_gradient at the ends (#146)', () => {
+  it('k = 0 / 1: floor(x * a / a) with the alpha as byte / 255, as PineScript', () => {
+    // maroon with transparency 20 (#880E4F): 14 * 0.8 / 0.8 = 14.000000000000002 -> 14
+    expect(color.from_gradient(0, 5, 15, color.new(color.maroon, 20), '#FF0000')).toBe('rgba(136, 14, 79, 0.8)');
+    // rgb(37, 98, 56) with transparency 7 (alpha byte 237): 98 * a / a = 97.99999999999999 -> 97
+    const bottom = color.rgb(37, 98, 56, 7);
+    const top = color.rgb(111, 79, 80, 18);
+    expect([0, 5].map((v) => color.g(color.from_gradient(v, 5, 15, bottom, top)))).toEqual([97, 97]);
+    expect([15, 20].map((v) => color.r(color.from_gradient(v, 5, 15, top, bottom)))).toEqual([37, 37]);
+  });
+});

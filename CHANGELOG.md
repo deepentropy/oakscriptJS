@@ -44,6 +44,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ta.stoch()`: when the source, `highest(high, length)` or `lowest(low, length)` is na, or the range is 0, the result
   is the previous result of the call (na until a first value), as PineScript (it was na). 0 different on 204,348 probe
   values (#145)
+- `color.from_gradient()` at the ends (value at or outside the range, k = 0 / 1): each channel is
+  `floor(x * a / a)` with the alpha as byte / 255, as PineScript (0 different on 21,756 probe colours and 99 / 99 end
+  colours of the earlier grid). This is the end colour itself (0.8.0 result for the reported colours), or one unit less
+  for some channel / alpha pairs. Inside the range the order is unchanged (#146)
+- `ta.rci()`: first value on bar `length` (one bar later); values within 1e-10 of the first value of a sorted group
+  are ties (average rank); a window where all values are ties gives na; the result is
+  `100 * cov / (stdev(ranks) * stdev(times))`, as PineScript. 199,901 / 204,360 probe values bit for bit (all windows
+  without ties); windows with ties can differ in the last bit (relative 4e-16). A bar with an na source keeps the
+  previous result (3,194 / 3,194 na bars) (#147)
+- `ta.correlation()`: PineScript's running-sum formula `cov = sma(x * y) - sma(x) * sma(y)`,
+  `r = cov / sqrt(variance(x) * variance(y))` (each running sum skips its own na values); `|cov| <= 1e-10` gives 0, a
+  zero variance gives na. 0 different on 170,300 probe values (the measured limit lies between 9.999999999999986e-11
+  and 1.0000000000000007e-10) (#148)
 
 ## [0.9.5] - 2026-10-02
 

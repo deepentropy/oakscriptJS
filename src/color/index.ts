@@ -362,8 +362,15 @@ export function from_gradient(
   const c2 = rgba(top_color);
   const a = c1.a * (1 - k) + c2.a * k;
   if (a === 0) return transparent;
-  // operation order with the fewest differences to PineScript (channels as 0-1, alpha as a byte)
-  const mix = (x1: number, x2: number) => Math.floor((((x1 / 255) * c1.a) * (1 - k) + ((x2 / 255) * c2.a) * k) / (a / 255));
+  // at an end (k = 0 or 1), PineScript gives floor(x * a / a) with the alpha as byte / 255 (measured bit for bit, #146):
+  // the end colour, or one unit less for some channel / alpha pairs
+  const end = k === 0 ? c1 : k === 1 ? c2 : null;
+  const endAlpha = end ? end.a / 255 : 0;
+  // inside the range: the operation order with the fewest differences to PineScript (channels as 0-1, alpha as a byte)
+  const mix = (x1: number, x2: number) =>
+    end
+      ? Math.floor(((k === 0 ? x1 : x2) * endAlpha) / endAlpha)
+      : Math.floor((((x1 / 255) * c1.a) * (1 - k) + ((x2 / 255) * c2.a) * k) / (a / 255));
   const [r, g, b] = [mix(c1.r, c2.r), mix(c1.g, c2.g), mix(c1.b, c2.b)];
   const alpha = Math.floor(a);
   return alpha === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;

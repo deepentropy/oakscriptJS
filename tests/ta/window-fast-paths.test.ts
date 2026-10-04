@@ -72,24 +72,16 @@ describe('one-pass window functions match the window scan bit for bit', () => {
     expect(bits(taCore.lowest([0, -0, 0], 3))).toEqual(['NaN', 'NaN', '-0']);
   });
 
-  it('correlation keeps the same values with na pairs and non-integer lengths', () => {
-    const a = data(300, 3).map((v) => (Number.isFinite(v) || Number.isNaN(v) ? v : 1));
-    const b = a.map((v, i) => (Number.isNaN(v) ? v : v * 0.5 + Math.sin(i)));
-    const ref = (L: number) =>
-      a.map((_, i) => {
-        if (i < L - 1) return NaN;
-        const p: Array<[number, number]> = [];
-        for (let j = 0; j < L; j++) if (!isNaN(a[i - j]!) && !isNaN(b[i - j]!)) p.push([a[i - j]!, b[i - j]!]);
-        if (!p.length) return NaN;
-        let s1 = 0, s2 = 0;
-        for (const [x, y] of p) { s1 += x; s2 += y; }
-        const m1 = s1 / p.length, m2 = s2 / p.length;
-        let num = 0, q1 = 0, q2 = 0;
-        for (const [x, y] of p) { num += (x - m1) * (y - m2); q1 += (x - m1) ** 2; q2 += (y - m2) ** 2; }
-        const den = Math.sqrt(q1 * q2);
-        return den === 0 ? NaN : num / den;
-      });
-    for (const L of [2, 2.5, 10, 0, -1]) expect(bits(taCore.correlation(a, b, L))).toEqual(bits(ref(L)));
+  it('correlation: PineScript running sums, |cov| <= 1e-10 gives 0, a zero variance gives na (#148)', () => {
+    // PineScript ta.correlation(close, bar_index, 5), daily BTCUSD, first 12 bars
+    const close = [10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8];
+    const index = close.map((_, i) => i);
+    expect(taCore.correlation(close, index, 5)).toEqual([
+      NaN, NaN, NaN, NaN, 0.7137040886636794, -0.7026551693464506, -0.8939203854869304, -0.9432204431993946,
+      -0.9551599687176915, -0.724514214163929, -0.2717834693207106, 0.2335643468140462,
+    ]);
+    // a constant against close: covariance 0 -> 0 (PineScript)
+    expect(taCore.correlation(close.map(() => 3), close, 5).slice(4)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
   });
 });
 
