@@ -61,8 +61,10 @@ export function timestamp(
 export function timestamp(first: string | simple_int, ...rest: Array<simple_int | undefined>): int {
   if (typeof first === 'string') {
     if (rest.length === 0) return parseDateString(first);
+    // PineScript: an na field counts as 0 (day na of January 2020 is 2019-12-31)
+    const f = (v: number | undefined) => (v === undefined || v === null || Number.isNaN(v) ? 0 : v);
     const [year, month, day, hour, minute, second] = rest as [number, number, number, number?, number?, number?];
-    return zonedToUnix(first, year, month, day, hour ?? 0, minute ?? 0, second ?? 0);
+    return zonedToUnix(first, f(year), f(month), f(day), f(hour), f(minute), f(second));
   }
   const [month, day, hour, minute, second] = rest as [number, number, number?, number?, number?];
   return new Date(first, month - 1, day, hour || 0, minute || 0, second || 0).getTime();

@@ -997,30 +997,62 @@ export function todegrees(radians: float | Series): float | Series {
 }
 
 /**
+ * PineScript's seeded generator: Java's linear congruential generator (`java.util.Random`), `nextDouble()`.
+ * Each generator draws one number per call.
+ */
+export function seededRandom(seed: int): (min?: float, max?: float) => float {
+  const mask = (1n << 48n) - 1n;
+  let state = (BigInt(Math.trunc(seed)) ^ 0x5deece66dn) & mask;
+  const next = (bits: bigint): bigint => {
+    state = (0x5deece66dn * state + 11n) & mask;
+    return state >> (48n - bits);
+  };
+  return (min = 0, max = 1) => {
+    const hi = next(26n);
+    const lo = next(27n);
+    const unit = Number((hi << 27n) + lo) / 2 ** 53;
+    return min + unit * (max - min);
+  };
+}
+
+const seeded = new Map<number, (min?: float, max?: float) => float>();
+
+/** Starts every seeded sequence of `math.random` again (called at the start of a script run). */
+export function resetRandom(): void {
+  seeded.clear();
+}
+
+/**
  * Returns a pseudo-random number.
  *
- * @param min - Optional minimum value (inclusive)
- * @param max - Optional maximum value (exclusive)
- * @param seed - Optional seed for deterministic random
+ * @param min - Optional minimum value (inclusive), default 0
+ * @param max - Optional maximum value (exclusive), default 1
+ * @param seed - Optional seed: a repeatable sequence, as PineScript (Java's `java.util.Random`)
  * @returns A random number in the specified range, or [0, 1) if no range specified
  *
  * @remarks
- * - Without arguments: returns value in [0, 1)
- * - With min and max: returns value in [min, max)
- * - **WARNING**: The seed parameter is accepted for API compatibility but NOT currently implemented
- * - This implementation always generates non-deterministic random values
- * - PineScript's version supports deterministic seeding for repeatable sequences
+ * - Without a seed: `Math.random()`
+ * - With a seed: PineScript's sequence, one number per call (measured: the call on each bar draws the next number
+ *   of `new java.util.Random(seed).nextDouble()` from the first bar of the history). PineScript keeps one generator
+ *   per call site; here there is one generator per seed value (started again by `executeScript`): for two call sites
+ *   with the same seed use `callsite.random(seed)`
  *
  * @example
  * ```typescript
  * math.random() // Returns: value between 0 and 1 (e.g., 0.234...)
  * math.random(0, 10) // Returns: value between 0 and 10 (e.g., 7.45...)
- * math.random(5, 15) // Returns: value between 5 and 15 (e.g., 11.82...)
+ * math.random(0, 1, 42) // Returns: 0.7275636800328681 on the first call, as PineScript
  * ```
  */
-export function random(min?: float, max?: float, _seed?: int): float {
-  // TODO: Implement deterministic seeding to match PineScript behavior
-  // Currently _seed parameter is ignored
+export function random(min?: float, max?: float, seed?: int): float {
+  if (seed !== undefined && seed !== null && !Number.isNaN(seed)) {
+    let gen = seeded.get(seed);
+    if (!gen) {
+      gen = seededRandom(seed);
+      seeded.set(seed, gen);
+    }
+    return gen(min ?? 0, max ?? 1);
+  }
   const rand = Math.random();
   if (min !== undefined && max !== undefined) {
     return min + rand * (max - min);

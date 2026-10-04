@@ -98,6 +98,7 @@ import {
   type StrategyTrade,
   type StrategyVariable,
 } from '../strategy/index.js';
+import { parsePineSession } from '../time/session.js';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -264,6 +265,7 @@ export function executeScript(
   scriptOptions = options;
   ctx = freshCollector(inputs);
   resetDrawings();
+  mathCore.resetRandom();
   try {
     body();
     const c = ctx;
@@ -1517,6 +1519,13 @@ function calendarFor(session?: string, timezone?: string): { bars: SessionBars; 
   const { bars } = sessionBars();
   if (!session && !timezone) return { bars, test: false };
   const tz = timezone ?? exchangeTimezone();
+  // a session string that is empty or does not start with a digit is the symbol session: "regular" the regular
+  // hours, "extended" and any other name the loaded hours (PineScript)
+  if (session !== undefined && parsePineSession(session) === null) {
+    const name = session.trim();
+    const symbol = name === 'regular' && chartCtx.regularSession ? chartCtx.regularSession : chartCtx.session!;
+    return { bars: new SessionBars(new TradingCalendar(tz, { session: toSpec(symbol).session }, 'symbol'), bars.chart.period), test: true };
+  }
   const spec = session ? { session } : { session: toSpec(chartCtx.session!).session };
   return { bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period), test: true };
 }

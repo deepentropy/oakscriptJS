@@ -67,7 +67,20 @@ describe('time.inSession', () => {
   it('returns false for a NaN time and rejects invalid sessions', () => {
     expect(time.inSession(NaN, '0930-1600', NY)).toBe(false);
     expect(() => time.inSession(ny(8, 10), '930-1600', NY)).toThrow(SyntaxError);
-    expect(() => time.inSession(ny(8, 10), '0930-2500', NY)).toThrow(SyntaxError);
     expect(() => time.inSession(ny(8, 10), '0930-1600:8', NY)).toThrow(SyntaxError);
+    expect(() => time.inSession(ny(8, 10), '1100 -1400', NY)).toThrow(SyntaxError);
+  });
+
+  it('PineScript session grammar (measured): "|" sections, trailing separators, minutes modulo one day', () => {
+    // "0930-2500" is 09:30 to 01:00 of the next day
+    expect(time.inSession(ny(8, 23, 30), '0930-2500', NY)).toBe(true);
+    expect(time.inSession(ny(8, 8, 10), '0930-2500', NY)).toBe(false);
+    // trailing "," / ":" end the list: one range Monday to Friday
+    expect(time.inSession(ny(8, 11, 30), '1100-1400,', NY)).toBe(true);
+    expect(time.inSession(ny(8, 11, 30), '1100-1400:', NY)).toBe(true);
+    // the default section runs on the weekdays no other section names
+    expect(time.inSession(ny(8, 11, 30), '1100-1400|1200-1300:7', NY)).toBe(true);
+    // a name that does not start with a digit is the symbol session, unknown here
+    expect(() => time.inSession(ny(8, 11, 30), 'regular', NY)).toThrow();
   });
 });

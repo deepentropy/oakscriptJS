@@ -45,6 +45,7 @@
 import type { Source } from '../types/index.js';
 import { linreg as linregSeries } from '../ta/index.js';
 import { RunningSum, isNa } from '../ta/running-sum.js';
+import { seededRandom } from '../math/index.js';
 
 /**
  * Runs `fn` on the bars where `called` is true only, like a ta.* call inside an `if` block.
@@ -416,4 +417,19 @@ export function stdev(): (barIndex: number, value: number, length: number, biase
     if (!biased && len <= 1) return NaN;
     return Number.isNaN(variance) ? NaN : variance > 0 ? Math.sqrt(variance) : 0;
   };
+}
+
+/**
+ * One `math.random(min, max, seed)` call site: PineScript keeps one generator per call site, so two call sites
+ * with the same seed give the same sequence. Called with `(min?, max?)` once per bar.
+ *
+ * @example
+ * ```typescript
+ * // Pine: a = math.random(0, 1, 42), b = math.random(0, 1, 42)   // a == b on every bar
+ * const a = callsite.random(42);
+ * const b = callsite.random(42);
+ * ```
+ */
+export function random(seed: number): (min?: number, max?: number) => number {
+  return seededRandom(seed);
 }

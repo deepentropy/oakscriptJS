@@ -40,6 +40,8 @@ import type { Linefill, Line, color } from '../types/index.js';
  * ```
  */
 export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linefill {
+  // PineScript: an na line gives an na linefill
+  if (line1 === null || line1 === undefined || line2 === null || line2 === undefined) return null as unknown as Linefill;
   return register('linefill', {
     line1,
     line2,

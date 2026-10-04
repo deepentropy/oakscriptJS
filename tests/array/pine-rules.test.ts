@@ -177,3 +177,17 @@ describe('array.concat / array.slice', () => {
     expect(() => array.slice(a, 3, 1)).toThrow();
   });
 });
+
+describe('array.fill / first (PineScript runtime rules)', () => {
+  it('an na bound is the start / the end; a bound past the end throws', () => {
+    const a = array.from(10, 20, 30, 40);
+    array.fill(a, 5, NaN, 2);
+    expect(a).toEqual([5, 5, 30, 40]);
+    expect(() => array.fill(array.from(10, 20, 30, 40), 5, 0, 6)).toThrow();
+  });
+
+  it('first / last of an empty array throw', () => {
+    expect(() => array.first(array.new_float(0))).toThrow();
+    expect(() => array.last(array.new_float(0))).toThrow();
+  });
+});

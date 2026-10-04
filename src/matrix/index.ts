@@ -61,6 +61,8 @@ export function new_matrix<T>(
  * ```
  */
 export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): T {
+  // PineScript: an na index gives na
+  if (Number.isNaN(row) || Number.isNaN(column)) return NaN as T;
   if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
     throw new Error(`Matrix index out of bounds: [${row}, ${column}] for matrix of size [${id.rows}, ${id.columns}]`);
   }
@@ -92,6 +94,8 @@ export function get<T>(id: PineMatrix<T>, row: simple_int, column: simple_int): 
  * ```
  */
 export function set<T>(id: PineMatrix<T>, row: simple_int, column: simple_int, value: T): void {
+  // PineScript: an na index changes nothing
+  if (Number.isNaN(row) || Number.isNaN(column)) return;
   if (row < 0 || row >= id.rows || column < 0 || column >= id.columns) {
     throw new Error(`Matrix index out of bounds: [${row}, ${column}] for matrix of size [${id.rows}, ${id.columns}]`);
   }
@@ -1884,15 +1888,8 @@ export function det(id: PineMatrix<float>): float {
     return 1; // Empty matrix has determinant 1 by convention
   }
 
-  if (n === 1) {
-    return id.data[0]![0]!;
-  }
-
-  if (n === 2) {
-    return id.data[0]![0]! * id.data[1]![1]! - id.data[0]![1]! * id.data[1]![0]!;
-  }
-
-  // LU decomposition with partial pivoting
+  // LU decomposition with partial pivoting, for every size (as PineScript: det([[0.1, 0.2], [0.3, 0.4]]) is
+  // -0.019999999999999993, not the closed form's -0.01999999999999999)
   // Make a copy to work with
   const a: float[][] = id.data.map(row => [...row]);
   let determinant = 1;
@@ -1918,9 +1915,10 @@ export function det(id: PineMatrix<float>): float {
       swapCount++;
     }
 
-    // If pivot is zero, determinant is zero
+    // As PineScript (LU with an absolute singularity threshold of 1e-11): det(1e-11 * I3) is 1e-33, a pivot below
+    // 1e-11 makes the determinant 0 (det([[1, 1], [1, 1 + 1e-12]]) and det([[1..9]]) are 0)
     const pivot = a[col]![col]!;
-    if (Math.abs(pivot) < EPSILON) {
+    if (Math.abs(pivot) < 1e-11) {
       return 0;
     }
 
@@ -2161,51 +2159,53 @@ export function rank(id: PineMatrix<float>): int {
   if (id.rows === 0 || id.columns === 0) {
     return 0;
   }
+  // As PineScript: the number of singular values above max(rows, columns) * largest * 2^-52 (rank([[1..9]]) is 2,
+  // rank(1e-11 * I3) is 3, rank([[1, 1], [1, 1 + 1e-12]]) is 2)
+  const s = singularValues(id.data);
+  const largest = Math.max(...s);
+  if (!(largest > 0)) return 0;
+  const tol = Math.max(id.rows, id.columns) * largest * 2 ** -52;
+  return s.filter((v) => v > tol).length;
+}
 
-  // Make a copy to work with
-  const a: float[][] = id.data.map(row => [...row]);
-  const m = id.rows;
-  const n = id.columns;
-
-  let r = 0; // Current rank (and current pivot row)
-
-  for (let col = 0; col < n && r < m; col++) {
-    // Find pivot
-    let maxRow = r;
-    let maxVal = Math.abs(a[r]![col]!);
-    for (let row = r + 1; row < m; row++) {
-      const absVal = Math.abs(a[row]![col]!);
-      if (absVal > maxVal) {
-        maxVal = absVal;
-        maxRow = row;
+/** Singular values of a matrix (one-sided Jacobi rotations on the columns; accurate for small values). */
+function singularValues(data: float[][]): float[] {
+  // work on the orientation with at least as many rows as columns
+  const tall = data.length >= (data[0]?.length ?? 0);
+  const a: float[][] = tall ? data.map((row) => [...row]) : data[0]!.map((_, j) => data.map((row) => row[j]!));
+  const m = a.length;
+  const n = a[0]!.length;
+  for (let sweep = 0; sweep < 60; sweep++) {
+    let rotated = false;
+    for (let p = 0; p < n - 1; p++) {
+      for (let q = p + 1; q < n; q++) {
+        let alpha = 0;
+        let beta = 0;
+        let gamma = 0;
+        for (let i = 0; i < m; i++) {
+          const x = a[i]![p]!;
+          const y = a[i]![q]!;
+          alpha += x * x;
+          beta += y * y;
+          gamma += x * y;
+        }
+        if (gamma === 0 || Math.abs(gamma) <= 1e-15 * Math.sqrt(alpha * beta)) continue;
+        rotated = true;
+        const zeta = (beta - alpha) / (2 * gamma);
+        const tan = Math.sign(zeta || 1) / (Math.abs(zeta) + Math.sqrt(1 + zeta * zeta));
+        const cos = 1 / Math.sqrt(1 + tan * tan);
+        const sin = cos * tan;
+        for (let i = 0; i < m; i++) {
+          const x = a[i]![p]!;
+          const y = a[i]![q]!;
+          a[i]![p] = cos * x - sin * y;
+          a[i]![q] = sin * x + cos * y;
+        }
       }
     }
-
-    // Skip column if all values below are effectively zero
-    if (maxVal < EPSILON) {
-      continue;
-    }
-
-    // Swap rows if needed
-    if (maxRow !== r) {
-      const temp = a[r]!;
-      a[r] = a[maxRow]!;
-      a[maxRow] = temp;
-    }
-
-    // Eliminate below pivot
-    const pivot = a[r]![col]!;
-    for (let row = r + 1; row < m; row++) {
-      const factor = a[row]![col]! / pivot;
-      for (let j = col; j < n; j++) {
-        a[row]![j] = a[row]![j]! - factor * a[r]![j]!;
-      }
-    }
-
-    r++;
+    if (!rotated) break;
   }
-
-  return r;
+  return Array.from({ length: n }, (_, j) => Math.sqrt(a.reduce((sum, row) => sum + row[j]! * row[j]!, 0)));
 }
 
 /**

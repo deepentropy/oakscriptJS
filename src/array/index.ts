@@ -440,8 +440,13 @@ export function variance(id: PineArray<float>, biased: bool = true): float {
  * Fills the array with the specified value
  */
 export function fill<T>(id: PineArray<T>, value: T, index_from: simple_int = 0, index_to?: simple_int): void {
-  const end = index_to ?? id.length;
-  for (let i = index_from; i < end; i++) {
+  // PineScript: an na bound is the start / the end; a bound past the end is a runtime error
+  const start = index_from === undefined || index_from === null || Number.isNaN(index_from) ? 0 : index_from;
+  const end = index_to === undefined || index_to === null || Number.isNaN(index_to) ? id.length : index_to;
+  for (const i of [start, end]) {
+    if (i < 0 || i > id.length) throw new Error(`array.fill: index ${i} is out of bounds, array size is ${id.length}`);
+  }
+  for (let i = start; i < end; i++) {
     id[i] = value;
   }
 }
@@ -476,6 +481,8 @@ export function from<T>(...values: T[]): PineArray<T> {
  * ```
  */
 export function first<T>(id: PineArray<T>): T {
+  // PineScript: a runtime error on an empty array
+  if (id.length === 0) throw new Error('Cannot call array.first() if array is empty');
   return id[0]!;
 }
 
@@ -496,6 +503,8 @@ export function first<T>(id: PineArray<T>): T {
  * ```
  */
 export function last<T>(id: PineArray<T>): T {
+  // PineScript: a runtime error on an empty array (as array.first)
+  if (id.length === 0) throw new Error('Cannot call array.last() if array is empty');
   return id[id.length - 1]!;
 }
 

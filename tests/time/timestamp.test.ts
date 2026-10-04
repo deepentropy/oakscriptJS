@@ -102,3 +102,9 @@ describe('timestamp: forms measured on PineScript (PyneCore gap audit)', () => {
     expect(time.timestamp('UTC', 1582, 10, 15, 0, 0)).toBe(-12219292800000);
   });
 });
+
+describe('timestamp: an na field counts as 0 (PineScript)', () => {
+  it('day na of January 2020 is 2019-12-31', () => {
+    expect(time.timestamp('UTC', 2020, 1, NaN, 0, 0)).toBe(1577750400000);
+  });
+});

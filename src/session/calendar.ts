@@ -16,6 +16,7 @@
  */
 
 import { zonedFields, zonedToUnix } from '../time/timezone.js';
+import { parsePineSession } from '../time/session.js';
 
 /** Session information of a symbol (hours, corrections, holidays). */
 export interface SessionSpec {
@@ -44,6 +45,8 @@ interface Version {
   periods: Period[];
   /** Index 1 (Sunday) to 7 (Saturday) */
   days: boolean[];
+  /** PineScript session strings: the periods of each weekday (index 1 to 7), from the "|" sections */
+  byDay?: Period[][];
 }
 
 export const toDateNum = (y: number, m: number, d: number): DateNum => y * 10000 + m * 100 + d;
@@ -82,10 +85,26 @@ function parsePeriods(text: string, spec: string): Period[] {
   });
 }
 
+/** A PineScript session string as periods per weekday (rules in time/session.ts). */
+function pineVersion(text: string, from: DateNum): Version {
+  const ranges = parsePineSession(text);
+  if (ranges === null) throw new SyntaxError(`Session "${text}" is the symbol session`);
+  const byDay: Period[][] = Array.from({ length: 8 }, () => []);
+  for (const { start, end, days } of ranges) {
+    const period: Period =
+      start === 0 && end === 0
+        ? { start: 0, end: 1440, startOffset: 0, endOffset: 0 }
+        : { start, end, startOffset: end <= start ? 1 : 0, endOffset: 0 };
+    for (const d of days) byDay[d]!.push(period);
+  }
+  return { from, periods: [], days: byDay.map((p) => p.length > 0), byDay };
+}
+
 function parseVersion(text: string, from: DateNum, spec: string, rule: 'symbol' | 'pine'): Version {
+  if (rule === 'pine') return pineVersion(text, from);
   const [periodText = '', dayText] = text.trim().split(':');
   const periods = parsePeriods(periodText, spec);
-  const allDays = periodText.trim() === '24x7' || (rule === 'pine' && periods.length === 1);
+  const allDays = periodText.trim() === '24x7';
   const digits = dayText ?? (allDays ? '1234567' : '23456');
   if (!/^[1-7]+$/.test(digits)) throw new SyntaxError(`Invalid session days in "${spec}"`);
   const days = new Array<boolean>(8).fill(false);
@@ -137,7 +156,8 @@ export class TradingCalendar {
       periods = correction ?? [];
     } else if (!this.holidays.has(date)) {
       const version = [...this.versions].reverse().find((v) => v.from <= date)!;
-      if (version.days[weekdayOf(date)]) periods = version.periods;
+      if (version.byDay) periods = version.byDay[weekdayOf(date)]!;
+      else if (version.days[weekdayOf(date)]) periods = version.periods;
     }
     const y = Math.floor(date / 10000);
     const m = Math.floor(date / 100) % 100;

@@ -99,6 +99,18 @@ that returned na or a clamped value now throw, as PineScript stops with a runtim
 - `ta.mfi()`: running sums within 1e-10 of 0 are 0; a zero `1 + up / down` gives na
 - `ta.mode()`: window of the last `length` non-na values; `ta.vwap()` with an anchor: na before the first anchor
 - `ta.swma()`, `ta.wpr()`, `ta.accdist()`: PineScript operation order (last bits)
+- Session strings (`time(tf, session)`, `time.inSession`): PineScript grammar: "|" sections (a later section naming a
+  day replaces the earlier ones on that day; the default section takes the other weekdays), trailing "," / ":" / "|",
+  hours and minutes modulo one day ("0930-2500" is 09:30 to 01:00), a strict "HHMM-HHMM" form ("1100 -1400" throws);
+  a name that does not start with a digit ("regular", "extended") is the symbol session in `time(tf, session)`
+- `math.random(min, max, seed)`: PineScript's seeded sequence (`java.util.Random(seed).nextDouble()`), one generator
+  per seed, started again by `executeScript`; new `callsite.random(seed)` for one generator per call site
+- `timestamp(tz, y, m, d, ...)`: an na field counts as 0
+- `linefill.new()` with an na line gives na
+- `matrix.get / set` with an na index: na / no change; `matrix.det()`: LU for every size with an absolute
+  singularity threshold of 1e-11; `matrix.rank()`: singular values above `max(rows, columns) * largest * 2^-52`
+- `array.fill()`: an na bound is the start / the end, a bound past the end throws; `array.first() / last()` of an
+  empty array throw
 
 ## [0.9.5] - 2026-10-02
 

@@ -288,3 +288,10 @@ describe('Linefill Functions', () => {
     });
   });
 });
+
+describe('linefill.new with an na line (PineScript)', () => {
+  it('gives na', () => {
+    const l1 = line.new(0, 1, 1, 1);
+    expect(linefill.new(null as never, l1, '#f00')).toBeNull();
+  });
+});
