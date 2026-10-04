@@ -380,6 +380,11 @@ the closure and wrap it with `seriesOf(values)` for a second output.
 - Compute the `ta.*` Series before `eachBar()` and read them with `c.get()`. A `ta.*` call inside the callback
   does not keep a per-bar history (see callsite below for the stateful versions).
 - `c.get(src, k)` needs `k >= 0`: a negative offset would read a future bar, so it throws.
+- History limit, as PineScript (runtime error RE10008): a script series keeps at most 5000 bars of history.
+  `c.get(x, k)` or `x.offset(k)` with `k > 5000` throws. The history buffer of a script series grows as PineScript
+  grows it (242 bars at the start, then x 1.618 when the largest reference of a bar goes past it; a jump sets it to
+  the reference); a buffer above 5000 stops the script on the next bar, so `c.get(x, c.i)` stops on bar 4348. The
+  built-in `open`, `high`, `low`, `close`, `volume`, `hl2`, `hlc3`, `ohlc4`, `hlcc4` keep the whole history.
 - JS comparison operators do not follow the PineScript rules: PineScript compares with a 1e-10 tolerance, and a
   comparison with `na` is false. Use `compare.eq/ne/lt/le/gt/ge(a, b)` from `oakscriptjs` for the PineScript
   result (e.g. `compare.gt(c.close, c.get(ma))`).

@@ -111,6 +111,12 @@ that returned na or a clamped value now throw, as PineScript stops with a runtim
   singularity threshold of 1e-11; `matrix.rank()`: singular values above `max(rows, columns) * largest * 2^-52`
 - `array.fill()`: an na bound is the start / the end, a bound past the end throws; `array.first() / last()` of an
   empty array throw
+- History limit of script series (PineScript runtime error RE10008): `c.get(x, k)` in `eachBar()` and
+  `x.offset(k)` with `k > 5000` throw; in `eachBar()` the history buffer of a script series grows as measured (242
+  bars, then x 1.618034 when the largest reference of a bar goes past it, a jump sets it to the reference) and a
+  buffer above 5000 stops the script on the next bar (`x[bar_index]` stops on bar 4348, "7032 bars back"). The
+  built-in price series keep the whole history. 62 of 66 measured runs exact; 4 designed jump-then-grow runs stop
+  1 to 5 bars later in PineScript (#149)
 
 ## [0.9.5] - 2026-10-02
 

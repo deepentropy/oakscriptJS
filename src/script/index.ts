@@ -55,7 +55,7 @@ import type {
   PlotConfig,
   ShapeConfig,
 } from '../runtime/types.js';
-import { BarData, Series } from '../runtime/series.js';
+import { BarData, Series, MAX_BARS_BACK, historyError } from '../runtime/series.js';
 import * as taSeries from '../ta-series.js';
 import * as colorCore from '../color/index.js';
 import { inputColorDefault } from '../color/parse.js';
@@ -451,6 +451,8 @@ export const hl2 = new Series(ctxBars, (b) => (b.high + b.low) / 2);
 export const hlc3 = new Series(ctxBars, (b) => (b.high + b.low + b.close) / 3);
 export const ohlc4 = new Series(ctxBars, (b) => (b.open + b.high + b.low + b.close) / 4);
 export const hlcc4 = new Series(ctxBars, (b) => (b.high + b.low + b.close + b.close) / 4);
+// built-in price variables keep the whole history (no 5000-bar limit)
+for (const s of [hl2, hlc3, ohlc4, hlcc4]) s.fullHistory = true;
 
 const SOURCES: Record<string, Series> = { open, high, low, close, volume, hl2, hlc3, ohlc4, hlcc4 };
 
@@ -977,11 +979,30 @@ export interface BarContext {
  * });
  * ```
  */
+/** Initial history buffer of a script series and its growth factor (measured, issue #149). */
+const HISTORY_START = 242;
+const HISTORY_GROWTH = 1.618034;
+
+/**
+ * History buffer of one script series in eachBar(), as PineScript grows it (measured on PineScript, issue #149):
+ * the buffer starts with 242 bars; when the largest reference of a bar goes past it, a jump (the reference grew by
+ * more than 1 since the previous bar) sets the buffer to the reference, and a step of 1 grows it to
+ * round(size * 1.618034); a buffer above 5000 stops the script on the next bar (RE10008), with that size as
+ * "bars back". A reference above 5000 stops it at once.
+ */
+interface HistoryBuffer {
+  size: number;
+  previous: number;
+  barMax: number;
+}
+
 export function eachBar(fn: (c: BarContext) => number | boolean | void): Series {
   collector(); // same lifecycle guard (and error message) as the declaration calls
   const b = bars();
   const out: number[] = new Array(b.length).fill(NaN);
   const cache = new Map<Series, number[]>();
+  const buffers = new Map<Series, HistoryBuffer>();
+  let pendingError: { bar: number; barsBack: number } | null = null;
   let idx = 0;
   const ctx: BarContext = {
     get i() {
@@ -1008,6 +1029,13 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     },
     get(src: Series, offset: number = 0): number {
       if (offset < 0) throw new RangeError(`c.get(): the offset cannot be negative (${offset} would read a future bar).`);
+      if (!src.fullHistory && offset > 0) {
+        const k = Math.floor(offset);
+        if (k > MAX_BARS_BACK) throw new Error(historyError(idx, k));
+        let buffer = buffers.get(src);
+        if (!buffer) buffers.set(src, (buffer = { size: HISTORY_START, previous: 0, barMax: 0 }));
+        if (k > buffer.barMax) buffer.barMax = k;
+      }
       let vals = cache.get(src);
       if (!vals) {
         vals = src.toArray();
@@ -1023,9 +1051,21 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
   };
   try {
     for (idx = 0; idx < b.length; idx++) {
+      if (pendingError && pendingError.bar === idx) throw new Error(historyError(idx, pendingError.barsBack));
       currentBar = idx;
       const r = fn(ctx);
       out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
+      // grow the history buffers from the largest reference of this bar
+      for (const buffer of buffers.values()) {
+        const k = buffer.barMax;
+        if (k > buffer.size) {
+          const next = k - buffer.previous > 1 ? k : Math.round(buffer.size * HISTORY_GROWTH);
+          if (next > MAX_BARS_BACK && !pendingError) pendingError = { bar: idx + 1, barsBack: next };
+          buffer.size = next;
+        }
+        buffer.previous = k;
+        buffer.barMax = 0;
+      }
     }
   } finally {
     currentBar = -1;

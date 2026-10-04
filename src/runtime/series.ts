@@ -174,6 +174,17 @@ export class BarData {
  * const materialized = complex.materialize(); // Breaks closure chain
  * ```
  */
+/** Largest history reference of a script series (PineScript max_bars_back limit). */
+export const MAX_BARS_BACK = 5000;
+
+/** PineScript's runtime error RE10008 text. */
+export function historyError(bar: number, barsBack: number): string {
+  return (
+    `Error on bar ${bar}: The script attempts to reference historical data that is too far from the current bar ` +
+    `(${barsBack} bars back). The history-referencing length for the expression must be a value between 0 and ${MAX_BARS_BACK}.`
+  );
+}
+
 export class Series {
   private extractor: SeriesExtractor;
   private dataSource: BarData;
@@ -186,6 +197,12 @@ export class Series {
    * @param data - Bar data (Bar[] or BarData)
    * @param extractor - Function to extract/compute value for each bar
    */
+  /**
+   * True for PineScript's built-in price variables (open, high, low, close, volume, hl2...): their history covers
+   * every bar, so references further than 5000 bars back are allowed (measured: close[bar_index] runs).
+   */
+  fullHistory = false;
+
   constructor(data: Bar[] | BarData, extractor: SeriesExtractor) {
     // Support both Bar[] and BarData for backward compatibility
     this.dataSource = data instanceof BarData ? data : new BarData(data);
@@ -219,7 +236,9 @@ export class Series {
    * @returns Series with extracted field values
    */
   static fromBars(bars: Bar[] | BarData, field: 'open' | 'high' | 'low' | 'close' | 'volume'): Series {
-    return new Series(bars, (bar) => bar[field] ?? NaN);
+    const series = new Series(bars, (bar) => bar[field] ?? NaN);
+    series.fullHistory = true;
+    return series;
   }
 
   /**
@@ -516,6 +535,8 @@ export class Series {
    */
   offset(offset: number): Series {
     if (offset < 0) throw new RangeError(`Series.offset(${offset}): the offset cannot be negative (it would read a future bar).`);
+    // PineScript runtime error RE10008: a script series keeps at most 5000 bars of history
+    if (offset > MAX_BARS_BACK && !this.fullHistory) throw new Error(historyError(0, Math.floor(offset)));
     return new Series(this.dataSource, (_bar, i, data) => {
       const targetIndex = i - offset;
       if (targetIndex < 0 || targetIndex >= data.length) {

@@ -138,3 +138,59 @@ describe('eachBar', () => {
     expect(() => eachBar(() => 1)).toThrow(/executeScript/);
   });
 });
+
+describe('history reference limit (PineScript RE10008, issue #149)', () => {
+  const many = makeBars(Array.from({ length: 5200 }, (_, i) => 100 + (i % 50)));
+  const run = (body: () => void) => {
+    try {
+      executeScript(body, many);
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  };
+
+  it('a reference above 5000 bars back stops the script at once', () => {
+    const msg = run(() => {
+      indicator('limit');
+      const x = eachBar((c) => c.close * 1);
+      plot(eachBar((c) => c.get(x, c.i >= 5100 ? 5001 : 0)), 'v');
+    });
+    expect(msg).toContain('Error on bar 5100');
+    expect(msg).toContain('(5001 bars back)');
+  });
+
+  it('a growing reference x[bar_index] stops on bar 4348 with 7032 bars back (buffer 242, x 1.618034)', () => {
+    const msg = run(() => {
+      indicator('grow');
+      const x = eachBar((c) => c.close * 1);
+      plot(eachBar((c) => c.get(x, c.i)), 'v');
+    });
+    expect(msg).toContain('Error on bar 4348');
+    expect(msg).toContain('(7032 bars back)');
+  });
+
+  it('Series.offset above 5000 throws for a script series, not for the built-in close', () => {
+    expect(run(() => {
+      indicator('offset');
+      const x = eachBar((c) => c.close * 1);
+      plot(x.offset(5001), 'v');
+    })).toContain('(5001 bars back)');
+    expect(run(() => {
+      indicator('offset close');
+      plot(close.offset(5100), 'v');
+    })).toBeNull();
+  });
+
+  it('a jump that stays, a loop within 5000 and the built-in close run without error', () => {
+    expect(run(() => {
+      indicator('jump');
+      const x = eachBar((c) => c.close * 1);
+      plot(eachBar((c) => c.get(x, c.i >= 3300 ? 3200 : 0)), 'v');
+    })).toBeNull();
+    expect(run(() => {
+      indicator('builtin');
+      plot(eachBar((c) => c.get(close, c.i)), 'v');
+    })).toBeNull();
+  });
+});
