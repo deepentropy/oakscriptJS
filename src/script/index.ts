@@ -1467,6 +1467,9 @@ export function inSession(time: number, session: string, timezone?: string): boo
 /** PineScript `str.*`; `format_time` and the dates of `format` use the exchange time zone by default. */
 export const str = {
   ...strCore,
+  // format.mintick rounds to the chart symbol's tick (syminfo.mintick)
+  tostring: ((value: unknown, format?: string, mintick?: number) =>
+    strCore.tostring(value as never, format, format === 'mintick' ? (mintick ?? syminfo.mintick) : mintick)) as typeof strCore.tostring,
   format_time(time: number, format: string = "yyyy-MM-dd'T'HH:mm:ssZ", timezone?: string): string {
     return strCore.format_time(time, format, timezone ?? exchangeTimezone());
   },

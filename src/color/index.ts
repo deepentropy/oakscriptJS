@@ -107,7 +107,8 @@ export function from_hex(hex: string, transp?: simple_float): string {
  * - Replaces the transparency with the new value
  * - Useful for creating semi-transparent versions of existing colors
  * - PineScript clamps the transparency to 0..100 (`color.new(c, 140)` is fully transparent, `color.new(c, -5)` is
- *   opaque); an `na` transparency is fully transparent
+ *   opaque); an `na` transparency is fully transparent (measured: the colour is not na, its RGB is kept)
+ * - an `na` colour (null / undefined) stays na: `color.t(color.new(na, 50))` is 100
  *
  * @example
  * ```typescript
@@ -117,7 +118,10 @@ export function from_hex(hex: string, transp?: simple_float): string {
  * color.new_color(red, 100) // Returns: "rgba(255, 0, 0, 0)" - Fully transparent
  * ```
  */
-export function new_color(baseColor: color, transp: simple_float): string {
+export function new_color(baseColor: color, transp: simple_float): string;
+export function new_color(baseColor: color | null | undefined, transp: simple_float): string | null;
+export function new_color(baseColor: color | null | undefined, transp: simple_float): string | null {
+  if (baseColor === null || baseColor === undefined) return null; // na colour stays na
   // Parse the color and apply transparency
   const rgba = parseColor(baseColor);
   return rgb(rgba.r, rgba.g, rgba.b, transp);
@@ -185,6 +189,7 @@ export function b(clr: color): int {
  * - Converts alpha channel (0-1) to transparency (0-100)
  * - PineScript stores the alpha as a byte (0-255) and returns an integer transparency:
  *   `color.t(color.new(c, 33.3))` is 33
+ * - an `na` colour (null / undefined) is fully transparent: 100
  *
  * @example
  * ```typescript
@@ -193,7 +198,8 @@ export function b(clr: color): int {
  * color.t(color.rgb(255, 0, 0, 100)) // Returns: 100 (fully transparent)
  * ```
  */
-export function t(clr: color): float {
+export function t(clr: color | null | undefined): float {
+  if (clr === null || clr === undefined) return 100;
   return Math.round((1 - alphaByte(parseColor(clr).a) / 255) * 100);
 }
 

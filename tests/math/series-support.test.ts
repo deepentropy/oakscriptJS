@@ -133,7 +133,7 @@ describe('math functions with Series support', () => {
       
       expect(result).toBeInstanceOf(Series);
       const values = result.toArray();
-      expect(values).toEqual([4, 5, 5, -4, 0]);
+      expect(values).toEqual([4, 5, 5, -5, 0]); // ties away from zero
     });
 
     it('should accept Series input with precision', () => {

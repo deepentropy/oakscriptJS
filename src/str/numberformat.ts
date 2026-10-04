@@ -12,6 +12,10 @@
  * - with an exponent, the value is first rounded to the fraction digits ("0.00E0": 0.125 gives "1.30E-1")
  * - a pattern without digit characters (`format.price` is "price") formats like "#" after its text,
  *   and keeps the sign: -0.004 gives "-price0"
+ * - "pos;neg": a negative number uses the text around the digits of the negative subpattern instead of "-"
+ *   ("#.##;(#.##)" gives "(3.5)" for -3.5); the digits follow the positive subpattern, as in Java
+ * - at most 16 decimals when |x| >= 1e-3 (the shortest digits of a double never have more there):
+ *   0.1 with 20 '#' decimals gives "0.1" in both rounding modes
  */
 
 export type Rounding = 'halfUpShortest' | 'halfEvenExact';
@@ -19,6 +23,9 @@ export type Rounding = 'halfUpShortest' | 'halfEvenExact';
 interface Pattern {
   prefix: string;
   suffix: string;
+  /** Text around the digits of the negative subpattern ("pos;neg"), or null without one */
+  negPrefix: string | null;
+  negSuffix: string | null;
   minInt: number;
   minFrac: number;
   maxFrac: number;
@@ -32,9 +39,27 @@ interface Pattern {
 
 const patterns = new Map<string, Pattern>();
 
+/** Index of the first ';' outside quotes, or -1. */
+function subpatternSplit(pattern: string): number {
+  let quoted = false;
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === "'") quoted = !quoted;
+    else if (pattern[i] === ';' && !quoted) return i;
+  }
+  return -1;
+}
+
 function parsePattern(pattern: string): Pattern {
   const cached = patterns.get(pattern);
   if (cached) return cached;
+  const semi = subpatternSplit(pattern);
+  if (semi !== -1) {
+    // only the text around the digits of the negative subpattern is used
+    const neg = parsePattern(pattern.slice(semi + 1));
+    const parsed = { ...parsePattern(pattern.slice(0, semi)), negPrefix: neg.prefix, negSuffix: neg.suffix };
+    patterns.set(pattern, parsed);
+    return parsed;
+  }
 
   let prefix = '';
   let suffix = '';
@@ -72,6 +97,8 @@ function parsePattern(pattern: string): Pattern {
   const parsed: Pattern = {
     prefix,
     suffix,
+    negPrefix: null,
+    negSuffix: null,
     // as in Java, a pattern with a decimal point and no '0' at all ("#.##") shows one integer digit
     minInt: !mantissa.includes('0') && mantissa.includes('.') ? 1 : [...intPart].filter((c) => c === '0').length,
     minFrac: [...fracPart].filter((c) => c === '0').length,
@@ -169,7 +196,7 @@ function layout(d: Digits, p: Pattern): string {
 export function formatNumber(value: number, pattern: string, mode: Rounding): string {
   if (Number.isNaN(value)) return 'NaN';
   const p = parsePattern(pattern);
-  if (!Number.isFinite(value)) return (value < 0 ? '-' : '') + p.prefix + '∞' + p.suffix;
+  if (!Number.isFinite(value)) return affixes(p, value < 0, '∞');
   const x = p.percent ? value * 100 : value;
   const toDigits = mode === 'halfUpShortest' ? shortestDigits : exactDigits;
 
@@ -188,10 +215,18 @@ export function formatNumber(value: number, pattern: string, mode: Rounding): st
     const e = String(Math.abs(exponent)).padStart(p.exponent, '0');
     body = layout(mant, p) + 'E' + (exponent < 0 ? '-' : '') + e;
   } else {
-    const rounded = roundDigits(toDigits(x), p.hasDigits ? p.maxFrac : 0, mode);
+    // 16 decimals at most from 1e-3 up (the shortest digits of a double have no more there)
+    const frac = !p.hasDigits ? 0 : Math.abs(x) >= 1e-3 ? Math.min(p.maxFrac, 16) : p.maxFrac;
+    const rounded = roundDigits(toDigits(x), frac, mode);
     isZero = rounded.digits === '';
     body = p.hasDigits ? layout(rounded, p) : layout(rounded, { ...p, minInt: 0, maxFrac: 0, minFrac: 0 });
   }
-  const negative = x < 0 && (!isZero || !p.hasDigits);
-  return (negative ? '-' : '') + p.prefix + body + p.suffix;
+  return affixes(p, x < 0 && (!isZero || !p.hasDigits), body);
+}
+
+/** `body` with the text of the positive pattern, or of the negative one ("-" + prefix without "pos;neg"). */
+function affixes(p: Pattern, negative: boolean, body: string): string {
+  if (!negative) return p.prefix + body + p.suffix;
+  if (p.negPrefix === null) return '-' + p.prefix + body + p.suffix;
+  return p.negPrefix + body + p.negSuffix!;
 }

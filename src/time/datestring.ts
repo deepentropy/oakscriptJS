@@ -10,6 +10,7 @@
  * Time zones: "UT", "UTC", "GMT", "+0530", "-05:00", "GMT+5", "UTC-0300", and the RFC 2822
  * names EST, EDT, CST, CDT, MST, MDT, PST, PDT. After a "T" time, only numeric offsets.
  * Without a time the time is 00:00. Without a time zone the time zone is GMT+0.
+ * "2025" and "2025-06" are the first day of the year / month. "01 Jan 2022 GMT+3" (a zone without a time) gives na.
  * "24:00" is midnight at the end of the day.
  *
  * "Z", "2024-01-01T09:30:00 GMT", "24:30" and "09:30:60" are compile errors in PineScript, and
@@ -34,6 +35,7 @@ const NUMERIC_ZONE = String.raw`([+-]\d{2}(?::?\d{2})?)`;
 const DATE = String.raw`(\d{4})([-/])(\d{1,2})\2(\d{1,2})`;
 const WEEKDAY = String.raw`(?:[a-z]{3,9},?\s+)?`;
 
+const YEAR_MONTH = /^(\d{4})(?:-(\d{1,2}))?$/;
 const ISO_T = new RegExp(String.raw`^${DATE}t${TIME}\s*${NUMERIC_ZONE}?$`, 'i');
 const ISO = new RegExp(String.raw`^${DATE}(?:\s+${TIME})?\s*${ZONE}?$`, 'i');
 const DAY_FIRST = new RegExp(String.raw`^${WEEKDAY}(\d{1,2})(?:\s+|-)([a-z]+)\.?,?(?:\s+|-)(\d{4})(?:,?\s+${TIME})?\s*${ZONE}?$`, 'i');
@@ -68,12 +70,20 @@ export function parseDateString(dateString: string): number {
   let rest: Array<string | undefined>;
 
   let m: RegExpExecArray | null;
+  // "2025" and "2025-06": the first day of the year / month, 00:00 UTC (PineScript)
+  if ((m = YEAR_MONTH.exec(text))) {
+    const mo = m[2] ? Number(m[2]) : 1;
+    if (mo < 1 || mo > 12) throw new SyntaxError(`Invalid date string "${dateString}": a field is out of range`);
+    return Date.UTC(Number(m[1]), mo - 1, 1);
+  }
   if ((m = ISO_T.exec(text) ?? ISO.exec(text))) {
     [year, month, day] = [m[1]!, Number(m[3]), m[4]!];
     rest = m.slice(5);
   } else if ((m = DAY_FIRST.exec(text))) {
     [day, month, year] = [m[1]!, monthNumber(m[2]!), m[3]!];
     rest = m.slice(4);
+    // a time zone without a time ("01 Jan 2022 GMT+3") gives na in PineScript
+    if (rest[0] === undefined && rest[4] !== undefined) return NaN;
   } else if ((m = MONTH_FIRST.exec(text))) {
     [month, day, year] = [monthNumber(m[1]!), m[2]!, m[3]!];
     rest = m.slice(4);

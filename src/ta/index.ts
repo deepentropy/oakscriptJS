@@ -45,17 +45,6 @@ export function sma(source: Source, length: simple_int | ArrayLike<number>): ser
   return runningSum(source, len).map((sum) => sum / len);
 }
 
-/** Mean of the last `length` bars; na when the window holds an na value (used by ta.dev). */
-function strictWindowMean(source: Source, length: simple_int): series_float {
-  const len = Math.floor(length);
-  return Array.from({ length: source.length }, (_, i) => {
-    if (i < len - 1) return NaN;
-    let sum = 0;
-    for (let j = 0; j < len; j++) sum += source[i - j]!;
-    return sum / len;
-  });
-}
-
 /**
  * Exponential Moving Average - returns the exponentially weighted moving average.
  *
@@ -688,7 +677,8 @@ export function supertrend(
  * @remarks
  * - Moving average used in RSI calculation
  * - Alpha = 1 / length (different from EMA which uses alpha = 2 / (length + 1))
- * - First value is initialized with SMA, then uses exponential smoothing
+ * - First value is initialized with SMA, then uses exponential smoothing. As in PineScript, the seed is the
+ *   `ta.sma` value (its compensated running sum), so it can differ from the exact mean in the last bits
  * - Formula: `RMA = (source + (length - 1) * RMA[1]) / length`, evaluated in this order as in PineScript
  *   (equal to `alpha * source + (1 - alpha) * RMA[1]`, but bit for bit)
  * - `na` values (also +/-Infinity) in the source series are ignored
@@ -711,23 +701,18 @@ export function rma(source: Source, length: simple_int): series_float {
   // An infinite value is na, as in PineScript.
   let firstValidIndex = -1;
   let validCount = 0;
-  let initSum = 0;
 
   for (let i = 0; i < source.length; i++) {
     const val = source[i];
-    if (val !== undefined && Number.isFinite(val)) {
-      initSum += val;
-      validCount++;
-      if (validCount === len) {
-        firstValidIndex = i;
-        break;
-      }
+    if (val !== undefined && Number.isFinite(val) && ++validCount === len) {
+      firstValidIndex = i;
+      break;
     }
   }
 
-  // Initialize RMA value with SMA of first `length` non-NaN values
-  let rmaValue = validCount > 0 ? initSum / validCount : NaN;
   const rmaInitialized = firstValidIndex >= 0;
+  // The seed is ta.sma on that bar: the running sum of math.sum (PineScript bits), not a plain loop sum
+  let rmaValue = rmaInitialized ? runningSum(source.slice(0, firstValidIndex + 1), len)[firstValidIndex]! / len : NaN;
 
   for (let i = 0; i < source.length; i++) {
     if (!rmaInitialized || i < firstValidIndex) {
@@ -886,11 +871,12 @@ export function cum(source: Source): series_float {
  * @returns Boolean series (true at cross points)
  *
  * @remarks
- * - True when: (source1[i] > source2[i] AND source1[j] <= source2[j]) OR
- *              (source1[i] < source2[i] AND source1[j] >= source2[j]),
- *   where j is the last bar before i where both values were not na
- * - First value is always false (no previous value to compare)
- * - Detects any crossing (either over or under)
+ * PineScript rule (measured bit for bit; not `crossover or crossunder`):
+ * - The call keeps the side of the last bar where `source1` was strictly above or strictly below `source2` (no
+ *   side before such a bar). Equal bars and bars with an `na` value do not change it.
+ * - True when the values are strictly on the other side of the kept side: so a run of equal values is passed, and
+ *   a series that starts equal and then moves away is not a cross
+ * - False on a bar with an `na` value
  * - Use `ta.crossover()` or `ta.crossunder()` for directional crosses
  *
  * @example
@@ -900,25 +886,37 @@ export function cum(source: Source): series_float {
  * ```
  */
 export function cross(source1: Source, source2: Source): series_bool {
-  return crossTest(source1, source2, (a, b, pa, pb) => (a > b && pa <= pb) || (a < b && pa >= pb));
+  const result: series_bool = [];
+  let side = 0; // -1: last strictly below, 1: last strictly above, 0: none yet
+  for (let i = 0; i < source1.length; i++) {
+    const a = source1[i]!;
+    const b = source2[i]!;
+    if (Number.isNaN(a) || Number.isNaN(b)) {
+      result.push(false);
+      continue;
+    }
+    result.push((side < 0 && a > b) || (side > 0 && a < b));
+    if (a < b) side = -1;
+    else if (a > b) side = 1;
+  }
+  return result;
 }
 
 /**
- * ta.rising / ta.falling: true when each of the `length` steps between the last `length + 1` non-na values (up to
- * the current bar) passes `step(newer, older)`; false when there are fewer non-na values.
+ * ta.rising / ta.falling: a counter of the steps from one bar to the next that pass `step(newer, older)`, reset to 0
+ * by a step that does not pass; a step with an na value (on either bar) leaves the counter unchanged. True when the
+ * counter is at least `length`.
  *
  * @internal
  */
 function monotonic(source: Source, length: simple_int, step: (newer: number, older: number) => boolean): series_bool {
   const result: series_bool = [];
-  const values: number[] = []; // non-na values so far
+  let count = 0;
   for (let i = 0; i < source.length; i++) {
     const v = source[i]!;
-    if (!Number.isNaN(v)) values.push(v);
-    const n = values.length;
-    let ok = n > length;
-    for (let j = 1; ok && j <= length; j++) ok = step(values[n - j]!, values[n - j - 1]!);
-    result.push(ok);
+    const prev = i > 0 ? source[i - 1]! : NaN;
+    if (!Number.isNaN(v) && !Number.isNaN(prev)) count = step(v, prev) ? count + 1 : 0;
+    result.push(count >= length);
   }
   return result;
 }
@@ -932,10 +930,11 @@ function monotonic(source: Source, length: simple_int, step: (newer: number, old
  *
  * @remarks
  * PineScript rules:
- * - each of the `length` steps is a rise larger than the 1e-10 tolerance
- * - `na` values are skipped: the steps are between the last `length + 1` non-`na` values up to the current bar
- *   (on an `na` bar, the result of the last non-`na` bar)
- * - false while there are fewer than `length + 1` non-`na` values
+ * - a counter of rises from the previous bar (a rise is larger than the 1e-10 tolerance); a step that is not a rise
+ *   resets it to 0
+ * - a step from or to an `na` bar leaves the counter unchanged (so an `na` bar, and the bar after it, keep the
+ *   result of the bar before the `na`)
+ * - true when the counter is at least `length` (false at the start)
  *
  * @example
  * ```typescript
@@ -956,10 +955,11 @@ export function rising(source: Source, length: simple_int): series_bool {
  *
  * @remarks
  * PineScript rules:
- * - each of the `length` steps is a fall larger than the 1e-10 tolerance
- * - `na` values are skipped: the steps are between the last `length + 1` non-`na` values up to the current bar
- *   (on an `na` bar, the result of the last non-`na` bar)
- * - false while there are fewer than `length + 1` non-`na` values
+ * - a counter of falls from the previous bar (a fall is larger than the 1e-10 tolerance); a step that is not a fall
+ *   resets it to 0
+ * - a step from or to an `na` bar leaves the counter unchanged (so an `na` bar, and the bar after it, keep the
+ *   result of the bar before the `na`)
+ * - true when the counter is at least `length` (false at the start)
  *
  * @example
  * ```typescript
@@ -1059,10 +1059,11 @@ export function mom(source: Source, length: simple_int): series_float {
  *
  * @remarks
  * - Measures average absolute distance from the mean
- * - Formula: `sum(abs(source[i]! - sma)) / length` for i in 0 to length-1
  * - Less sensitive to outliers than standard deviation
- * - `na` values in the source series are ignored
- * - The function calculates on the `length` quantity of non-`na` values
+ * - PineScript rule (bit for bit): `sum(abs(source[i] - mean)) / length` for `i = 0 .. length - 1`, added newest
+ *   first, with `mean = ta.sma(source, length)` (its compensated running sum, so a flat window can give a tiny
+ *   non-zero deviation)
+ * - The loop reads the last `length` bars: an `na` among them gives `na`
  *
  * @example
  * ```typescript
@@ -1071,25 +1072,13 @@ export function mom(source: Source, length: simple_int): series_float {
  * ```
  */
 export function dev(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
-  // PineScript: na when the window of `length` bars holds an na value
-  const meanValues = strictWindowMean(source, length);
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1 || isNaN(meanValues[i]!)) {
-      result.push(NaN);
-    } else {
-      let sum = 0;
-      for (let j = 0; j < length; j++) {
-        if (!isNaN(source[i - j]!)) {
-          sum += Math.abs(source[i - j]! - meanValues[i]!);
-        }
-      }
-      result.push(sum / length);
-    }
-  }
-
-  return result;
+  const len = Math.floor(length);
+  return sma(source, len).map((mean, i) => {
+    if (i < len - 1 || Number.isNaN(mean)) return NaN;
+    let sum = 0;
+    for (let k = 0; k < len; k++) sum += Math.abs(source[i - k]! - mean);
+    return sum / len;
+  });
 }
 
 /**
@@ -1208,7 +1197,7 @@ export function median(source: Source, length: simple_int): series_float {
  * @remarks
  * - Fixed length of 4 bars
  * - Weights: [1/6, 2/6, 2/6, 1/6] (symmetric)
- * - Formula: `source[3] * 1/6 + source[2] * 2/6 + source[1] * 2/6 + source[0] * 1/6`
+ * - Formula, in this order as in PineScript (bit for bit): `(source + 2 * source[1] + 2 * source[2] + source[3]) / 6`
  * - More weight given to middle values
  * - `na` values in the source series are included in calculations and will produce an `na` result
  * - Returns NaN for the first 3 bars
@@ -1220,27 +1209,9 @@ export function median(source: Source, length: simple_int): series_float {
  * ```
  */
 export function swma(source: Source): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < 3) {
-      result.push(NaN);
-    } else {
-      // Check for any NaN values in the window
-      if (isNaN(source[i]!) || isNaN(source[i - 1]!) || isNaN(source[i - 2]!) || isNaN(source[i - 3]!)) {
-        result.push(NaN);
-      } else {
-        const value = 
-          source[i - 3]! * (1 / 6) +
-          source[i - 2]! * (2 / 6) +
-          source[i - 1]! * (2 / 6) +
-          source[i]! * (1 / 6);
-        result.push(value);
-      }
-    }
-  }
-
-  return result;
+  return Array.from({ length: source.length }, (_, i) =>
+    i < 3 ? NaN : (source[i]! + 2 * source[i - 1]! + 2 * source[i - 2]! + source[i - 3]!) / 6
+  );
 }
 
 /**
@@ -1473,10 +1444,14 @@ export function percentrank(source: Source, length: simple_int): series_float {
  * - Typical Price = (High + Low + Close) / 3
  * - Mean Deviation = Average of absolute differences from mean
  * - Scaled by 0.015 to provide more readable numbers
- * - As in PineScript: when the mean deviation is 0 (1e-10 tolerance, a flat window), the CCI of the previous bar
  * - Values above +100 indicate overbought conditions
  * - Values below -100 indicate oversold conditions
- * - \`na\` values in the source series are ignored
+ *
+ * PineScript rules (bit for bit):
+ * - `(source - ta.sma(source, length)) / (0.015 * ta.dev(source, length))`
+ * - when the mean deviation is 0 (1e-10 tolerance, a flat window), the last CCI value; 0 when there is none yet
+ *   (a flat first window)
+ * - \`na\` when the mean or the deviation is \`na\` (an \`na\` in the last \`length\` bars)
  *
  * @example
  * \`\`\`typescript
@@ -1486,22 +1461,15 @@ export function percentrank(source: Source, length: simple_int): series_float {
  * \`\`\`
  */
 export function cci(source: Source, length: simple_int): series_float {
-  const result: series_float = [];
   const smaValues = sma(source, length);
   const devValues = dev(source, length);
-
-  for (let i = 0; i < source.length; i++) {
-    if (isNaN(smaValues[i]!) || isNaN(devValues[i]!)) {
-      result.push(NaN);
-    } else if (eq(devValues[i]!, 0)) {
-      result.push(i > 0 ? result[i - 1]! : NaN);
-    } else {
-      const cci = (source[i]! - smaValues[i]!) / (0.015 * devValues[i]!);
-      result.push(cci);
-    }
-  }
-
-  return result;
+  let last = 0;
+  return smaValues.map((mean, i) => {
+    const d = devValues[i]!;
+    if (Number.isNaN(mean) || Number.isNaN(d)) return NaN;
+    if (!eq(d, 0)) last = (source[i]! - mean) / (0.015 * d);
+    return last;
+  });
 }
 
 /**
@@ -1562,7 +1530,13 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
  * - Formula: 100 - (100 / (1 + Positive Money Flow / Negative Money Flow))
  * - Values above 80 indicate overbought
  * - Values below 20 indicate oversold
- * - `na` values in the source series are ignored
+ *
+ * PineScript rules (bit for bit):
+ * - the two flows are `math.sum` running sums; a sum within 1e-10 of 0 counts as 0 (the residue a running sum
+ *   keeps over a window of zeros)
+ * - 100 when the negative flow is 0; `na` when `1 + positive / negative` is 0 (division by zero)
+ * - a bar with an `na` source adds nothing to the sums and gives the previous result; the bar after it (an `na`
+ *   change) adds its money flow to both sums
  *
  * @example
  * ```typescript
@@ -1599,11 +1573,16 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
   const upper = runningSum(upperFlow, length);
   const lower = runningSum(lowerFlow, length);
 
-  return upper.map((u, i) => {
-    const l = lower[i]!;
+  // A sum within 1e-10 of 0 (the residue of a running sum over a window of zeros) is 0
+  const zero = (x: number) => (Math.abs(x) <= 1e-10 ? 0 : x);
+  return upper.map((sumUp, i) => {
+    const u = zero(sumUp);
+    const l = zero(lower[i]!);
     if (Number.isNaN(u) || Number.isNaN(l)) return NaN;
     if (l === 0) return 100;
-    return 100 - 100 / (1 + u / l);
+    const ratio = 1 + u / l;
+    // x / 0 is na in PineScript
+    return ratio === 0 ? NaN : 100 - 100 / ratio;
   });
 }
 
@@ -2222,6 +2201,10 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
  * @param length - Lookback period (default: 14)
  * @returns Williams %R series
  *
+ * @remarks
+ * PineScript rule (bit for bit): `100 * (close - max) / (max - min)` with `max = ta.highest(high, length)` and
+ * `min = ta.lowest(low, length)` (their `na` rules); `na` when the range is 0.
+ *
  * @example
  * ```typescript
  * const wpr = ta.wpr(high, low, close, 14);
@@ -2230,34 +2213,14 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
  * ```
  */
 export function wpr(high: Source, low: Source, close: Source, length: simple_int = 14): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < close.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-
-    // Find highest high and lowest low in the period
-    let highestHigh = high[i - length + 1]!;
-    let lowestLow = low[i - length + 1]!;
-
-    for (let j = i - length + 2; j <= i; j++) {
-      if (high[j]! > highestHigh) highestHigh = high[j]!;
-      if (low[j]! < lowestLow) lowestLow = low[j]!;
-    }
-
-    const range = highestHigh - lowestLow;
-    if (range === 0) {
-      result.push(NaN);
-    } else {
-      // Formula: (Highest High - Close) / (Highest High - Lowest Low) * -100
-      const wprValue = ((highestHigh! - close[i]!) / range) * -100;
-      result.push(wprValue);
-    }
-  }
-
-  return result;
+  const highs = highest(high, length);
+  const lows = lowest(low, length);
+  return Array.from({ length: close.length }, (_, i) => {
+    const hmax = highs[i]!;
+    const range = hmax - lows[i]!;
+    // PineScript, in this order (bit for bit): 100 * (close - max) / (max - min); x / 0 is na
+    return range === 0 ? NaN : (100 * (close[i]! - hmax)) / range;
+  });
 }
 
 /**
@@ -2273,6 +2236,9 @@ export function wpr(high: Source, low: Source, close: Source, length: simple_int
  * @remarks
  * As in PineScript: the sums restart on anchor bars; the standard deviation is
  * `sqrt(Σ(volume × source²) / Σvolume − vwap²)`.
+ * - With an anchor series: `na` before the first anchor bar
+ * - A bar with an `na` source (or volume) makes the sums `na` until the next anchor bar (`na` values are not
+ *   skipped)
  */
 export function vwap(source: Source, volume: Source, anchor?: ArrayLike<boolean | number>): series_float;
 export function vwap(
@@ -2293,18 +2259,19 @@ export function vwap(
   const mid: series_float = [];
   const upper: series_float = [];
   const lower: series_float = [];
-  let sumPV = 0;
-  let sumV = 0;
-  let sumPPV = 0;
+  // na until the first anchor (without an anchor series, bar 0 starts the sums)
+  let sumPV = NaN;
+  let sumV = NaN;
+  let sumPPV = NaN;
   for (let i = 0; i < source.length; i++) {
-    if (anchor && anchor[i]) {
-      sumPV = 0;
-      sumV = 0;
-      sumPPV = 0;
-    }
     const s = source[i]!;
     const v = volume[i]!;
-    if (!Number.isNaN(s) && !Number.isNaN(v)) {
+    if (anchor ? anchor[i] : i === 0) {
+      sumPV = s * v;
+      sumV = v;
+      sumPPV = s * s * v;
+    } else {
+      // An na source or volume makes the sums na until the next anchor
       sumPV += s * v;
       sumV += v;
       sumPPV += s * s * v;
@@ -2386,7 +2353,8 @@ export function alma(
 /**
  * Keltner Channels Width (KCW)
  *
- * Measures the width of Keltner Channels as a percentage of the middle line.
+ * Measures the width of Keltner Channels relative to the middle line: `(upper - lower) / middle`, a ratio as in
+ * PineScript (0.05 is a width of 5% of the middle line; not multiplied by 100).
  * Similar to BBW but uses ATR instead of standard deviation.
  *
  * Low KCW suggests consolidation/low volatility.
@@ -2424,8 +2392,8 @@ export function kcw(
     if (isNaN(basis[i]!) || basis[i]! === 0) {
       result.push(NaN);
     } else {
-      const width = ((upper[i]! - lower[i]!) / basis[i]!) * 100;
-      result.push(width);
+      // PineScript: (upper - lower) / basis, a ratio (not a percentage)
+      result.push((upper[i]! - lower[i]!) / basis[i]!);
     }
   }
 
@@ -2507,50 +2475,30 @@ export function min(source: Source): series_float {
  * The Center of Gravity indicator is an oscillator developed by John Ehlers.
  * It identifies turning points with minimal lag and provides clear signals.
  *
- * The COG calculates a weighted average where more recent prices have higher weights,
- * similar to a moving average but with a focus on momentum shifts.
- *
  * @param source - Source series (typically close)
  * @param length - Lookback period (default: 10)
  * @returns COG series
  *
+ * @remarks
+ * PineScript rule (bit for bit): `-num / math.sum(source, length)`, with `num` the sum of `source[i] * (i + 1)`
+ * for `i = 0 .. length - 1`, added newest first.
+ * - The denominator is the compensated running sum of `math.sum` (the last `length` non-`na` values)
+ * - The numerator reads the last `length` bars, so an `na` among them gives `na`
+ * - A zero denominator gives `na` (PineScript division by zero)
+ *
  * @example
  * ```typescript
  * const cogValue = ta.cog(close, 10);
- * // Use COG crossovers as signals:
- * // - COG crossing above 0: potential buy signal
- * // - COG crossing below 0: potential sell signal
  * ```
  */
 export function cog(source: Source, length: simple_int = 10): series_float {
-  const result: series_float = [];
-
-  for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
-      result.push(NaN);
-      continue;
-    }
-
-    let numerator = 0;
-    let denominator = 0;
-
-    for (let j = 0; j < length; j++) {
-      const weight = j + 1;
-      const price = source[i - length + 1 + j]!;
-      numerator += weight * price;
-      denominator += price;
-    }
-
-    if (denominator === 0) {
-      result.push(NaN);
-    } else {
-      // COG formula: -1 * (sum of (weight * price) / sum of prices) + (length + 1) / 2
-      const cog = -1 * (numerator / denominator) + (length + 1) / 2;
-      result.push(cog);
-    }
-  }
-
-  return result;
+  const len = Math.floor(length);
+  return runningSum(source, len).map((sum, i) => {
+    if (i < len - 1 || Number.isNaN(sum) || sum === 0) return NaN;
+    let num = 0;
+    for (let k = 0; k < len; k++) num += source[i - k]! * (k + 1);
+    return -num / sum;
+  });
 }
 
 /**
@@ -2570,32 +2518,25 @@ export function cog(source: Source, length: simple_int = 10): series_float {
  * ```
  *
  * @remarks
- * - `na` values in the source series are ignored
+ * PineScript rules:
+ * - the window is the last `length` non-`na` values (an `na` bar does not enter it, and gets the mode of the
+ *   window it keeps)
+ * - NaN until `length` non-`na` values exist
  * - If no mode exists, returns the smallest value
- * - Returns NaN for the first (length - 1) values where there's insufficient data
  */
 export function mode(source: Source, length: simple_int): series_float {
   const result: series_float = [];
+  const len = Math.floor(length);
+  const seen: number[] = []; // non-na values so far
 
   for (let i = 0; i < source.length; i++) {
-    if (i < length - 1) {
+    const v = source[i]!;
+    if (!Number.isNaN(v)) seen.push(v);
+    if (seen.length < len) {
       result.push(NaN);
       continue;
     }
-
-    // Collect non-NaN values in the window
-    const values: number[] = [];
-    for (let j = 0; j < length; j++) {
-      const value = source[i - j]!;
-      if (!isNaN(value)) {
-        values.push(value);
-      }
-    }
-
-    if (values.length === 0) {
-      result.push(NaN);
-      continue;
-    }
+    const values = seen.slice(seen.length - len);
 
     // Count frequency of each value
     const frequencyMap = new Map<number, number>();
@@ -3445,16 +3386,18 @@ export function pvt(close: Source, volume: Source): series_float {
 
 /**
  * Accumulation/Distribution index: the running sum of
- * `(2 * close - low - high) / (high - low) * volume`, with 0 on bars where `high == low`.
+ * `((close - low) - (high - close)) / (high - low) * volume`, in this order as in PineScript (bit for bit).
+ * A bar where this is `na` (`high == low`, an `na` volume) adds nothing and keeps the previous value.
  */
 export function accdist(high: Source, low: Source, close: Source, volume: Source): series_float {
-  return cum(
-    close.map((c, i) => {
-      const h = high[i]!;
-      const l = low[i]!;
-      return h === l ? 0 : ((2 * c - l - h) / (h - l)) * volume[i]!;
-    })
-  );
+  let ad = 0;
+  return close.map((c, i) => {
+    const h = high[i]!;
+    const l = low[i]!;
+    const mfv = (((c - l) - (h - c)) / (h - l)) * volume[i]!;
+    if (Number.isFinite(mfv)) ad += mfv;
+    return ad;
+  });
 }
 
 /**

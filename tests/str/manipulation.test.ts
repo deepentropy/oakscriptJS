@@ -96,3 +96,22 @@ describe('str.lower', () => {
     expect(str.lower('NAÏVE')).toBe('naïve');
   });
 });
+
+describe('str.substring with an na end', () => {
+  it('is a runtime error (PineScript)', () => {
+    expect(() => str.substring('hello', 3, NaN)).toThrow('na');
+    expect(str.substring('hello', 3)).toBe('lo');
+  });
+});
+
+describe('str.repeat', () => {
+  it('repeats with a separator', () => {
+    expect(str.repeat('ab', 3)).toBe('ababab');
+    expect(str.repeat('?', 3, ',')).toBe('?,?,?');
+  });
+
+  it('a count of 0 gives na (PineScript)', () => {
+    expect(str.repeat('a', 0)).toBeNull();
+    expect(str.repeat('a', NaN)).toBeNull();
+  });
+});

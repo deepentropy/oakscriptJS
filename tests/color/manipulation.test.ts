@@ -9,6 +9,12 @@ describe('color.new_color', () => {
     expect(color.t(color.new(color.rgb(255, 0, 0, 20), 150))).toBe(100);
   });
 
+  it('an na colour stays na; color.t(na) is 100 (PineScript)', () => {
+    expect(color.new(null, 50)).toBeNull();
+    expect(color.t(color.new(null, 50))).toBe(100);
+    expect(color.t(null)).toBe(100);
+  });
+
   it('should set transparency on RGB color', () => {
     const red = color.rgb(255, 0, 0);
     expect(color.new_color(red, 50)).toBe('rgba(255, 0, 0, 0.5)');

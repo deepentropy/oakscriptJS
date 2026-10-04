@@ -133,8 +133,8 @@ describe('Array Final Functions', () => {
       const arr = [5, 5, 5, 5, 5];
       const standardized = array.standardize(arr);
 
-      // StdDev is 0, should return NaN
-      expect(standardized.every(x => isNaN(x))).toBe(true);
+      // StdDev is 0: PineScript gives 1 for every element
+      expect(standardized).toEqual([1, 1, 1, 1, 1]);
     });
 
     it('should handle negative numbers', () => {
@@ -164,8 +164,8 @@ describe('Array Final Functions', () => {
       const arr = [42];
       const standardized = array.standardize(arr);
 
-      // StdDev is 0 for single element
-      expect(isNaN(standardized[0])).toBe(true);
+      // StdDev is 0 for single element: PineScript gives 1
+      expect(standardized[0]).toBe(1);
     });
 
     it('should handle empty array', () => {

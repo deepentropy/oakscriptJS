@@ -157,6 +157,26 @@ export function zonedFields(time: number, timezone: string): ZonedFields {
  * resolve to the later instant, and wall-clock times that do not exist (start of
  * daylight saving time) are shifted forward by the length of the gap.
  */
+/**
+ * UNIX time (ms) of a UTC wall-clock date: Gregorian calendar from 1582-10-15, Julian calendar before it (as
+ * PineScript: 1582-10-05 is 1582-10-15). Out-of-range fields roll over like `Date.UTC`.
+ */
+export function civilToUnix(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number {
+  const gregorian = Date.UTC(year, month - 1, day, hour, minute, second);
+  // normalized year / month / day of the Gregorian reading decides the calendar
+  const d = new Date(Date.UTC(year, month - 1, 1));
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1;
+  if (y > 1582 || (y === 1582 && (m > 10 || (m === 10 && day >= 15)))) return gregorian;
+  // Julian day number of y-m-1, then the day offset and the time of day
+  const a = Math.floor((14 - m) / 12);
+  const yy = y + 4800 - a;
+  const mm = m + 12 * a - 3;
+  const jdn = 1 + Math.floor((153 * mm + 2) / 5) + 365 * yy + Math.floor(yy / 4) - 32083;
+  const days = jdn - 2440588 + (day - 1);
+  return days * MS_PER_DAY + Date.UTC(1970, 0, 1, hour, minute, second);
+}
+
 export function zonedToUnix(
   timezone: string,
   year: number,
@@ -167,7 +187,7 @@ export function zonedToUnix(
   second: number = 0
 ): number {
   const zone = resolveZone(timezone);
-  const local = Date.UTC(year, month - 1, day, hour, minute, second);
+  const local = civilToUnix(year, month, day, hour, minute, second);
   if (zone.kind === 'fixed') return local - zone.offsetMs;
 
   // At most one offset transition happens within a day of `local`: the offsets

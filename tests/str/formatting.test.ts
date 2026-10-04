@@ -19,7 +19,7 @@ describe('str.split', () => {
 
   it('should handle empty string', () => {
     expect(str.split('', ',')).toEqual(['']);
-    expect(str.split('', '')).toEqual([]);
+    expect(str.split('', '')).toEqual(['']); // PineScript
   });
 
   it('should handle multiple consecutive separators', () => {
@@ -130,6 +130,13 @@ describe('str.format number and date patterns', () => {
     expect(str.format("'{0}' {0}", 0.5)).toBe('{0} 0.5');
     expect(str.format("it''s {0}", -7)).toBe("it's -7");
     expect(str.format('{0,choice,0#zero|1#one|1<many}', 1234.5)).toBe('many');
+  });
+
+  it('arrays, negative subpatterns and the 16-decimal cap (PineScript)', () => {
+    expect(str.format('{0}', ['Hello', 'World!'])).toBe('[Hello, World!]');
+    expect(str.format('{0,number,#.####################}', 0.1)).toBe('0.1');
+    expect(str.format('{0,number,#.##;(#.##)}', -3.5)).toBe('(3.5)');
+    expect(str.format('{0}', 1234.5678)).toBe('1,234.568');
   });
 
   it('formats dates in UTC', () => {

@@ -60,6 +60,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zero variance gives na. 0 different on 170,300 probe values (the measured limit lies between 9.999999999999986e-11
   and 1.0000000000000007e-10) (#148)
 
+
+### Changed (PineScript rules found with PyneCore's open source and checked on our probes)
+
+Each rule below was measured on the PineScript runtime (probes on NASDAQ:AAPL and BITSTAMP:BTCUSD daily). Some calls
+that returned na or a clamped value now throw, as PineScript stops with a runtime error.
+
+- `math.round()`: ties away from zero (-2.5 -> -3); with a precision the decimal value is rounded (1.005, 2 -> 1.01;
+  -1.45, 1 -> -1.5); a negative precision rounds to an integer (1234.5678, -2 -> 1235); an infinite value gives na
+- `math.round_to_mintick()`: tick-grid rounding with ties away from zero (-1.075 -> -1.08, 1.005 -> 1.01, 0.3 -> 0.3)
+- `math.avg()` with 3 or more values: compensated sum (0.1, 0.2, 0.3 -> 0.19999999999999998); `math.rphi` last bit
+- `array.get / set / remove / insert`: a negative index counts from the end; an index out of range throws
+- `array.includes / indexof / lastindexof`: numbers equal within 1e-10; na is never found
+- `array.concat()` appends to and returns the first array; `array.slice()` is a live view of the array
+- `array.sort() / sort_indices()`: na last ascending, first descending
+- `array.min() / max()`: an nth out of range throws; `array.median() / mode()` skip na; a `mode` tie gives the
+  smallest value
+- `array.variance() / stdev() / standardize()`: moment form (`E[x^2] - mean^2`); a flat array standardizes to 1
+- `array.covariance()` skips na pairs; `array.percentrank()`: `(count - 1) * 100 / (size - 1)` (one element: na);
+  `array.percentile_nearest_rank() / percentile_linear_interpolation()`: PineScript operation order
+- `str.replace()`: replaces only the nth occurrence (default the first); `str.pos()` not found -> na;
+  `str.match()` returns the first match (na when none), not a bool; `str.repeat(s, 0)` -> na; `str.tonumber()` of a
+  partial number -> na; `str.split("", "")` -> `[""]`; `str.substring(s, begin, na)` throws
+- `str.tostring()`: patterns with a `;` negative part; na / infinity print `NaN` (`NaN%` with `format.percent`); at
+  most 16 decimals; `format.mintick` (tick of the symbol in a script, or a third argument); `str.format()` prints an
+  array as `[a, b]` and caps decimals the same way
+- `color.new(na, t)` stays na; `color.t(na)` is 100
+- `timestamp()`: "2025" and "2025-06" are accepted; "01 Jan 2022 GMT+3" (a zone without a time) gives na; dates
+  before 1582-10-15 use the Julian calendar
+- `label.new()`: the default text is `""`
+- `ta.cog()`: `-sum(src[i] * (i + 1)) / math.sum(src, length)` (the old formula was wrong on every bar)
+- `ta.kcw()`: `(upper - lower) / basis` (no `* 100`)
+- `ta.cross()` / `callsite.cross()`: true when the values move strictly to the other side of the last strict side
+- `ta.rising() / falling()`: a counter of strict steps; a step from or to an na bar leaves it unchanged
+- `ta.rma()` (and `rsi`, `atr`, `dmi`, `supertrend`): seed from the running-sum `ta.sma`
+- `ta.dev()` / `ta.cci()`: mean from the running sums, absolute deviations newest first; `ta.cci` on a flat window
+  keeps the last value, or 0 at the start
+- `ta.mfi()`: running sums within 1e-10 of 0 are 0; a zero `1 + up / down` gives na
+- `ta.mode()`: window of the last `length` non-na values; `ta.vwap()` with an anchor: na before the first anchor
+- `ta.swma()`, `ta.wpr()`, `ta.accdist()`: PineScript operation order (last bits)
+
 ## [0.9.5] - 2026-10-02
 
 ### Added

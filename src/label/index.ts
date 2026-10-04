@@ -85,7 +85,8 @@ export function new_label(...args: unknown[]): Label {
     y,
     xloc: xloc ?? 'bar_index',
     yloc: yloc ?? 'price',
-    text,
+    // PineScript: a label without text has the text "" (label.get_text gives "")
+    text: text ?? '',
     tooltip,
     color: labelColor,
     style,

@@ -23,18 +23,49 @@ export function size<T>(id: PineArray<T>): int {
   return id.length;
 }
 
-/**
- * Returns the element at the specified index
- */
-export function get<T>(id: PineArray<T>, index: simple_int): T {
-  return id[index]!;
+/** True for a PineScript `na` element: NaN, null or undefined. */
+function isNa(v: unknown): boolean {
+  return v === undefined || v === null || (typeof v === 'number' && Number.isNaN(v));
+}
+
+/** The `na` of the array's element type: NaN for a numeric (or empty) array, undefined otherwise. */
+function naOf<T>(id: PineArray<T>): T {
+  return (id.length === 0 || typeof id[0] === 'number' ? NaN : undefined) as T;
 }
 
 /**
- * Sets the value of the element at the specified index
+ * Position addressed by a PineScript index: truncated, a negative index counts from the end. An index outside
+ * `-size .. size - 1 + extra` is a runtime error.
+ */
+function position(name: string, id: PineArray<unknown>, index: number, extra = 0): number {
+  const i = Math.trunc(index);
+  const n = id.length;
+  if (i < -n || i >= n + extra) {
+    throw new Error(`array.${name}: index ${i} is out of bounds, array size is ${n}`);
+  }
+  return i < 0 ? i + n : i;
+}
+
+/**
+ * Returns the element at the specified index.
+ *
+ * PineScript rules: a negative index counts from the end (`get(a, -1)` is the last element); an index outside
+ * `-size .. size - 1` is a runtime error (throws); an `na` index gives `na`.
+ */
+export function get<T>(id: PineArray<T>, index: simple_int): T {
+  if (Number.isNaN(index)) return naOf(id);
+  return id[position('get', id, index)]!;
+}
+
+/**
+ * Sets the value of the element at the specified index.
+ *
+ * PineScript rules: a negative index counts from the end; an index outside `-size .. size - 1` is a runtime error
+ * (throws); an `na` index does nothing.
  */
 export function set<T>(id: PineArray<T>, index: simple_int, value: T): void {
-  id[index] = value;
+  if (Number.isNaN(index)) return;
+  id[position('set', id, index)] = value;
 }
 
 /**
@@ -73,38 +104,72 @@ export function clear<T>(id: PineArray<T>): void {
 }
 
 /**
- * Inserts a value at the specified index
+ * Inserts a value at the specified index.
+ *
+ * PineScript rules: a negative index counts from the end and `size` appends, so `-size .. size` is valid; any other
+ * index is a runtime error (throws); an `na` index appends.
  */
 export function insert<T>(id: PineArray<T>, index: simple_int, value: T): void {
-  id.splice(index, 0, value);
+  if (Number.isNaN(index)) {
+    id.push(value);
+    return;
+  }
+  id.splice(position('insert', id, index, 1), 0, value);
 }
 
 /**
- * Removes the element at the specified index
+ * Removes the element at the specified index and returns it.
+ *
+ * PineScript rules: a negative index counts from the end; an index outside `-size .. size - 1` is a runtime error
+ * (throws); an `na` index removes nothing and gives `na`.
  */
 export function remove<T>(id: PineArray<T>, index: simple_int): T {
-  return id.splice(index, 1)[0]!;
+  if (Number.isNaN(index)) return naOf(id);
+  return id.splice(position('remove', id, index), 1)[0]!;
+}
+
+/** PineScript `==` of two elements: numbers are equal when |a - b| <= 1e-10; `na` never equals anything. */
+function pineEqual(a: unknown, b: unknown): boolean {
+  if (isNa(a) || isNa(b)) return false;
+  if (a === b) return true;
+  if (typeof a === 'number' && typeof b === 'number') {
+    const d = a - b;
+    return -1e-10 <= d && d <= 1e-10;
+  }
+  return false;
 }
 
 /**
- * Returns true if the array contains the value
+ * Returns true if the array contains the value.
+ *
+ * PineScript rules: numbers are compared with a 1e-10 tolerance (|a - b| <= 1e-10); `na` is never found.
  */
 export function includes<T>(id: PineArray<T>, value: T): bool {
-  return id.includes(value);
+  return indexof(id, value) >= 0;
 }
 
 /**
- * Returns the index of the first occurrence of the value
+ * Returns the index of the first occurrence of the value, -1 when not found.
+ *
+ * PineScript rules: numbers are compared with a 1e-10 tolerance (|a - b| <= 1e-10); `na` is never found.
  */
 export function indexof<T>(id: PineArray<T>, value: T): int {
-  return id.indexOf(value);
+  for (let i = 0; i < id.length; i++) {
+    if (pineEqual(id[i], value)) return i;
+  }
+  return -1;
 }
 
 /**
- * Returns the index of the last occurrence of the value
+ * Returns the index of the last occurrence of the value, -1 when not found.
+ *
+ * PineScript rules: numbers are compared with a 1e-10 tolerance (|a - b| <= 1e-10); `na` is never found.
  */
 export function lastindexof<T>(id: PineArray<T>, value: T): int {
-  return id.lastIndexOf(value);
+  for (let i = id.length - 1; i >= 0; i--) {
+    if (pineEqual(id[i], value)) return i;
+  }
+  return -1;
 }
 
 /**
@@ -115,10 +180,11 @@ export function copy<T>(id: PineArray<T>): PineArray<T> {
 }
 
 /**
- * Concatenates two arrays
+ * Appends the elements of `id2` to `id1` and returns `id1` (PineScript `array.concat` changes `id1`).
  */
 export function concat<T>(id1: PineArray<T>, id2: PineArray<T>): PineArray<T> {
-  return [...id1, ...id2] as PineArray<T>;
+  for (const v of Array.from(id2)) id1.push(v);
+  return id1;
 }
 
 /**
@@ -136,23 +202,116 @@ export function reverse<T>(id: PineArray<T>): void {
 }
 
 /**
- * Returns a slice of the array
+ * Returns the elements from `index_from` (included) to `index_to` (excluded, default: the size) as a live view of
+ * the array (PineScript `array.slice`).
+ *
+ * PineScript rules:
+ * - the slice shares the elements of the original array: a change of an element of the slice changes the original
+ *   array, and adding / removing elements of the slice adds / removes them in the original array, inside the slice
+ *   bounds (a push to the slice inserts at the end of the slice)
+ * - `index_from` must address an element (`0 .. size - 1`) and `index_to` may be `size`; other bounds, or
+ *   `index_from > index_to`, are a runtime error (throws); an `na` bound means the start / the end of the array
  */
 export function slice<T>(id: PineArray<T>, index_from: simple_int, index_to?: simple_int): PineArray<T> {
-  return id.slice(index_from, index_to) as PineArray<T>;
+  const n = id.length;
+  const start = Number.isNaN(index_from) ? 0 : Math.trunc(index_from);
+  const stop = index_to === undefined || Number.isNaN(index_to) ? n : Math.trunc(index_to);
+  if (start < 0 || start >= n) throw new Error(`array.slice: index ${start} is out of bounds, array size is ${n}`);
+  if (stop < 0 || stop > n) throw new Error(`array.slice: index ${stop} is out of bounds, array size is ${n}`);
+  if (start > stop) throw new Error(`array.slice: index_from ${start} is greater than index_to ${stop}`);
+  return sliceView(id, start, stop - start);
+}
+
+/** Index of a property key that is an array index, -1 otherwise. */
+function indexKey(p: string | symbol): number {
+  if (typeof p !== 'string') return -1;
+  const i = Number(p);
+  return Number.isInteger(i) && i >= 0 && String(i) === p ? i : -1;
 }
 
 /**
- * Sorts array elements (numeric)
+ * Live view of `size` elements of `parent` from `start`: an array (a Proxy) whose element reads and writes go to
+ * `parent`, and whose size changes insert / remove elements in `parent` at the end of the view.
  */
-export function sort<T>(id: PineArray<T>, order: 'asc' | 'desc' = 'asc'): void {
-  id.sort((a, b) => {
-    if (order === 'asc') {
-      return (a as any) - (b as any);
-    } else {
-      return (b as any) - (a as any);
-    }
+function sliceView<T>(parent: PineArray<T>, start: number, size: number): PineArray<T> {
+  const resize = (target: number): void => {
+    if (target > size) parent.splice(start + size, 0, ...Array<T>(target - size).fill(undefined as T));
+    else if (target < size) parent.splice(start + target, size - target);
+    size = target;
+  };
+  return new Proxy<T[]>([], {
+    get(target, p, receiver) {
+      const i = indexKey(p);
+      if (i >= 0) return i < size ? parent[start + i] : undefined;
+      if (p === 'length') return size;
+      return Reflect.get(target, p, receiver);
+    },
+    set(target, p, value, receiver) {
+      const i = indexKey(p);
+      if (i >= 0) {
+        if (i >= size) resize(i + 1);
+        parent[start + i] = value;
+        return true;
+      }
+      if (p === 'length') {
+        resize(Number(value));
+        return true;
+      }
+      return Reflect.set(target, p, value, receiver);
+    },
+    has(target, p) {
+      const i = indexKey(p);
+      return i >= 0 ? i < size : Reflect.has(target, p);
+    },
+    // Array methods delete the slots past the new end before they set the length, which does the removal.
+    deleteProperty(target, p) {
+      return indexKey(p) >= 0 ? true : Reflect.deleteProperty(target, p);
+    },
+    ownKeys(target) {
+      return [...Array.from({ length: size }, (_, i) => String(i)), ...Reflect.ownKeys(target)];
+    },
+    getOwnPropertyDescriptor(target, p) {
+      const i = indexKey(p);
+      if (i >= 0) {
+        return i < size ? { value: parent[start + i], writable: true, enumerable: true, configurable: true } : undefined;
+      }
+      if (p === 'length') return { value: size, writable: true, enumerable: false, configurable: false };
+      return Reflect.getOwnPropertyDescriptor(target, p);
+    },
   });
+}
+
+/** Sort order of array.sort / array.sort_indices (PineScript `order.ascending` / `order.descending`). */
+export type SortOrder = 'asc' | 'desc' | 'ascending' | 'descending';
+
+/**
+ * Positions of the elements in PineScript sorted order: ascending values, `na` after the numbers (before the
+ * strings of a string array), stable; descending is the ascending result reversed.
+ */
+function sortedPositions<T>(id: PineArray<T>, order: SortOrder): number[] {
+  const values: number[] = [];
+  const nas: number[] = [];
+  for (let i = 0; i < id.length; i++) (isNa(id[i]) ? nas : values).push(i);
+  values.sort((a, b) => {
+    const x = id[a] as unknown as number;
+    const y = id[b] as unknown as number;
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  const naFirst = values.length > 0 && typeof id[values[0]!] === 'string';
+  const positions = naFirst ? [...nas, ...values] : [...values, ...nas];
+  if (order === 'desc' || order === 'descending') positions.reverse();
+  return positions;
+}
+
+/**
+ * Sorts the array in place.
+ *
+ * PineScript rules: `na` goes after the numbers in ascending order and before them in descending order (the
+ * ascending result reversed); in a string array `na` goes first in ascending order.
+ */
+export function sort<T>(id: PineArray<T>, order: SortOrder = 'asc'): void {
+  const sorted = sortedPositions(id, order).map((p) => id[p]!);
+  for (let i = 0; i < sorted.length; i++) id[i] = sorted[i]!;
 }
 
 /**
@@ -179,71 +338,102 @@ export function avg(id: PineArray<float>): float {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN;
 }
 
+/** The `nth` value of the non-na elements sorted with `compare` (array.min / array.max). */
+function nthValue(name: string, id: PineArray<float>, nth: number, compare: (a: number, b: number) => number): float {
+  const rank = Number.isNaN(nth) ? 0 : Math.trunc(nth);
+  const values = id.filter((v) => !Number.isNaN(v));
+  if (!values.length) return NaN;
+  if (rank < 0 || rank >= id.length) {
+    throw new Error(`array.${name}: nth ${rank} is out of bounds, array size is ${id.length}`);
+  }
+  values.sort(compare);
+  return values[Math.min(rank, values.length - 1)]!;
+}
+
 /**
  * The `nth` smallest value (0 = the smallest) of the non-na elements (PineScript `array.min(id, nth)`).
- * An `nth` past the end gives the greatest value; an array without values gives NaN.
+ *
+ * PineScript rules: an `nth` past the non-na values but inside the array size gives the greatest value; an `nth`
+ * outside `0 .. size - 1` is a runtime error (throws); an `na` nth counts as 0; an array without values gives NaN.
  */
 export function min(id: PineArray<float>, nth: simple_int = 0): float {
-  const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
-  return values.length ? values[Math.min(nth, values.length - 1)]! : NaN;
+  return nthValue('min', id, nth, (a, b) => a - b);
 }
 
 /**
  * The `nth` greatest value (0 = the greatest) of the non-na elements (PineScript `array.max(id, nth)`).
- * An `nth` past the end gives the smallest value; an array without values gives NaN.
+ *
+ * PineScript rules: an `nth` past the non-na values but inside the array size gives the smallest value; an `nth`
+ * outside `0 .. size - 1` is a runtime error (throws); an `na` nth counts as 0; an array without values gives NaN.
  */
 export function max(id: PineArray<float>, nth: simple_int = 0): float {
-  const values = id.filter((v) => !Number.isNaN(v)).sort((a, b) => b - a);
-  return values.length ? values[Math.min(nth, values.length - 1)]! : NaN;
+  return nthValue('max', id, nth, (a, b) => b - a);
 }
 
 /**
- * Returns the median value (numeric arrays only)
+ * Median of the non-na elements (PineScript `array.median(id)`): the middle value, or the mean of the two middle
+ * values for an even count; an array without values gives NaN.
  */
 export function median(id: PineArray<float>): float {
-  const sorted = [...id].sort((a, b) => a - b);
+  const sorted = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+  if (!sorted.length) return NaN;
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
 }
 
 /**
- * Returns the mode (most frequent value)
+ * Most frequent non-na element (PineScript `array.mode(id)`), compared exactly.
+ *
+ * PineScript rules: with several values of the same frequency, the smallest one; an array without values gives NaN.
  */
 export function mode(id: PineArray<float>): float {
-  const frequency: Map<float, int> = new Map();
-  let maxFreq = 0;
-  let mode = id[0]!;
-
-  for (const val of id) {
-    const freq = (frequency.get(val) || 0) + 1;
-    frequency.set(val, freq);
-    if (freq > maxFreq) {
-      maxFreq = freq;
-      mode = val;
+  const frequency = new Map<float, int>();
+  for (const v of id) {
+    if (!Number.isNaN(v)) frequency.set(v, (frequency.get(v) ?? 0) + 1);
+  }
+  let best = NaN;
+  let bestCount = 0;
+  for (const [v, count] of frequency) {
+    if (count > bestCount || (count === bestCount && v < best)) {
+      best = v;
+      bestCount = count;
     }
   }
-
-  return mode;
+  return best;
 }
 
 /**
- * Standard deviation of the non-na elements (PineScript `array.stdev(id, biased)`).
- * `biased` true (default) divides by the count, false by the count - 1.
+ * Standard deviation of the non-na elements (PineScript `array.stdev(id, biased)`): the square root of
+ * `array.variance(id, biased)`.
  */
 export function stdev(id: PineArray<float>, biased: bool = true): float {
   return Math.sqrt(variance(id, biased));
 }
 
+/** Sum of the values and sum of their squares, both added from the first to the last value. */
+function moments(values: number[]): [number, number] {
+  let p = 0;
+  let q = 0;
+  for (const v of values) p += v;
+  for (const v of values) q += v * v;
+  return [p, q];
+}
+
 /**
  * Variance of the non-na elements (PineScript `array.variance(id, biased)`).
- * `biased` true (default) divides by the count, false by the count - 1.
+ *
+ * PineScript rule (moment form): with `p` the sum of the values, `q` the sum of their squares, `n` the count and
+ * `m = p / n`: biased (default) `max(0, q / n - m * m)`, unbiased `max(0, q / (n - 1) - (p / (n - 1)) * m)`.
+ * One value gives 0 biased and NaN unbiased; an array without values gives NaN.
  */
 export function variance(id: PineArray<float>, biased: bool = true): float {
   const values = id.filter((v) => !Number.isNaN(v));
-  if (!values.length) return NaN;
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const squares = values.reduce((a, b) => a + (b - mean) * (b - mean), 0);
-  return squares / (biased ? values.length : values.length - 1);
+  const n = values.length;
+  if (!n) return NaN;
+  if (n < 2) return biased ? 0 : NaN;
+  const [p, q] = moments(values);
+  const mean = p / n;
+  return biased ? Math.max(0, q / n - mean * mean) : Math.max(0, q / (n - 1) - (p / (n - 1)) * mean);
 }
 
 /**
@@ -761,28 +951,36 @@ export function binary_search_rightmost(id: PineArray<float>, val: float): int {
  * - Unbiased (false): divides by n-1 (sample covariance)
  * - Returns NaN if arrays are empty or have different lengths
  * - Formula: Cov(X,Y) = E[(X - μX)(Y - μY)]
+ *
+ * PineScript rules: a pair where either value is `na` is skipped and the count is the number of pairs kept; both
+ * means first, then the sum of the products from the first to the last pair. One pair gives 0 biased, NaN unbiased.
  */
 export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased: bool = true): float {
-  if (id1.length === 0 || id2.length === 0) {
-    return NaN;
-  }
-
   if (id1.length !== id2.length) {
     return NaN;
   }
-
-  const n = id1.length;
-  const mean1 = avg(id1);
-  const mean2 = avg(id2);
-
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let i = 0; i < id1.length; i++) {
+    if (Number.isNaN(id1[i]!) || Number.isNaN(id2[i]!)) continue;
+    xs.push(id1[i]!);
+    ys.push(id2[i]!);
+  }
+  const n = xs.length;
+  if (!n || (!biased && n < 2)) return NaN;
+  let mean1 = 0;
+  let mean2 = 0;
+  for (let i = 0; i < n; i++) {
+    mean1 += xs[i]!;
+    mean2 += ys[i]!;
+  }
+  mean1 /= n;
+  mean2 /= n;
   let sum = 0;
   for (let i = 0; i < n; i++) {
-    sum += (id1[i]! - mean1) * (id2[i]! - mean2);
+    sum += (xs[i]! - mean1) * (ys[i]! - mean2);
   }
-
-  // Biased: divide by n, Unbiased: divide by n-1
-  const divisor = biased ? n : n - 1;
-  return sum / divisor;
+  return sum / (biased ? n : n - 1);
 }
 
 /**
@@ -808,29 +1006,41 @@ export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased:
  * - Returns NaN if array is empty
  *
  * PineScript rules:
- * - position in the sorted array: `percentage / 100 * size - 0.5`, clamped to the first / last value, linear
- *   interpolation between the two neighbours
+ * - 1-based position in the sorted array: `size * percentage / 100 + 0.5` (snapped to an integer within 1e-9),
+ *   clamped to the first / last value; between two values `lo * (1 - frac) + hi * frac`
  * - `na` values are sorted after all numbers; with an `na` in the array, a position between two values gives `na`
+ * - an `na` percentage gives `na`; a percentage outside 0 .. 100 is a runtime error (throws)
  */
 export function percentile_linear_interpolation(id: PineArray<float>, percentage: float): float {
-  if (id.length === 0) {
+  if (id.length === 0 || Number.isNaN(percentage)) {
     return NaN;
   }
+  checkPercentage('percentile_linear_interpolation', percentage);
   const s = sortedNaLast(id);
   const n = s.length;
-  const pos = (percentage / 100) * n - 0.5;
-  if (pos <= 0) return s[0]!;
-  if (pos >= n - 1) return s[n - 1]!;
-  const lo = Math.floor(pos);
-  const f = pos - lo;
-  if (f === 0) return s[lo]!;
-  return Number.isNaN(s[n - 1]!) ? NaN : s[lo]! + f * (s[lo + 1]! - s[lo]!);
+  let pos = (n * percentage) / 100 + 0.5;
+  const nearest = Math.round(pos);
+  if (Math.abs(pos - nearest) < 1e-9) pos = nearest;
+  if (pos <= 1) return s[0]!;
+  if (pos >= n) return s[n - 1]!;
+  const lower = Math.floor(pos);
+  const frac = pos - lower;
+  if (frac === 0) return s[lower - 1]!;
+  if (Number.isNaN(s[n - 1]!)) return NaN;
+  return s[lower - 1]! * (1 - frac) + s[lower]! * frac;
 }
 
 /** Array values sorted ascending, `na` values after the numbers (array.percentile_*). */
 function sortedNaLast(id: PineArray<float>): number[] {
   const numbers = id.filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
   return [...numbers, ...Array<number>(id.length - numbers.length).fill(NaN)];
+}
+
+/** A percentage outside 0 .. 100 is a PineScript runtime error. */
+function checkPercentage(name: string, percentage: number): void {
+  if (!(percentage >= 0 && percentage <= 100)) {
+    throw new Error(`array.${name}: percentage ${percentage} must be between 0 and 100`);
+  }
 }
 
 /**
@@ -856,15 +1066,18 @@ function sortedNaLast(id: PineArray<float>): number[] {
  * - Returns NaN if array is empty
  *
  * PineScript rules:
- * - the value at rank `ceil(percentage / 100 * size)` of the sorted array
+ * - the value at rank `ceil(percentage * size / 100)` (clamped to 1 .. size) of the sorted array
  * - `na` values are sorted after all numbers (na when that rank holds an `na`)
+ * - an `na` percentage counts as 0; a percentage outside 0 .. 100 is a runtime error (throws)
  */
 export function percentile_nearest_rank(id: PineArray<float>, percentage: float): float {
   if (id.length === 0) {
     return NaN;
   }
+  const pct = Number.isNaN(percentage) ? 0 : percentage;
+  checkPercentage('percentile_nearest_rank', pct);
   const s = sortedNaLast(id);
-  const rank = Math.min(s.length, Math.max(1, Math.ceil((percentage / 100) * s.length)));
+  const rank = Math.min(s.length, Math.max(1, Math.ceil((pct * s.length) / 100)));
   return s[rank - 1]!;
 }
 
@@ -883,35 +1096,38 @@ export function percentile_nearest_rank(id: PineArray<float>, percentage: float)
  * ```typescript
  * const arr = [1, 2, 3, 4, 5];
  * const rank = array.percentrank(arr, 2); // Value at index 2 is 3
- * // Returns: 40 (40% of values <= 3)
+ * // Returns: 50 ((3 - 1) * 100 / (5 - 1))
  * ```
  *
  * @remarks
- * - Returns percentage of elements <= the value at given index
  * - Range: 0 to 100
- * - Returns NaN if array is empty or index out of bounds
+ *
+ * PineScript rules:
+ * - `(count - 1) * 100 / (size - 1)`, with `count` the number of non-na elements <= the element (exact
+ *   comparison, no 1e-10 tolerance); `na` elements count in the size
+ * - an `na` element, a one-element array or an empty array gives NaN
+ * - an `na` index counts as 0; an index outside `0 .. size - 1` is a runtime error (throws)
  */
 export function percentrank(id: PineArray<float>, index: int): float {
-  if (id.length === 0 || index < 0 || index >= id.length) {
+  const i = Number.isNaN(index) ? 0 : Math.trunc(index);
+  if (id.length === 0) {
     return NaN;
   }
-
-  const value = id[index]!;
-
-  if (isNaN(value)) {
+  if (i < 0 || i >= id.length) {
+    throw new Error(`array.percentrank: index ${i} is out of bounds, array size is ${id.length}`);
+  }
+  if (id.length === 1) {
     return NaN;
   }
-
-  // Count elements less than or equal to the value
+  const value = id[i]!;
+  if (Number.isNaN(value)) {
+    return NaN;
+  }
   let count = 0;
-  for (let i = 0; i < id.length; i++) {
-    if (!isNaN(id[i]!) && id[i]! <= value) {
-      count++;
-    }
+  for (const v of id) {
+    if (v <= value) count++;
   }
-
-  // Calculate percentage
-  return (count / id.length) * 100;
+  return ((count - 1) * 100) / (id.length - 1);
 }
 
 /**
@@ -939,21 +1155,11 @@ export function percentrank(id: PineArray<float>, index: int): float {
  * - Original array is not modified
  * - Returns indices that would sort the array
  * - Useful for maintaining correspondence with other arrays
+ * - PineScript rule: the indices of `na` elements go where `array.sort` puts them (after the numbers in ascending
+ *   order, in their original order: `sort_indices([na, na, 5, 1])` is `[3, 2, 0, 1]`)
  */
-export function sort_indices(id: PineArray<float>, order: 'asc' | 'desc' = 'asc'): PineArray<int> {
-  // Create array of indices
-  const indices: PineArray<int> = Array.from({ length: id.length }, (_, i) => i) as PineArray<int>;
-
-  // Sort indices based on values in original array
-  indices.sort((a, b) => {
-    if (order === 'asc') {
-      return id[a]! - id[b]!;
-    } else {
-      return id[b]! - id[a]!;
-    }
-  });
-
-  return indices;
+export function sort_indices<T>(id: PineArray<T>, order: SortOrder = 'asc'): PineArray<int> {
+  return sortedPositions(id, order);
 }
 
 /**
@@ -976,24 +1182,25 @@ export function sort_indices(id: PineArray<float>, order: 'asc' | 'desc' = 'asc'
  * @remarks
  * - Formula: z = (x - μ) / σ
  * - Result has mean of 0 and standard deviation of 1
- * - Returns array of NaN if standard deviation is 0
  * - Useful for comparing values on different scales
+ *
+ * PineScript rules:
+ * - μ and σ are the population mean and standard deviation of the non-na elements, as `array.variance` (moment
+ *   form); `na` elements stay `na`
+ * - when σ is 0 (all values equal) every non-na element gives 1
  */
 export function standardize(id: PineArray<float>): PineArray<float> {
-  if (id.length === 0) {
-    return [] as PineArray<float>;
+  const values = id.filter((v) => !Number.isNaN(v));
+  if (!values.length) {
+    return id.map(() => NaN);
   }
-
-  const mean = avg(id);
-  const stdDev = stdev(id);
-
-  // If stddev is 0, all values are the same - return array of 0s or NaN
+  const [p, q] = moments(values);
+  const mean = p / values.length;
+  const stdDev = Math.sqrt(Math.max(0, q / values.length - mean * mean));
   if (stdDev === 0) {
-    return id.map(() => NaN) as PineArray<float>;
+    return id.map((v) => (Number.isNaN(v) ? NaN : 1));
   }
-
-  // Calculate z-score for each element
-  return id.map(value => (value - mean) / stdDev) as PineArray<float>;
+  return id.map((v) => (Number.isNaN(v) ? NaN : (v - mean) / stdDev));
 }
 
 /**

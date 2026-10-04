@@ -1,7 +1,8 @@
 /**
  * `str.format` patterns as PineScript formats them (Java MessageFormat):
  *
- * - `{n}` inserts argument n; numbers use "#,##0.###" (1234.5678 gives "1,234.568")
+ * - `{n}` inserts argument n; numbers use "#,##0.###" (1234.5678 gives "1,234.568"); an array gives
+ *   "[Hello, World!]"
  * - `{n,number}`, `{n,number,integer}` ("#,##0"), `{n,number,percent}` ("#,##0%"),
  *   `{n,number,currency}` ("$1,234.57", "-$7.00"), `{n,number,<pattern>}`
  * - `{n,date}`, `{n,time}`, `{n,date,<pattern>}`, `{n,time,<pattern>}` (styles short, medium, long, full)
@@ -44,7 +45,11 @@ function formatArgument(
   timezone: string | (() => string)
 ): string {
   if (value === undefined) return '';
-  if (!type) return typeof value === 'number' ? number(value, '#,##0.###') : String(value);
+  if (!type) {
+    // an array gives "[a, b]" (PineScript); the element format of numbers is not measured: plain JS text
+    if (Array.isArray(value)) return '[' + value.map((v) => (v == null ? 'NaN' : String(v))).join(', ') + ']';
+    return typeof value === 'number' ? number(value, '#,##0.###') : String(value);
+  }
   switch (type.trim()) {
     case 'number': {
       const s = style?.trim();

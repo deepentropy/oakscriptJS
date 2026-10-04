@@ -60,15 +60,47 @@ describe('str.tostring', () => {
     expect(() => str.tostring(1, 'mintick')).toThrow('syminfo.mintick');
   });
 
+  it('format.mintick rounds to the tick and shows its decimals (PineScript)', () => {
+    expect(str.tostring(1234.5678, 'mintick', 0.01)).toBe('1234.57');
+    expect(str.tostring(10.1, 'mintick', 0.25)).toBe('10');
+    expect(str.tostring(0.123456789, 'mintick', 1e-8)).toBe('0.12345679');
+    expect(str.tostring(1234.5678, 'mintick', 1)).toBe('1235');
+  });
+
+  it('a negative subpattern after ";" (PineScript)', () => {
+    expect(str.tostring(-3.5, '#.##;(#.##)')).toBe('(3.5)');
+    expect(str.tostring(3.5, '#.##;(#.##)')).toBe('3.5');
+    expect(str.tostring(-0.001, '#.##;(#.##)')).toBe('0');
+  });
+
+  it('16 decimals at most from 1e-3 up (PineScript)', () => {
+    expect(str.tostring(0.0012345678901234567, '#.####################')).toBe('0.0012345678901235');
+    expect(str.tostring(0.1, '#.####################')).toBe('0.1');
+    expect(str.tostring(1e-17, '#.####################')).toBe('0.00000000000000001');
+  });
+
+  it('keeps the measured PineScript outputs', () => {
+    expect(str.tostring(-0.001, '#.##')).toBe('0');
+    expect(str.tostring(0.25, 'percent')).toBe('0.25%');
+    expect(str.tostring(1234567, 'volume')).toBe('1.235M');
+    expect(str.tostring(1e21)).toBe('1E21');
+    expect(str.tostring(1234567, '#,###')).toBe('1,234,567');
+  });
+
   it('should handle already string values', () => {
     expect(str.tostring('hello')).toBe('hello');
     expect(str.tostring('')).toBe('');
   });
 
-  it('should handle special numeric values', () => {
+  it('should handle special numeric values (PineScript: NaN for an infinity, NaN% for na percent)', () => {
     expect(str.tostring(NaN)).toBe('NaN');
-    expect(str.tostring(Infinity)).toBe('Infinity');
-    expect(str.tostring(-Infinity)).toBe('-Infinity');
+    expect(str.tostring(NaN, 'percent')).toBe('NaN%');
+    expect(str.tostring(Infinity)).toBe('NaN');
+    expect(str.tostring(-Infinity)).toBe('NaN');
+    expect(str.tostring(Infinity, '#.##')).toBe('NaN');
+    expect(str.tostring(Infinity, 'percent')).toBe('NaN%');
+    expect(str.tostring(Infinity, 'volume')).toBe('NaNT');
+    expect(str.tostring(-Infinity, 'mintick')).toBe('-Infinity');
   });
 });
 
@@ -88,7 +120,8 @@ describe('str.tonumber', () => {
   it('should return null for invalid strings', () => {
     expect(str.tonumber('abc')).toBeNull();
     expect(str.tonumber('hello')).toBeNull();
-    expect(str.tonumber('12abc')).toBe(12); // parseFloat parses what it can
+    expect(str.tonumber('12abc')).toBeNull(); // PineScript: the whole text must be a number
+    expect(str.tonumber('1.2.3')).toBeNull();
     expect(str.tonumber('abc123')).toBeNull();
   });
 

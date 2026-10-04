@@ -117,11 +117,19 @@ export function barssince(): (condition: boolean | number) => number {
 }
 
 /**
- * One `ta.cross(a, b)` call site: compared with the last call where both arguments were not na; false before such
- * a call.
+ * One `ta.cross(a, b)` call site, rules of `ta.cross`: the site keeps the side of the last call where `a` was
+ * strictly above or strictly below `b` (none before such a call; equal values and na arguments do not change it),
+ * and is true when the arguments are strictly on the other side. False with an na argument.
  */
 export function cross(): (a: number, b: number) => boolean {
-  return twoSeriesSite((a, b, pa, pb) => (a > b && pa <= pb) || (a < b && pa >= pb));
+  let side = 0; // -1: last strictly below, 1: last strictly above, 0: none yet
+  return (a, b) => {
+    if (Number.isNaN(a) || Number.isNaN(b)) return false;
+    const result = (side < 0 && a > b) || (side > 0 && a < b);
+    if (a < b) side = -1;
+    else if (a > b) side = 1;
+    return result;
+  };
 }
 
 /** One `ta.lowest` / `ta.highest` call site with a series length; rules in {@link lowest}. */

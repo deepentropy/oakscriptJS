@@ -83,7 +83,7 @@ describe('math.round', () => {
 
   it('should round negative numbers', () => {
     expect(math.round(-4.2)).toBe(-4);
-    expect(math.round(-4.5)).toBe(-4);
+    expect(math.round(-4.5)).toBe(-5); // ties away from zero
     expect(math.round(-4.8)).toBe(-5);
   });
 

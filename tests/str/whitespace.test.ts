@@ -114,64 +114,20 @@ describe('str.trimRight', () => {
 });
 
 describe('str.match', () => {
-  it('should match simple patterns', () => {
-    expect(str.match('hello', 'hello')).toBe(true);
-    expect(str.match('test123', 'test')).toBe(true);
-    expect(str.match('world', 'world')).toBe(true);
+  it('returns the first match, searched anywhere (PineScript)', () => {
+    expect(str.match('Hello World!', 'o')).toBe('o');
+    expect(str.match('Hello World!', '[a-z]+')).toBe('ello');
+    expect(str.match('Hello World!', '[A-Za-z]+')).toBe('Hello');
+    expect(str.match('Hello World!', '^Hello')).toBe('Hello');
+    expect(str.match('hello123', '\\d+')).toBe('123');
+    expect(str.match('test@example.com', '^[a-z]+@[a-z]+\\.[a-z]+$')).toBe('test@example.com');
+    expect(str.match('hello', 'l{2}')).toBe('ll');
   });
 
-  it('should match regex patterns', () => {
-    expect(str.match('hello123', '\\d+')).toBe(true);
-    expect(str.match('test', '[a-z]+')).toBe(true);
-    expect(str.match('ABC', '[A-Z]+')).toBe(true);
-  });
-
-  it('should return false for non-matches', () => {
-    expect(str.match('hello', 'world')).toBe(false);
-    expect(str.match('test', '\\d+')).toBe(false);
-    expect(str.match('abc', '[A-Z]+')).toBe(false);
-  });
-
-  it('should handle special regex characters', () => {
-    expect(str.match('hello.world', '\\.')).toBe(true);
-    expect(str.match('test@example.com', '@')).toBe(true);
-    expect(str.match('$100', '\\$')).toBe(true);
-  });
-
-  it('should handle complex patterns', () => {
-    expect(str.match('test@example.com', '^[a-z]+@[a-z]+\\.[a-z]+$')).toBe(true);
-    expect(str.match('123-456-7890', '^\\d{3}-\\d{3}-\\d{4}$')).toBe(true);
-    expect(str.match('hello world', '^hello\\s+world$')).toBe(true);
-  });
-
-  it('should handle empty string', () => {
-    expect(str.match('', '')).toBe(true);
-    expect(str.match('', 'test')).toBe(false);
-  });
-
-  it('should handle anchors', () => {
-    expect(str.match('hello', '^hello$')).toBe(true);
-    expect(str.match('hello world', '^hello')).toBe(true);
-    expect(str.match('hello world', 'world$')).toBe(true);
-    expect(str.match('hello', '^world$')).toBe(false);
-  });
-
-  it('should handle character classes', () => {
-    expect(str.match('hello', '[helo]+')).toBe(true);
-    expect(str.match('123', '[0-9]+')).toBe(true);
-    expect(str.match('ABC', '[^a-z]+')).toBe(true);
-  });
-
-  it('should handle quantifiers', () => {
-    expect(str.match('hello', 'l{2}')).toBe(true);
-    expect(str.match('test', 't.*t')).toBe(true);
-    expect(str.match('123', '\\d+')).toBe(true);
-    expect(str.match('abc', '[a-z]{3}')).toBe(true);
-  });
-
-  it('should be case sensitive by default', () => {
-    expect(str.match('hello', 'HELLO')).toBe(false);
-    expect(str.match('HELLO', 'hello')).toBe(false);
-    expect(str.match('hello', 'hello')).toBe(true);
+  it('returns na (null) when nothing matches or the match is empty', () => {
+    expect(str.match('Hello World!', 'xyz')).toBeNull();
+    expect(str.match('hello', 'HELLO')).toBeNull();
+    expect(str.match('abc123def', '')).toBeNull();
+    expect(str.match('', 'test')).toBeNull();
   });
 });

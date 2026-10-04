@@ -12,6 +12,7 @@
 import { formatNumber } from './numberformat.js';
 import { formatMessage } from './messageformat.js';
 import { formatDate } from './dateformat.js';
+import { round_to_mintick } from '../math/index.js';
 import type { int, bool, float, simple_int, simple_string } from '../types/index.js';
 
 /**
@@ -34,20 +35,28 @@ export function length(str: simple_string): int {
  * Converts a value to its string representation (PineScript `str.tostring`).
  *
  * @param value - The value to convert (number, boolean, string, etc.)
- * @param format - Optional number format: a pattern ("#.##", "#,###.00", "0.00%", "0.00E0") or
- *   `format.percent` ("percent"), `format.volume` ("volume"), `format.price` / `format.inherit`
+ * @param format - Optional number format: a pattern ("#.##", "#,###.00", "0.00%", "0.00E0", "#.##;(#.##)") or
+ *   `format.percent` ("percent"), `format.volume` ("volume"), `format.mintick` ("mintick"),
+ *   `format.price` / `format.inherit`
+ * @param mintick - Tick size for `format.mintick` (PineScript `syminfo.mintick`, implicit there). Not part of the
+ *   PineScript signature: the core function cannot see the chart, so pass it, as for `math.round_to_mintick`
  * @returns String representation of the value
  *
  * @remarks
  * As in PineScript:
  * - without format, numbers show up to 10 decimals ("0.3333333333"); 1e21 and more use "1E21"
- * - patterns round half away from zero on the shortest decimal form: 1.005 with "#.##" gives "1.01"
+ * - patterns round half away from zero on the shortest decimal form: 1.005 with "#.##" gives "1.01";
+ *   at most 16 decimals from 1e-3 up (0.0012345678901234567 with 20 '#' decimals gives "0.0012345678901235")
+ * - "pos;neg" patterns: a negative number takes the text of the negative subpattern ("#.##;(#.##)": "(3.5)")
  * - "#" is an optional digit ("1.5" with "#.##"), "0" a required digit ("1.50" with "0.00"),
  *   "," groups thousands, "%" multiplies by 100, 'text' is literal text
  * - `format.percent` shows 2 decimals and "%" without multiplying; `format.volume` uses K, M, B, T
  * - `format.price` and `format.inherit` give "price1" / "inherit1" in PineScript: they are patterns
  *   without digit characters, and oakscriptjs does the same
- * - `format.mintick` needs the symbol's tick size and throws here
+ * - `format.mintick` rounds to the tick (`math.round_to_mintick`) and shows the tick's decimals ("#.##" for 0.01);
+ *   it throws without `mintick`
+ * - na gives "NaN" ("NaN%" with `format.percent`); an infinity gives "NaN" too ("NaN%" for `format.percent`,
+ *   "NaNT" for `format.volume`), except `format.mintick`, which gives "Infinity" / "-Infinity"
  *
  * @example
  * ```typescript
@@ -57,9 +66,14 @@ export function length(str: simple_string): int {
  * str.tostring(12345.678, format.volume) // "12.346K"
  * ```
  */
-export function tostring(value: any, format?: simple_string): string {
+export function tostring(value: any, format?: simple_string, mintick?: float): string {
   if (typeof value !== 'number') return String(value);
-  if (!Number.isFinite(value)) return String(value); // NaN (na), Infinity
+  if (Number.isNaN(value)) return format === 'percent' ? 'NaN%' : 'NaN';
+  if (!Number.isFinite(value)) {
+    // the chart formatter has no infinity: NaN with the format's suffix
+    if (format === 'mintick') return String(value);
+    return format === 'percent' ? 'NaN%' : format === 'volume' ? 'NaNT' : 'NaN';
+  }
   if (format === undefined || format === '') {
     if (Math.abs(value) >= 1e21 && Number.isFinite(value)) {
       return String(value).replace('e+', 'E').replace(/\.0+E/, 'E');
@@ -76,8 +90,16 @@ export function tostring(value: any, format?: simple_string): string {
       }
       return formatNumber(value, '#', 'halfUpShortest');
     }
-    case 'mintick':
-      throw new Error('str.tostring(x, format.mintick) needs the symbol tick size (syminfo.mintick), which is not known here');
+    case 'mintick': {
+      if (mintick === undefined) {
+        throw new Error('str.tostring(x, format.mintick) needs the tick size: pass it as str.tostring(x, format.mintick, syminfo.mintick)');
+      }
+      // mask: one '#' per decimal of the tick ("#.##" for 0.01, "#" for 1)
+      const m = /^\d+(?:\.(\d+))?(?:e-(\d+))?$/.exec(String(mintick));
+      const decimals = m ? (m[1]?.length ?? 0) + Number(m[2] ?? 0) : 0;
+      const mask = decimals ? '#.' + '#'.repeat(decimals) : '#';
+      return formatNumber(round_to_mintick(value, mintick), mask, 'halfUpShortest');
+    }
     default:
       return formatNumber(value, format, 'halfUpShortest');
   }
@@ -87,13 +109,13 @@ export function tostring(value: any, format?: simple_string): string {
  * Converts a string to a number (float).
  *
  * @param str - The string to convert
- * @returns The numeric value, or null if conversion fails
+ * @returns The numeric value, or null (na) if conversion fails
  *
  * @remarks
- * - Returns null for invalid number strings
+ * - The whole text must be a number, as in PineScript: "12abc" is na
  * - Supports scientific notation (e.g., "1e3")
  * - Supports decimal numbers (e.g., "0.5", ".5")
- * - Whitespace is ignored
+ * - Whitespace around the number is ignored
  * - "NaN" string returns null
  *
  * @example
@@ -101,12 +123,14 @@ export function tostring(value: any, format?: simple_string): string {
  * str.tonumber("123") // Returns: 123
  * str.tonumber("45.67") // Returns: 45.67
  * str.tonumber("abc") // Returns: null
+ * str.tonumber("12abc") // Returns: null
  * str.tonumber("1e3") // Returns: 1000
  * ```
  */
 export function tonumber(str: simple_string): float | null {
-  const num = parseFloat(str);
-  return isNaN(num) ? null : num;
+  const text = str.trim();
+  if (!/^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|Infinity)$/.test(text)) return null;
+  return parseFloat(text);
 }
 
 /**
@@ -118,6 +142,7 @@ export function tonumber(str: simple_string): float | null {
  * @returns The extracted substring
  *
  * @remarks
+ * - An na `end` (NaN / null) is a runtime error in PineScript: it throws
  * - If begin > end, indices are swapped (JavaScript behavior)
  * - Negative indices are treated as 0
  * - Indices beyond string length return empty string
@@ -130,6 +155,7 @@ export function tonumber(str: simple_string): float | null {
  * ```
  */
 export function substring(str: simple_string, begin: simple_int, end?: simple_int): string {
+  if (end === null || Number.isNaN(end)) throw new Error('str.substring: the end position is na');
   return str.substring(begin, end);
 }
 
@@ -194,51 +220,63 @@ export function contains(source: simple_string, str: simple_string): bool {
  *
  * @param source - The string to search in
  * @param str - The substring to search for
- * @returns The 0-based index of the first occurrence, or -1 if not found
+ * @returns The 0-based index of the first occurrence, or na (NaN) if not found
  *
  * @remarks
  * - Search is case-sensitive
  * - Returns 0 for empty search string
- * - Returns -1 if substring is not found
+ * - Returns na (NaN) if substring is not found, as in PineScript
  *
  * @example
  * ```typescript
  * str.pos("hello world", "world") // Returns: 6
  * str.pos("hello world", "o") // Returns: 4 (first occurrence)
- * str.pos("hello", "xyz") // Returns: -1
+ * str.pos("hello", "xyz") // Returns: NaN (na)
  * ```
  */
 export function pos(source: simple_string, str: simple_string): int {
-  return source.indexOf(str);
+  const index = source.indexOf(str);
+  return index === -1 ? NaN : index;
 }
 
 /**
- * Replaces occurrences of a substring with another string.
+ * Replaces the Nth occurrence of a substring (PineScript `str.replace`).
  *
  * @param source - The source string
  * @param target - The substring to replace
  * @param replacement - The string to replace with
- * @param occurrence - If 0, replaces first occurrence only; otherwise replaces all occurrences (default: all)
- * @returns The string with replacements made
+ * @param occurrence - 0-based occurrence to replace (default 0, the first one)
+ * @returns The string with one occurrence replaced
  *
  * @remarks
- * - Search is case-sensitive
- * - If target is not found, returns source unchanged
- * - occurrence parameter: 0 = first only, any other value = all occurrences
+ * PineScript rules:
+ * - only the Nth occurrence is replaced; an na occurrence is 0 (`str.replace("aaa", "a", "-", na)` is "-aa")
+ * - occurrences overlap: "aa" occurs at 0 and 1 in "aaa" (`str.replace("aaa", "aa", "-", 1)` is "a-")
+ * - an empty target inserts the replacement at character N, at most at the end
+ *   (`str.replace("abc", "", "-", 2)` is "ab-c")
+ * - fewer than N + 1 occurrences (or a negative N) leave the source unchanged
  *
  * @example
  * ```typescript
- * str.replace("hello world hello", "hello", "hi", 0) // Returns: "hi world hello"
- * str.replace("hello world hello", "hello", "hi") // Returns: "hi world hi"
+ * str.replace("hello world hello", "hello", "hi") // Returns: "hi world hello"
+ * str.replace("hello world hello", "hello", "hi", 1) // Returns: "hello world hi"
  * str.replace("test", "xyz", "abc") // Returns: "test"
  * ```
  */
-export function replace(source: simple_string, target: simple_string, replacement: simple_string, occurrence?: simple_int): string {
-  if (occurrence === 0) {
-    return source.replace(target, replacement);
+export function replace(source: simple_string, target: simple_string, replacement: simple_string, occurrence: simple_int = 0): string {
+  const n = occurrence === null || Number.isNaN(occurrence) ? 0 : Math.trunc(occurrence);
+  if (n < 0) return source;
+  let index: number;
+  if (target === '') {
+    index = Math.min(n, source.length);
   } else {
-    return source.replaceAll(target, replacement);
+    index = -1;
+    for (let k = 0; k <= n; k++) {
+      index = source.indexOf(target, index + 1);
+      if (index === -1) return source;
+    }
   }
+  return source.slice(0, index) + replacement + source.slice(index + target.length);
 }
 
 /**
@@ -274,7 +312,7 @@ export function replace_all(source: simple_string, target: simple_string, replac
  * @returns Array of substrings
  *
  * @remarks
- * - Empty separator splits into individual characters
+ * - Empty separator splits into individual characters; an empty string gives [""] (also with "")
  * - If separator is not found, returns array with original string
  * - Consecutive separators create empty strings in result
  *
@@ -286,7 +324,8 @@ export function replace_all(source: simple_string, target: simple_string, replac
  * ```
  */
 export function split(str: simple_string, separator: simple_string): string[] {
-  return str.split(separator);
+  // JavaScript gives [] for "".split(""); PineScript gives [""]
+  return str === '' ? [''] : str.split(separator);
 }
 
 /**
@@ -316,7 +355,8 @@ export function concat(...strings: simple_string[]): string {
  * @remarks
  * As in PineScript: numbers in `{n}` use
  * "#,##0.###" (1234.5678 gives "1,234.568"); number patterns round half to even on the exact
- * value; `'...'` is literal text and `''` a quote; a missing argument leaves `{n}` in the text.
+ * value (16 decimals at most from 1e-3 up); an array gives "[a, b]"; `'...'` is literal text and `''` a quote;
+ * a missing argument leaves `{n}` in the text.
  * Dates are formatted in UTC here; PineScript uses the exchange time zone.
  *
  * @example
@@ -459,26 +499,25 @@ export function trimRight(str: simple_string): string {
 }
 
 /**
- * Tests if a string matches a regular expression pattern.
+ * Returns the first substring of `source` that matches the `regex` (PineScript `str.match`).
  *
- * @param source - The string to test
- * @param regex - The regular expression pattern
- * @returns True if the pattern matches, false otherwise
+ * @param source - Source string
+ * @param regex - Regular expression
+ * @returns The first match (searched anywhere in the string), or na (null) when nothing matches or the match is empty
  *
  * @remarks
+ * - As PineScript: "Hello World!" with "o" gives "o", with "[a-z]+" gives "ello"; no match gives na
  * - Uses JavaScript regex syntax
- * - Match is case-sensitive by default
- * - Pattern is tested against entire string
  *
  * @example
  * ```typescript
- * str.match("hello123", "\\d+") // Returns: true
- * str.match("test@example.com", "^[a-z]+@[a-z]+\\.[a-z]+$") // Returns: true
- * str.match("abc", "[A-Z]+") // Returns: false
+ * str.match("abc123def", "[0-9]+") // Returns: "123"
+ * str.match("abc", "[0-9]+") // Returns: null (na)
  * ```
  */
-export function match(source: simple_string, regex: simple_string): bool {
-  return new RegExp(regex).test(source);
+export function match(source: simple_string, regex: simple_string): simple_string | null {
+  const found = new RegExp(regex).exec(source);
+  return found && found[0] !== '' ? found[0] : null;
 }
 
 /**
@@ -521,21 +560,21 @@ export function match(source: simple_string, regex: simple_string): bool {
  * Constructs a new string containing the source string repeated N times with an optional separator.
  *
  * @param source - The string to repeat
- * @param count - Number of times to repeat (must be >= 0)
+ * @param count - Number of times to repeat
  * @param separator - String to inject between repeated instances. Optional, defaults to empty string.
- * @returns The repeated string, or null if source is null/undefined
+ * @returns The repeated string, or null (na) if source is na or count is 0 / negative / na, as in PineScript
  *
  * @example
  * ```typescript
  * str.repeat("ab", 3) // Returns: "ababab"
  * str.repeat("?", 3, ",") // Returns: "?,?,?"
- * str.repeat("hello", 0) // Returns: ""
+ * str.repeat("hello", 0) // Returns: null (na)
  * str.repeat("x", 1) // Returns: "x"
  * ```
  */
 export function repeat(source: simple_string, count: simple_int, separator: simple_string = ''): string | null {
   if (source == null) return null;
-  if (count <= 0) return '';
+  if (!(count > 0)) return null; // 0, negative or na: na
   return Array(count).fill(source).join(separator);
 }
 

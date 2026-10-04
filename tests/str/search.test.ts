@@ -43,15 +43,15 @@ describe('str.pos', () => {
     expect(str.pos('hello world', 'o')).toBe(4);
   });
 
-  it('should return -1 when substring not found', () => {
-    expect(str.pos('hello world', 'goodbye')).toBe(-1);
-    expect(str.pos('hello world', 'xyz')).toBe(-1);
-    expect(str.pos('test', 'testing')).toBe(-1);
+  it('should return na when substring not found (PineScript)', () => {
+    expect(str.pos('hello world', 'goodbye')).toBeNaN();
+    expect(str.pos('hello world', 'xyz')).toBeNaN();
+    expect(str.pos('test', 'testing')).toBeNaN();
   });
 
   it('should be case sensitive', () => {
-    expect(str.pos('hello world', 'Hello')).toBe(-1);
-    expect(str.pos('hello world', 'WORLD')).toBe(-1);
+    expect(str.pos('hello world', 'Hello')).toBeNaN();
+    expect(str.pos('hello world', 'WORLD')).toBeNaN();
     expect(str.pos('hello world', 'hello')).toBe(0);
   });
 
@@ -61,7 +61,7 @@ describe('str.pos', () => {
   });
 
   it('should handle empty source string', () => {
-    expect(str.pos('', 'hello')).toBe(-1);
+    expect(str.pos('', 'hello')).toBeNaN();
   });
 
   it('should find first occurrence when substring appears multiple times', () => {
@@ -83,10 +83,21 @@ describe('str.replace', () => {
     expect(str.replace('test test test', 'test', 'exam', 0)).toBe('exam test test');
   });
 
-  it('should replace all occurrences when occurrence is not 0', () => {
-    expect(str.replace('hello world hello', 'hello', 'goodbye', 1)).toBe('goodbye world goodbye');
-    expect(str.replace('test test test', 'test', 'exam', 1)).toBe('exam exam exam');
-    expect(str.replace('hello world hello', 'hello', 'goodbye')).toBe('goodbye world goodbye');
+  it('replaces only the Nth occurrence, the first by default (PineScript)', () => {
+    expect(str.replace('hello world hello', 'hello', 'goodbye', 1)).toBe('hello world goodbye');
+    expect(str.replace('test test test', 'test', 'exam', 2)).toBe('test test exam');
+    expect(str.replace('hello world hello', 'hello', 'goodbye')).toBe('goodbye world hello');
+    expect(str.replace('aXbXc0', 'X', '-')).toBe('a-bXc0');
+    expect(str.replace('aXbXc', 'X', '-', 1)).toBe('aXb-c');
+    expect(str.replace('aXbXc', 'X', '-', 2)).toBe('aXbXc');
+  });
+
+  it('na occurrence is 0, occurrences overlap, empty target inserts (PineScript)', () => {
+    expect(str.replace('aaa', 'a', '-', NaN)).toBe('-aa');
+    expect(str.replace('aaa', 'aa', '-', 1)).toBe('a-');
+    expect(str.replace('abc', '', '-', 2)).toBe('ab-c');
+    expect(str.replace('abc', '', '-', 4)).toBe('abc-');
+    expect(str.replace('a-b', '-', '$&')).toBe('a$&b');
   });
 
   it('should handle no matches', () => {
@@ -106,12 +117,12 @@ describe('str.replace', () => {
 
   it('should handle special characters', () => {
     expect(str.replace('hello@world.com', '@', ' at ', 0)).toBe('hello at world.com');
-    expect(str.replace('$100 + $200', '$', 'USD', 1)).toBe('USD100 + USD200');
+    expect(str.replace('$100 + $200', '$', 'USD', 1)).toBe('$100 + USD200');
   });
 
   it('should handle replacement with empty string', () => {
     expect(str.replace('hello world', 'hello ', '', 0)).toBe('world');
-    expect(str.replace('a-b-c', '-', '', 1)).toBe('abc');
+    expect(str.replace('a-b-c', '-', '', 1)).toBe('a-bc');
   });
 
   it('should handle same source and target', () => {

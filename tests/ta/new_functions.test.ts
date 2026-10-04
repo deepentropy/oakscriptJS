@@ -226,12 +226,13 @@ describe('ta.rising', () => {
     expect(rising3.every(v => v === false)).toBe(true);
   });
 
-  it('skips na values (PineScript)', () => {
-    // leading na: false until there are length + 1 non-na values
+  it('a step from or to an na bar leaves the rise counter unchanged (PineScript)', () => {
+    // leading na: false until `length` rises from bar to bar
     expect(ta.rising([NaN, NaN, 1, 2, 3, 4], 3)).toEqual([false, false, false, false, false, true]);
-    // na inside: the steps are between the non-na values; on the na bar, the result of the last non-na bar
+    // na inside: the na bar and the bar after it keep the counter of the bar before the na
     expect(ta.rising([1, 2, NaN, 3], 1)).toEqual([false, true, true, true]);
-    expect(ta.rising([1, 2, NaN, 0], 1)).toEqual([false, true, true, false]);
+    expect(ta.rising([1, 2, NaN, 0], 1)).toEqual([false, true, true, true]);
+    expect(ta.rising([1, 2, NaN, 0, -1], 1)).toEqual([false, true, true, true, false]);
   });
 
   it('needs a rise larger than 1e-10 (PineScript)', () => {
@@ -267,10 +268,16 @@ describe('ta.falling', () => {
     expect(falling3.every(v => v === false)).toBe(true);
   });
 
-  it('skips na values and uses the 1e-10 tolerance (PineScript)', () => {
-    // before: a step with an na value counted as a fall
+  it('keeps the fall counter across na bars and uses the 1e-10 tolerance (PineScript)', () => {
     expect(ta.falling([NaN, NaN, NaN, NaN, NaN, 5, 4], 5)).toEqual(Array(7).fill(false));
-    expect(ta.falling([3, 2, NaN, 1], 2)).toEqual([false, false, false, true]);
+    // the steps 2 -> na and na -> 1 do not count: one fall only
+    expect(ta.falling([3, 2, NaN, 1], 2)).toEqual([false, false, false, false]);
     expect(ta.falling([1, 1 - 1.4e-14], 1)[1]).toBe(false);
+  });
+
+  it('matches PineScript ta.falling(fn, 2) with na bars (BTCUSD 1D bars 31-41)', () => {
+    // PineScript: true on the na bar and on the rise 3.99 -> na -> 4.51 after three falls
+    const fn = [4.87, 4.98, 4.92, 4.8, 4.61, 3.99, NaN, 4.51, 4.1, 3.93, 3.97];
+    expect(ta.falling(fn, 2).map(Number)).toEqual([0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0]);
   });
 });

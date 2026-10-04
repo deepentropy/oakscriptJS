@@ -10,7 +10,7 @@ describe('Label Functions', () => {
       expect(lbl.y).toBe(155.5);
       expect(lbl.xloc).toBe('bar_index');
       expect(lbl.yloc).toBe('price');
-      expect(lbl.text).toBeUndefined();
+      expect(lbl.text).toBe(''); // PineScript: a label without text has the text ""
     });
 
     it('should create a label with text', () => {
@@ -100,9 +100,9 @@ describe('Label Functions', () => {
       expect(label.get_text(lbl)).toBe('Pivot High');
     });
 
-    it('should return undefined if no text', () => {
+    it('returns "" if no text (PineScript)', () => {
       const lbl = label.new(50, 155.5);
-      expect(label.get_text(lbl)).toBeUndefined();
+      expect(label.get_text(lbl)).toBe('');
     });
   });
 

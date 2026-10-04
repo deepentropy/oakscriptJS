@@ -163,8 +163,8 @@ describe('Array Percentile Functions', () => {
     it('should return percentile rank of element at index', () => {
       const arr = [1, 2, 3, 4, 5];
       const rank = array.percentrank(arr, 2); // Value 3 at index 2
-      // 3 values <= 3: [1, 2, 3] = 60%
-      expect(rank).toBe(60);
+      // PineScript: (count - 1) * 100 / (size - 1) = (3 - 1) * 100 / 4
+      expect(rank).toBe(50);
     });
 
     it('should return 100 for maximum value', () => {
@@ -173,17 +173,17 @@ describe('Array Percentile Functions', () => {
       expect(rank).toBe(100);
     });
 
-    it('should return 20 for minimum value', () => {
+    it('should return 0 for minimum value', () => {
       const arr = [1, 2, 3, 4, 5];
       const rank = array.percentrank(arr, 0); // Value 1 at index 0
-      expect(rank).toBe(20);
+      expect(rank).toBe(0);
     });
 
     it('should handle duplicate values', () => {
       const arr = [1, 2, 3, 3, 3, 4, 5];
       const rank = array.percentrank(arr, 2); // Value 3 at index 2
-      // 5 values <= 3: [1, 2, 3, 3, 3] = 5/7 ≈ 71.4%
-      expect(rank).toBeCloseTo(71.43, 1);
+      // 5 values <= 3: (5 - 1) * 100 / 6
+      expect(rank).toBe(66.66666666666667);
     });
 
     it('should handle all identical values', () => {
@@ -198,11 +198,11 @@ describe('Array Percentile Functions', () => {
       expect(isNaN(rank)).toBe(true);
     });
 
-    it('should return NaN for out of bounds index', () => {
+    it('should throw for out of bounds index (PineScript runtime error)', () => {
       const arr = [1, 2, 3];
-      expect(isNaN(array.percentrank(arr, -1))).toBe(true);
-      expect(isNaN(array.percentrank(arr, 3))).toBe(true);
-      expect(isNaN(array.percentrank(arr, 10))).toBe(true);
+      expect(() => array.percentrank(arr, -1)).toThrow();
+      expect(() => array.percentrank(arr, 3)).toThrow();
+      expect(() => array.percentrank(arr, 10)).toThrow();
     });
 
     it('should return NaN if value at index is NaN', () => {
@@ -214,28 +214,28 @@ describe('Array Percentile Functions', () => {
     it('should ignore NaN values when counting', () => {
       const arr = [1, NaN, 2, 3, NaN, 4, 5];
       const rank = array.percentrank(arr, 3); // Value 3 at index 3
-      // Count includes NaN positions: 3/7 ≈ 42.86%
-      expect(rank).toBeCloseTo(42.86, 1);
+      // 3 values <= 3, NaN counted in the size: (3 - 1) * 100 / 6
+      expect(rank).toBe(33.333333333333336);
     });
 
     it('should work with negative numbers', () => {
       const arr = [-5, -3, -1, 1, 3];
       const rank = array.percentrank(arr, 2); // Value -1 at index 2
-      // 3 values <= -1: [-5, -3, -1] = 60%
-      expect(rank).toBe(60);
+      // 3 values <= -1: (3 - 1) * 100 / 4
+      expect(rank).toBe(50);
     });
 
     it('should work with decimal values', () => {
       const arr = [1.1, 2.2, 3.3, 4.4, 5.5];
       const rank = array.percentrank(arr, 2); // Value 3.3
-      expect(rank).toBe(60);
+      expect(rank).toBe(50);
     });
 
     it('should handle unsorted arrays', () => {
       const arr = [5, 1, 3, 2, 4];
       const rank = array.percentrank(arr, 2); // Value 3 at index 2
-      // 3 values <= 3: [1, 2, 3] = 60%
-      expect(rank).toBe(60);
+      // 3 values <= 3: (3 - 1) * 100 / 4
+      expect(rank).toBe(50);
     });
 
     it('should demonstrate percentrank vs percentile', () => {
@@ -243,7 +243,7 @@ describe('Array Percentile Functions', () => {
 
       // Percentrank: what percent of values are <= value at index 2 (30)?
       const rank = array.percentrank(arr, 2);
-      expect(rank).toBe(60); // 60% of values <= 30
+      expect(rank).toBe(50); // (3 - 1) * 100 / 4
 
       // Percentile: what value has 60% of values <= it?
       const p60 = array.percentile_nearest_rank(arr, 60);
@@ -266,7 +266,7 @@ describe('Array Percentile Functions', () => {
 
       // What percentile is the value at index 4 (value 5)?
       const rank = array.percentrank(arr, 4);
-      expect(rank).toBe(50); // 50% of values <= 5
+      expect(rank).toBe(44.44444444444444); // (5 - 1) * 100 / 9
     });
 
     it('should handle edge case with two elements', () => {
@@ -281,8 +281,8 @@ describe('Array Percentile Functions', () => {
       const rank0 = array.percentrank(arr, 0);
       const rank1 = array.percentrank(arr, 1);
 
-      expect(rank0).toBe(50); // 50% <= 1
-      expect(rank1).toBe(100); // 100% <= 10
+      expect(rank0).toBe(0); // (1 - 1) * 100 / 1
+      expect(rank1).toBe(100); // (2 - 1) * 100 / 1
     });
   });
 });

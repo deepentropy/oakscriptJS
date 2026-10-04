@@ -21,10 +21,12 @@ describe('Newly Implemented TA Functions', () => {
       expect(result[9]).toBe(5); // Window [5,5,5,5] -> mode is 5
     });
 
-    it('should ignore NaN values', () => {
-      const values = [1, NaN, 2, 2, NaN, 3];
-      const result = ta.mode(values, values.length);
-      expect(result[values.length - 1]).toBe(2);
+    it('uses the last `length` non-na values (PineScript)', () => {
+      // na until 4 non-na values; an na bar keeps the window
+      expect(ta.mode([1, NaN, 2, 2, NaN, 3], 4)).toEqual([NaN, NaN, NaN, NaN, NaN, 2]);
+      // BTCUSD 1D, mn = bar_index % 7 == 3 ? na : math.round(close), ta.mode(mn, 3) (PineScript values)
+      const mn = [11, 12, 12, NaN, 12, 11, 10, 8, 8, 9, NaN, 8, 9, 7, 6, 6, 5];
+      expect(ta.mode(mn, 3)).toEqual([NaN, NaN, 12, 12, 12, 12, 10, 8, 8, 8, 8, 8, 9, 7, 6, 6, 6]);
     });
   });
 

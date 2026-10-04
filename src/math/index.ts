@@ -147,16 +147,23 @@ export function floor(value: float | Series): int | Series {
  * @remarks
  * - Rounds to nearest integer by default
  * - With precision, rounds to that many decimal places
- * - Uses "round half up" strategy (0.5 rounds to 1)
  * - If value is a Series, returns a Series; if value is a number, returns a number
+ *
+ * PineScript rules:
+ * - ties go away from zero (2.5 -> 3, -2.5 -> -3, -0.5 -> -1)
+ * - without a precision, or with a precision <= 0, the result is the integer rounding (1234.5678 @ -2 -> 1235)
+ * - a positive precision rounds only the fraction: `int + round(frac * scale) / scale` with
+ *   `scale = 1 / 10^-precision` (precision above 16 acts as 16); the tie is decided on the exact value of
+ *   `frac * scale` with a 1e-10 tolerance (1.005 @ 2 -> 1.01, 0.285 @ 2 -> 0.29, -1.45 @ 1 -> -1.5)
+ * - an infinite value gives na
  *
  * @example
  * ```typescript
  * math.round(4.2) // Returns: 4
  * math.round(4.5) // Returns: 5
- * math.round(4.8) // Returns: 5
+ * math.round(-2.5) // Returns: -3
  * math.round(4.567, 2) // Returns: 4.57
- * math.round(4.567, 1) // Returns: 4.6
+ * math.round(1.005, 2) // Returns: 1.01
  * ```
  */
 export function round(value: Series, precision?: int): Series;
@@ -165,30 +172,74 @@ export function round(value: float | Series, precision?: int): float | Series {
   if (value instanceof Series) {
     const bars = value.bars;
     const valueArray = value.toArray();
-    const length = bars.length;
-    
     const result: number[] = [];
-    if (precision === undefined) {
-      for (let i = 0; i < length; i++) {
-        const v = valueArray[i] ?? NaN;
-        result.push(Math.round(v));
-      }
-    } else {
-      const multiplier = Math.pow(10, precision);
-      for (let i = 0; i < length; i++) {
-        const v = valueArray[i] ?? NaN;
-        result.push(Math.round(v * multiplier) / multiplier);
-      }
+    for (let i = 0; i < bars.length; i++) {
+      result.push(roundValue(valueArray[i] ?? NaN, precision));
     }
-    
     return Series.fromArray(bars, result);
   }
-  
-  if (precision === undefined) {
-    return Math.round(value);
+  return roundValue(value, precision);
+}
+
+/** `0.5 - 1e-10` as the exact fraction TIE_HALF / TIE_SCALE: the tie threshold of round / round_to_mintick. */
+const TIE_SCALE = 10n ** 10n;
+const TIE_HALF = 5n * 10n ** 9n - 1n;
+/** From 2^52 up every double is an integer. */
+const INT_LIMIT = 2 ** 52;
+
+/** Exact value of a finite double >= 0 as `[numerator, denominator]`. */
+function exactRatio(x: number): [bigint, bigint] {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setFloat64(0, x);
+  const hi = view.getUint32(0);
+  const lo = view.getUint32(4);
+  const expField = (hi >>> 20) & 0x7ff;
+  let mantissa = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo);
+  let exp = -1074;
+  if (expField !== 0) {
+    mantissa |= 1n << 52n;
+    exp = expField - 1075;
   }
-  const multiplier = Math.pow(10, precision);
-  return Math.round(value * multiplier) / multiplier;
+  return exp >= 0 ? [mantissa << BigInt(exp), 1n] : [mantissa, 1n << BigInt(-exp)];
+}
+
+/** True when `num / den - units` (exact) is >= 0.5 - 1e-10. */
+function reachesTie(num: bigint, den: bigint, units: bigint): boolean {
+  return (num - units * den) * TIE_SCALE >= TIE_HALF * den;
+}
+
+/** `10^-p`: the exact literal for an integer p (correctly rounded), Math.pow otherwise. */
+function tenToMinus(p: number): number {
+  return Number.isInteger(p) ? Number(`1e-${p}`) : Math.pow(10, -p);
+}
+
+/** PineScript math.round of one value (see `round`). */
+function roundValue(value: number, precision?: number): number {
+  if (!Number.isFinite(value)) return NaN;
+  const negative = value < 0;
+  const magnitude = negative ? -value : value;
+  if (precision === undefined || Number.isNaN(precision) || precision <= 0) {
+    if (magnitude >= INT_LIMIT) return value;
+    let units = Math.floor(magnitude);
+    if (magnitude - units >= 0.5) units++;
+    return negative ? 0 - units : units;
+  }
+  const scale = 1 / tenToMinus(Math.min(precision, 16));
+  const fraction = magnitude % 1;
+  const scaled = fraction * scale;
+  let units = Math.floor(scaled);
+  const offset = scaled - units - 0.5;
+  // Only a near-tie needs the exact product; the window covers the double's own error.
+  const slack = 1e-9 + scaled * 1.8e-15;
+  if (-slack < offset && offset < slack) {
+    const [fn, fd] = exactRatio(fraction);
+    const [sn, sd] = exactRatio(scale);
+    if (reachesTie(fn * sn, fd * sd, BigInt(units))) units++;
+  } else if (offset > 0) {
+    units++;
+  }
+  const result = magnitude - fraction + units / scale;
+  return negative ? 0 - result : result;
 }
 
 /**
@@ -301,6 +352,8 @@ export function min(...values: (float | Series)[]): float | Series {
  * - Calculates sum of all values divided by count
  * - Returns NaN if no arguments provided (division by zero)
  * - If any argument is a Series, returns a Series; otherwise returns a number
+ * - PineScript rule: with 1 or 2 values the sum is plain; with 3 values or more it is a Kahan compensated sum whose
+ *   pending correction is subtracted before the division (math.avg(0.1, 0.2, 0.3) = 0.19999999999999998)
  *
  * @example
  * ```typescript
@@ -313,10 +366,9 @@ export function min(...values: (float | Series)[]): float | Series {
 export function avg(...values: (float | Series)[]): float | Series {
   // Check if any value is a Series
   const hasSeries = values.some(v => v instanceof Series);
-  
+
   if (!hasSeries) {
-    // All scalars - calculate simple average
-    return (values as number[]).reduce((a, b) => a + b, 0) / values.length;
+    return avgOf(values as number[]);
   }
   
   // At least one Series - return a Series
@@ -334,11 +386,28 @@ export function avg(...values: (float | Series)[]): float | Series {
     const nums = values.map((v, idx) => 
       valueArrays[idx] ? valueArrays[idx]![i] ?? NaN : (v as number)
     );
-    const sum = nums.reduce((a, b) => a + b, 0);
-    result.push(sum / nums.length);
+    result.push(avgOf(nums));
   }
-  
+
   return Series.fromArray(bars, result);
+}
+
+/** PineScript math.avg of numbers: plain sum up to 2 values, Kahan sum with the correction flushed from 3. */
+function avgOf(nums: number[]): number {
+  if (nums.length <= 2) {
+    let sum = 0;
+    for (const n of nums) sum = sum + n;
+    return sum / nums.length;
+  }
+  let sum = 0;
+  let c = 0;
+  for (const n of nums) {
+    const y = n - c;
+    const t = sum + y;
+    c = t - sum - y;
+    sum = t;
+  }
+  return (sum - c) / nums.length;
 }
 
 /**
@@ -1014,8 +1083,13 @@ export function sign(value: float | Series): int | Series {
  * - **JavaScript signature**: Requires explicit `mintick` OR use `createContext()` with syminfo
  * - Rounds to the nearest value divisible by mintick
  * - Returns NaN for NaN input
- * - Ties round up (0.5 -> 1)
  * - If number is a Series, returns a Series; if number is a float, returns a float
+ *
+ * PineScript rules:
+ * - mintick is `minmove / pricescale` (here rebuilt from `mintick`: the smallest power of 10 that makes it an
+ *   integer); the position on the tick grid is `|number| * pricescale / minmove`
+ * - ties go away from zero, decided on the exact value of that product with a 1e-10 tolerance
+ *   (-1.075 -> -1.08, 1.005 -> 1.01, 2.675 -> 2.68 at mintick 0.01)
  *
  * @example
  * ```typescript
@@ -1034,35 +1108,19 @@ export function round_to_mintick(number: float | Series, mintick?: float): float
   if (number instanceof Series) {
     const bars = number.bars;
     const valueArray = number.toArray();
-    const length = bars.length;
-    
     if (mintick === undefined) {
       throw new Error(
         'math.round_to_mintick() requires mintick value. ' +
         'Either pass it explicitly or use createContext({ syminfo: { mintick } }) for implicit data.'
       );
     }
-    
     const result: number[] = [];
-    if (mintick === 0) {
-      // No rounding needed
-      for (let i = 0; i < length; i++) {
-        result.push(valueArray[i] ?? NaN);
-      }
-    } else {
-      for (let i = 0; i < length; i++) {
-        const v = valueArray[i];
-        if (v === undefined || isNaN(v)) {
-          result.push(NaN);
-        } else {
-          result.push(Math.round(v / mintick) * mintick);
-        }
-      }
+    for (let i = 0; i < bars.length; i++) {
+      result.push(roundToTick(valueArray[i] ?? NaN, mintick));
     }
-    
     return Series.fromArray(bars, result);
   }
-  
+
   // Scalar case
   if (isNaN(number)) {
     return NaN;
@@ -1074,17 +1132,53 @@ export function round_to_mintick(number: float | Series, mintick?: float): float
       'Either pass it explicitly or use createContext({ syminfo: { mintick } }) for implicit data.'
     );
   }
+  return roundToTick(number, mintick);
+}
 
-  if (mintick === 0) {
-    return number;
+/** `[minmove, pricescale]` of a mintick: pricescale is the smallest power of 10 (up to 1e15) giving an integer. */
+function tickPair(mintick: number): [number, number] | null {
+  for (let k = 0; k <= 15; k++) {
+    const pricescale = Number(`1e${k}`);
+    const scaled = mintick * pricescale;
+    const minmove = Math.round(scaled);
+    if (minmove >= 1 && Math.abs(scaled - minmove) <= 1e-9 * minmove) return [minmove, pricescale];
   }
+  return null;
+}
 
-  // Round to nearest tick
-  return Math.round(number / mintick) * mintick;
+/** PineScript math.round_to_mintick of one value (see `round_to_mintick`). */
+function roundToTick(number: number, mintick: number): number {
+  if (!Number.isFinite(number)) return NaN;
+  if (mintick === 0) return number;
+  const pair = tickPair(mintick);
+  const negative = number < 0;
+  const magnitude = negative ? -number : number;
+  if (pair === null) {
+    // A tick that is no decimal fraction: the grid of the double mintick, ties away from zero.
+    const scaled = magnitude / mintick;
+    let units = Math.trunc(scaled);
+    if (scaled - units >= 0.5) units++;
+    return (negative ? 0 - units : units) * mintick;
+  }
+  const [minmove, pricescale] = pair;
+  const scaled = (magnitude * pricescale) / minmove;
+  let units = Math.trunc(scaled);
+  const offset = scaled - units - 0.5;
+  const slack = 1e-6 + scaled * 1.8e-15;
+  if (-slack < offset && offset < slack) {
+    const [n, d] = exactRatio(magnitude);
+    const num = n * BigInt(pricescale);
+    const den = d * BigInt(minmove);
+    const whole = num / den;
+    units = Number(whole) + (reachesTie(num, den, whole) ? 1 : 0);
+  } else if (offset > 0) {
+    units++;
+  }
+  return ((negative ? 0 - units : units) * minmove) / pricescale;
 }
 
 // Constants
 export const pi = Math.PI;
 export const e = Math.E;
 export const phi = 1.618033988749895; // Golden ratio
-export const rphi = 0.618033988749895; // Reciprocal of golden ratio
+export const rphi = 0.6180339887498948; // Reciprocal of golden ratio: 1 / phi

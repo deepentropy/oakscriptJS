@@ -85,3 +85,20 @@ describe('time.timestamp', () => {
     expect(time.timestamp(2024, 1, 2, 9, 30)).toBe(new Date(2024, 0, 2, 9, 30).getTime());
   });
 });
+
+describe('timestamp: forms measured on PineScript (PyneCore gap audit)', () => {
+  it('"2025" and "2025-06" are the first day of the year / month (UTC)', () => {
+    expect(time.timestamp('2025')).toBe(1735689600000);
+    expect(time.timestamp('2025-06')).toBe(1748736000000);
+  });
+
+  it('a day-first date with a time zone but no time gives na', () => {
+    expect(time.timestamp('01 Jan 2022 GMT+3')).toBeNaN();
+    expect(time.timestamp('01 Jan 2022 00:00 GMT+3')).toBe(1640984400000);
+  });
+
+  it('dates before 1582-10-15 use the Julian calendar', () => {
+    expect(time.timestamp('UTC', 1582, 10, 5, 0, 0)).toBe(time.timestamp('UTC', 1582, 10, 15, 0, 0));
+    expect(time.timestamp('UTC', 1582, 10, 15, 0, 0)).toBe(-12219292800000);
+  });
+});
