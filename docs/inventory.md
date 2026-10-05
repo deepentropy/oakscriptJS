@@ -174,7 +174,8 @@ All 59 official ta functions are implemented. `ichimoku()` and `zigzag()` are cu
 
 ### Not Implemented (0 functions)
 
-All 24 official math functions are implemented.
+All 24 official math functions are implemented. `constant()` is a custom addition: the value PineScript gives to a
+constant expression (16 decimals from 0.001 up).
 
 ---
 

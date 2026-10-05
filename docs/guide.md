@@ -236,13 +236,23 @@ math.sum(source, length)   // sliding sum over `length` bars (PineScript math.su
 math.sqrt(x)
 math.pow(x, y)
 math.sin(x), math.cos(x), math.tan(x)
+math.constant(1 / 255)     // value of a constant expression in PineScript (not a PineScript function)
 ```
 
 Known difference: `math.log10`, `math.exp`, `math.log`, `math.pow`, `math.sin`, `math.cos` and `math.tan` use
 JavaScript's `Math`. PineScript uses other algorithms: the results differ by 1 or 2 units in the last place on part
-of the inputs (`log10` about 4 %, `exp` about 9 %, `sin` / `cos` / `tan` about 3 %, `log` 0.4 %, `pow` 0.05 %), and
-up to 3 units for a constant argument such as `math.log10(2)`. This matters only when a script amplifies these tiny
-differences, for example a comparison `ma > ma[1]` on values that grow to 1e195.
+of the inputs (`log10` about 4 %, `exp` about 9 %, `sin` / `cos` / `tan` about 3 %, `log` 0.4 %, `pow` 0.05 %).
+This matters only when a script amplifies these tiny differences, for example a comparison `ma > ma[1]` on values
+that grow to 1e195.
+
+Constant expressions: PineScript computes an expression of literals and constants (`1 / 255`, `0.1 * 3`,
+`math.sqrt(0.1)`) before the script runs, and rounds the result to 16 decimals when it is 0.001 or more
+(`1 / 255` is 0.003921568627451, not 0.00392156862745098). JavaScript cannot tell a constant from a series value:
+wrap the constant expressions with `math.constant()`. Math functions of constants use JavaScript's `Math` there, so
+`math.constant(math.sqrt(0.1))` is the PineScript value; for `math.log10(c)` use
+`math.constant(math.log(c) / math.log(10))`. Do not wrap an expression with a series operand (`close / 255`).
+This matters when a script truncates such a value: an RGB round trip with `1 / 255` gave the channel 202 in
+PineScript and 201 with the JavaScript value.
 
 #### Arrays (`array`)
 

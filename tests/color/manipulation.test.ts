@@ -9,9 +9,11 @@ describe('color.new_color', () => {
     expect(color.t(color.new(color.rgb(255, 0, 0, 20), 150))).toBe(100);
   });
 
-  it('an na colour stays na; color.t(na) is 100 (PineScript)', () => {
-    expect(color.new(null, 50)).toBeNull();
-    expect(color.t(color.new(null, 50))).toBe(100);
+  it('an na colour gives black with the transparency (#150); color.t(na) is 100 (PineScript)', () => {
+    expect(color.new(null, 30)).toBe('rgba(0, 0, 0, 0.7)');
+    expect(color.t(color.new(undefined, 80))).toBe(80);
+    expect(color.t(color.new(null, 30))).toBe(30);
+    expect(color.r(color.new(null, 30))).toBe(0);
     expect(color.t(null)).toBe(100);
   });
 

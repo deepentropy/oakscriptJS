@@ -8,9 +8,10 @@
  *
  * Known difference: `log10`, `exp`, `log`, `pow`, `sin`, `cos`, `tan` use JavaScript's `Math`. PineScript uses
  * other algorithms, whose results differ by 1 or 2 units in the last place on part of the inputs (`log10` about 4 %,
- * `exp` about 9 %, `sin` / `cos` / `tan` about 3 %, `log` 0.4 %, `pow` 0.05 % of random inputs). A constant argument
- * (`math.log10(2)`) can differ by up to 3 units in the last place. This is visible only when a script amplifies
- * these tiny differences (e.g. `ma > ma[1]` on values of 1e195); `sqrt`, `atan`, `asin`, `acos` are equal.
+ * `exp` about 9 %, `sin` / `cos` / `tan` about 3 %, `log` 0.4 %, `pow` 0.05 % of random inputs). This is visible
+ * only when a script amplifies these tiny differences (e.g. `ma > ma[1]` on values of 1e195); `sqrt`, `atan`,
+ * `asin`, `acos` are equal. A constant argument (`math.log10(2)`) is computed before the script runs, with other
+ * rules: see `constant`.
  *
  * @version 6
  */
@@ -240,6 +241,50 @@ function roundValue(value: number, precision?: number): number {
   }
   const result = magnitude - fraction + units / scale;
   return negative ? 0 - result : result;
+}
+
+/** 10^16: a constant keeps 16 decimals. */
+const CONSTANT_SCALE = 10n ** 16n;
+
+/**
+ * Returns the value PineScript gives to a constant float expression (not a PineScript function).
+ *
+ * @param value - The result of the constant expression, computed in JavaScript (e.g. `1 / 255`)
+ * @returns The value of the same expression in a PineScript script
+ *
+ * @remarks
+ * PineScript computes a constant expression (only literals and constants: `1 / 255`, `0.1 * 3`,
+ * `math.sqrt(0.1)`) before the script runs, and the value is then rounded. JavaScript cannot tell a constant from a
+ * series value, so wrap the constant expressions of a script with this function.
+ * - |value| >= 0.001: the exact value of the double is rounded to 16 decimals, ties to even
+ *   (`1 / 255` -> 0.003921568627451, `1 / 7` -> 0.1428571428571428)
+ * - |value| < 0.001, na and infinities: unchanged
+ * - the whole expression is computed first, then rounded once (`(1 / 7) * 7` is 1)
+ * - math functions of constants use JavaScript's `Math` there: `math.constant(math.sqrt(0.1))` is the PineScript
+ *   value; `math.log10` of a constant is `math.log(x) / math.log(10)` there:
+ *   `math.constant(math.log(2) / math.log(10))` -> 0.3010299956639811
+ * - the same expression with a series operand (`close / 255`) is not rounded: do not wrap it
+ *
+ * @example
+ * ```typescript
+ * // Pine: var const float i_255 = 1 / 255
+ * const i_255 = math.constant(1 / 255) // 0.003921568627451 (JavaScript: 0.00392156862745098)
+ * math.constant(1 / 7) // 0.1428571428571428 (JavaScript: 0.14285714285714285)
+ * math.constant(1 / 3) // 0.3333333333333333 (unchanged)
+ * ```
+ */
+export function constant(value: float): float {
+  const magnitude = Math.abs(value);
+  // from 0.5 up, 16 decimals move a double by less than half its spacing: it stays the same
+  if (!(magnitude >= 1e-3 && magnitude < 0.5)) return value;
+  const [num, den] = exactRatio(magnitude);
+  const scaled = num * CONSTANT_SCALE;
+  let units = scaled / den;
+  const twiceRest = (scaled - units * den) * 2n;
+  if (twiceRest > den || (twiceRest === den && (units & 1n) === 1n)) units++;
+  const digits = units.toString().padStart(17, '0');
+  const result = Number(`${digits.slice(0, -16)}.${digits.slice(-16)}`);
+  return value < 0 ? -result : result;
 }
 
 /**

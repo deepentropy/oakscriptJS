@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `math.constant()`: the value PineScript gives to a constant expression such as `1 / 255` (computed before the
+  script runs): from 0.001 up, the exact value rounded to 16 decimals, ties to even (`1 / 255` -> 0.003921568627451,
+  `1 / 7` -> 0.1428571428571428). Wrap the constant expressions of a port with it. Math functions of constants
+  follow the same rule with JavaScript's `Math` (`math.log10(c)` is `ln c / ln 10` there), which explains the
+  constant results of #130. Measured on 5,060 / 5,060 PineScript values (#151)
+
 - `callsite.sum()` / `callsite.sma()`: `math.sum` / `ta.sma` called inside a `for` / `while` loop, called with
   `(barIndex, value, length)`. PineScript keeps one history value per bar (the value of the last call on that bar);
   every call on a bar starts from the earlier bars; a bar without a call is not in the history; same compensated
@@ -85,7 +91,8 @@ that returned na or a clamped value now throw, as PineScript stops with a runtim
 - `str.tostring()`: patterns with a `;` negative part; na / infinity print `NaN` (`NaN%` with `format.percent`); at
   most 16 decimals; `format.mintick` (tick of the symbol in a script, or a third argument); `str.format()` prints an
   array as `[a, b]` and caps decimals the same way
-- `color.new(na, t)` stays na; `color.t(na)` is 100
+- `color.t(na)` is 100; `color.new(na, t)` is black with transparency t, as before (#150: an earlier change of this
+  release made it na, which is PineScript's compile-time result for the constant `color(na)` only)
 - `timestamp()`: "2025" and "2025-06" are accepted; "01 Jan 2022 GMT+3" (a zone without a time) gives na; dates
   before 1582-10-15 use the Julian calendar
 - `label.new()`: the default text is `""`

@@ -108,7 +108,9 @@ export function from_hex(hex: string, transp?: simple_float): string {
  * - Useful for creating semi-transparent versions of existing colors
  * - PineScript clamps the transparency to 0..100 (`color.new(c, 140)` is fully transparent, `color.new(c, -5)` is
  *   opaque); an `na` transparency is fully transparent (measured: the colour is not na, its RGB is kept)
- * - an `na` colour (null / undefined) stays na: `color.t(color.new(na, 50))` is 100
+ * - an `na` colour (null / undefined) gives black with the new transparency: `color.new(na, 30)` is
+ *   `rgba(0, 0, 0, 0.7)`, as PineScript does for an na colour variable (measured, #150). In PineScript, the constant
+ *   `color.new(color(na), 30)` is computed at compile time and stays na; a JS function cannot tell the two apart.
  *
  * @example
  * ```typescript
@@ -118,10 +120,8 @@ export function from_hex(hex: string, transp?: simple_float): string {
  * color.new_color(red, 100) // Returns: "rgba(255, 0, 0, 0)" - Fully transparent
  * ```
  */
-export function new_color(baseColor: color, transp: simple_float): string;
-export function new_color(baseColor: color | null | undefined, transp: simple_float): string | null;
-export function new_color(baseColor: color | null | undefined, transp: simple_float): string | null {
-  if (baseColor === null || baseColor === undefined) return null; // na colour stays na
+export function new_color(baseColor: color | null | undefined, transp: simple_float): string {
+  if (baseColor === null || baseColor === undefined) return rgb(0, 0, 0, transp); // na colour: black
   // Parse the color and apply transparency
   const rgba = parseColor(baseColor);
   return rgb(rgba.r, rgba.g, rgba.b, transp);
