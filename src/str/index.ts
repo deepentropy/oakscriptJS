@@ -112,11 +112,11 @@ export function tostring(value: any, format?: simple_string, mintick?: float): s
  * @returns The numeric value, or null (na) if conversion fails
  *
  * @remarks
- * - The whole text must be a number, as in PineScript: "12abc" is na
- * - Supports scientific notation (e.g., "1e3")
- * - Supports decimal numbers (e.g., "0.5", ".5")
- * - Whitespace around the number is ignored
- * - "NaN" string returns null
+ * As in PineScript:
+ * - The whole text must be a number: a sign, digits and one optional "." ("0.5", ".5", "5.", "-12"); "12abc" is na
+ * - Scientific notation ("1e3"), "Infinity", "NaN", hexadecimal, "1,000" give na
+ * - The characters U+0000 to U+0020 (space, tab, line feed...) around the number are ignored; other spaces
+ *   (no-break space U+00A0, U+3000) give na
  *
  * @example
  * ```typescript
@@ -124,12 +124,17 @@ export function tostring(value: any, format?: simple_string, mintick?: float): s
  * str.tonumber("45.67") // Returns: 45.67
  * str.tonumber("abc") // Returns: null
  * str.tonumber("12abc") // Returns: null
- * str.tonumber("1e3") // Returns: 1000
+ * str.tonumber("1e3") // Returns: null
  * ```
  */
 export function tonumber(str: simple_string): float | null {
-  const text = str.trim();
-  if (!/^[+-]?(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|Infinity)$/.test(text)) return null;
+  // remove the characters U+0000..U+0020 at both ends
+  let start = 0;
+  let end = str.length;
+  while (start < end && str.charCodeAt(start) <= 0x20) start++;
+  while (end > start && str.charCodeAt(end - 1) <= 0x20) end--;
+  const text = str.slice(start, end);
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(text)) return null;
   return parseFloat(text);
 }
 

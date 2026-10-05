@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `str.tonumber()`: scientific notation (`"1e3"`), `"Infinity"` and `"-Infinity"` give na, as in PineScript (before:
+  1000, Infinity); only the characters U+0000 to U+0020 around the number are removed (a no-break space gives na).
+  Equal to PineScript on 62 / 62 probe texts (#152)
 - `ta.tsi()`: a value in [-1, 1] as PineScript (it was 100 times that value); na when the denominator is 0 (a
   constant source), as a PineScript division by zero (#141)
 - `ta.wma()` (and `ta.hma()`): as PineScript, a partial sum `s + t` of the weighted values (oldest first) is 0

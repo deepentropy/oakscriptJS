@@ -129,22 +129,37 @@ describe('str.tonumber', () => {
     expect(str.tonumber('')).toBeNull();
   });
 
-  it('should handle special numeric strings', () => {
-    // parseFloat('NaN') returns NaN, but tonumber returns null for NaN values
-    expect(str.tonumber('NaN')).toBeNull();
-    expect(str.tonumber('Infinity')).toBe(Infinity);
-    expect(str.tonumber('-Infinity')).toBe(-Infinity);
+  it('NaN, Infinity and other number forms are na (PineScript, #152)', () => {
+    for (const text of ['NaN', 'Infinity', '-Infinity', '+Infinity', 'Inf', '0x10', '0x1p3', '1d', '1f', '1L',
+      '1_000', '1,000', '1 000', '--5', '+ 5', '.', '+', '-', ' ']) {
+      expect(str.tonumber(text)).toBeNull();
+    }
   });
 
-  it('should handle scientific notation', () => {
-    expect(str.tonumber('1e3')).toBe(1000);
-    expect(str.tonumber('1.5e2')).toBe(150);
-    expect(str.tonumber('1e-3')).toBe(0.001);
+  it('scientific notation is na (PineScript, #152)', () => {
+    for (const text of ['1e3', '1E3', '2.5e2', '1e-3', '1.5E+2', '0.1e1', '+.5e1', '1e400', '1e-400', '5e', 'e5']) {
+      expect(str.tonumber(text)).toBeNull();
+    }
+  });
+
+  it('only U+0000..U+0020 around the number are ignored (PineScript, #152)', () => {
+    expect(str.tonumber('\t5')).toBe(5);
+    expect(str.tonumber('5\n')).toBe(5);
+    expect(str.tonumber('\u001f5')).toBe(5);
+    expect(str.tonumber('  -12.25  ')).toBe(-12.25);
+    for (const space of [' ', ' ', '　', '﻿']) {
+      expect(str.tonumber(space + '5')).toBeNull();
+    }
   });
 
   it('should handle decimal numbers', () => {
     expect(str.tonumber('0.5')).toBe(0.5);
     expect(str.tonumber('.5')).toBe(0.5);
     expect(str.tonumber('-.5')).toBe(-0.5);
+    expect(str.tonumber('5.')).toBe(5);
+    expect(str.tonumber('-5.')).toBe(-5);
+    expect(str.tonumber('+5')).toBe(5);
+    expect(str.tonumber('00012')).toBe(12);
+    expect(str.tonumber('123456789012345678901234567890')).toBe(1.2345678901234568e29);
   });
 });
