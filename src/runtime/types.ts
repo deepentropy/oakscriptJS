@@ -139,6 +139,29 @@ export interface ArrowConfig {
 }
 
 /**
+ * Configuration of a PineScript `plotcandle()` (kind 'candle') or `plotbar()` (kind 'bar') declaration. The candles
+ * are in `result.plotCandles[id]`, the bars in `result.plotBars[id]`.
+ */
+export interface CandleConfig {
+    /** Unique identifier (key of the data in the result) */
+    id: string;
+    /** 'candle' for plotcandle, 'bar' for plotbar */
+    kind: 'candle' | 'bar';
+    /** Display title */
+    title?: string;
+    /** Static body colour (plotcandle) or bar colour (plotbar) */
+    color?: string;
+    /** Static wick colour (plotcandle only) */
+    wickColor?: string;
+    /** Static border colour (plotcandle only) */
+    borderColor?: string;
+    /** Display mode */
+    display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
+    forceOverlay?: boolean;
+}
+
+/**
  * Configuration for horizontal line outputs in generated indicators
  * Matches PineScript hline() function parameters
  */

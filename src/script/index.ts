@@ -37,18 +37,35 @@ import type { Bar } from '../types/index.js';
 import type {
   ArrowData,
   BarColorData,
+  BgColorData,
+  BoxData,
   FillData,
   FillGradient,
   IndicatorResult,
+  LabelData,
+  LabelStyle,
+  LineDrawingData,
+  LinefillData,
   MarkerData,
   MarkerLocation,
+  MarkerPosition,
+  MarkerShape,
   MarkerSize,
+  PineSize,
+  PlotBarData,
+  PlotCandleData,
+  PolylineData,
   ShapeStyle,
+  TableCellData,
+  TableData,
+  TableMergeData,
+  TablePosition,
   TimeValue,
 } from '../types/metadata.js';
 import type {
   ArrowConfig,
   BarColorConfig,
+  CandleConfig,
   FillConfig,
   HLineConfig,
   InputConfig,
@@ -65,10 +82,12 @@ import * as labelCore from '../label/index.js';
 import * as boxCore from '../box/index.js';
 import * as linefillCore from '../linefill/index.js';
 import * as polylineCore from '../polyline/index.js';
+import * as tableCore from '../table/index.js';
 import * as chartPointCore from '../chartpoint/index.js';
 import * as textCore from '../text/index.js';
 import * as mathCore from '../math/index.js';
 import { resetDrawings, setDrawingLimits } from '../drawing/registry.js';
+import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
 import * as timeCore from '../time/index.js';
 import * as strCore from '../str/index.js';
@@ -76,6 +95,7 @@ import { formatMessage } from '../str/messageformat.js';
 import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
 import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
+import { position } from '../types/index.js';
 import type { ChartPoint } from '../types/index.js';
 import {
   STRATEGY_CONSTANTS,
@@ -110,11 +130,17 @@ export interface ScriptRunResult {
   shapeConfig: ShapeConfig[];
   arrowConfig: ArrowConfig[];
   barColorConfig: BarColorConfig[];
+  /** plotcandle() / plotbar() declarations */
+  candleConfig: CandleConfig[];
   defaultInputs: Record<string, unknown>;
   alertConfig: AlertConditionConfig[];
   /** Strategy properties (declared values, else the PineScript defaults) when the script declares strategy(). */
   strategyConfig?: StrategyProperties;
-  /** The renderable output (plots keyed by plotConfig ids, plot-pair fills). */
+  /**
+   * The renderable output: plots keyed by plotConfig ids, plot-pair fills, markers, arrows, background and bar
+   * colours, candles and bars, and the drawings (labels, lines, boxes, linefills, polylines, tables) alive after the
+   * last bar.
+   */
   result: IndicatorResult & { alerts?: AlertState[] };
 }
 
@@ -159,8 +185,11 @@ interface Collector {
   arrowConfig: ArrowConfig[];
   arrows: ArrowData[];
   barColorConfig: BarColorConfig[];
-  bgcolors: BarColorData[];
-  barcolors: BarColorData[];
+  bgColors: BgColorData[];
+  barColors: BarColorData[];
+  candleConfig: CandleConfig[];
+  plotCandles: Record<string, PlotCandleData[]>;
+  plotBars: Record<string, PlotBarData[]>;
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
   strategy?: StrategyRun;
@@ -210,8 +239,11 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     arrowConfig: [],
     arrows: [],
     barColorConfig: [],
-    bgcolors: [],
-    barcolors: [],
+    bgColors: [],
+    barColors: [],
+    candleConfig: [],
+    plotCandles: {},
+    plotBars: {},
     alertConfig: [],
     alerts: [],
   };
@@ -284,6 +316,7 @@ export function executeScript(
       shapeConfig: c.shapeConfig,
       arrowConfig: c.arrowConfig,
       barColorConfig: c.barColorConfig,
+      candleConfig: c.candleConfig,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
       strategyConfig: c.strategy?.properties,
@@ -293,8 +326,11 @@ export function executeScript(
         fills: c.fills.length ? c.fills : undefined,
         markers: c.markers.length ? c.markers : undefined,
         arrows: c.arrows.length ? c.arrows : undefined,
-        bgcolors: c.bgcolors.length ? c.bgcolors : undefined,
-        barcolors: c.barcolors.length ? c.barcolors : undefined,
+        bgColors: c.bgColors.length ? c.bgColors : undefined,
+        barColors: c.barColors.length ? c.barColors : undefined,
+        plotCandles: Object.keys(c.plotCandles).length ? c.plotCandles : undefined,
+        plotBars: Object.keys(c.plotBars).length ? c.plotBars : undefined,
+        ...drawingOutputs(ctxBars.bars, chartCtx.timeUnit),
         alerts: c.alerts.length ? c.alerts : undefined,
       },
     };
@@ -779,8 +815,46 @@ export interface PlotCharOptions extends Omit<PlotShapeOptions, 'style'> {
   char?: string;
 }
 
+/** PineScript shape.* style -> marker shape. */
+const MARKER_SHAPES: Record<ShapeStyle, MarkerShape> = {
+  xcross: 'xcross',
+  cross: 'cross',
+  triangleup: 'triangleUp',
+  triangledown: 'triangleDown',
+  flag: 'flag',
+  circle: 'circle',
+  arrowup: 'arrowUp',
+  arrowdown: 'arrowDown',
+  labelup: 'labelUp',
+  labeldown: 'labelDown',
+  square: 'square',
+  diamond: 'diamond',
+};
+
+/**
+ * Marker position of a PineScript location. With location.absolute the shape sits on the price: a label pointing
+ * down above it, a label pointing up below it, the other shapes (and the characters) centred on it.
+ */
+function markerPosition(location: MarkerLocation, shape: ShapeStyle | undefined): MarkerPosition {
+  switch (location) {
+    case 'abovebar':
+      return 'aboveBar';
+    case 'belowbar':
+      return 'belowBar';
+    case 'top':
+      return 'top';
+    case 'bottom':
+      return 'bottom';
+    case 'absolute':
+      return shape === 'labeldown' ? 'atPriceTop' : shape === 'labelup' ? 'atPriceBottom' : 'atPriceMiddle';
+  }
+}
+
+/** Default colour of plotshape / plotchar markers. */
+const MARKER_COLOR = '#2962FF';
+
 /** Shared emitter for plotshape()/plotchar(). Emits one marker per bar where
- *  the condition is truthy (not na, not 0). */
+ *  the condition is truthy (not na, not 0). A plotchar marker has the shape 'circle' and its character in `char`. */
 function emitMarkers(
   kind: 'shape' | 'char',
   condition: Series,
@@ -806,6 +880,19 @@ function emitMarkers(
     offset: options.offset,
     forceOverlay: options.force_overlay,
   });
+  const shapeStyle = kind === 'shape' ? (style as ShapeStyle) : undefined;
+  const template: Omit<MarkerData, 'time'> = {
+    position: markerPosition(location, shapeStyle),
+    shape: shapeStyle ? MARKER_SHAPES[shapeStyle] : 'circle',
+    color: options.color ?? MARKER_COLOR,
+    id,
+  };
+  if (char !== undefined) template.char = char;
+  if (options.text !== undefined) template.text = options.text;
+  if (options.textcolor !== undefined) template.textColor = options.textcolor;
+  if (options.size !== undefined) template.size = options.size;
+  if (options.tooltip !== undefined) template.tooltip = options.tooltip;
+  if (options.force_overlay) template.forceOverlay = true;
   const values = condition.toArray();
   const b = bars();
   const off = options.offset ?? 0;
@@ -814,19 +901,8 @@ function emitMarkers(
     if (v === undefined || Number.isNaN(v) || v === 0) continue;
     const j = i + off;
     if (j < 0 || j >= b.length) continue;
-    c.markers.push({
-      time: b[j]!.time,
-      id,
-      location,
-      style,
-      char,
-      color: options.color,
-      text: options.text,
-      textcolor: options.textcolor,
-      size: options.size,
-      tooltip: options.tooltip,
-      price: location === 'absolute' ? v : undefined,
-    });
+    const time = b[j]!.time;
+    c.markers.push(location === 'absolute' ? { time, ...template, price: v } : { time, ...template });
   }
 }
 
@@ -906,13 +982,14 @@ function emitBarColors(
   c.barColorConfig.push({ id, kind, title: options.title, offset: options.offset, forceOverlay: options.force_overlay });
   const b = bars();
   const off = options.offset ?? 0;
-  const target = kind === 'bgcolor' ? c.bgcolors : c.barcolors;
+  const target: BgColorData[] = kind === 'bgcolor' ? c.bgColors : c.barColors;
+  const forceOverlay = kind === 'bgcolor' && options.force_overlay === true;
   for (let i = 0; i < b.length; i++) {
     const col = typeof colors === 'string' ? colors : colors[i];
     if (!col) continue;
     const j = i + off;
     if (j < 0 || j >= b.length) continue;
-    target.push({ time: b[j]!.time, color: col });
+    target.push(forceOverlay ? { time: b[j]!.time, color: col, forceOverlay } : { time: b[j]!.time, color: col });
   }
 }
 
@@ -933,6 +1010,129 @@ export function barcolor(
   options: { title?: string } = {}
 ): void {
   emitBarColors('barcolor', colors, options);
+}
+
+/** A colour argument of plotcandle() / plotbar(): a colour, or per-bar colours (null / undefined entries are na). */
+export type ScriptCandleColor = string | Array<string | null | undefined>;
+
+export interface PlotCandleOptions {
+  /** Body colour: a colour or a per-bar array (color.when); an na entry gives a transparent body */
+  color?: ScriptCandleColor;
+  /** Wick colour: a colour or a per-bar array */
+  wickcolor?: ScriptCandleColor;
+  /** Border colour: a colour or a per-bar array */
+  bordercolor?: ScriptCandleColor;
+  display?: CandleConfig['display'];
+  /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
+  force_overlay?: boolean;
+}
+
+export interface PlotBarOptions {
+  /** Bar colour: a colour or a per-bar array (color.when); an na entry gives a transparent bar */
+  color?: ScriptCandleColor;
+  display?: CandleConfig['display'];
+  /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
+  force_overlay?: boolean;
+}
+
+/** Colour of bar i: undefined when the argument is not given, 'transparent' for an na entry. */
+function candleColor(col: ScriptCandleColor | undefined, i: number): string | undefined {
+  if (col === undefined) return undefined;
+  if (typeof col === 'string') return col;
+  return col[i] ?? 'transparent';
+}
+
+interface OhlcRow {
+  i: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+/** The bars where open, high, low and close are all not na (PineScript draws no candle / bar otherwise). */
+function ohlcRows(o: Series, h: Series, l: Series, cl: Series): OhlcRow[] {
+  const [ov, hv, lv, cv] = [o.toArray(), h.toArray(), l.toArray(), cl.toArray()];
+  const rows: OhlcRow[] = [];
+  for (let i = 0; i < bars().length; i++) {
+    const [open, high, low, close] = [ov[i]!, hv[i]!, lv[i]!, cv[i]!];
+    if (Number.isFinite(open) && Number.isFinite(high) && Number.isFinite(low) && Number.isFinite(close)) {
+      rows.push({ i, open, high, low, close });
+    }
+  }
+  return rows;
+}
+
+const staticColor = (col: ScriptCandleColor | undefined): string | undefined => (typeof col === 'string' ? col : undefined);
+
+/**
+ * PineScript `plotcandle(open, high, low, close, title?, { color, wickcolor, bordercolor, display, force_overlay })`:
+ * candles in `result.plotCandles[id]`, the declaration in `candleConfig`. A bar with an na value has no candle.
+ */
+export function plotcandle(
+  open: Series,
+  high: Series,
+  low: Series,
+  close: Series,
+  title?: string,
+  options: PlotCandleOptions = {}
+): void {
+  const c = collector();
+  const id = `plotcandle${c.candleConfig.filter((x) => x.kind === 'candle').length}`;
+  c.candleConfig.push({
+    id,
+    kind: 'candle',
+    title,
+    color: staticColor(options.color),
+    wickColor: staticColor(options.wickcolor),
+    borderColor: staticColor(options.bordercolor),
+    display: options.display,
+    forceOverlay: options.force_overlay,
+  });
+  const b = bars();
+  c.plotCandles[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
+    const candle: PlotCandleData = { time: b[i]!.time, ...ohlc };
+    const color = candleColor(options.color, i);
+    const wickColor = candleColor(options.wickcolor, i);
+    const borderColor = candleColor(options.bordercolor, i);
+    if (color !== undefined) candle.color = color;
+    if (wickColor !== undefined) candle.wickColor = wickColor;
+    if (borderColor !== undefined) candle.borderColor = borderColor;
+    if (options.force_overlay) candle.forceOverlay = true;
+    return candle;
+  });
+}
+
+/**
+ * PineScript `plotbar(open, high, low, close, title?, { color, display, force_overlay })`: OHLC bars in
+ * `result.plotBars[id]`, the declaration in `candleConfig`. A bar with an na value is not drawn.
+ */
+export function plotbar(
+  open: Series,
+  high: Series,
+  low: Series,
+  close: Series,
+  title?: string,
+  options: PlotBarOptions = {}
+): void {
+  const c = collector();
+  const id = `plotbar${c.candleConfig.filter((x) => x.kind === 'bar').length}`;
+  c.candleConfig.push({
+    id,
+    kind: 'bar',
+    title,
+    color: staticColor(options.color),
+    display: options.display,
+    forceOverlay: options.force_overlay,
+  });
+  const b = bars();
+  c.plotBars[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
+    const bar: PlotBarData = { time: b[i]!.time, ...ohlc };
+    const color = candleColor(options.color, i);
+    if (color !== undefined) bar.color = color;
+    if (options.force_overlay) bar.forceOverlay = true;
+    return bar;
+  });
 }
 
 // ── Per-bar execution (eachBar) ──────────────────────────────────────────────
@@ -1831,7 +2031,20 @@ export const polyline = {
   },
 };
 
-/** PineScript `text.format_*` constants. */
+/**
+ * PineScript `table.*`; `table.all` lists the live tables in creation order. The live tables go to `result.tables`.
+ */
+export const table = {
+  ...tableCore,
+  get all() {
+    return tableCore.all();
+  },
+};
+
+/** PineScript `position.*` constants (table positions). */
+export { position };
+
+/** PineScript `text.format_*`, `text.align_*` and `text.wrap_*` constants. */
 export const text = { ...textCore };
 
 /**
@@ -1913,10 +2126,27 @@ export type {
   ShapeConfig,
   ArrowConfig,
   BarColorConfig,
+  CandleConfig,
   MarkerData,
+  MarkerPosition,
+  MarkerShape,
   ArrowData,
   BarColorData,
+  BgColorData,
+  PlotCandleData,
+  PlotBarData,
+  LabelData,
+  LabelStyle,
+  LineDrawingData,
+  BoxData,
+  LinefillData,
+  PolylineData,
+  TableData,
+  TableCellData,
+  TableMergeData,
+  TablePosition,
   MarkerLocation,
   MarkerSize,
+  PineSize,
   ShapeStyle,
 };

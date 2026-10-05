@@ -133,7 +133,7 @@ describe('Polyline Functions', () => {
       expect(pl3.id).toBe('polyline_3');
     });
 
-    it('should warn about curved polylines', () => {
+    it('should store the curved flag without a warning', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       const points = [
@@ -143,10 +143,8 @@ describe('Polyline Functions', () => {
 
       const pl = polyline.new(points, true);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'polyline.new(): curved polylines are not yet supported. Using straight-line connections.'
-      );
-      expect(pl.curved).toBe(true); // Flag is stored even though not supported
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(pl.curved).toBe(true); // drawn as a curve by the renderer
 
       consoleSpy.mockRestore();
     });

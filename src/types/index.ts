@@ -217,8 +217,22 @@ export interface Table {
   border_width?: number;
   /** Table background color */
   bgcolor?: color;
-  /** Cell data (internal storage) */
+  /** Display on the main chart pane (PineScript force_overlay) */
+  force_overlay?: boolean;
+  /** Cells by "column,row" */
   cells?: Map<string, TableCell>;
+  /** Merged cell ranges (PineScript table.merge_cells) */
+  merges?: TableMerge[];
+}
+
+/**
+ * Merged cell range of a table
+ */
+export interface TableMerge {
+  start_column: number;
+  start_row: number;
+  end_column: number;
+  end_row: number;
 }
 
 /**
@@ -245,6 +259,8 @@ export interface TableCell {
   tooltip?: string;
   /** Text font family */
   text_font_family?: 'default' | 'monospace';
+  /** Text formatting flags: 0 none, 1 bold, 2 italic, 3 bold + italic (PineScript text.format_*) */
+  text_formatting?: number;
 }
 
 // Series types for drawing objects
@@ -347,6 +363,21 @@ export const xloc = {
   bar_index: 'bar_index' as const,
   /** X-coordinates are UNIX timestamps in milliseconds */
   bar_time: 'bar_time' as const,
+};
+
+/**
+ * Table position constants (PineScript `position.*`), for `table.new` and `table.set_position`
+ */
+export const position = {
+  top_left: 'top_left' as const,
+  top_center: 'top_center' as const,
+  top_right: 'top_right' as const,
+  middle_left: 'middle_left' as const,
+  middle_center: 'middle_center' as const,
+  middle_right: 'middle_right' as const,
+  bottom_left: 'bottom_left' as const,
+  bottom_center: 'bottom_center' as const,
+  bottom_right: 'bottom_right' as const,
 };
 
 /**

@@ -306,9 +306,7 @@ describe('Array Final Functions', () => {
       expect(typeof array.new_box).toBe('function');
       expect(typeof array.new_label).toBe('function');
       expect(typeof array.new_linefill).toBe('function');
-
-      // new_table() remains excluded (no computational value)
-      expect(array).not.toHaveProperty('new_table');
+      expect(typeof array.new_table).toBe('function');
     });
 
     it('should confirm all calculation functions remain available', () => {

@@ -15,9 +15,10 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 3. **TA-Series Wrappers**: Series-based wrappers around core TA functions
 4. **Script API** (`oakscriptjs/script`): flat PineScript-style authoring —
    `indicator()`, `input.*`, `plot`/`hline`/`fill`, the Tier 1 outputs
-   (`plotshape`/`plotchar`/`bgcolor`/`barcolor`), `alertcondition`, and
+   (`plotshape`/`plotchar`/`bgcolor`/`barcolor`), `plotcandle`/`plotbar`, `alertcondition`, and
    `eachBar()` for per-bar stateful logic. See the [Script API section](#script-api-oakscriptjsscript).
-5. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills, markers, bar colors)
+5. **Metadata Types**: Type definitions for indicator results (plots, hlines, fills, markers, bar colors, candles,
+   labels, lines, boxes, linefills, polylines, tables)
 
 **No DSL Layer**: This library focuses on the computational core. For ready-to-use indicators, see the [`lightweight-charts-indicators`](https://www.npmjs.com/package/lightweight-charts-indicators) package.
 
@@ -31,7 +32,7 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 |-----------|-------------------|-------------|-----------------|--------------|
 | **ta** | 59 | 59 (+2 custom) | 0 | 100% |
 | **math** | 24 | 24 | 0 | 100% |
-| **array** | 55 | 54 (+1 custom) | 1 | 98.2% |
+| **array** | 55 | 55 (+1 custom) | 0 | 100% |
 | **matrix** | 50 | 50 (+1 custom) | 0 | 100% |
 | **str** | 18 | 18 (+4 custom) | 0 | 100% |
 | **time + timeframe** | 5 | 5 (+2 custom) | 0 | 100% |
@@ -42,8 +43,9 @@ OakScriptJS is a **simplified PineScript-like library** providing:
 | **linefill** | 5 | 5 | 0 | 100% |
 | **chartPoint** | 5 | 5 | 0 | 100% |
 | **polyline** | 2 | 2 (+1 custom) | 0 | 100% |
+| **table** | 22 | 22 | 0 | 100% |
 | **map** | 11 | 11 | 0 | 100% |
-| **TOTAL** | **312** | **310** | **2** | **99.4%** |
+| **TOTAL** | **334** | **333** | **1** | **99.7%** |
 
 ### Out-of-Scope Namespaces (Platform/Rendering/Data)
 
@@ -52,14 +54,13 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 | Namespace | Official Functions | Reason |
 |-----------|-------------------|--------|
 | **strategy** | 47 | Order execution engine: the script API has `strategy()` and the `strategy.*` API, forwarded to an engine the host supplies |
-| **table** | 22 | Rendering-only (no getters) |
 | **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
 | **request** | 10 | External data fetching — `request.security` for the chart symbol (higher timeframes, Heikin Ashi) is in the script API |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
 | **syminfo** | 2 | Platform symbol metadata |
-| **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `bgcolor`, `barcolor`, `alertcondition` |
-| **TOTAL** | **~140** | -- |
+| **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `plotcandle`, `plotbar`, `bgcolor`, `barcolor`, `alertcondition` |
+| **TOTAL** | **~118** | -- |
 
 ---
 
@@ -181,7 +182,7 @@ constant expression (16 decimals from 0.001 up).
 
 ## array (Array Operations)
 
-### Implemented (54 official + 1 custom = 55 functions)
+### Implemented (55 official + 1 custom = 56 functions)
 
 1. `abs()` - Absolute values of elements
 2. `avg()` - Average of array elements
@@ -216,32 +217,31 @@ constant expression (16 decimals from 0.001 up).
 31. `new_label()` - Create new label array
 32. `new_line()` - Create new line array
 33. `new_linefill()` - Create new linefill array
-34. `new_string()` - Create new string array
-35. `newtype()` - Create array of user-defined type (placeholder)
-36. `percentile_linear_interpolation()` - Percentile using linear interpolation
-37. `percentile_nearest_rank()` - Percentile using nearest rank
-38. `percentrank()` - Percent rank of value in array
-39. `pop()` - Remove and return last element
-40. `push()` - Add element to end
-41. `range()` - Difference between max and min
-42. `remove()` - Remove element at index
-43. `reverse()` - Reverse array in place
-44. `set()` - Set element at index
-45. `shift()` - Remove and return first element
-46. `size()` - Get array length
-47. `slice()` - Get sub-array
-48. `some()` - Test if any element satisfies condition
-49. `sort()` - Sort array in place
-50. `sort_indices()` - Get indices that would sort the array
-51. `standardize()` - Standardize array (z-score normalization)
-52. `stdev()` - Standard deviation of array
-53. `sum()` - Sum of array elements (skips na)
-54. `unshift()` - Add element to beginning
-55. `variance()` - Variance of array
+34. `new_table()` - Create new table array
+35. `new_string()` - Create new string array
+36. `newtype()` - Create array of user-defined type (placeholder)
+37. `percentile_linear_interpolation()` - Percentile using linear interpolation
+38. `percentile_nearest_rank()` - Percentile using nearest rank
+39. `percentrank()` - Percent rank of value in array
+40. `pop()` - Remove and return last element
+41. `push()` - Add element to end
+42. `range()` - Difference between max and min
+43. `remove()` - Remove element at index
+44. `reverse()` - Reverse array in place
+45. `set()` - Set element at index
+46. `shift()` - Remove and return first element
+47. `size()` - Get array length
+48. `slice()` - Get sub-array
+49. `some()` - Test if any element satisfies condition
+50. `sort()` - Sort array in place
+51. `sort_indices()` - Get indices that would sort the array
+52. `standardize()` - Standardize array (z-score normalization)
+53. `stdev()` - Standard deviation of array
+54. `sum()` - Sum of array elements (skips na)
+55. `unshift()` - Add element to beginning
+56. `variance()` - Variance of array
 
-### Not Implemented (1 function)
-
-1. `new_table()` - Create new table array (no computational value - tables have no getters in PineScript)
+### Not Implemented (0 functions)
 
 ---
 
@@ -571,7 +571,28 @@ All 5 official linefill functions are implemented.
 
 All 2 official polyline functions are implemented.
 
-**Note:** `curved` parameter is accepted but curved polylines are not yet supported.
+**Note:** `curved` is passed to the renderer in `result.polylines` (`curved: true`).
+
+---
+
+## table (Table Drawing Objects)
+
+### Implemented (22 official + `all`)
+
+1. `new()` - Create a table at a `position.*` (columns, rows, bgcolor, frame and border colour / width, force_overlay)
+2. `cell()` - Define a cell (text, width, height, text colour / alignment / size, bgcolor, tooltip, font, formatting)
+3. `cell_set_text()`, `cell_set_width()`, `cell_set_height()`, `cell_set_text_color()`, `cell_set_text_halign()`,
+   `cell_set_text_valign()`, `cell_set_text_size()`, `cell_set_bgcolor()`, `cell_set_tooltip()`,
+   `cell_set_text_font_family()`, `cell_set_text_formatting()` - Change one property of a cell (11 functions)
+4. `merge_cells()` - Merge a range of cells
+5. `clear()` - Remove a range of cells
+6. `set_position()`, `set_bgcolor()`, `set_frame_color()`, `set_frame_width()`, `set_border_color()`,
+   `set_border_width()` - Change the table (6 functions)
+7. `delete()` - Delete the table
+8. `all()` - Live tables in creation order (PineScript `table.all`)
+
+A column or row outside the table throws, as PineScript stops the script. Tables have no getters; the script API
+returns the live tables in `result.tables`. `position.*` and `text.align_*` / `text.wrap_*` constants are provided.
 
 ---
 
@@ -622,6 +643,8 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `plotarrow()` | Implemented | up / down arrow per bar by the sign of the value; colorup, colordown, minheight, maxheight, offset, force_overlay; `arrowConfig` + `result.arrows` |
 | `bgcolor()` | Implemented | per-bar background color (static or `color.when` array), offset, force_overlay |
 | `barcolor()` | Implemented | per-bar candle color override |
+| `plotcandle()` | Implemented | candles from open / high / low / close (no candle on a bar with an na value); static or per-bar color, wickcolor, bordercolor, display, force_overlay; `candleConfig` + `result.plotCandles` |
+| `plotbar()` | Implemented | OHLC bars; static or per-bar color, display, force_overlay; `candleConfig` + `result.plotBars` |
 | `alertcondition()` | Implemented | collected for the host alert engine |
 
 ### Per-bar execution
@@ -635,8 +658,10 @@ The script entry provides the PineScript-style authoring surface. These are not
 
 ### Run result (`IndicatorResult`)
 
-`plots` (keyed by id), optional `hlines`, `fills`, and the Tier 1 output data:
-`markers` (`MarkerData[]`), `arrows` (`ArrowData[]`), `bgcolors` and `barcolors` (`BarColorData[]`).
+`plots` (keyed by id), optional `hlines`, `fills`, and the output data:
+`markers` (`MarkerData[]`), `arrows` (`ArrowData[]`), `bgColors` (`BgColorData[]`), `barColors` (`BarColorData[]`),
+`plotCandles` / `plotBars` (keyed by id), and the drawings alive after the last bar: `labels`, `lines`, `boxes`,
+`linefills`, `polylines`, `tables` (x coordinates as bar times, future bars extrapolated).
 
 ---
 
@@ -644,7 +669,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 
 | # | Namespace | Function | Description |
 |---|-----------|----------|-------------|
-| 1 | array | `new_table()` | Table array (no computational value) |
+| ~~1~~ | ~~array~~ | ~~`new_table()`~~ | ~~Implemented~~ |
 | ~~2~~ | ~~str~~ | ~~`repeat()`~~ | ~~Implemented~~ |
 | ~~3~~ | ~~time~~ | ~~`time_close()`~~ | ~~Implemented (script API)~~ |
 | ~~4~~ | ~~timeframe~~ | ~~`change()`~~ | ~~Implemented (script API)~~ |

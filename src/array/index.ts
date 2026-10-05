@@ -3,7 +3,7 @@
  * Mirrors PineScript's array.* functions
  */
 
-import type { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill } from '../types/index.js';
+import type { PineArray, int, float, bool, simple_int, color, Line, Box, Label, Linefill, Table } from '../types/index.js';
 
 /**
  * Creates a new array with initial size and default value
@@ -754,6 +754,17 @@ export function new_linefill(size: simple_int = 0, initial_value?: Linefill): Pi
 }
 
 /**
+ * Creates a new array of tables (PineScript `array.new_table`).
+ *
+ * @param size - Initial size of array (default: 0)
+ * @param initial_value - Initial value for all elements (default: undefined)
+ * @returns New table array
+ */
+export function new_table(size: simple_int = 0, initial_value?: Table): PineArray<Table> {
+  return new_array<Table>(size, initial_value);
+}
+
+/**
  * Absolute value of array elements
  *
  * Returns an array containing the absolute value of each element in the original array.
@@ -1241,25 +1252,3 @@ export function newtype<T>(size: simple_int = 0, initial_value?: T): PineArray<T
   return new_array<T>(size, initial_value);
 }
 
-/**
- * ⚠️ RENDERING FUNCTIONS NOT IMPLEMENTED
- *
- * The following array constructor functions are intentionally excluded
- * because they create arrays for rendering objects, which are outside
- * the scope of this calculation-focused library:
- *
- * - `new_box()` - Creates arrays of box drawing objects
- * - `new_label()` - Creates arrays of label objects
- * - `new_line()` - Creates arrays of line drawing objects
- * - `new_linefill()` - Creates arrays of line fill objects
- * - `new_table()` - Creates arrays of table layout objects
- *
- * **Design Constraint**: This library focuses on calculation and indicator
- * functions only. Rendering, visualization, and UI functions require a
- * rendering engine and are not included.
- *
- * If you need these functions, consider:
- * 1. Using PineScript directly
- * 2. Implementing a rendering layer separately
- * 3. Using this library for calculations and another library for visualization
- */

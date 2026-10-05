@@ -4,8 +4,8 @@
  *
  * @remarks
  * Polylines allow connecting multiple points with line segments, enabling complex chart drawings
- * like trend channels, patterns, and custom shapes. This implementation focuses on basic
- * polylines (straight lines) - curved polylines can be added in a future iteration.
+ * like trend channels, patterns, and custom shapes. The `curved` flag goes to the renderer
+ * (`result.polylines` of the script API), which draws the curve.
  *
  * @version 6
  */
@@ -30,7 +30,7 @@ function generateId(): string {
  * Creates a new polyline connecting all points.
  *
  * @param points - Array of chart.point objects to connect
- * @param curved - If true, use curved line segments (default: false, NOT YET SUPPORTED)
+ * @param curved - If true, use curved line segments (default: false)
  * @param closed - If true, connect first point to last point (default: false)
  * @param xloc - X-coordinate mode: 'bar_index' or 'bar_time' (default: 'bar_index')
  * @param line_color - Color of line segments (default: '#2196F3' - blue)
@@ -41,8 +41,6 @@ function generateId(): string {
  * @returns New Polyline object
  *
  * @remarks
- * - The curved parameter is accepted but currently logs a warning as curved lines
- *   are not yet supported. Straight-line connections are used instead.
  * - For meaningful polylines, provide at least 2 points.
  * - Closed polylines can be filled with a color by setting fill_color.
  *
@@ -82,13 +80,6 @@ export function new_polyline(
   line_width: number = 1,
   force_overlay: boolean = false
 ): Polyline {
-  // Warn about curved polylines not being supported yet
-  if (curved) {
-    console.warn(
-      'polyline.new(): curved polylines are not yet supported. Using straight-line connections.'
-    );
-  }
-
   // Validate line_width is positive
   if (line_width < 1) {
     console.warn('polyline.new(): line_width must be at least 1. Using 1.');

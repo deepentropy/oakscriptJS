@@ -359,9 +359,55 @@ barcolor(color.when(close.gt(close.offset(1)), color.green, color.red));
 `colorFalse` to leave those bars uncolored (PineScript `na`).
 
 The run result carries the data: `result.markers` (`MarkerData[]`),
-`result.bgcolors` and `result.barcolors` (`BarColorData[]`). `plotshape`/
-`plotchar` are also declared in `shapeConfig`, and `bgcolor`/`barcolor` in
-`barColorConfig`, for the host UI.
+`result.bgColors` (`BgColorData[]`) and `result.barColors` (`BarColorData[]`).
+`plotshape`/`plotchar` are also declared in `shapeConfig`, and `bgcolor`/`barcolor`
+in `barColorConfig`, for the host UI.
+
+A marker uses the lightweight-charts vocabulary: `position` (`aboveBar`,
+`belowBar`, `top`, `bottom`, and for `location.absolute` `atPriceTop` /
+`atPriceBottom` / `atPriceMiddle` with `price`), `shape` (`triangleUp`,
+`labelDown`, ...), `color` (default `#2962FF`), `textColor`, `size`. A `plotchar`
+marker has its character in `char` (and the shape `circle`).
+
+### Candles, bars, drawings and tables
+
+```typescript
+import { plotcandle, plotbar, label, line, box, table, position, text, eachBar } from 'oakscriptjs/script';
+
+// plotcandle / plotbar: one candle / bar per bar where open, high, low and close are not na
+plotcandle(haOpen, haHigh, haLow, haClose, 'Heikin Ashi', { color: color.when(haClose.gt(haOpen), '#26A69A', '#EF5350') });
+plotbar(open, high, low, close, 'OHLC', { color: '#787B86' });
+
+// drawings: the objects alive after the last bar are returned
+eachBar((c) => {
+  if (c.i === c.n - 1) {
+    label.new(c.i, c.high, 'Last', 'bar_index', 'price', '#2962FF', 'label_down', '#FFFFFF');
+    line.new(c.i - 20, c.get(low, 20), c.i + 10, c.low, 'bar_index', 'right');
+  }
+});
+
+// tables
+const t = table.new(position.top_right, 2, 2, '#131722');
+table.cell(t, 0, 0, 'RSI', 0, 0, '#FFFFFF');
+table.cell(t, 1, 0, '54.2', 0, 0, '#FFFFFF', text.align_right);
+table.merge_cells(t, 0, 1, 1, 1);
+```
+
+The run result has `plotCandles` and `plotBars` (keyed by the ids of
+`candleConfig`), and `labels`, `lines`, `boxes`, `linefills`, `polylines`,
+`tables`: the drawings alive after the last bar (deleted ones and the ones over
+`max_*_count` are gone). In the drawings:
+
+- x coordinates are bar times: a `bar_index` x is the time of that bar, or of a
+  future bar after the last bar (`barTime(bars, index)`: last bar time + k times
+  the most frequent bar gap); a `bar_time` x (UNIX ms) is converted to the unit of
+  the bar times
+- an object with an `na` coordinate is not drawn
+- a property the script did not set is omitted (the renderer uses the PineScript
+  default); a colour set to `na` is `'transparent'`
+
+`drawingOutputs(bars)` (from `oakscriptjs`) gives the same fields for drawings
+made outside a script run.
 
 ### Per-bar stateful execution (eachBar)
 
@@ -672,8 +718,17 @@ interface IndicatorResult {
   hlines?: HLineData[];
   fills?: FillData[];
   markers?: MarkerData[];               // from plotshape() / plotchar()
-  bgcolors?: BarColorData[];            // from bgcolor()
-  barcolors?: BarColorData[];           // from barcolor()
+  arrows?: ArrowData[];                 // from plotarrow()
+  bgColors?: BgColorData[];             // from bgcolor()
+  barColors?: BarColorData[];           // from barcolor()
+  plotCandles?: Record<string, PlotCandleData[]>;  // from plotcandle()
+  plotBars?: Record<string, PlotBarData[]>;        // from plotbar()
+  labels?: LabelData[];                 // live drawings after the last bar
+  lines?: LineDrawingData[];
+  boxes?: BoxData[];
+  linefills?: LinefillData[];
+  polylines?: PolylineData[];
+  tables?: TableData[];
 }
 ```
 

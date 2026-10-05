@@ -5,6 +5,42 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+One result shape for scripts and built-in indicators: `IndicatorResult` now has the names and shapes of the
+`lightweight-charts-indicators` package, and the drawings of a script run (#153).
+
+### Changed (breaking)
+
+- `IndicatorResult.bgcolors` / `barcolors` are renamed `bgColors` / `barColors`. A bgcolor entry is a `BgColorData`
+  with `forceOverlay: true` when the script gave `force_overlay = true`
+- `MarkerData` has the lightweight-charts shape of the built-in indicators: `position` (`aboveBar`, `belowBar`, `top`,
+  `bottom`, and for `location.absolute` `atPriceTop` / `atPriceBottom` / `atPriceMiddle` with `price`: a label pointing
+  down sits above the price, a label pointing up below it, the other shapes on it) and `shape` (`triangleUp`,
+  `labelDown`, ...) replace `location` and `style`; `textcolor` is `textColor`; `color` is always set (default
+  `#2962FF`); `forceOverlay` is set on each marker. Script markers keep `id`, `tooltip`, and a plotchar marker has its
+  character in `char` (shape `circle`). `ShapeConfig` keeps the PineScript `location` / `style`
+- `polyline.new(curved = true)` no longer warns: the flag goes to the renderer
+
+### Added
+
+- `IndicatorResult` fields `labels`, `lines`, `boxes`, `linefills`, `polylines`, `tables`: `executeScript` returns
+  the drawings alive after the last bar (deleted ones and the ones over `max_*_count` are gone). A `bar_index` x is
+  the time of the bar, or of a future bar after the last bar; a `bar_time` x (UNIX ms) is converted to the unit of
+  the bar times; an object with an `na` coordinate is not drawn; a property the script did not set is omitted, a
+  colour set to `na` is `'transparent'`. Types `LabelData`, `LineDrawingData`, `BoxData`, `LinefillData`,
+  `PolylineData`, `TableData`, `TableCellData`, `TableMergeData` (the PineScript styles, sizes, alignments, fonts and
+  formatting included)
+- `drawingOutputs(bars, timeUnit?)`: the same fields for drawings made outside a script run; `barInterval(bars)` and
+  `barTime(bars, index)`: the time of a bar index, future bars included (last bar time + k times the most frequent gap)
+- `table.*` (22 functions and `table.all`): `new`, `cell`, the 11 `cell_set_*`, `merge_cells`, `clear`, the 6 `set_*`,
+  `delete`; a column or row outside the table throws. `position.*` constants, `text.align_*` and `text.wrap_*`
+  constants, `array.new_table()`
+- Script API `plotcandle(open, high, low, close, title?, { color, wickcolor, bordercolor, display, force_overlay })`
+  and `plotbar(open, high, low, close, title?, { color, display, force_overlay })`: `result.plotCandles` /
+  `result.plotBars` keyed by id, declarations in `candleConfig`. No candle on a bar with an `na` value; a per-bar
+  colour array with an `na` entry gives a transparent candle. Types `PlotCandleData`, `PlotBarData`, `CandleConfig`
+
 ## [0.9.6] - 2026-10-05
 
 ### Added

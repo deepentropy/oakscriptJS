@@ -1,5 +1,5 @@
 /**
- * Registry of the live drawing objects (lines, labels, boxes, polylines, linefills), as PineScript
+ * Registry of the live drawing objects (lines, labels, boxes, polylines, linefills, tables), as PineScript
  * keeps them. PineScript rules:
  *
  * - `line.all`, `label.all`, ... list the live objects in creation order (a copy of the list)
@@ -15,9 +15,9 @@
  * @module drawing/registry
  */
 
-import type { Box, Label, Line, Linefill, Polyline } from '../types/index.js';
+import type { Box, Label, Line, Linefill, Polyline, Table } from '../types/index.js';
 
-export type DrawingKind = 'line' | 'label' | 'box' | 'polyline' | 'linefill';
+export type DrawingKind = 'line' | 'label' | 'box' | 'polyline' | 'linefill' | 'table';
 
 interface DrawingTypes {
   line: Line;
@@ -25,6 +25,7 @@ interface DrawingTypes {
   box: Box;
   polyline: Polyline;
   linefill: Linefill;
+  table: Table;
 }
 
 /** Default `max_lines_count`, `max_labels_count`, `max_boxes_count`, `max_polylines_count`. */
@@ -32,9 +33,16 @@ export const DEFAULT_MAX_COUNT = 50;
 /** Objects above the maximum that PineScript keeps before it deletes the oldest ones. */
 const SLACK = 5;
 
-export type DrawingLimits = Partial<Record<Exclude<DrawingKind, 'linefill'>, number>>;
+export type DrawingLimits = Partial<Record<Exclude<DrawingKind, 'linefill' | 'table'>, number>>;
 
-const live: { [K in DrawingKind]: Array<DrawingTypes[K]> } = { line: [], label: [], box: [], polyline: [], linefill: [] };
+const live: { [K in DrawingKind]: Array<DrawingTypes[K]> } = {
+  line: [],
+  label: [],
+  box: [],
+  polyline: [],
+  linefill: [],
+  table: [],
+};
 let limits: Required<DrawingLimits> = {
   line: DEFAULT_MAX_COUNT,
   label: DEFAULT_MAX_COUNT,
@@ -50,6 +58,7 @@ const COORDINATES: { [K in DrawingKind]: Array<keyof DrawingTypes[K]> } = {
   box: ['left', 'top', 'right', 'bottom'],
   polyline: [],
   linefill: [],
+  table: [],
 };
 
 function markDeleted<K extends DrawingKind>(kind: K, obj: DrawingTypes[K], explicit: boolean): void {
@@ -64,7 +73,8 @@ function markDeleted<K extends DrawingKind>(kind: K, obj: DrawingTypes[K], expli
 export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): DrawingTypes[K] {
   const list = live[kind];
   list.push(obj);
-  const max = limits[kind === 'linefill' ? 'line' : (kind as Exclude<DrawingKind, 'linefill'>)];
+  if (kind === 'table') return obj; // tables have no maximum count
+  const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)];
   if (list.length > max + SLACK) {
     for (const old of list.splice(0, list.length - max)) markDeleted(kind, old, false);
   }

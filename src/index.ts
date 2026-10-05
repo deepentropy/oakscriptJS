@@ -32,11 +32,16 @@ import * as label from './label/index.js';
 import * as linefill from './linefill/index.js';
 import * as chartPoint from './chartpoint/index.js';
 import * as polyline from './polyline/index.js';
+import * as table from './table/index.js';
 import * as text from './text/index.js';
 import * as compare from './compare/index.js';
 import * as callsite from './callsite/index.js';
 
-export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, text, compare, callsite };
+export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, table, text, compare, callsite };
+
+// Renderable drawings (IndicatorResult labels, lines, boxes, linefills, polylines, tables) and future bar times
+export { drawingOutputs, type DrawingOutputs } from './drawing/output.js';
+export { barInterval, barTime } from './drawing/bar-time.js';
 
 // Export Series class (self-contained, no context)
 export { Series, BarData } from './runtime/series.js';
@@ -148,6 +153,7 @@ export type {
   HLineConfig,
   FillConfig,
   ArrowConfig,
+  CandleConfig,
 } from './runtime/types.js';
 
 // Strategy types and constants (the script API forwards strategy.* calls to a host engine)
@@ -182,7 +188,7 @@ export const info = {
   },
   namespaces: {
     core: ['ta', 'math', 'array', 'map', 'str', 'color', 'time', 'timeframe', 'matrix'],
-    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline', 'text'],
+    drawing: ['line', 'box', 'label', 'linefill', 'chartPoint', 'polyline', 'table', 'text'],
     runtime: ['setContext', 'plot', 'hline', 'input_*'],
     indicator: ['indicator', 'input', 'plotHelper', 'createPlot']
   }

@@ -62,7 +62,7 @@ function body() {
 
 // The host runs the body over bars and collects everything it declared.
 const run = executeScript(body, bars);
-// run.result.plots / markers / bgcolors, run.inputConfig, run.plotConfig, ...
+// run.result.plots / markers / bgColors / labels / lines / tables, run.inputConfig, run.plotConfig, ...
 ```
 
 For stateful logic PineScript writes with `var`/`:=`/loops, use `eachBar` inside the script body. The values are plain numbers, so JS operators and `if`/`for` work. For PineScript comparison rules (1e-10 tolerance, `na` compares false), use `compare.gt(a, b)`, `compare.eq(a, b)`... from `oakscriptjs`.
