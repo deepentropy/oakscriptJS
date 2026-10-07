@@ -47,6 +47,22 @@ export interface ChartAdapter {
 }
 
 /**
+ * Condition on other inputs, as plain data (PineScript `active = <expression>`):
+ * - `'showMa'`: the bool input `showMa` is true
+ * - `{ input: 'maType', eq: 'SMA' }` / `{ input: 'maType', ne: 'None' }`: the value of an input is / is not a value
+ *   (strict equality; without `eq` and `ne`: the input is true)
+ * - `{ not: c }`, `{ any: [c1, c2] }` (or), `{ all: [c1, c2] }` (and)
+ *
+ * Evaluated by `isInputActive()`.
+ */
+export type InputCondition =
+  | string
+  | { input: string; eq?: unknown; ne?: unknown }
+  | { not: InputCondition }
+  | { any: InputCondition[] }
+  | { all: InputCondition[] };
+
+/**
  * Configuration for registering an input
  */
 export interface InputConfig {
@@ -82,6 +98,13 @@ export interface InputConfig {
    * bool, color and time inputs, 'all' for the others
    */
   display?: 'all' | 'none' | 'data_window' | 'status_line';
+  /**
+   * Whether the input can be edited (PineScript `active`): an inactive input is shown greyed out in the settings.
+   * UI only: an inactive input still gives its value to the script. Not set means always active. A boolean is the
+   * value for the current inputs; an `InputCondition` names the inputs it depends on, so a host can apply it
+   * without running the script (see `isInputActive()`)
+   */
+  active?: boolean | InputCondition;
 }
 
 /**

@@ -139,6 +139,7 @@ export {
   input_session,
   input_time,
 } from './runtime/inputs.js';
+export { isInputActive } from './runtime/input-active.js';
 
 export type {
   OakScriptContext,
@@ -147,6 +148,7 @@ export type {
   SeriesHandle,
   SeriesOptions,
   InputConfig,
+  InputCondition,
   InputOptions,
   OhlcvData,
   PlotConfig,

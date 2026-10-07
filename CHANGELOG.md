@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `InputConfig.active` (PineScript `active`): whether the input can be edited; an inactive input is greyed out in the
+  settings and keeps its value. It is a boolean or an `InputCondition`, plain data naming the inputs it depends on:
+  an input id (`'showMa1'`), `{ input, eq / ne }`, `{ not }`, `{ any: [] }`, `{ all: [] }`.
+  `isInputActive(config, inputs, configs?)` evaluates it. Script API: `input.*(defval, title, { active })` (#156).
 - Script API chart context: `minmove` and `pricescale`, read as `syminfo.minmove` and `syminfo.pricescale`. Without
   them they come from `mintick` (pricescale 10^decimals: 0.25 is 25 / 100); `syminfo.mintick` is
   `minmove / pricescale` when `mintick` is not given.

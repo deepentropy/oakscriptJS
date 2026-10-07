@@ -69,6 +69,7 @@ import type {
   FillConfig,
   HLineConfig,
   InputConfig,
+  InputCondition,
   PlotConfig,
   ShapeConfig,
 } from '../runtime/types.js';
@@ -381,13 +382,19 @@ function declare(c: Collector, kind: 'indicator' | 'strategy'): void {
   c.declaration = kind;
 }
 
-/** Options of every `input.*` kind (PineScript `group`, `inline`, `tooltip`, `confirm`, `display`). */
+/** Options of every `input.*` kind (PineScript `group`, `inline`, `tooltip`, `confirm`, `display`, `active`). */
 export interface InputOptions {
   group?: string;
   inline?: string;
   tooltip?: string;
   confirm?: boolean;
   display?: InputConfig['display'];
+  /**
+   * PineScript `active`: false greys the input out in the settings (it keeps its value). A boolean as in
+   * PineScript (`active: showMa`), or a condition on input ids that a host can apply without running the script
+   * (`active: 'ma_1'`, `active: { input: 'type', ne: 'None' }`)
+   */
+  active?: boolean | InputCondition;
 }
 
 export interface NumericInputOptions extends InputOptions {
@@ -408,6 +415,7 @@ function common(opts: InputOptions): Partial<InputConfig> {
   if (opts.tooltip !== undefined) out.tooltip = opts.tooltip;
   if (opts.confirm !== undefined) out.confirm = opts.confirm;
   if (opts.display !== undefined) out.display = opts.display;
+  if (opts.active !== undefined) out.active = opts.active;
   return out;
 }
 
@@ -2146,11 +2154,13 @@ export const math = {
   }) as typeof mathCore.round_to_mintick,
 };
 export * as compare from '../compare/index.js';
+export { isInputActive } from '../runtime/input-active.js';
 export type {
   Bar,
   IndicatorResult,
   TimeValue,
   InputConfig,
+  InputCondition,
   PlotConfig,
   HLineConfig,
   FillConfig,

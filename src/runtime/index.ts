@@ -41,10 +41,13 @@ export type {
   SeriesHandle,
   SeriesOptions,
   InputConfig,
+  InputCondition,
   InputOptions,
   OhlcvData,
     PlotConfig,
 } from './types.js';
+
+export { isInputActive } from './input-active.js';
 
 // Adapter exports
 export { LightweightChartsAdapter } from './adapters/LightweightChartsAdapter.js';

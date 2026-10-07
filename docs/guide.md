@@ -311,6 +311,10 @@ Key points:
 - `input.*(defval, title, opts)` declares the input AND returns its current
   value (the host-supplied override on recalculations, else the default).
   `input.source()` returns a Series.
+  `opts.active` is PineScript's `active`: false greys the input out in the settings (it keeps its value). Pass
+  the boolean as in PineScript (`{ active: showMa }`) or a condition on input ids (`{ active: 'show_ma' }`,
+  `{ active: { input: 'ma_type', ne: 'None' } }`, `{ not }`, `{ any: [] }`, `{ all: [] }`); a host reads it with
+  `isInputActive(config, inputs, configs)`.
 - OHLCV builtins (`open`, `high`, `low`, `close`, `volume`, `hl2`, `hlc3`,
   `ohlc4`, `hlcc4`) are context-bound Series.
 - `ta.*` is the Series API with the chart-implicit functions bound to the
