@@ -78,8 +78,8 @@ export interface InputConfig {
   /** Ask for the value when the script is added to a chart (PineScript `confirm`) */
   confirm?: boolean;
   /**
-   * Where the input value is shown (PineScript `display`); not set means the PineScript default: 'all', except
-   * color inputs: 'none'
+   * Where the input value is shown (PineScript `display`); not set means the PineScript default: 'none' for
+   * bool, color and time inputs, 'all' for the others
    */
   display?: 'all' | 'none' | 'data_window' | 'status_line';
 }
