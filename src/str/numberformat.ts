@@ -230,3 +230,16 @@ function affixes(p: Pattern, negative: boolean, body: string): string {
   if (p.negPrefix === null) return '-' + p.prefix + body + p.suffix;
   return p.negPrefix + body + p.negSuffix!;
 }
+
+/**
+ * `[minmove, pricescale]` of a tick (PineScript `syminfo.mintick = syminfo.minmove / syminfo.pricescale`).
+ * Without `pricescale` it is 10^(decimals of the tick): 0.02 is 2 / 100, 0.25 is 25 / 100. A symbol priced in
+ * fractions needs its own (1/32 is 1 / 32).
+ */
+export function tickScale(mintick: number, pricescale?: number): [number, number] {
+  if (pricescale === undefined) {
+    const m = /^\d+(?:\.(\d+))?(?:e-(\d+))?$/.exec(String(mintick));
+    pricescale = Number(`1e${m ? (m[1]?.length ?? 0) + Number(m[2] ?? 0) : 0}`);
+  }
+  return [Math.round(mintick * pricescale), pricescale];
+}

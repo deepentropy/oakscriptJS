@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Script API chart context: `minmove` and `pricescale`, read as `syminfo.minmove` and `syminfo.pricescale`. Without
+  them they come from `mintick` (pricescale 10^decimals: 0.25 is 25 / 100); `syminfo.mintick` is
+  `minmove / pricescale` when `mintick` is not given.
+- `str.tostring(x, format.mintick, mintick, pricescale)`: a fourth argument for symbols priced in fractions (in a
+  script: `syminfo.pricescale`). The text has floor(log10(pricescale)) decimals, the tick value rounded half even
+  (1/32: 25.25 gives "25.2"; 2/8: no decimal) (#155).
+
 ### Fixed
 
+- `str.tostring(x, format.mintick)` prints the tick's decimals with their trailing zeros ("1.00", "0.40" for tick
+  0.01) and no longer uses `math.round_to_mintick` (unchanged): the double quotient `|x| / (1 / pricescale)` is
+  rounded half away from zero (140.355 / 0.01 = 14035.499999999998 gives "140.35", it gave "140.36"), then brought
+  to the tick with `floor(units / minmove + 0.5)` (tick 0.02: 0.005 gives "0.02", -0.01 gives "0.00") (#155).
 - `InputConfig.display` doc: an unset `display` means 'none' for bool, color and time inputs, 'all' for the
   others (it said only color inputs default to 'none') (#154).
 

@@ -78,6 +78,16 @@ describe('exchange time zone defaults', () => {
     expect(run(sym, () => [math.round_to_mintick(10.1), math.round_to_mintick(10.125), math.round_to_mintick(10.3, 0.5)])).toEqual([10, 10.25, 10.5]);
     expect(run(sym, () => math.round_to_mintick(close).toArray())).toEqual([1.5, 1.5, 1.5]);
     expect(() => run({}, () => syminfo.mintick)).toThrow('syminfo.mintick is not known');
+    // minmove / pricescale: from the tick by default (25 / 100), or from the chart context (2 / 8)
+    expect(run(sym, () => [syminfo.minmove, syminfo.pricescale])).toEqual([25, 100]);
+    expect(run({ minmove: 2, pricescale: 8 }, () => [syminfo.mintick, syminfo.minmove, syminfo.pricescale])).toEqual([0.25, 2, 8]);
+    expect(run({ mintick: 0.03125, pricescale: 32 }, () => [syminfo.minmove, syminfo.pricescale])).toEqual([1, 32]);
+    expect(() => run({}, () => syminfo.pricescale)).toThrow('syminfo.mintick is not known');
+    // format.mintick uses the chart symbol's tick and price scale
+    expect(run(sym, () => str.tostring(0.375, 'mintick'))).toBe('0.50');
+    expect(run({ minmove: 2, pricescale: 8 }, () => str.tostring(0.375, 'mintick'))).toBe('0');
+    expect(run({ minmove: 1, pricescale: 32 }, () => str.tostring(25.25, 'mintick'))).toBe('25.2');
+    expect(run({ minmove: 1, pricescale: 32 }, () => str.tostring(25.25, 'mintick', 0.01))).toBe('25.25');
     expect(() => run({}, () => math.round_to_mintick(1.2))).toThrow('syminfo.mintick is not known');
     expect(run({}, () => math.sqrt(4))).toBe(2);
   });

@@ -372,7 +372,7 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 reference does not define the rule.
 
 9. `time(timeframe, session, timezone)`, `time_close(...)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`,
-   `timeframe.*` variables, `syminfo.timezone/session/mintick/pointvalue/mincontract` - script API, with the chart
+   `timeframe.*` variables, `syminfo.timezone/session/mintick/minmove/pricescale/pointvalue/mincontract` - script API, with the chart
    context of `executeScript` (chart timeframe, exchange time zone, session in the symbol session format, symbol
    properties)
 

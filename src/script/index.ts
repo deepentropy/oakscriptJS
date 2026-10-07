@@ -92,6 +92,7 @@ import * as timeframeCore from '../timeframe/index.js';
 import * as timeCore from '../time/index.js';
 import * as strCore from '../str/index.js';
 import { formatMessage } from '../str/messageformat.js';
+import { tickScale } from '../str/numberformat.js';
 import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
 import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
@@ -1522,8 +1523,18 @@ export interface ChartContext {
   tickerid?: string;
   /** Unit of `Bar.time`: 's' (default, as lightweight-charts) or 'ms'. PineScript times are in ms. */
   timeUnit?: 's' | 'ms';
-  /** Minimum price move of the symbol (PineScript `syminfo.mintick`), e.g. 0.01; used by `math.round_to_mintick` */
+  /**
+   * Minimum price move of the symbol (PineScript `syminfo.mintick`), e.g. 0.01; used by `math.round_to_mintick` and
+   * `format.mintick`. Default: `minmove / pricescale` when both are given
+   */
   mintick?: number;
+  /**
+   * PineScript `syminfo.minmove` and `syminfo.pricescale` (mintick = minmove / pricescale). Default: from `mintick`,
+   * with pricescale 10^(its decimals) (0.25 is 25 / 100). Pass them for a symbol priced in fractions (1 / 32):
+   * `format.mintick` shows floor(log10(pricescale)) decimals
+   */
+  minmove?: number;
+  pricescale?: number;
   /** Currency value of one point of price move for one contract (PineScript `syminfo.pointvalue`); 1 for stocks */
   pointvalue?: number;
   /** Smallest tradable quantity (PineScript `syminfo.mincontract`); 1 for whole shares */
@@ -1611,18 +1622,36 @@ function symbolProperty(key: 'mintick' | 'pointvalue' | 'mincontract'): number {
   collector();
   const value = chartCtx[key];
   if (value === undefined) {
+    if (key === 'mintick' && chartCtx.minmove !== undefined && chartCtx.pricescale !== undefined) {
+      return chartCtx.minmove / chartCtx.pricescale;
+    }
     throw new Error(`syminfo.${key} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
   }
   return value;
 }
 
+/** `[minmove, pricescale]` of the chart symbol: from the chart context, else from its mintick. */
+function symbolScale(): [number, number] {
+  collector();
+  const { minmove, pricescale } = chartCtx;
+  if (minmove !== undefined && pricescale !== undefined) return [minmove, pricescale];
+  const [move, scale] = tickScale(symbolProperty('mintick'), pricescale);
+  return [minmove ?? move, scale];
+}
+
 /**
  * PineScript `syminfo.timezone`, `syminfo.tickerid`, `syminfo.session` (session type), `syminfo.mintick`,
- * `syminfo.pointvalue` and `syminfo.mincontract`, from the chart context.
+ * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue` and `syminfo.mincontract`, from the chart context.
  */
 export const syminfo = {
   get mintick(): number {
     return symbolProperty('mintick');
+  },
+  get minmove(): number {
+    return symbolScale()[0];
+  },
+  get pricescale(): number {
+    return symbolScale()[1];
   },
   get pointvalue(): number {
     return symbolProperty('pointvalue');
@@ -1709,9 +1738,11 @@ export function inSession(time: number, session: string, timezone?: string): boo
 /** PineScript `str.*`; `format_time` and the dates of `format` use the exchange time zone by default. */
 export const str = {
   ...strCore,
-  // format.mintick rounds to the chart symbol's tick (syminfo.mintick)
-  tostring: ((value: unknown, format?: string, mintick?: number) =>
-    strCore.tostring(value as never, format, format === 'mintick' ? (mintick ?? syminfo.mintick) : mintick)) as typeof strCore.tostring,
+  // format.mintick uses the chart symbol's tick and price scale (syminfo.mintick, syminfo.pricescale)
+  tostring: ((value: unknown, format?: string, mintick?: number, pricescale?: number) =>
+    format === 'mintick' && mintick === undefined
+      ? strCore.tostring(value as never, format, syminfo.mintick, pricescale ?? syminfo.pricescale)
+      : strCore.tostring(value as never, format, mintick, pricescale)) as typeof strCore.tostring,
   format_time(time: number, format: string = "yyyy-MM-dd'T'HH:mm:ssZ", timezone?: string): string {
     return strCore.format_time(time, format, timezone ?? exchangeTimezone());
   },

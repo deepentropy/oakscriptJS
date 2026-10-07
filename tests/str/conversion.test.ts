@@ -62,9 +62,72 @@ describe('str.tostring', () => {
 
   it('format.mintick rounds to the tick and shows its decimals (PineScript)', () => {
     expect(str.tostring(1234.5678, 'mintick', 0.01)).toBe('1234.57');
-    expect(str.tostring(10.1, 'mintick', 0.25)).toBe('10');
+    expect(str.tostring(10.1, 'mintick', 0.25)).toBe('10.00');
     expect(str.tostring(0.123456789, 'mintick', 1e-8)).toBe('0.12345679');
     expect(str.tostring(1234.5678, 'mintick', 1)).toBe('1235');
+  });
+
+  it('format.mintick keeps the trailing zeros of the tick decimals (#155)', () => {
+    expect(str.tostring(1.0044630000000001, 'mintick', 0.01)).toBe('1.00');
+    expect(str.tostring(0.401785, 'mintick', 0.01)).toBe('0.40');
+    expect(str.tostring(280.9, 'mintick', 0.01)).toBe('280.90');
+    expect(str.tostring(-13.2, 'mintick', 0.01)).toBe('-13.20');
+  });
+
+  it('format.mintick rounds the double quotient x / mintick half away from zero (#155)', () => {
+    // 140.355 / 0.01 = 14035.499999999998: down, where math.round_to_mintick rounds the exact decimal up
+    expect(str.tostring(140.355, 'mintick', 0.01)).toBe('140.35');
+    expect(str.tostring(33.635, 'mintick', 0.01)).toBe('33.63'); // 33.635 * 100 is 3363.5, 33.635 / 0.01 is not
+    expect(str.tostring(30.955, 'mintick', 0.01)).toBe('30.95');
+    expect(str.tostring(280.905, 'mintick', 0.01)).toBe('280.90');
+    expect(str.tostring(-2.9849999999999994, 'mintick', 0.01)).toBe('-2.98');
+    expect(str.tostring(1.125, 'mintick', 0.01)).toBe('1.13'); // exact .5 quotient: away from zero
+    expect(str.tostring(-1.125, 'mintick', 0.01)).toBe('-1.13');
+    expect(str.tostring(6.5, 'mintick', 1)).toBe('7');
+    expect(str.tostring(41967.5, 'mintick', 1)).toBe('41968');
+  });
+
+  it('format.mintick with a tick step above 1: to 1 / pricescale half away, then to the tick, a half up (#155)', () => {
+    // tick 0.02 (minmove 2, pricescale 100)
+    expect(str.tostring(0.005, 'mintick', 0.02)).toBe('0.02'); // 0.5 -> 1 unit -> 0.5 tick -> 1 tick
+    expect(str.tostring(0.01, 'mintick', 0.02)).toBe('0.02');
+    expect(str.tostring(-0.01, 'mintick', 0.02)).toBe('0.00');
+    expect(str.tostring(-0.03, 'mintick', 0.02)).toBe('-0.02');
+    expect(str.tostring(0.025, 'mintick', 0.02)).toBe('0.04');
+    expect(str.tostring(0.145, 'mintick', 0.02)).toBe('0.14'); // 0.145 / 0.01 = 14.499999999999998
+    // tick 0.05, 0.00005, 0.25, 0.5
+    expect(str.tostring(0.075, 'mintick', 0.05)).toBe('0.10');
+    expect(str.tostring(-0.075, 'mintick', 0.05)).toBe('-0.10');
+    expect(str.tostring(0.000225, 'mintick', 0.00005)).toBe('0.00020');
+    expect(str.tostring(0.125, 'mintick', 0.25)).toBe('0.25');
+    expect(str.tostring(-0.125, 'mintick', 0.25)).toBe('-0.25');
+    expect(str.tostring(0.25, 'mintick', 0.5)).toBe('0.5');
+  });
+
+  it('format.mintick with other decimal ticks and values around zero (#155)', () => {
+    expect(str.tostring(1.000005, 'mintick', 0.00001)).toBe('1.00001');
+    expect(str.tostring(0.5e-8, 'mintick', 1e-8)).toBe('0.00000001');
+    expect(str.tostring(12.25, 'mintick', 0.1)).toBe('12.3');
+    expect(str.tostring(-0.004, 'mintick', 0.01)).toBe('0.00');
+    expect(str.tostring(-0.005, 'mintick', 0.01)).toBe('-0.01');
+    expect(str.tostring(0, 'mintick', 0.01)).toBe('0.00');
+  });
+
+  it('format.mintick with a pricescale that is no power of 10: floor(log10(pricescale)) decimals, half even (#155)', () => {
+    // 1/32 (minmove 1, pricescale 32): one decimal
+    expect(str.tostring(0.046875, 'mintick', 0.03125, 32)).toBe('0.1'); // 1.5 ticks -> 2 ticks = 0.0625
+    expect(str.tostring(0.0390625, 'mintick', 0.03125, 32)).toBe('0.0');
+    expect(str.tostring(25.25, 'mintick', 0.03125, 32)).toBe('25.2'); // half even
+    expect(str.tostring(25.265625, 'mintick', 0.03125, 32)).toBe('25.3');
+    expect(str.tostring(-0.015625, 'mintick', 0.03125, 32)).toBe('-0.0'); // -1 tick prints as zero, sign kept
+    expect(str.tostring(-0.0078125, 'mintick', 0.03125, 32)).toBe('0.0');
+    expect(str.tostring(16, 'mintick', 0.03125, 32)).toBe('16.0');
+    // 1/64: one decimal; 2/8: none
+    expect(str.tostring(0.0234375, 'mintick', 0.015625, 64)).toBe('0.0');
+    expect(str.tostring(0.375, 'mintick', 0.25, 8)).toBe('0');
+    expect(str.tostring(0.375, 'mintick', 0.25)).toBe('0.50'); // 25 / 100 by default
+    // a decimal pricescale given explicitly is the default
+    expect(str.tostring(140.355, 'mintick', 0.01, 100)).toBe('140.35');
   });
 
   it('a negative subpattern after ";" (PineScript)', () => {

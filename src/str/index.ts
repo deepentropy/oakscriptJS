@@ -9,10 +9,9 @@
  * @version 6
  */
 
-import { formatNumber } from './numberformat.js';
+import { formatNumber, tickScale } from './numberformat.js';
 import { formatMessage } from './messageformat.js';
 import { formatDate } from './dateformat.js';
-import { round_to_mintick } from '../math/index.js';
 import type { int, bool, float, simple_int, simple_string } from '../types/index.js';
 
 /**
@@ -40,6 +39,8 @@ export function length(str: simple_string): int {
  *   `format.price` / `format.inherit`
  * @param mintick - Tick size for `format.mintick` (PineScript `syminfo.mintick`, implicit there). Not part of the
  *   PineScript signature: the core function cannot see the chart, so pass it, as for `math.round_to_mintick`
+ * @param pricescale - Price scale of the symbol for `format.mintick` (PineScript `syminfo.pricescale`), needed for a
+ *   symbol priced in fractions (32 for a 1/32 tick). Default: 10^(decimals of `mintick`)
  * @returns String representation of the value
  *
  * @remarks
@@ -53,8 +54,12 @@ export function length(str: simple_string): int {
  * - `format.percent` shows 2 decimals and "%" without multiplying; `format.volume` uses K, M, B, T
  * - `format.price` and `format.inherit` give "price1" / "inherit1" in PineScript: they are patterns
  *   without digit characters, and oakscriptjs does the same
- * - `format.mintick` rounds to the tick (`math.round_to_mintick`) and shows the tick's decimals ("#.##" for 0.01);
- *   it throws without `mintick`
+ * - `format.mintick` shows floor(log10(pricescale)) decimals, zeros included ("1.00", "0.40" for tick 0.01), and
+ *   rounds in two steps, with mintick = minmove / pricescale: the double quotient `|x| / (1 / pricescale)` half away
+ *   from zero (140.355 / 0.01 = 14035.499999999998 gives "140.35", where `math.round_to_mintick` gives 140.36),
+ *   then `floor(units / minmove + 0.5)` ticks (tick 0.02: 0.005 gives "0.02", -0.01 gives "0.00"). With a
+ *   pricescale that is no power of 10 the tick value is then rounded half even to those decimals (1/32: 25.25 gives
+ *   "25.2", -0.02 gives "-0.0"). It throws without `mintick`
  * - na gives "NaN" ("NaN%" with `format.percent`); an infinity gives "NaN" too ("NaN%" for `format.percent`,
  *   "NaNT" for `format.volume`), except `format.mintick`, which gives "Infinity" / "-Infinity"
  *
@@ -66,7 +71,7 @@ export function length(str: simple_string): int {
  * str.tostring(12345.678, format.volume) // "12.346K"
  * ```
  */
-export function tostring(value: any, format?: simple_string, mintick?: float): string {
+export function tostring(value: any, format?: simple_string, mintick?: float, pricescale?: float): string {
   if (typeof value !== 'number') return String(value);
   if (Number.isNaN(value)) return format === 'percent' ? 'NaN%' : 'NaN';
   if (!Number.isFinite(value)) {
@@ -94,11 +99,19 @@ export function tostring(value: any, format?: simple_string, mintick?: float): s
       if (mintick === undefined) {
         throw new Error('str.tostring(x, format.mintick) needs the tick size: pass it as str.tostring(x, format.mintick, syminfo.mintick)');
       }
-      // mask: one '#' per decimal of the tick ("#.##" for 0.01, "#" for 1)
-      const m = /^\d+(?:\.(\d+))?(?:e-(\d+))?$/.exec(String(mintick));
-      const decimals = m ? (m[1]?.length ?? 0) + Number(m[2] ?? 0) : 0;
-      const mask = decimals ? '#.' + '#'.repeat(decimals) : '#';
-      return formatNumber(round_to_mintick(value, mintick), mask, 'halfUpShortest');
+      const [minmove, scale] = tickScale(mintick, pricescale);
+      const decimals = Math.floor(Math.log10(scale) + 1e-9);
+      const mask = decimals > 0 ? '0.' + '0'.repeat(decimals) : '0';
+      if (!(minmove >= 1)) return formatNumber(value, mask, 'halfUpShortest');
+      // 1. the double quotient |x| / (1 / pricescale), half away from zero (not math.round_to_mintick's exact decimal)
+      const scaled = Math.abs(value) / (1 / scale);
+      let units = Math.trunc(scaled);
+      if (scaled - units >= 0.5) units++;
+      // 2. to the tick, a half going up (minmove 2: -0.01 gives "0.00", 0.01 gives "0.02")
+      const ticks = Math.floor((value < 0 ? -units : units) / minmove + 0.5);
+      // 3. the tick value at the scale's decimals; a negative one keeps its sign when it prints as zero ("-0.0")
+      const text = formatNumber((Math.abs(ticks) * minmove) / scale, mask, 'halfEvenExact');
+      return ticks < 0 ? '-' + text : text;
     }
     default:
       return formatNumber(value, format, 'halfUpShortest');
