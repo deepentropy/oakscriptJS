@@ -333,10 +333,10 @@ export function roc(source: Series, length: number): Series {
  * @param length - Period length
  * @returns Series with highest values
  */
-export function highest(source: Series, length: number): Series {
+export function highest(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const result = taCore.highest(sourceValues, length);
+  const result = taCore.highest(sourceValues, length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 
@@ -346,10 +346,10 @@ export function highest(source: Series, length: number): Series {
  * @param length - Period length
  * @returns Series with lowest values
  */
-export function lowest(source: Series, length: number): Series {
+export function lowest(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const result = taCore.lowest(sourceValues, length);
+  const result = taCore.lowest(sourceValues, length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 
@@ -688,9 +688,10 @@ export function hma(source: Series, length: number): Series {
  * @returns Series with the pivot high value on the bar where the pivot is confirmed,
  *   `rightbars` bars after the pivot bar (as in PineScript), NaN elsewhere
  */
-export function pivothigh(source: Series, leftbars: number, rightbars: number): Series {
+export function pivothigh(source: Series, leftbars: number | Series, rightbars: number | Series): Series {
   const bars = source.bars as Bar[];
-  const result = taCore.pivothigh(source.toArray(), leftbars, rightbars);
+  const arr = (v: number | Series) => (v instanceof Series ? v.toArray() : v);
+  const result = taCore.pivothigh(source.toArray(), arr(leftbars), arr(rightbars));
   return Series.fromArray(bars, result);
 }
 
@@ -702,9 +703,10 @@ export function pivothigh(source: Series, leftbars: number, rightbars: number): 
  * @returns Series with the pivot low value on the bar where the pivot is confirmed,
  *   `rightbars` bars after the pivot bar (as in PineScript), NaN elsewhere
  */
-export function pivotlow(source: Series, leftbars: number, rightbars: number): Series {
+export function pivotlow(source: Series, leftbars: number | Series, rightbars: number | Series): Series {
   const bars = source.bars as Bar[];
-  const result = taCore.pivotlow(source.toArray(), leftbars, rightbars);
+  const arr = (v: number | Series) => (v instanceof Series ? v.toArray() : v);
+  const result = taCore.pivotlow(source.toArray(), arr(leftbars), arr(rightbars));
   return Series.fromArray(bars, result);
 }
 
@@ -861,9 +863,9 @@ export function kcw(bars: Bar[], source: Series, length: number = 20, mult: numb
  * @param length - Period length
  * @returns Series with bar offsets to highest value
  */
-export function highestbars(source: Series, length: number): Series {
+export function highestbars(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
-  const result = taCore.highestbars(source.toArray(), length);
+  const result = taCore.highestbars(source.toArray(), length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 
@@ -873,9 +875,9 @@ export function highestbars(source: Series, length: number): Series {
  * @param length - Period length
  * @returns Series with bar offsets to lowest value
  */
-export function lowestbars(source: Series, length: number): Series {
+export function lowestbars(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
-  const result = taCore.lowestbars(source.toArray(), length);
+  const result = taCore.lowestbars(source.toArray(), length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 

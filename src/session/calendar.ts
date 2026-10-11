@@ -6,7 +6,10 @@
  * - periods "HHMM-HHMM", several separated by commas; "24x7" is the whole day, every day
  * - a period whose end is not after its start ("1700-1600", "1700-1700") starts the day before the
  *   trading day: the session that opens Sunday 17:00 is Monday's
- * - "HHMMF<n>" moves a time <n> days before the trading day ("1700F2-1200F1")
+ * - "HHMMF<n>" moves a time <n> days before the trading day ("1700F2-1200F1"); "F" alone is one day ("1700F-1900":
+ *   17:00 of the day before to 19:00)
+ * - several sections joined by "|", each with its own days ("1900-1900:3456|1700F-1900:2": Monday opens on Sunday
+ *   17:00, the other days at 19:00 of the day before)
  * - optional days after ":" (1 = Sunday ... 7 = Saturday); without days a symbol session trades Monday to
  *   Friday ("24x7": every day), and a PineScript session string follows PineScript's rules (one period:
  *   every day; several periods: Monday to Friday)
@@ -62,9 +65,10 @@ export const weekdayOf = (date: DateNum): number => new Date(utcOf(date)).getUTC
 export const dateUtcMs = utcOf;
 
 function parseTime(token: string, spec: string): { minutes: number; offset?: number } {
-  const m = /^(\d{2})(\d{2})(?:F(\d+))?$/.exec(token.trim());
+  const m = /^(\d{2})(\d{2})(?:F(\d*))?$/.exec(token.trim());
   if (!m) throw new SyntaxError(`Invalid session "${spec}"`);
-  return { minutes: Number(m[1]) * 60 + Number(m[2]), offset: m[3] === undefined ? undefined : Number(m[3]) };
+  // "F" without a number is one day before the trading day
+  return { minutes: Number(m[1]) * 60 + Number(m[2]), offset: m[3] === undefined ? undefined : Number(m[3] || 1) };
 }
 
 function parsePeriods(text: string, spec: string): Period[] {
@@ -102,6 +106,17 @@ function pineVersion(text: string, from: DateNum): Version {
 
 function parseVersion(text: string, from: DateNum, spec: string, rule: 'symbol' | 'pine'): Version {
   if (rule === 'pine') return pineVersion(text, from);
+  if (text.includes('|')) {
+    // sections with their own days
+    const byDay: Period[][] = Array.from({ length: 8 }, () => []);
+    for (const section of text.split('|').filter((part) => part.trim())) {
+      const one = parseVersion(section, from, spec, rule);
+      one.days.forEach((on, d) => {
+        if (on) byDay[d] = one.periods;
+      });
+    }
+    return { from, periods: [], days: byDay.map((p) => p.length > 0), byDay };
+  }
   const [periodText = '', dayText] = text.trim().split(':');
   const periods = parsePeriods(periodText, spec);
   const allDays = periodText.trim() === '24x7';
@@ -172,6 +187,25 @@ export class TradingCalendar {
 
   isTradingDay(date: DateNum): boolean {
     return this.periods(date).length > 0;
+  }
+
+  /**
+   * True for a bar that opens after the session of its day was cut by a correction (an early close) but inside the
+   * usual hours of that day: PineScript has no period for such a bar (`time("D")` is na on it).
+   */
+  afterEarlyClose(time: number): boolean {
+    const at = this.locate(time);
+    if (!at || at.inside || !this.corrections.get(at.date)) return false;
+    const version = [...this.versions].reverse().find((v) => v.from <= at.date)!;
+    const usual = version.byDay ? version.byDay[weekdayOf(at.date)]! : version.days[weekdayOf(at.date)] ? version.periods : [];
+    const y = Math.floor(at.date / 10000);
+    const m = Math.floor(at.date / 100) % 100;
+    const d = at.date % 100;
+    return usual.some(
+      (p) =>
+        zonedToUnix(this.timezone, y, m, d - p.startOffset, Math.floor(p.start / 60), p.start % 60) <= time &&
+        time < zonedToUnix(this.timezone, y, m, d - p.endOffset, Math.floor(p.end / 60), p.end % 60)
+    );
   }
 
   /**

@@ -549,18 +549,18 @@ export const ta = {
   ): [Series, Series, Series, Series, Series] =>
     taSeries.ichimoku(bars(), conversionPeriods, basePeriods, laggingSpan2Periods, displacement),
   /** `ta.highest(source, length)` or `ta.highest(length)` (source = high). */
-  highest: (sourceOrLength: Series | number, length?: number): Series =>
+  highest: (sourceOrLength: Series | number, length?: number | Series): Series =>
     typeof sourceOrLength === 'number' ? taSeries.highest(high, sourceOrLength) : taSeries.highest(sourceOrLength, length!),
   /** `ta.lowest(source, length)` or `ta.lowest(length)` (source = low). */
-  lowest: (sourceOrLength: Series | number, length?: number): Series =>
+  lowest: (sourceOrLength: Series | number, length?: number | Series): Series =>
     typeof sourceOrLength === 'number' ? taSeries.lowest(low, sourceOrLength) : taSeries.lowest(sourceOrLength, length!),
   /** `ta.highestbars(source, length)` or `ta.highestbars(length)` (source = high); offsets are 0 or negative. */
-  highestbars: (sourceOrLength: Series | number, length?: number): Series =>
+  highestbars: (sourceOrLength: Series | number, length?: number | Series): Series =>
     typeof sourceOrLength === 'number'
       ? taSeries.highestbars(high, sourceOrLength)
       : taSeries.highestbars(sourceOrLength, length!),
   /** `ta.lowestbars(source, length)` or `ta.lowestbars(length)` (source = low); offsets are 0 or negative. */
-  lowestbars: (sourceOrLength: Series | number, length?: number): Series =>
+  lowestbars: (sourceOrLength: Series | number, length?: number | Series): Series =>
     typeof sourceOrLength === 'number'
       ? taSeries.lowestbars(low, sourceOrLength)
       : taSeries.lowestbars(sourceOrLength, length!),
@@ -579,12 +579,12 @@ export const ta = {
   mfi: (source: Series, length: number): Series => taSeries.mfi(source, length, volume),
   /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
    *  The value appears `rightbars` bars after the pivot bar, as in PineScript. */
-  pivothigh: (sourceOrLeft: Series | number, leftOrRight: number, rightbars?: number): Series =>
+  pivothigh: (sourceOrLeft: Series | number, leftOrRight: number | Series, rightbars?: number | Series): Series =>
     typeof sourceOrLeft === 'number'
       ? taSeries.pivothigh(high, sourceOrLeft, leftOrRight)
       : taSeries.pivothigh(sourceOrLeft, leftOrRight, rightbars!),
   /** `ta.pivotlow(source, leftbars, rightbars)` or `ta.pivotlow(leftbars, rightbars)` (source = low). */
-  pivotlow: (sourceOrLeft: Series | number, leftOrRight: number, rightbars?: number): Series =>
+  pivotlow: (sourceOrLeft: Series | number, leftOrRight: number | Series, rightbars?: number | Series): Series =>
     typeof sourceOrLeft === 'number'
       ? taSeries.pivotlow(low, sourceOrLeft, leftOrRight)
       : taSeries.pivotlow(sourceOrLeft, leftOrRight, rightbars!),
@@ -1827,7 +1827,10 @@ function sessionBars(): { bars: SessionBars; regular: SessionBars } {
  * session. As in PineScript, an explicit time zone reads the symbol session hours in that zone without
  * corrections and holidays, and an explicit session follows PineScript's session string rules.
  */
-function calendarFor(session?: string, timezone?: string): { bars: SessionBars; test: boolean } {
+function calendarFor(
+  session?: string,
+  timezone?: string
+): { bars: SessionBars; test: boolean; inside?: (time: number) => boolean } {
   const { bars } = sessionBars();
   if (!session && !timezone) return { bars, test: false };
   const tz = timezone ?? exchangeTimezone();
@@ -1839,7 +1842,12 @@ function calendarFor(session?: string, timezone?: string): { bars: SessionBars; 
     return { bars: new SessionBars(new TradingCalendar(tz, { session: toSpec(symbol).session }, 'symbol'), bars.chart.period), test: true };
   }
   const spec = session ? { session } : { session: toSpec(chartCtx.session!).session };
-  return { bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period), test: true };
+  return {
+    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period),
+    test: true,
+    // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
+    inside: session ? (time) => timeCore.inSession(time, session, tz) : undefined,
+  };
 }
 
 function perBar(fn: (t: number, i: number, times: number[]) => number): Series {
@@ -1856,16 +1864,16 @@ function callableSeries<F extends (...args: never[]) => Series>(series: Series, 
 
 function timeFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { bars, test } = calendarFor(session, timezone);
+  const { bars, test, inside } = calendarFor(session, timezone);
   const timeframeString = tf || chartTimeframe().period;
-  return perBar((t) => (test && !bars.inside(t) ? NaN : bars.timeOf(t, timeframeString)));
+  return perBar((t) => (test && !(inside ? inside(t) : bars.inside(t)) ? NaN : bars.timeOf(t, timeframeString)));
 }
 
 function timeCloseFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { bars, test } = calendarFor(session, timezone);
+  const { bars, test, inside } = calendarFor(session, timezone);
   const timeframeString = tf || chartTimeframe().period;
-  return perBar((t) => (test && !bars.inside(t) ? NaN : bars.closeOf(t, timeframeString)));
+  return perBar((t) => (test && !(inside ? inside(t) : bars.inside(t)) ? NaN : bars.closeOf(t, timeframeString)));
 }
 
 /**
@@ -1894,7 +1902,9 @@ export const time_tradingday = new Series(ctxBars, (b) => sessionBars().bars.tra
 
 function changeOf(tf: string, firstBar = false): Series {
   const { bars } = sessionBars();
-  return perBar((t, i, times) => ((i > 0 ? bars.timeOf(t, tf) !== bars.timeOf(times[i - 1]!, tf) : firstBar) ? 1 : 0));
+  // a bar without a period (after an early close) is no change, and neither is the bar after it
+  const changed = (a: number, b: number): boolean => !Number.isNaN(a) && !Number.isNaN(b) && a !== b;
+  return perBar((t, i, times) => ((i > 0 ? changed(bars.timeOf(t, tf), bars.timeOf(times[i - 1]!, tf)) : firstBar) ? 1 : 0));
 }
 
 function flag(key: keyof SessionFlags): Series {

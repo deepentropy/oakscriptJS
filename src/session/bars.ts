@@ -111,7 +111,10 @@ export class SessionBars {
     return p[p.length - 1]![1];
   }
 
-  /** PineScript `time(tf)` for a bar that opens at `time`; NaN when no trading day is found. */
+  /**
+   * PineScript `time(tf)` for a bar that opens at `time`; NaN when no trading day is found. An intraday bar that
+   * opens after an early close has no day: `time("D")` is NaN on it (measured; `time("W")` keeps its value).
+   */
   timeOf(time: number, timeframe: string): number {
     const tf = info(timeframe);
     const at = this.calendar.locate(time);
@@ -123,6 +126,7 @@ export class SessionBars {
       return start + Math.floor((time - start) / ms) * ms;
     }
     const { unit, n } = unitOf(tf);
+    if (unit === 'D' && n === 1 && this.stray(time)) return NaN;
     const [from, to] = this.periodRange(at.date, unit, n);
     const first = this.calendar.firstTradingDay(from, to);
     return first === null ? NaN : this.dayStart(first);
@@ -140,6 +144,7 @@ export class SessionBars {
       return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
     }
     const { unit, n } = unitOf(tf);
+    if (unit === 'D' && n === 1 && this.stray(time)) return NaN;
     const [from, to] = this.periodRange(at.date, unit, n);
     // intraday charts: the start of the next period, except "1D" (the session end)
     if (this.chart.isintraday && (unit !== 'D' || n > 1)) {
@@ -154,7 +159,7 @@ export class SessionBars {
   /** Trading day of a bar: on D / W / M charts the last trading day of the chart period. */
   tradingDay(time: number): DateNum | null {
     const at = this.calendar.locate(time);
-    if (!at) return null;
+    if (!at || this.stray(time)) return null;
     if (this.chart.isdwm) {
       const { unit, n } = unitOf(this.chart);
       const [from, to] = this.periodRange(at.date, unit, n);
@@ -188,6 +193,11 @@ export class SessionBars {
     return day === null ? NaN : dateUtcMs(day);
   }
 
+  /** An intraday bar that opens after an early close of its day (see TradingCalendar.afterEarlyClose). */
+  stray(time: number): boolean {
+    return !this.chart.isdwm && this.calendar.afterEarlyClose(time);
+  }
+
   /** True when the bar at `time` is inside the session. */
   inside(time: number): boolean {
     return this.calendar.locate(time)?.inside ?? false;
@@ -217,6 +227,9 @@ export interface SessionFlags {
  * time; first and last bars are per session period (a trading day can have two periods, e.g. after a
  * futures holiday); pre / post market compare with the regular hours of the same trading day; on
  * D / W / M charts every bar is its own session (first, last, market, first and last regular).
+ * The first loaded bar is a first bar only when no earlier bar of its period can exist (it opens less than one chart
+ * period after the period start). A bar that opens after an early close is in the market hours (the usual hours of
+ * its day) but is no last bar.
  */
 export function sessionFlags(times: number[], bars: SessionBars, regular: SessionBars): SessionFlags {
   const n = times.length;
@@ -242,18 +255,22 @@ export function sessionFlags(times: number[], bars: SessionBars, regular: Sessio
     const close = bars.closeOf(t, chart.period);
     const [, end] = bars.calendar.periods(at.date)[at.index]!;
     const period = `${at.date}/${at.index}`;
-    out.isfirstbar[i] = period !== previousPeriod;
-    out.islastbar[i] = close >= end;
+    const [start] = bars.calendar.periods(at.date)[at.index]!;
+    const barMs = in_seconds(chart.period) * 1000;
+    // the first loaded bar: a first bar only when no earlier bar of the period can exist
+    out.isfirstbar[i] = i === 0 ? t - start < barMs : period !== previousPeriod;
+    const stray = bars.stray(t);
+    out.islastbar[i] = !stray && close >= end;
     const regularPeriods = regular.calendar.periods(at.date);
     const r = regularPeriods.findIndex(([s, e]) => s <= t && t < e);
     const market = r !== -1;
-    out.ismarket[i] = market;
+    out.ismarket[i] = market || regular.stray(t);
     if (!market && regularPeriods.length) {
       out.ispremarket[i] = t < regularPeriods[0]![0];
       out.ispostmarket[i] = t >= regularPeriods[regularPeriods.length - 1]![1];
     }
     const regularPeriod = market ? `${at.date}/${r}` : '';
-    out.isfirstbar_regular[i] = market && regularPeriod !== previousRegular;
+    out.isfirstbar_regular[i] = market && (i === 0 ? t - regularPeriods[r]![0] < barMs : regularPeriod !== previousRegular);
     out.islastbar_regular[i] = market && close >= regularPeriods[r]![1];
     previousPeriod = period;
     previousRegular = regularPeriod;

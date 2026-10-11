@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   called with `(barIndex, value, length)` (#160).
 - `callsite.pivothigh()` / `pivotlow()`: `ta.pivothigh` / `ta.pivotlow` in a conditional block, called with
   `(barIndex, value, leftbars, rightbars)`; the lengths can change from one call to the next (#169).
+- Series (per-bar) lengths: `ta.highest`, `ta.lowest`, `ta.highestbars`, `ta.lowestbars` take a length per bar, and
+  `ta.pivothigh` / `ta.pivotlow` a left and a right length per bar (an array; a Series in the Series and script
+  APIs). Each bar uses its own lengths, as PineScript (#160, #169).
+- Symbol sessions with sections and the "F" marker: `"1900-1900:3456|1700F-1900:2"` (each section has its days;
+  "F" alone starts the period one day before the trading day) (#167).
 - Drawing limit: an object held by a `var` variable of the drawing type is never deleted by `max_*_count`, and it
   still counts (measured for lines, labels and boxes). `varDrawing<T>()` is such a variable (`.value = obj` holds the
   new object and releases the one before); `holdDrawing(obj)` / `releaseDrawing(obj)` do it without a variable.
@@ -73,6 +78,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loaded bar (a day in progress) and restart on each new trading day (it was `na` until the first day change). An
   anchor given by the script is unchanged (#166).
 - `line.new(width = 0)` and `box.new(border_width = 0)` keep 0 (they became 1) (#172).
+- `time.inSession` (and `time(tf, session, timezone)` of the script API with a session string):
+  - a run that ends at 0000 ends at 24:00 of the day it starts and belongs to that day: `"2000-0000:23456"` is
+    Monday to Friday 20:00 to midnight (it was Sunday to Thursday);
+  - on the days around a clock change the runs are placed as PineScript places them, not by the wall clock of each
+    bar: a wall time before the wall time of the change uses the offset before it, a later one the offset after it;
+    a run that ends exactly on the wall time of the change uses the offset after it at both ends; when the clocks go
+    back, a run that ends inside the repeated hour covers both passes. Measured on 60-, 15- and 5-minute bars in
+    five time zones: 40 of 3,560,000 tests still differ, on the day before a backward change, for runs with an end
+    or a start at the wall time of the change (#162).
+- Session calendar of the script API (#167):
+  - an intraday bar that opens after an early close (inside the usual hours of its day) has no day: `time("D")`,
+    `time_close("D")` and `time_tradingday` are na on it, `timeframe.change("D")` is false on it and on the next
+    bar, `session.islastbar` is false and `session.ismarket` true; `time("W")` keeps its value;
+  - `session.isfirstbar` / `isfirstbar_regular` on the first loaded bar are true only when no earlier bar of its
+    session can exist (they were always true).
 - `str.tostring(x)` without a format rounds the exact value of the double to 10 decimals: 82325.10000000005 (exactly
   82325.10000000004947...) gives "82325.1", it gave "82325.1000000001". With a format the shortest decimal form is
   rounded as before (`"#.##########"` gives "82325.1000000001", `1.005` with "#.##" gives "1.01") (#171).

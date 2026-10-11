@@ -12,11 +12,13 @@
  * - a trailing ",", ":" or "|" ends its list ("1100-1400," is "1100-1400" Monday to Friday)
  * - an end before the start is an overnight run that belongs to the day it ends; equal ends are 24 hours;
  *   "0000-0000" and "24x7" are the whole day, every day
+ * - a run that ends at 0000 ("2000-0000") ends at 24:00 of the day it starts and belongs to that day
+ *   ("2000-0000:6" is Friday 20:00 to midnight)
  * - a string that is empty or does not start with a digit ("regular", "extended") is the symbol's own session
  * - a malformed string ("1100 -1400", "0930-16", ":8") is an error, as the PineScript runtime error
  */
 
-import { zonedFields } from './timezone.js';
+import { zoneOffset, zonedFields } from './timezone.js';
 
 const MINUTES_PER_DAY = 1440;
 const WEEKDAYS = [2, 3, 4, 5, 6];
@@ -103,9 +105,40 @@ export function parsePineSession(session: string): SessionRange[] | null {
   return out;
 }
 
+const MS_PER_MINUTE = 60_000;
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+/** A clock change is looked for this far on each side of the tested time. */
+const CHANGE_WINDOW = 36 * MS_PER_HOUR;
+
+/** The clock change of `timezone` within 36 hours of `time`: its UNIX time and the offsets (ms) around it. */
+function clockChangeNear(time: number, timezone: string): { at: number; before: number; after: number } | null {
+  let lo = time - CHANGE_WINDOW;
+  let hi = time + CHANGE_WINDOW;
+  const before = zoneOffset(lo, timezone);
+  const after = zoneOffset(hi, timezone);
+  if (before === after) return null;
+  while (hi - lo > MS_PER_MINUTE) {
+    const mid = Math.floor((lo + hi) / 2 / MS_PER_MINUTE) * MS_PER_MINUTE;
+    if (zoneOffset(mid, timezone) === before) lo = mid;
+    else hi = mid;
+  }
+  return { at: hi, before, after };
+}
+
 /**
  * True when `time` falls inside `session`, with the session hours read in `timezone`.
  * A run includes its start minute and excludes its end minute.
+ *
+ * On the days around a clock change PineScript does not read the wall clock of each bar; it places each run of
+ * each local day (measured on 15- and 5-minute bars, clocks going forward and back, four time zones):
+ * - a wall time of the day is placed with the offset before the change when it is before the wall time of the
+ *   change (02:00 for 02:00 -> 03:00, 03:00 for 03:00 -> 02:00), with the offset after it otherwise. Forward
+ *   change: "0100-0300" lasts one hour and "0130-0230" is empty; back change: "0230-0330" lasts two hours
+ * - a run that ends exactly on the wall time of the change is placed with the offset after the change at both ends
+ *   (forward change: "0100-0200" is one hour earlier than the wall clock says)
+ * - clocks going back: a run that ends inside the repeated hour also covers its second pass
+ *
  * @throws Error for the symbol's own session ("regular", "extended", ""), which this function does not know: use
  * `time(timeframe, session)` in a script with the chart session
  */
@@ -113,16 +146,47 @@ export function inSession(time: number, session: string, timezone: string): bool
   if (Number.isNaN(time)) return false;
   const ranges = parsePineSession(session);
   if (ranges === null) throw new Error(`Session "${session}" is the symbol session: it needs the chart session (time(timeframe, session) in a script)`);
+  const change = clockChangeNear(time, timezone);
   const f = zonedFields(time, timezone);
   const minute = f.hour * 60 + f.minute;
   const nextDay = (f.dayOfWeek % 7) + 1;
-  for (const { start, end, days } of ranges) {
-    if (start < end || (start === 0 && end === 0)) {
-      if (minute >= start && (minute < end || end === 0) && days.has(f.dayOfWeek)) return true;
-    } else {
-      // Overnight (24 hours when start === end): the part from `start` belongs to the next day.
-      if (minute >= start && days.has(nextDay)) return true;
-      if (minute < end && days.has(f.dayOfWeek)) return true;
+  for (const { start, end: rawEnd, days } of ranges) {
+    if (start === rawEnd) {
+      // 24 hours: the run belongs to the day it ends ("0000-0000": the day itself)
+      if (days.has(start === 0 || minute < start ? f.dayOfWeek : nextDay)) return true;
+      continue;
+    }
+    // a run that ends at 0000 ends at 24:00 of the day it starts
+    const end = rawEnd === 0 ? MINUTES_PER_DAY : rawEnd;
+    const overnight = start > end;
+    if (!change) {
+      if (!overnight) {
+        if (minute >= start && minute < end && days.has(f.dayOfWeek)) return true;
+      } else {
+        // the part from `start` belongs to the next day
+        if (minute >= start && days.has(nextDay)) return true;
+        if (minute < end && days.has(f.dayOfWeek)) return true;
+      }
+      continue;
+    }
+    // local days as naive instants (wall clock read as UTC)
+    const changeWall = change.at + change.before;
+    const place = (naive: number): number => (naive < changeWall ? naive - change.before : naive - change.after);
+    const today = Math.floor((time + change.before) / MS_PER_DAY);
+    for (let day = today - 1; day <= today + 1; day++) {
+      if (!days.has(((day + 4) % 7) + 1)) continue; // 01/01/1970 is a Thursday (5)
+      const from = day * MS_PER_DAY + (overnight ? start - MINUTES_PER_DAY : start) * MS_PER_MINUTE;
+      const to = day * MS_PER_DAY + end * MS_PER_MINUTE;
+      if (to === changeWall) {
+        if (time >= from - change.after && time < to - change.after) return true;
+        continue;
+      }
+      if (time >= place(from) && time < place(to)) return true;
+      // clocks going back: the second pass of the repeated hour
+      const repeated = change.at + change.after;
+      if (change.after < change.before && to < changeWall && to > repeated) {
+        if (time >= Math.max(from, repeated) - change.after && time < to - change.after) return true;
+      }
     }
   }
   return false;

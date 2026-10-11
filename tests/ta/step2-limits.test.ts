@@ -76,3 +76,38 @@ describe('window limit of 5,000 bars of math.sum / ta.sma / ta.variance / ta.std
     expect(() => site(7, 1, 5001)).toThrow(message("'sma'", 5001, 7));
   });
 });
+
+describe('series lengths of ta.highest / lowest / highestbars / lowestbars / pivothigh / pivotlow (#160, #169)', () => {
+  const x = [5, 3, 8, NaN, 9, 2, 7, 7, 4, 6, 1, 1, 3, 9, 0, 2];
+  const lengths = x.map((_, i) => 2 + (i % 4));
+
+  it('each bar uses its own length: equal to the call site called on every bar', () => {
+    for (const [fn, site] of [
+      [taCore.highest, callsite.highestByBar()], [taCore.lowest, callsite.lowestByBar()],
+      [taCore.highestbars, callsite.highestbars()], [taCore.lowestbars, callsite.lowestbars()],
+    ] as const) {
+      expect(fn(x, lengths)).toEqual(x.map((v, i) => site(i, v, lengths[i]!)));
+    }
+  });
+
+  it('a constant length given as an array equals the fixed length', () => {
+    expect(taCore.highest(x, x.map(() => 3))).toEqual(taCore.highest(x, 3));
+    expect(taCore.lowestbars(x, x.map(() => 3))).toEqual(taCore.lowestbars(x, 3));
+  });
+
+  it('pivots: the lengths of the current bar, left and right', () => {
+    const left = x.map((_, i) => 1 + (i % 3));
+    const right = x.map((_, i) => 1 + (i % 2));
+    const hi = callsite.pivothigh();
+    const lo = callsite.pivotlow();
+    expect(taCore.pivothigh(x, left, right)).toEqual(x.map((v, i) => hi(i, v, left[i]!, right[i]!)));
+    expect(taCore.pivotlow(x, left, 1)).toEqual(x.map((v, i) => lo(i, v, left[i]!, 1)));
+    expect(taCore.pivothigh(x, x.map(() => 2), 1)).toEqual(taCore.pivothigh(x, 2, 1));
+  });
+
+  it('a length above 15,000 on a bar throws on that bar', () => {
+    expect(() => taCore.highest([1, 2, 3], [2, 15001, 2])).toThrow(
+      "Error on bar 1: The 'highest' function references too many historical candles (15001), the limit is 15000."
+    );
+  });
+});

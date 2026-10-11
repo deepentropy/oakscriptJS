@@ -360,10 +360,32 @@ function keptValues(source: Source): { values: number[]; bars: number[]; last: I
 }
 
 /**
+ * ta.highest / ta.lowest / ta.highestbars / ta.lowestbars with a series length (a length per bar): on each bar the
+ * best of the last `length[i]` non-na values (the newest one on ties), na before bar `length[i] - 1`, as PineScript
+ * (measured with a length that changes on each bar, with and without na in the source).
+ */
+function extremeSeriesLength(source: Source, lengths: ArrayLike<number>, lowest: boolean, offsets: boolean): number[] {
+  const name = (lowest ? 'lowest' : 'highest') + (offsets ? 'bars' : '');
+  const { values, bars, last } = keptValues(source);
+  return Array.from(source, (_, i) => {
+    const len = Math.trunc(lengths[i]!);
+    checkWindowLength(name, len, i);
+    const k = last[i]!;
+    if (!(len >= 1) || i < len - 1 || k < 0) return NaN;
+    let best = k;
+    for (let j = k - 1; j >= 0 && j > k - len; j--) {
+      if (lowest ? values[j]! < values[best]! : values[j]! > values[best]!) best = j;
+    }
+    return offsets ? -(i - bars[best]!) : values[best]!;
+  });
+}
+
+/**
  * Offset to the best of the last `length` non-na values (the newest one on ties): the distance in bars, so below
  * `-(length - 1)` after an na value. na before bar `length - 1` and while there is no value.
  */
-function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
+function extremeOffset(source: Source, length: simple_int | ArrayLike<number>, lowest: boolean): series_int {
+  if (typeof length !== 'number') return extremeSeriesLength(source, length, lowest, true);
   checkWindowLength(lowest ? 'lowestbars' : 'highestbars', length, 0);
   const { values, bars, last } = keptValues(source);
   const { at } = windowExtremes(values, length, lowest, true);
@@ -379,7 +401,8 @@ function extremeOffset(source: Source, length: simple_int, lowest: boolean): ser
  * Best of the last `length` non-na values (of all of them when there are fewer), with the zero sign of `Math.max` /
  * `Math.min`. na before bar `length - 1` and while there is no value.
  */
-function extremeValue(source: Source, length: simple_int, lowest: boolean): series_float {
+function extremeValue(source: Source, length: simple_int | ArrayLike<number>, lowest: boolean): series_float {
+  if (typeof length !== 'number') return extremeSeriesLength(source, length, lowest, false);
   checkWindowLength(lowest ? 'lowest' : 'highest', length, 0);
   const { values, last } = keptValues(source);
   const { at, zeros } = windowExtremes(values, length, lowest);
@@ -866,10 +889,12 @@ export function wma(source: Source, length: simple_int | ArrayLike<number>): ser
  * As in PineScript: `na` values are skipped. The result is the highest of the last `length` non-na values (of all
  * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
  * value was received. A fractional length is truncated (7.5 is 7 bars).
+ * `length` can be an array (a length per bar, PineScript series length), also for `ta.lowest`, `ta.highestbars`
+ * and `ta.lowestbars`: each bar uses its own length.
  * A length above 15,000 throws the PineScript runtime error (also `ta.lowest`, `ta.highestbars`, `ta.lowestbars`).
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  */
-export function highest(source: Source, length: simple_int): series_float {
+export function highest(source: Source, length: simple_int | ArrayLike<number>): series_float {
   return extremeValue(source, length, false);
 }
 
@@ -885,7 +910,7 @@ export function highest(source: Source, length: simple_int): series_float {
  * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
  * value was received.
  */
-export function lowest(source: Source, length: simple_int): series_float {
+export function lowest(source: Source, length: simple_int | ArrayLike<number>): series_float {
   return extremeValue(source, length, true);
 }
 
@@ -1793,6 +1818,9 @@ export function sar(
   return result;
 }
 
+/** A pivot length: one value, or a value per bar (PineScript series length). */
+type PivotLength = simple_int | ArrayLike<number>;
+
 /**
  * Pivot detection as PineScript computes it.
  *
@@ -1802,11 +1830,12 @@ export function sar(
  * so no future bar is used. A pivot high may so equal values on its left but must be higher than every value on its
  * right. `na` before bar `leftbars + rightbars`.
  */
-function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHigh: boolean): series_float {
-  const left = Math.trunc(leftbars);
-  const right = Math.trunc(rightbars);
+function pivot(source: Source, leftbars: PivotLength, rightbars: PivotLength, isHigh: boolean): series_float {
   const { values, bars, last } = keptValues(source);
-  return source.map((_, i) => {
+  return Array.from(source, (_, i) => {
+    // a series length: the lengths of the current bar
+    const left = Math.trunc(typeof leftbars === 'number' ? leftbars : leftbars[i]!);
+    const right = Math.trunc(typeof rightbars === 'number' ? rightbars : rightbars[i]!);
     const k = last[i]!;
     if (!(i >= left + right) || k < 0) return NaN;
     let best = k;
@@ -1833,6 +1862,8 @@ function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHi
  * - A pivot high may equal values on its left but must be higher than all values on its right
  * - `na` values are skipped: the window is the last `leftbars + rightbars + 1` non-na values, and the highest of
  *   them must be on the bar `rightbars` bars back
+ * - `leftbars` / `rightbars` can be arrays (a length per bar, PineScript series length), also for `ta.pivotlow`:
+ *   each bar uses its own lengths
  *
  * @example
  * ```typescript
@@ -1842,8 +1873,8 @@ function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHi
  */
 export function pivothigh(
   sourceOrLeftbars: Source | simple_int,
-  leftbarsOrRightbars: simple_int,
-  rightbars?: simple_int,
+  leftbarsOrRightbars: PivotLength,
+  rightbars?: PivotLength,
   high?: Source
 ): series_float {
   if (rightbars === undefined) {
@@ -1880,8 +1911,8 @@ export function pivothigh(
  */
 export function pivotlow(
   sourceOrLeftbars: Source | simple_int,
-  leftbarsOrRightbars: simple_int,
-  rightbars?: simple_int,
+  leftbarsOrRightbars: PivotLength,
+  rightbars?: PivotLength,
   low?: Source
 ): series_float {
   if (rightbars === undefined) {
@@ -2473,7 +2504,7 @@ export function range(source: Source, length: simple_int): series_float {
  * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
  * `length - 1` and while no value was received; a fractional length is truncated.
  */
-export function highestbars(source: Source, length: simple_int): series_int {
+export function highestbars(source: Source, length: simple_int | ArrayLike<number>): series_int {
   return extremeOffset(source, length, false);
 }
 
@@ -2486,7 +2517,7 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
  * `length - 1` and while no value was received; a fractional length is truncated.
  */
-export function lowestbars(source: Source, length: simple_int): series_int {
+export function lowestbars(source: Source, length: simple_int | ArrayLike<number>): series_int {
   return extremeOffset(source, length, true);
 }
 
