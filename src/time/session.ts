@@ -138,11 +138,15 @@ function clockChangeNear(time: number, timezone: string): { at: number; before: 
  * - a run that ends exactly on the wall time of the change is placed with the offset after the change at both ends
  *   (forward change: "0100-0200" is one hour earlier than the wall clock says)
  * - clocks going back: a run that ends inside the repeated hour also covers its second pass
+ * - clocks going back, the day BEFORE the change: a run with a start or an end on the wall time of the change is
+ *   also true one hour (the amount of the change) later, from one bar after its usual end. This needs the bar
+ *   duration `barMs`; without it the rule is not applied
  *
+ * @param barMs - Duration of the bars in ms (the chart timeframe); only used by the last rule
  * @throws Error for the symbol's own session ("regular", "extended", ""), which this function does not know: use
  * `time(timeframe, session)` in a script with the chart session
  */
-export function inSession(time: number, session: string, timezone: string): boolean {
+export function inSession(time: number, session: string, timezone: string, barMs?: number): boolean {
   if (Number.isNaN(time)) return false;
   const ranges = parsePineSession(session);
   if (ranges === null) throw new Error(`Session "${session}" is the symbol session: it needs the chart session (time(timeframe, session) in a script)`);
@@ -186,6 +190,18 @@ export function inSession(time: number, session: string, timezone: string): bool
       const repeated = change.at + change.after;
       if (change.after < change.before && to < changeWall && to > repeated) {
         if (time >= Math.max(from, repeated) - change.after && time < to - change.after) return true;
+      }
+    }
+    // clocks going back, the day before: a run with an end on the wall time of the change is also true one change
+    // later, from one bar after its usual end
+    if (barMs !== undefined && change.after < change.before) {
+      const day = Math.floor(changeWall / MS_PER_DAY) - 1;
+      const wallMinute = (changeWall - (day + 1) * MS_PER_DAY) / MS_PER_MINUTE;
+      if ((start === wallMinute || end === wallMinute) && days.has(((day + 4) % 7) + 1)) {
+        const from = day * MS_PER_DAY + (overnight ? start - MINUTES_PER_DAY : start) * MS_PER_MINUTE - change.before;
+        const to = day * MS_PER_DAY + end * MS_PER_MINUTE - change.before;
+        const shift = change.before - change.after;
+        if (time >= from + shift && time < to + shift && time >= to + barMs) return true;
       }
     }
   }

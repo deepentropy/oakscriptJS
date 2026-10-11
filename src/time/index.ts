@@ -156,8 +156,11 @@ export function second(time: int, timezone: string): int {
  * ":" (1 = Sunday ... 7 = Saturday), e.g. "0930-1600:23456" or "1000-1100,1400-1500".
  * Without days, one period covers every day and several periods cover Monday to Friday.
  * A period includes its start and excludes its end. An overnight period ("1800-0930")
- * belongs to the day it ends. "0000-0000" and "24x7" cover the whole day.
+ * belongs to the day it ends. "0000-0000" and "24x7" cover the whole day. A period that ends at 0000 ends at 24:00 of
+ * the day it starts. On the days around a clock change the periods are placed as PineScript places them (see
+ * time/session.ts); `barMs`, the duration of the bars in ms, is needed for one of these rules (the day before the
+ * clocks go back).
  */
-export function inSession(time: int, session: string, timezone: string): boolean {
-  return sessionContains(time, session, timezone);
+export function inSession(time: int, session: string, timezone: string, barMs?: number): boolean {
+  return sessionContains(time, session, timezone, barMs);
 }

@@ -101,3 +101,31 @@ describe('clocks going back (#162)', () => {
     expect(time.inSession(at('2026-07-15T20:00Z'), '0930-1600', NY)).toBe(false);
   });
 });
+
+describe('the day before the clocks go back (#162)', () => {
+  // Sydney, Friday-to-Saturday 04/04/2026 local (the change is on 05/04 at 03:00); 15-minute bars
+  const bar = 900_000;
+  const trueBars = (session: string, from: string, to: string, barMs?: number): string[] => {
+    const out: string[] = [];
+    for (let t = at(from); t < at(to); t += bar) if (time.inSession(t, session, SYDNEY, barMs)) out.push(new Date(t).toISOString().slice(11, 16));
+    return out;
+  };
+
+  it('a run with an end or a start at 03:00 is also true one hour later, from one bar after its usual end', () => {
+    // "0200-0300": 15:00 to 16:00 UTC, then 16:15 to 17:00 (not the bar of 16:00)
+    expect(trueBars('0200-0300', '2026-04-03T14:00Z', '2026-04-03T19:00Z', bar)).toEqual(['15:00', '15:15', '15:30', '15:45', '16:15', '16:30', '16:45']);
+    // "0300-0400": 16:00 to 17:00, then 17:15 to 18:00
+    expect(trueBars('0300-0400', '2026-04-03T14:00Z', '2026-04-03T19:00Z', bar)).toEqual(['16:00', '16:15', '16:30', '16:45', '17:15', '17:30', '17:45']);
+    // "0300-0330": 16:00 to 16:30, then 17:00 to 17:30
+    expect(trueBars('0300-0330', '2026-04-03T14:00Z', '2026-04-03T19:00Z', bar)).toEqual(['16:00', '16:15', '17:00', '17:15']);
+  });
+
+  it('other runs are not repeated', () => {
+    expect(trueBars('0230-0330', '2026-04-03T14:00Z', '2026-04-03T19:00Z', bar)).toEqual(['15:30', '15:45', '16:00', '16:15']);
+    expect(trueBars('0400-0500', '2026-04-03T14:00Z', '2026-04-03T21:00Z', bar)).toEqual(['17:00', '17:15', '17:30', '17:45']);
+  });
+
+  it('without the bar duration the rule is not applied', () => {
+    expect(trueBars('0200-0300', '2026-04-03T14:00Z', '2026-04-03T19:00Z')).toEqual(['15:00', '15:15', '15:30', '15:45']);
+  });
+});

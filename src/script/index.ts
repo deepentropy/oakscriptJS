@@ -1846,7 +1846,9 @@ function calendarFor(
     bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period),
     test: true,
     // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
-    inside: session ? (time) => timeCore.inSession(time, session, tz) : undefined,
+    inside: session
+      ? (time) => timeCore.inSession(time, session, tz, timeframeCore.in_seconds(bars.chart.period) * 1000)
+      : undefined,
   };
 }
 

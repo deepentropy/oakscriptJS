@@ -55,6 +55,24 @@ export {
   type DrawingVariable,
 } from './drawing/registry.js';
 
+// The session of a chart context without a script run: time(tf), time_close(tf), time_tradingday, session.* flags,
+// request.security periods with the session and holidays, and bars after the last bar on the trading calendar
+export {
+  chartSessions,
+  periodTime,
+  periodClose,
+  tradingDayTime,
+  chartSessionFlags,
+  resampleSession,
+  barTimeAfter,
+  barsUntil,
+  type SessionContext,
+  type ChartSessions,
+  type SessionResample,
+} from './session/context.js';
+export { TradingCalendar, type SessionSpec } from './session/calendar.js';
+export { SessionBars, sessionFlags, type SessionFlags } from './session/bars.js';
+
 // Same-symbol request.security on a higher timeframe (completion and lookahead rules) and ticker.heikinashi
 export { resample, periodsOf, afterCompletion, mapToChart, heikinAshi, type Resampled } from './security/resample.js';
 

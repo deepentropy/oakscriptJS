@@ -193,6 +193,30 @@ export class SessionBars {
     return day === null ? NaN : dateUtcMs(day);
   }
 
+  /**
+   * Open time of the bar after the bar that opens at `time`, on the trading calendar: the next bar of the session
+   * period, else the start of the next period or trading day; on D / W / M charts the session start of the first
+   * trading day of the next chart period. NaN when none is found within 400 days.
+   */
+  nextBarTime(time: number): number {
+    const at = this.calendar.locate(time);
+    if (!at) return NaN;
+    if (!this.chart.isdwm) {
+      const periods = this.calendar.periods(at.date);
+      const [start, end] = periods[at.index]!;
+      const ms = in_seconds(this.chart.period) * 1000;
+      const next = start + (Math.floor((time - start) / ms) + 1) * ms;
+      if (at.inside && next < end) return next;
+      if (at.index + 1 < periods.length) return periods[at.index + 1]![0];
+      const day = this.calendar.firstTradingDay(addDays(at.date, 1), addDays(at.date, 400));
+      return day === null ? NaN : this.dayStart(day);
+    }
+    const { unit, n } = unitOf(this.chart);
+    const [, to] = this.periodRange(at.date, unit, n);
+    const day = this.calendar.firstTradingDay(addDays(to, 1), addDays(to, 400));
+    return day === null ? NaN : this.dayStart(day);
+  }
+
   /** An intraday bar that opens after an early close of its day (see TradingCalendar.afterEarlyClose). */
   stray(time: number): boolean {
     return !this.chart.isdwm && this.calendar.afterEarlyClose(time);

@@ -481,6 +481,30 @@ const dailyEma = request.security('', 'D', () => ta.ema(close, 20));
 - Compute the series **inside** the expression. A series computed outside runs on the chart bars, not on the
   higher-timeframe bars, so `request.security('', 'D', () => myEma)` throws.
 
+### The session of a chart context without a script
+
+Code that has its own bar loop can read the same session values from a chart context (timeframe, time zone,
+session with its corrections and holidays). Bar times are in the unit of the context (seconds by default);
+PineScript time values come back in ms.
+
+```typescript
+import { periodTime, tradingDayTime, chartSessionFlags, resampleSession, mapToChart, barTimeAfter, barsUntil } from 'oakscriptjs';
+
+const chart = { timeframe: '60', timezone: 'America/New_York', session: { session: '0930-1600', holidays: '20260907' } };
+
+periodTime(bar.time, 'D', chart);        // time("D")
+tradingDayTime(bar.time, chart);         // time_tradingday
+chartSessionFlags(times, chart);         // session.isfirstbar, islastbar, ismarket ...
+
+// request.security on a higher timeframe, following the session and the holidays
+const daily = resampleSession(bars, 'D', chart);
+const dailyClose = mapToChart(daily.bars.map((b) => b.close), daily.group, daily.latest, false, false);
+
+// a drawing that ends 10 bars after the last bar, or at a later time: weekends and holidays are skipped
+barTimeAfter(lastBar.time, 10, chart);                    // open time of that future bar
+barsUntil(lastBar.time, lastBar.time + 3 * 86400, chart); // bars to the bar of that time
+```
+
 ### ta.* calls in conditional code (callsite)
 
 In PineScript every `ta.*` call keeps its own history, fed only on the bars where the call runs. This matters in

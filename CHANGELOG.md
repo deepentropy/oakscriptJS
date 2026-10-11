@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Series (per-bar) lengths: `ta.highest`, `ta.lowest`, `ta.highestbars`, `ta.lowestbars` take a length per bar, and
   `ta.pivothigh` / `ta.pivotlow` a left and a right length per bar (an array; a Series in the Series and script
   APIs). Each bar uses its own lengths, as PineScript (#160, #169).
+- The session of a chart context without a script run, from the package root: `periodTime(time, timeframe, chart)`
+  (`time(tf)`), `periodClose` (`time_close(tf)`), `tradingDayTime` (`time_tradingday`), `chartSessionFlags(times,
+  chart)` (`session.*`), `resampleSession(bars, timeframe, chart)` (the higher-timeframe bars of `request.security`
+  with the session, corrections and holidays of the context; use with `mapToChart`), and `chartSessions(chart)`,
+  `TradingCalendar`, `SessionBars`, `sessionFlags` for anything else (#165).
+- `barTimeAfter(time, count, chart)`: the open time of the `count`-th bar after a bar on the trading calendar of the
+  context (closed hours, weekends and holidays skipped), and `barsUntil(from, to, chart)`: the number of bars to the
+  bar of a later time (#165).
 - Symbol sessions with sections and the "F" marker: `"1900-1900:3456|1700F-1900:2"` (each section has its days;
   "F" alone starts the period one day before the trading day) (#167).
 - Drawing limit: an object held by a `var` variable of the drawing type is never deleted by `max_*_count`, and it
@@ -84,9 +92,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - on the days around a clock change the runs are placed as PineScript places them, not by the wall clock of each
     bar: a wall time before the wall time of the change uses the offset before it, a later one the offset after it;
     a run that ends exactly on the wall time of the change uses the offset after it at both ends; when the clocks go
-    back, a run that ends inside the repeated hour covers both passes. Measured on 60-, 15- and 5-minute bars in
-    five time zones: 40 of 3,560,000 tests still differ, on the day before a backward change, for runs with an end
-    or a start at the wall time of the change (#162).
+    back, a run that ends inside the repeated hour covers both passes;
+  - the day before the clocks go back, a run with an end or a start on the wall time of the change is also true one
+    hour (the amount of the change) later, from one bar after its usual end. This rule needs the bar duration:
+    `time.inSession(time, session, timezone, barMs)`; the script API passes the chart timeframe.
+  Measured on 5- to 60-minute bars in five time zones: 0 of 8,560,000 tests differ (#162).
 - Session calendar of the script API (#167):
   - an intraday bar that opens after an early close (inside the usual hours of its day) has no day: `time("D")`,
     `time_close("D")` and `time_tradingday` are na on it, `timeframe.change("D")` is false on it and on the next
