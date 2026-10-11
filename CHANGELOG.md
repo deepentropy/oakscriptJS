@@ -43,13 +43,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new object and releases the one before); `holdDrawing(obj)` / `releaseDrawing(obj)` do it without a variable.
   From the package root and `oakscriptjs/script`. Linefills have their own rule (measured on one script): a fill
   is skipped while a `var` variable holds it and for 5,000 bars after its release; when the count is still above
-  the maximum + 5, the oldest fills are deleted, the held ones too. The polyline delay and the last-bar cases of the
-  issue are not covered (#158).
+  the maximum + 5, the oldest fills are deleted, the held ones too (#158).
 - Chart context: `symbolType`, `currency`, `foregroundColor`, `backgroundColor`, `now`, read in a script as
   `syminfo.type`, `syminfo.currency`, `chart.fg_color`, `chart.bg_color` and `timenow` (a value that was not given
   throws; `timenow` defaults to the clock at the start of the run) (#165).
 
 ### Changed
+
+- Drawing limit (`max_*_count`), measured on 213 probe series (#158):
+  - the object that was just created is never deleted, and a `var` variable protects its object from the bar after
+    the assignment. With more held objects than the maximum, the held ones and the newest object stay (8 held lines
+    and a maximum of 5: 9 or 10 lines); 12 `var` lines created on the first bar with a maximum of 5 lose the first 6.
+  - polylines: the polylines the script deleted are counted (P: a delete adds 1; a creation sets it to 0 when it is
+    3 or more). A creation cuts when the count is above the maximum + 5 + P, down to the maximum + P, and the
+    polylines of the cut are added to P. This is the "0, 1 or 2 bars late" of a script that deletes and creates a
+    polyline on every bar; equal to PineScript on every closed bar of 34 probes.
+  - the last bar is calculated twice, as PineScript does: the objects of the bars before that the maximum count
+    deletes in the first calculation stay deleted (a line takes its linefills with it), the rest of the bar is
+    calculated again. With 10 lines and a maximum of 10, 13 lines on the last bar leave these 13 instead of 11.
+    Lines, labels and boxes also count the script deletes of the bars before (reset at 5) and allow that many more
+    objects on the last bar ("above 58, down to 53" for a maximum of 50 after 3 deletes). The registry replays the
+    last bar when it is left: `setDrawingBar(barIndex, true)` marks the last bar in a port with its own loop (then
+    `setDrawingBar(null)` after it); `eachBar` of the script API does both. The objects alive at the end are the
+    same as PineScript on 113 of 113 last-bar probes.
 
 - `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars`: `na` values are skipped, as PineScript does today
   (measured on 11/10/2026; the former rule, "an `na` value ends the window", no longer matches). The result is the

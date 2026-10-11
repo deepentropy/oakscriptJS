@@ -1266,7 +1266,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     for (idx = 0; idx < b.length; idx++) {
       if (pendingError && pendingError.bar === idx) throw new Error(historyError(idx, pendingError.barsBack));
       currentBar = idx;
-      setDrawingBar(idx);
+      setDrawingBar(idx, idx === b.length - 1);
       const r = fn(ctx);
       out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
       // grow the history buffers from the largest reference of this bar
