@@ -20,9 +20,20 @@ describe('ta.highest / ta.highestbars', () => {
     expectValues(taCore.highestbars(na7, 4), [N, N, N, 0, 0, -1, -2, 0, -1]);
   });
 
-  it('on equal values the oldest bar wins', () => {
-    expect(taCore.highestbars([1, 3, 3, 2], 3)).toEqual([NaN, NaN, -1, -2]);
-    expect(taCore.lowestbars([5, 1, 1, 2], 3)).toEqual([NaN, NaN, -1, -2]);
+  it('on equal values the newest bar wins (#160)', () => {
+    expect(taCore.highestbars([1, 3, 3, 2], 3)).toEqual([NaN, NaN, -0, -1]);
+    expect(taCore.lowestbars([5, 1, 1, 2], 3)).toEqual([NaN, NaN, -0, -1]);
+    expect(taCore.lowestbars([0, -0, 0, 5], 4)[3]).toBe(-1);
+  });
+
+  it('a fractional length is truncated: 7.5 is a window of 7 bars (#163)', () => {
+    const s = [9, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0];
+    expect(taCore.highest(s, 7.5)).toEqual(taCore.highest(s, 7));
+    expect(taCore.lowest(s, 7.5)).toEqual(taCore.lowest(s, 7));
+    expect(taCore.highestbars(s, 7.5)).toEqual(taCore.highestbars(s, 7));
+    expect(taCore.lowestbars(s, 7.5)).toEqual(taCore.lowestbars(s, 7));
+    expect(taCore.highest(s, 7.5)[6]).toBe(9);
+    expect(taCore.highest(s, 7.5)[7]).toBe(7);
   });
 });
 

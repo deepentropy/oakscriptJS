@@ -79,7 +79,7 @@ export function new_line(...args: unknown[]): Line {
     extend: extend ?? 'none',
     color: lineColor,
     style: style || 'solid',
-    width: width || 1,
+    width: width ?? 1,
     force_overlay: force_overlay ?? false,
   });
 }

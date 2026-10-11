@@ -285,14 +285,20 @@ function lastValues(source: Source, i: number, length: number): number[] | null 
 
 /**
  * The extreme of the window of `length` bars ending at each bar, in one pass (monotonic deque): the bar index of
- * the oldest highest (or lowest) value, or -1 when the window is empty. As PineScript does for ta.highest /
- * ta.lowest / ta.highestbars / ta.lowestbars, the window stops at the first `na` value going back, so a bar whose
- * own value is `na` has an empty window. `zeros[i]` tells whether the window holds a +0 (highest) or a -0
- * (lowest), the zero that `Math.max` / `Math.min` return when the extreme is 0.
+ * the oldest highest (or lowest) value (the newest one with `newest`), or -1 when the window is empty. As PineScript
+ * does for ta.highest / ta.lowest / ta.highestbars / ta.lowestbars, the window stops at the first `na` value going
+ * back, so a bar whose own value is `na` has an empty window, and a fractional length is truncated (7.5 is 7 bars).
+ * `zeros[i]` tells whether the window holds a +0 (highest) or a -0 (lowest), the zero that `Math.max` / `Math.min`
+ * return when the extreme is 0 (not kept with `newest`).
  */
-function windowExtremes(source: Source, length: number, lowest: boolean): { at: Int32Array; zeros: Uint8Array } {
+function windowExtremes(
+  source: Source,
+  length: number,
+  lowest: boolean,
+  newest = false
+): { at: Int32Array; zeros: Uint8Array } {
   const n = source.length;
-  const span = length > 0 ? Math.ceil(length) : 0; // the bars j = 0, 1... with j < length
+  const span = length > 0 ? Math.trunc(length) : 0; // PineScript casts the length to int
   const at = new Int32Array(n).fill(-1);
   const zeros = new Uint8Array(n);
   const queue = new Int32Array(n); // bar indices; values from best to worst, the oldest first among equal values
@@ -310,8 +316,10 @@ function windowExtremes(source: Source, length: number, lowest: boolean): { at: 
       zeroCount = 0;
       continue;
     }
-    // drop the values that the new one beats; equal values stay (the oldest wins ties)
-    while (tail > head && (lowest ? source[queue[tail - 1]!]! > x : source[queue[tail - 1]!]! < x)) {
+    // drop the values that the new one beats; equal values stay (the oldest wins ties), or go with `newest`
+    while (tail > head) {
+      const last = source[queue[tail - 1]!]!;
+      if (!(lowest ? last > x : last < x) && !(newest && last === x)) break;
       if (isPreferredZero(queue[--tail]!)) zeroCount--;
     }
     queue[tail++] = i;
@@ -328,18 +336,20 @@ function windowExtremes(source: Source, length: number, lowest: boolean): { at: 
   return { at, zeros };
 }
 
-/** Offset of the best value of the window; on ties the oldest bar wins. 0 when the window is empty. */
+/** Offset of the best value of the window; on ties the newest bar wins. 0 when the window is empty. */
 function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
-  const { at } = windowExtremes(source, length, lowest);
+  const { at } = windowExtremes(source, length, lowest, true);
+  const len = Math.trunc(length);
   // -(i - at): -0 when the extreme is the current bar, as the offset -j of the window scan
-  return source.map((_, i) => (i < length - 1 ? NaN : at[i]! < 0 ? 0 : -(i - at[i]!)));
+  return source.map((_, i) => (i < len - 1 ? NaN : at[i]! < 0 ? 0 : -(i - at[i]!)));
 }
 
 /** Best value of the window (`na` when the window is empty), with the zero sign of `Math.max` / `Math.min`. */
 function extremeValue(source: Source, length: simple_int, lowest: boolean): series_float {
   const { at, zeros } = windowExtremes(source, length, lowest);
+  const len = Math.trunc(length);
   return source.map((_, i) => {
-    if (i < length - 1 || at[i]! < 0) return NaN;
+    if (i < len - 1 || at[i]! < 0) return NaN;
     const v = source[at[i]!]!;
     return v === 0 && zeros[i] ? (lowest ? -0 : 0) : v;
   });
@@ -813,7 +823,7 @@ export function wma(source: Source, length: simple_int): series_float {
  *
  * @remarks
  * As in PineScript: an `na` value ends the window, so only the values after the last `na`
- * count, and a bar whose own value is `na` gives `na`.
+ * count, and a bar whose own value is `na` gives `na`. A fractional length is truncated (7.5 is 7 bars).
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  */
 export function highest(source: Source, length: simple_int): series_float {
@@ -2420,8 +2430,8 @@ export function range(source: Source, length: simple_int): series_float {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: on equal values the oldest bar wins; an `na` value ends the window;
- * 0 when the window has no value.
+ * As in PineScript: on equal values the newest bar wins; an `na` value ends the window;
+ * 0 when the window has no value; a fractional length is truncated.
  */
 export function highestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, false);
@@ -2432,8 +2442,8 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: on equal values the oldest bar wins; an `na` value ends the window;
- * 0 when the window has no value.
+ * As in PineScript: on equal values the newest bar wins; an `na` value ends the window;
+ * 0 when the window has no value; a fractional length is truncated.
  */
 export function lowestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, true);

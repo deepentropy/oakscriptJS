@@ -5,7 +5,8 @@
 import { taCore, time } from '../../src';
 
 /** The window scan the one-pass functions replace: stops at the first na going back. */
-function scan(source: number[], length: number, i: number): Array<[number, number]> {
+function scan(source: number[], rawLength: number, i: number): Array<[number, number]> {
+  const length = Math.trunc(rawLength); // a fractional length is truncated
   const w: Array<[number, number]> = [];
   for (let j = 0; j < length && i - j >= 0; j++) {
     const x = source[i - j]!;
@@ -15,16 +16,16 @@ function scan(source: number[], length: number, i: number): Array<[number, numbe
   return w;
 }
 const refHighest = (s: number[], L: number) =>
-  s.map((_, i) => (i < L - 1 ? NaN : ((w) => (w.length ? Math.max(...w.map((x) => x[0])) : NaN))(scan(s, L, i))));
+  s.map((_, i) => (i < Math.trunc(L) - 1 ? NaN : ((w) => (w.length ? Math.max(...w.map((x) => x[0])) : NaN))(scan(s, L, i))));
 const refLowest = (s: number[], L: number) =>
-  s.map((_, i) => (i < L - 1 ? NaN : ((w) => (w.length ? Math.min(...w.map((x) => x[0])) : NaN))(scan(s, L, i))));
+  s.map((_, i) => (i < Math.trunc(L) - 1 ? NaN : ((w) => (w.length ? Math.min(...w.map((x) => x[0])) : NaN))(scan(s, L, i))));
 const refBars = (s: number[], L: number, lowest: boolean) =>
   s.map((_, i) => {
-    if (i < L - 1) return NaN;
+    if (i < Math.trunc(L) - 1) return NaN;
     const w = scan(s, L, i);
     if (!w.length) return 0;
     let best = w[0]!;
-    for (const item of w) if (lowest ? item[0] <= best[0] : item[0] >= best[0]) best = item; // ties: the oldest
+    for (const item of w) if (lowest ? item[0] < best[0] : item[0] > best[0]) best = item; // ties: the newest
     return best[1];
   });
 const refMedian = (s: number[], length: number) => {

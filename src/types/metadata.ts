@@ -431,17 +431,20 @@ export interface LabelData {
   /** Price; not used with yloc 'abovebar' / 'belowbar' */
   price: number;
   text: string;
-  /** Background, border and arrow colour */
+  /** Background, border and arrow colour. Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   color?: string;
+  /** Omitted: #FFFFFF in a v6 script, #363A45 in v4 and v5 (the result does not carry the version) */
   textColor?: string;
-  /** 'none': text only, no background (PineScript label.style_none) */
+  /** 'none': text only, no background (PineScript label.style_none). Omitted: 'label_down' */
   style?: LabelStyle;
+  /** Omitted: 'normal' */
   size?: PineSize | number;
   /**
    * PineScript yloc: 'price' (default) places the label at `price`; 'abovebar' / 'belowbar' place it above the bar
    * high / below the bar low and ignore `price` (the renderer reads the bar at `time`).
    */
   yloc?: 'price' | 'abovebar' | 'belowbar';
+  /** Omitted: 'center' */
   textAlign?: 'left' | 'center' | 'right';
   tooltip?: string;
   fontFamily?: 'default' | 'monospace';
@@ -459,8 +462,11 @@ export interface LineDrawingData {
   price1: number;
   time2: number;
   price2: number;
+  /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   color?: string;
+  /** Omitted: 1. A width of 0 is kept (PineScript `width = 0`) */
   width?: number;
+  /** Omitted: 'solid' */
   style?: 'solid' | 'dashed' | 'dotted' | 'arrow_left' | 'arrow_right' | 'arrow_both';
   extend?: 'none' | 'left' | 'right' | 'both';
   /** PineScript force_overlay = true: the line of a non-overlay indicator is drawn on the price pane */
@@ -475,14 +481,22 @@ export interface BoxData {
   price1: number;
   time2: number;
   price2: number;
+  /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   bgColor?: string;
+  /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   borderColor?: string;
+  /** Omitted: 1. A width of 0 is no border (PineScript `border_width = 0`) */
   borderWidth?: number;
+  /** Omitted: 'solid' */
   borderStyle?: 'solid' | 'dashed' | 'dotted';
   text?: string;
+  /** Omitted: #FFFFFF in a v6 script, #363A45 in v5 (the result does not carry the version) */
   textColor?: string;
+  /** Omitted: 'auto' */
   textSize?: PineSize | number;
+  /** Omitted: 'center' */
   textHAlign?: 'left' | 'center' | 'right';
+  /** Omitted: 'center' */
   textVAlign?: 'top' | 'center' | 'bottom';
   textWrap?: 'none' | 'auto';
   fontFamily?: 'default' | 'monospace';
@@ -512,10 +526,12 @@ export interface PolylineData {
   curved?: boolean;
   /** The last point is connected to the first */
   closed?: boolean;
+  /** Omitted: #2962FF (color.blue) */
   lineColor?: string;
-  /** Fill of the area inside the polyline */
+  /** Fill of the area inside the polyline. Omitted: no fill */
   fillColor?: string;
   lineStyle?: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
+  /** Omitted: 1 */
   lineWidth?: number;
   /** PineScript force_overlay = true: the polyline of a non-overlay indicator is drawn on the price pane */
   forceOverlay?: boolean;
@@ -540,8 +556,11 @@ export interface TableCellData {
   row: number;
   column: number;
   text: string;
+  /** Omitted: no background */
   bgColor?: string;
+  /** Omitted: #363A45 (in v4, v5 and v6 scripts) */
   textColor?: string;
+  /** Omitted: 'auto' */
   textSize?: PineSize | number;
   /** Width in % of the chart width; 0 fits the text */
   width?: number;
@@ -575,10 +594,15 @@ export interface TableData {
   rows: number;
   cells: TableCellData[];
   merges?: TableMergeData[];
+  /** Omitted: no background */
   bgColor?: string;
+  /** Omitted: no frame */
   frameColor?: string;
+  /** Omitted: 0 */
   frameWidth?: number;
+  /** Omitted: no cell borders */
   borderColor?: string;
+  /** Omitted: 0 */
   borderWidth?: number;
   /** PineScript force_overlay = true: the table of a non-overlay indicator is drawn on the price pane */
   forceOverlay?: boolean;

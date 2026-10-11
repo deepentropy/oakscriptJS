@@ -5,6 +5,27 @@ All notable changes to OakScriptJS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Package root exports for ports that do not run a whole script: `resetDrawings(limits)` / `setDrawingLimits(limits)`
+  (the `max_lines_count` / `max_labels_count` / `max_boxes_count` / `max_polylines_count` of the drawing registry),
+  and `resample`, `periodsOf`, `afterCompletion`, `mapToChart`, `heikinAshi` (same-symbol `request.security` on a
+  higher timeframe, `ticker.heikinashi`) (#157).
+- Doc comments of `LabelData`, `LineDrawingData`, `BoxData`, `PolylineData`, `TableCellData` and `TableData`: the
+  PineScript value of each omitted property (v6 values, with the v4 / v5 value where it differs) (#172).
+
+### Fixed
+
+- `ta.highestbars` / `ta.lowestbars`: on equal values the newest bar wins, as PineScript (the oldest did) (#160).
+- `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars`: a fractional length is truncated, as PineScript
+  casts it to int (7.5 is a window of 7 bars; it was 8) (#163).
+- Script API `ta.vwap(source)` with its default anchor has values from the first bar: the sums start on the first
+  loaded bar (a day in progress) and restart on each new trading day (it was `na` until the first day change). An
+  anchor given by the script is unchanged (#166).
+- `line.new(width = 0)` and `box.new(border_width = 0)` keep 0 (they became 1) (#172).
+
 ## [0.10.1] - 2026-10-07
 
 ### Added

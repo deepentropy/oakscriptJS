@@ -563,9 +563,11 @@ export const ta = {
       ? taSeries.lowestbars(low, sourceOrLength)
       : taSeries.lowestbars(sourceOrLength, length!),
   /** `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume; the default anchor is a new trading
-   *  day (`timeframe.change("1D")`), which needs the chart context (timeframe, time zone, session). */
+   *  day (`timeframe.change("1D")`), which needs the chart context (timeframe, time zone, session), and the
+   *  first bar: as in PineScript, the first loaded bars (a day in progress) have a value. */
   vwap: ((source: Series, anchor?: Series, stdev_mult?: number): Series | [Series, Series, Series] => {
-    const a = anchor ?? changeOf('1D'); // PineScript default: timeframe.change("1D")
+    // PineScript default: timeframe.change("1D"); the sums also start on the first bar (a day in progress)
+    const a = anchor ?? changeOf('1D', true);
     return stdev_mult === undefined ? taSeries.vwap(source, volume, a) : taSeries.vwapBands(source, volume, a, stdev_mult);
   }) as {
     (source: Series, anchor?: Series): Series;
@@ -1853,9 +1855,9 @@ export const time_close = callableSeries(
 /** PineScript `time_tradingday`: 00:00 UTC of the trading day of each bar, in ms. */
 export const time_tradingday = new Series(ctxBars, (b) => sessionBars().bars.tradingDayTime(barTime(b)));
 
-function changeOf(tf: string): Series {
+function changeOf(tf: string, firstBar = false): Series {
   const { bars } = sessionBars();
-  return perBar((t, i, times) => (i > 0 && bars.timeOf(t, tf) !== bars.timeOf(times[i - 1]!, tf) ? 1 : 0));
+  return perBar((t, i, times) => ((i > 0 ? bars.timeOf(t, tf) !== bars.timeOf(times[i - 1]!, tf) : firstBar) ? 1 : 0));
 }
 
 function flag(key: keyof SessionFlags): Series {

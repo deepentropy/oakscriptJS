@@ -13,6 +13,8 @@ describe('Line Functions', () => {
       expect(l.extend).toBe('none');
       expect(l.style).toBe('solid');
       expect(l.width).toBe(1);
+      // PineScript keeps a width of 0 (#172)
+      expect(line.new(0, 100, 10, 110, 'bar_index', 'none', undefined, 'solid', 0).width).toBe(0);
     });
 
     it('should create a line with custom xloc and extend', () => {

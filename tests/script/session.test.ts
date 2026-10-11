@@ -89,6 +89,13 @@ describe('timeframe.change and ta.vwap default anchor', () => {
     const v = run(BARS, AAPL, () => ta.vwap(close).toArray());
     expect(v[7]).toBe(BARS[7]!.close);
   });
+
+  it('ta.vwap has a value from the first bar: the first day starts its sums there (#166)', () => {
+    // the data starts in the middle of Friday
+    const v = run(BARS.slice(3), AAPL, () => ta.vwap(close).toArray());
+    expect(v.slice(0, 4)).toEqual([100, 100, 100, 100]);
+    expect(v[4]).toBe(BARS[7]!.close);
+  });
 });
 
 describe('session.* with extended hours', () => {

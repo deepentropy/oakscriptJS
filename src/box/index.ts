@@ -99,7 +99,7 @@ export function new_box(...args: unknown[]): Box {
     xloc: xloc ?? 'bar_index',
     extend: extend ?? 'none',
     border_color,
-    border_width: border_width || 1,
+    border_width: border_width ?? 1,
     border_style: border_style || 'solid',
     bgcolor,
     text,

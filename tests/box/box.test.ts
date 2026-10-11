@@ -13,6 +13,8 @@ describe('Box Functions', () => {
       expect(b.xloc).toBe('bar_index');
       expect(b.extend).toBe('none');
       expect(b.border_width).toBe(1);
+      // PineScript keeps a border width of 0: no border (#172)
+      expect(box.new(0, 100, 10, 90, undefined, 0).border_width).toBe(0);
       expect(b.border_style).toBe('solid');
     });
 
