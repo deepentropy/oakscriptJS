@@ -8,6 +8,15 @@
  * - when a creation brings the count above `max_*_count + 5`, the oldest objects are deleted until
  *   `max_*_count` remain (default 50). Copies count as creations. Linefills follow the same rule with
  *   `max_lines_count`; lines deleted by this rule do not delete their linefills
+ * - an object that a `var` variable of the drawing type refers to is never deleted by this rule, and it still counts
+ *   (measured for lines, labels and boxes: with 9 held boxes and a maximum of 50, 9 held + 46 others stay). Only
+ *   the variable itself protects: an object in a `var` array, in a field of a user type or in a variable that got
+ *   another object or `na` later is deleted like any other. JavaScript has no `var` declaration to observe, so the
+ *   script says it: {@link varDrawing} (a variable), or {@link holdDrawing} / {@link releaseDrawing}
+ * - linefills have the limit of `max_lines_count` with another rule for the held ones (measured on one script, two
+ *   long runs): a fill is skipped when a `var` variable holds it or released it less than 5,000 bars ago (the bar
+ *   of {@link setDrawingBar}); when the count is still above the maximum + 5 after that, the oldest fills are
+ *   deleted until the maximum remain, the held ones too
  *
  * - a bar index (`xloc.bar_index`) more than 10,000 bars before the current bar stops the script (runtime error
  *   RE10026) in `line.new`, `box.new`, `label.new`, `polyline.new` and the setters of x. The current bar is the one
@@ -54,6 +63,68 @@ let limits: Required<DrawingLimits> = {
   polyline: DEFAULT_MAX_COUNT,
 };
 const deleted = new WeakSet<object>();
+/** Objects held by a `var` variable, with the number of variables that hold them. */
+let held = new WeakMap<object, number>();
+/** Bar on which the last `var` variable released an object (linefill rule). */
+let releasedAt = new WeakMap<object, number>();
+/** Bars during which a released linefill is still skipped by the maximum count. */
+const LINEFILL_RELEASE_BARS = 5000;
+
+/**
+ * Marks an object as held by a `var` variable (PineScript `var line l = ...` or `l := line.new(...)` on a `var`
+ * variable): the maximum count never deletes it, and it still counts. Returns the object.
+ */
+export function holdDrawing<T extends object>(obj: T): T {
+  held.set(obj, (held.get(obj) ?? 0) + 1);
+  return obj;
+}
+
+/** The `var` variable no longer refers to the object (it got another object or `na`). */
+export function releaseDrawing(obj: object | null | undefined): void {
+  if (!obj) return;
+  const count = held.get(obj) ?? 0;
+  if (count > 1) held.set(obj, count - 1);
+  else if (held.delete(obj) && currentBar !== null) releasedAt.set(obj, currentBar);
+}
+
+/** Linefill rule: held, or released less than 5,000 bars ago. */
+function fillProtected(obj: object): boolean {
+  if (held.has(obj)) return true;
+  const bar = releasedAt.get(obj);
+  return bar !== undefined && currentBar !== null && currentBar - bar < LINEFILL_RELEASE_BARS;
+}
+
+/** A `var` variable of a drawing type: see {@link varDrawing}. */
+export interface DrawingVariable<T extends object> {
+  /** The object of the variable; setting it holds the new object and releases the one before */
+  value: T | undefined;
+}
+
+/**
+ * A PineScript `var` variable of a drawing type (`var line l = na`). The object it refers to is not deleted by the
+ * maximum count; assigning another object (or `undefined` for `na`) releases the one before.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  var line level = na
+ * //        level := line.new(bar_index, close, bar_index + 1, close)
+ * const level = varDrawing<Line>();
+ * level.value = line.new(i, close, i + 1, close);
+ * ```
+ */
+export function varDrawing<T extends object>(initial?: T): DrawingVariable<T> {
+  let current: T | undefined = initial ? holdDrawing(initial) : undefined;
+  return {
+    get value() {
+      return current;
+    },
+    set value(next: T | undefined) {
+      if (next === current) return;
+      releaseDrawing(current);
+      current = next ? holdDrawing(next) : undefined;
+    },
+  };
+}
 
 /** Largest distance, in bars, of a bar index before the current bar (PineScript runtime error RE10026 above it). */
 export const MAX_DRAWING_BARS_BACK = 10000;
@@ -106,7 +177,21 @@ export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): 
   if (kind === 'table') return obj; // tables have no maximum count
   const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)];
   if (list.length > max + SLACK) {
-    for (const old of list.splice(0, list.length - max)) markDeleted(kind, old, false);
+    // the oldest first; an object held by a `var` variable is skipped and still counts
+    const kept: Array<DrawingTypes[K]> = [];
+    let excess = list.length - max;
+    for (const old of list) {
+      if (excess > 0 && old !== obj && !(kind === 'linefill' ? fillProtected(old) : held.has(old))) {
+        excess--;
+        markDeleted(kind, old, false);
+      } else kept.push(old);
+    }
+    // linefills: still above the maximum + 5, the oldest go, the held ones too
+    if (kind === 'linefill' && kept.length > max + SLACK) {
+      for (const old of kept.splice(0, kept.length - max)) markDeleted(kind, old, false);
+    }
+    list.length = 0;
+    list.push(...kept);
   }
   return obj;
 }
@@ -132,6 +217,8 @@ export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
 /** Forgets all objects (without deleting them) and sets the maximum counts (default 50). */
 export function resetDrawings(newLimits: DrawingLimits = {}): void {
   for (const kind of Object.keys(live) as DrawingKind[]) live[kind].length = 0;
+  held = new WeakMap();
+  releasedAt = new WeakMap();
   currentBar = null;
   limits = {
     line: newLimits.line ?? DEFAULT_MAX_COUNT,

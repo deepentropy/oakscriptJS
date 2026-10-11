@@ -4,14 +4,13 @@
  */
 import { taCore, time } from '../../src';
 
-/** The window scan the one-pass functions replace: stops at the first na going back. */
+/** The window scan the one-pass functions replace: the last `length` non-na values, with their offsets. */
 function scan(source: number[], rawLength: number, i: number): Array<[number, number]> {
   const length = Math.trunc(rawLength); // a fractional length is truncated
   const w: Array<[number, number]> = [];
-  for (let j = 0; j < length && i - j >= 0; j++) {
+  for (let j = 0; w.length < length && i - j >= 0; j++) {
     const x = source[i - j]!;
-    if (Number.isNaN(x)) break;
-    w.push([x, -j]);
+    if (!Number.isNaN(x)) w.push([x, -j]);
   }
   return w;
 }
@@ -23,7 +22,7 @@ const refBars = (s: number[], L: number, lowest: boolean) =>
   s.map((_, i) => {
     if (i < Math.trunc(L) - 1) return NaN;
     const w = scan(s, L, i);
-    if (!w.length) return 0;
+    if (!w.length) return NaN;
     let best = w[0]!;
     for (const item of w) if (lowest ? item[0] < best[0] : item[0] > best[0]) best = item; // ties: the newest
     return best[1];

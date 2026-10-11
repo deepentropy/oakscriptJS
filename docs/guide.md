@@ -413,6 +413,23 @@ The run result has `plotCandles` and `plotBars` (keyed by the ids of
 `drawingOutputs(bars)` (from `oakscriptjs`) gives the same fields for drawings
 made outside a script run.
 
+In PineScript, an object that a `var` variable of the drawing type refers to is
+never deleted by `max_*_count`, and it still counts. JavaScript has no `var`
+declaration to observe, so the script says it with `varDrawing()`:
+
+```typescript
+// Pine:  var line level = na
+//        level := line.new(bar_index, close, bar_index + 1, close)
+const level = varDrawing<Line>();
+eachBar((c) => {
+  level.value = line.new(c.i, c.close, c.i + 1, c.close); // holds the new line, releases the one before
+});
+```
+
+Only the variable protects: an object kept in an array or in a field is deleted
+like any other. `holdDrawing(obj)` / `releaseDrawing(obj)` do the same without a
+variable object.
+
 ### Per-bar stateful execution (eachBar)
 
 The Series API is vectorized. For logic PineScript writes with persistent state
@@ -471,14 +488,18 @@ an `if` block and, since v6, in the right operand of `and` / `or`, which run onl
 decide the result (`a or b`: bars where `a` is false; `a and b`: bars where `a` is true). A vectorized Series call
 sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.whenCalled(called, fn, ...sources)` when the bars are known in advance, or the stateful
-`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowest()`, `highest()`, `lowestByBar()`,
-`highestByBar()`, `linreg()`, `sum()`, `sma()`, `stdev()` in a bar loop.
+`callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowestByBar()`, `highestByBar()`,
+`lowestbars()`, `highestbars()`, `pivothigh()`, `pivotlow()`, `lowest()`, `highest()`, `linreg()`, `sum()`, `sma()`,
+`stdev()` in a bar loop.
 `callsite.linreg()` takes the bar index: PineScript's `ta.linreg` keeps its window by bar, so in an `if` block the
 bars before the first call count as 0 (`site(bar_index, close, 10, 0)` on the bars where the block runs).
-`callsite.lowestByBar()` / `highestByBar()` are `ta.lowest` / `ta.highest` in a branch with the history kept by bar
-in the same way (`site(bar_index, low, 6)`); `callsite.lowest()` / `highest()` keep a history by call.
-`callsite.lowest()` / `highest()` also give `ta.lowest` / `ta.highest` with a series length (a different length on
-each bar), which PineScript computes with a state kept between calls:
+`callsite.lowestByBar()` / `highestByBar()` / `lowestbars()` / `highestbars()` (`site(bar_index, low, 6)`) and
+`pivothigh()` / `pivotlow()` (`site(bar_index, high, 5, 5)`) keep the non-na values of their calls: the result is the
+extreme of the last `length` calls (of the calls so far when there are fewer), `na` before bar `length - 1`. The
+bar index gives that warm-up, the offsets of `highestbars` and the bar of a pivot; in a loop, the calls of one bar
+share one kept value. The length can change from one call to the next.
+`callsite.lowest()` / `highest()` are the same sites called with `(value, length)` on every bar, for `ta.lowest` /
+`ta.highest` with a series length (a different length on each bar):
 
 ```typescript
 // Pine: lowPrice = ta.lowest(close[1], lookback)   // lookback changes per bar

@@ -24,10 +24,10 @@ describe('ta.stoch (#145)', () => {
     ]));
   });
 
-  it('an na highest (na high in the window) gives the previous result', () => {
+  it('an na high is skipped by the highest of the window (the last 3 non-na highs)', () => {
     const high = HIGH.map((h, i) => (i % 11 === 5 ? NaN : h));
     expect(taCore.stoch(CLOSE, high, LOW, 3)).toEqual(toNum([
-      null, null, 84.21052631578942, 78.5714285714285, 78.5714285714285, 78.5714285714285, 78.5714285714285, 0,
+      null, null, 84.21052631578942, 78.5714285714285, 78.5714285714285, 0, 0, 0,
       62.5263157894737, 100, 100, 0,
     ]));
   });

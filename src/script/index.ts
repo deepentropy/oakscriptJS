@@ -88,6 +88,7 @@ import * as chartPointCore from '../chartpoint/index.js';
 import * as textCore from '../text/index.js';
 import * as mathCore from '../math/index.js';
 import { resetDrawings, setDrawingBar, setDrawingLimits } from '../drawing/registry.js';
+export { holdDrawing, releaseDrawing, varDrawing, type DrawingVariable } from '../drawing/registry.js';
 import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
 import * as timeCore from '../time/index.js';
@@ -296,6 +297,7 @@ export function executeScript(
 ): ScriptRunResult {
   ctxBars.setAll(barsInput);
   chartCtx = { ...chart };
+  runNow = chart.now ?? Date.now();
   scriptOptions = options;
   ctx = freshCollector(inputs);
   resetDrawings();
@@ -1551,6 +1553,16 @@ export interface ChartContext {
   pointvalue?: number;
   /** Smallest tradable quantity (PineScript `syminfo.mincontract`); 1 for whole shares */
   mincontract?: number;
+  /** Symbol type (PineScript `syminfo.type`): "stock", "crypto", "forex", "futures", "index", "fund"... */
+  symbolType?: string;
+  /** Currency of the symbol (PineScript `syminfo.currency`), e.g. "USD" */
+  currency?: string;
+  /** Chart foreground colour (PineScript `chart.fg_color`), e.g. "#DBDBDB" on a dark chart */
+  foregroundColor?: string;
+  /** Chart background colour (PineScript `chart.bg_color`), e.g. "#0F0F0F" on a dark chart */
+  backgroundColor?: string;
+  /** Current time in ms (PineScript `timenow`); default: the clock of the computer at the start of the run */
+  now?: number;
   /**
    * The last bar is closed (`barstate.isconfirmed` on the last bar). Default false: PineScript treats the last bar
    * of the data as not confirmed until the data feed closes it.
@@ -1642,6 +1654,16 @@ function symbolProperty(key: 'mintick' | 'pointvalue' | 'mincontract'): number {
   return value;
 }
 
+/** A text value of the chart or the symbol that the host passes in the chart context. */
+function chartText(key: 'symbolType' | 'currency' | 'foregroundColor' | 'backgroundColor', name: string): string {
+  collector();
+  const value = chartCtx[key];
+  if (value === undefined) {
+    throw new Error(`${name} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
+  }
+  return value;
+}
+
 /** `[minmove, pricescale]` of the chart symbol: from the chart context, else from its mintick. */
 function symbolScale(): [number, number] {
   collector();
@@ -1653,7 +1675,8 @@ function symbolScale(): [number, number] {
 
 /**
  * PineScript `syminfo.timezone`, `syminfo.tickerid`, `syminfo.session` (session type), `syminfo.mintick`,
- * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue` and `syminfo.mincontract`, from the chart context.
+ * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue`, `syminfo.mincontract`, `syminfo.type` and
+ * `syminfo.currency`, from the chart context.
  */
 export const syminfo = {
   get mintick(): number {
@@ -1684,6 +1707,12 @@ export const syminfo = {
   get session(): string {
     collector();
     return chartCtx.sessionType ?? 'regular';
+  },
+  get type(): string {
+    return chartText('symbolType', 'syminfo.type');
+  },
+  get currency(): string {
+    return chartText('currency', 'syminfo.currency');
   },
 };
 
@@ -1843,6 +1872,12 @@ function timeCloseFunction(tf?: string, session?: string, timezone?: string): Se
  * PineScript `time`: the bar open time in ms (a Series), and `time(timeframe?, session?, timezone?)`:
  * the open time of the `timeframe` period that contains the bar, `na` outside `session`.
  */
+/** Current time of the run in ms, see `ChartContext.now`. */
+let runNow = NaN;
+
+/** PineScript `timenow`: the current time in ms, the same on every bar of a run (`ChartContext.now`). */
+export const timenow = new Series(ctxBars, () => runNow);
+
 export const time = callableSeries(new Series(ctxBars, (b) => barTime(b)), timeFunction);
 
 /**
@@ -2095,6 +2130,14 @@ export const text = { ...textCore };
  * (index, time, and `price`, default the close), so it runs inside eachBar().
  */
 export const chart = {
+  /** Chart foreground colour (PineScript `chart.fg_color`), from the chart context. */
+  get fg_color(): string {
+    return chartText('foregroundColor', 'chart.fg_color');
+  },
+  /** Chart background colour (PineScript `chart.bg_color`), from the chart context. */
+  get bg_color(): string {
+    return chartText('backgroundColor', 'chart.bg_color');
+  },
   point: {
     ...chartPointCore,
     now(price?: number): ChartPoint {

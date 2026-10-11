@@ -288,9 +288,9 @@ function lastValues(source: Source, i: number, length: number): number[] | null 
 
 /**
  * The extreme of the window of `length` bars ending at each bar, in one pass (monotonic deque): the bar index of
- * the oldest highest (or lowest) value (the newest one with `newest`), or -1 when the window is empty. As PineScript
- * does for ta.highest / ta.lowest / ta.highestbars / ta.lowestbars, the window stops at the first `na` value going
- * back, so a bar whose own value is `na` has an empty window, and a fractional length is truncated (7.5 is 7 bars).
+ * the oldest highest (or lowest) value (the newest one with `newest`), or -1 when the window is empty. The window
+ * stops at the first `na` value going back (the callers pass the non-na values only, see {@link keptValues}), and a
+ * fractional length is truncated (7.5 is 7 bars), as PineScript does.
  * `zeros[i]` tells whether the window holds a +0 (highest) or a -0 (lowest), the zero that `Math.max` / `Math.min`
  * return when the extreme is 0 (not kept with `newest`).
  */
@@ -339,24 +339,56 @@ function windowExtremes(
   return { at, zeros };
 }
 
-/** Offset of the best value of the window; on ties the newest bar wins. 0 when the window is empty. */
-function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
-  checkWindowLength(lowest ? 'lowestbars' : 'highestbars', length, 0);
-  const { at } = windowExtremes(source, length, lowest, true);
-  const len = Math.trunc(length);
-  // -(i - at): -0 when the extreme is the current bar, as the offset -j of the window scan
-  return source.map((_, i) => (i < len - 1 ? NaN : at[i]! < 0 ? 0 : -(i - at[i]!)));
+/**
+ * The non-na values of `source` with their bars, and for each bar the position of its last non-na value (-1 when
+ * there is none yet). PineScript's ta.highest / ta.lowest / ta.highestbars / ta.lowestbars / ta.pivothigh /
+ * ta.pivotlow keep the non-na values they receive and nothing else.
+ */
+function keptValues(source: Source): { values: number[]; bars: number[]; last: Int32Array } {
+  const values: number[] = [];
+  const bars: number[] = [];
+  const last = new Int32Array(source.length);
+  for (let i = 0; i < source.length; i++) {
+    const x = source[i]!;
+    if (!Number.isNaN(x)) {
+      values.push(x);
+      bars.push(i);
+    }
+    last[i] = values.length - 1;
+  }
+  return { values, bars, last };
 }
 
-/** Best value of the window (`na` when the window is empty), with the zero sign of `Math.max` / `Math.min`. */
+/**
+ * Offset to the best of the last `length` non-na values (the newest one on ties): the distance in bars, so below
+ * `-(length - 1)` after an na value. na before bar `length - 1` and while there is no value.
+ */
+function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
+  checkWindowLength(lowest ? 'lowestbars' : 'highestbars', length, 0);
+  const { values, bars, last } = keptValues(source);
+  const { at } = windowExtremes(values, length, lowest, true);
+  const len = Math.trunc(length);
+  // -(i - bar): -0 when the extreme is the current bar, as the offset -j of the window scan
+  return source.map((_, i) => {
+    const k = last[i]!;
+    return i < len - 1 || k < 0 || at[k]! < 0 ? NaN : -(i - bars[at[k]!]!);
+  });
+}
+
+/**
+ * Best of the last `length` non-na values (of all of them when there are fewer), with the zero sign of `Math.max` /
+ * `Math.min`. na before bar `length - 1` and while there is no value.
+ */
 function extremeValue(source: Source, length: simple_int, lowest: boolean): series_float {
   checkWindowLength(lowest ? 'lowest' : 'highest', length, 0);
-  const { at, zeros } = windowExtremes(source, length, lowest);
+  const { values, last } = keptValues(source);
+  const { at, zeros } = windowExtremes(values, length, lowest);
   const len = Math.trunc(length);
   return source.map((_, i) => {
-    if (i < len - 1 || at[i]! < 0) return NaN;
-    const v = source[at[i]!]!;
-    return v === 0 && zeros[i] ? (lowest ? -0 : 0) : v;
+    const k = last[i]!;
+    if (i < len - 1 || k < 0 || at[k]! < 0) return NaN;
+    const v = values[at[k]!]!;
+    return v === 0 && zeros[k] ? (lowest ? -0 : 0) : v;
   });
 }
 
@@ -831,8 +863,9 @@ export function wma(source: Source, length: simple_int | ArrayLike<number>): ser
  * @returns Highest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript: an `na` value ends the window, so only the values after the last `na`
- * count, and a bar whose own value is `na` gives `na`. A fractional length is truncated (7.5 is 7 bars).
+ * As in PineScript: `na` values are skipped. The result is the highest of the last `length` non-na values (of all
+ * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
+ * value was received. A fractional length is truncated (7.5 is 7 bars).
  * A length above 15,000 throws the PineScript runtime error (also `ta.lowest`, `ta.highestbars`, `ta.lowestbars`).
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  */
@@ -848,8 +881,9 @@ export function highest(source: Source, length: simple_int): series_float {
  * @returns Lowest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript: an `na` value ends the window, so only the values after the last `na`
- * count, and a bar whose own value is `na` gives `na`.
+ * As in PineScript: `na` values are skipped. The result is the lowest of the last `length` non-na values (of all
+ * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
+ * value was received.
  */
 export function lowest(source: Source, length: simple_int): series_float {
   return extremeValue(source, length, true);
@@ -1762,32 +1796,24 @@ export function sar(
 /**
  * Pivot detection as PineScript computes it.
  *
- * The value of the pivot bar is returned `rightbars` bars later, on the bar where the pivot is
- * confirmed, so no future bar is used. A pivot high may equal values on its left but must be higher
- * than every value on its right (a pivot low: equal on the left, lower on the right). An `na`
- * neighbour ends the check on its side; an `na` pivot value gives no pivot.
+ * The function keeps the non-na values it receives. On each bar it takes the last `leftbars + rightbars + 1` of them
+ * (all of them when there are fewer) and finds the highest (the newest one on equal values; the lowest for a pivot
+ * low): there is a pivot when that value is on the bar `rightbars` bars back, and its value is returned on this bar,
+ * so no future bar is used. A pivot high may so equal values on its left but must be higher than every value on its
+ * right. `na` before bar `leftbars + rightbars`.
  */
 function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHigh: boolean): series_float {
-  // "beats" = the neighbour prevents the pivot
-  const beatsLeft = isHigh ? (x: number, v: number) => x > v : (x: number, v: number) => x < v;
-  const beatsRight = isHigh ? (x: number, v: number) => x >= v : (x: number, v: number) => x <= v;
-
+  const left = Math.trunc(leftbars);
+  const right = Math.trunc(rightbars);
+  const { values, bars, last } = keptValues(source);
   return source.map((_, i) => {
-    const center = i - rightbars;
-    if (center - leftbars < 0) return NaN;
-    const v = source[center]!;
-    if (Number.isNaN(v)) return NaN;
-    for (let j = 1; j <= leftbars; j++) {
-      const x = source[center - j]!;
-      if (Number.isNaN(x)) break;
-      if (beatsLeft(x, v)) return NaN;
+    const k = last[i]!;
+    if (!(i >= left + right) || k < 0) return NaN;
+    let best = k;
+    for (let j = k - 1; j >= 0 && j >= k - left - right; j--) {
+      if (isHigh ? values[j]! > values[best]! : values[j]! < values[best]!) best = j;
     }
-    for (let j = 1; j <= rightbars; j++) {
-      const x = source[center + j]!;
-      if (Number.isNaN(x)) break;
-      if (beatsRight(x, v)) return NaN;
-    }
-    return v;
+    return bars[best] === i - right ? values[best]! : NaN;
   });
 }
 
@@ -1805,7 +1831,8 @@ function pivot(source: Source, leftbars: simple_int, rightbars: simple_int, isHi
  * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
  *   index is `i - rightbars`
  * - A pivot high may equal values on its left but must be higher than all values on its right
- * - An `na` neighbour ends the check on its side
+ * - `na` values are skipped: the window is the last `leftbars + rightbars + 1` non-na values, and the highest of
+ *   them must be on the bar `rightbars` bars back
  *
  * @example
  * ```typescript
@@ -1842,7 +1869,8 @@ export function pivothigh(
  * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
  *   index is `i - rightbars`
  * - A pivot low may equal values on its left but must be lower than all values on its right
- * - An `na` neighbour ends the check on its side
+ * - `na` values are skipped: the window is the last `leftbars + rightbars + 1` non-na values, and the lowest of
+ *   them must be on the bar `rightbars` bars back
  *
  * @example
  * ```typescript
@@ -2441,8 +2469,9 @@ export function range(source: Source, length: simple_int): series_float {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: on equal values the newest bar wins; an `na` value ends the window;
- * 0 when the window has no value; a fractional length is truncated.
+ * As in PineScript: the best of the last `length` non-na values, the newest one on equal values; the offset is the
+ * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
+ * `length - 1` and while no value was received; a fractional length is truncated.
  */
 export function highestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, false);
@@ -2453,8 +2482,9 @@ export function highestbars(source: Source, length: simple_int): series_int {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: on equal values the newest bar wins; an `na` value ends the window;
- * 0 when the window has no value; a fractional length is truncated.
+ * As in PineScript: the best of the last `length` non-na values, the newest one on equal values; the offset is the
+ * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
+ * `length - 1` and while no value was received; a fractional length is truncated.
  */
 export function lowestbars(source: Source, length: simple_int): series_int {
   return extremeOffset(source, length, true);

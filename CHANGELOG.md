@@ -21,9 +21,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `setDrawingBar(barIndex)` (package root): tells the drawing functions the bar being calculated, for a port with
   its own bar loop; `eachBar` of the script API does it (#170).
 - `str.tostring(array)` gives "[a, b]".
+- `callsite.highestbars()` / `lowestbars()`: `ta.highestbars` / `ta.lowestbars` in a conditional block or a loop,
+  called with `(barIndex, value, length)` (#160).
+- `callsite.pivothigh()` / `pivotlow()`: `ta.pivothigh` / `ta.pivotlow` in a conditional block, called with
+  `(barIndex, value, leftbars, rightbars)`; the lengths can change from one call to the next (#169).
+- Drawing limit: an object held by a `var` variable of the drawing type is never deleted by `max_*_count`, and it
+  still counts (measured for lines, labels and boxes). `varDrawing<T>()` is such a variable (`.value = obj` holds the
+  new object and releases the one before); `holdDrawing(obj)` / `releaseDrawing(obj)` do it without a variable.
+  From the package root and `oakscriptjs/script`. Linefills have their own rule (measured on one script): a fill
+  is skipped while a `var` variable holds it and for 5,000 bars after its release; when the count is still above
+  the maximum + 5, the oldest fills are deleted, the held ones too. The polyline delay and the last-bar cases of the
+  issue are not covered (#158).
+- Chart context: `symbolType`, `currency`, `foregroundColor`, `backgroundColor`, `now`, read in a script as
+  `syminfo.type`, `syminfo.currency`, `chart.fg_color`, `chart.bg_color` and `timenow` (a value that was not given
+  throws; `timenow` defaults to the clock at the start of the run) (#165).
 
 ### Changed
 
+- `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars`: `na` values are skipped, as PineScript does today
+  (measured on 11/10/2026; the former rule, "an `na` value ends the window", no longer matches). The result is the
+  extreme of the last `length` non-na values (of all of them when there are fewer), also on a bar whose own value is
+  `na`; `na` before bar `length - 1` and while no value was received. The offsets of `highestbars` / `lowestbars`
+  count bars, so they can be below `-(length - 1)`, and are `na` (not 0) while there is no value. `ta.stoch` follows
+  (an `na` high or low is skipped in the window).
+- `ta.pivothigh` / `ta.pivotlow`: `na` values are skipped in the same way: the highest (lowest) of the last
+  `leftbars + rightbars + 1` non-na values must be on the bar `rightbars` bars back (an `na` neighbour ended the check
+  on its side).
+- `callsite.lowestByBar()` / `highestByBar()` no longer keep a ring by bar: they keep the non-na values of their
+  calls (rule above, `na` before bar `length - 1`), which is what PineScript gives today in `if` blocks, ternaries,
+  user functions and loops, with a constant length or one that changes. Several calls on one bar (a loop) share one
+  kept value. `callsite.lowest()` / `highest()` are the same sites, called with `(value, length, barIndex?)`: an `na`
+  value no longer resets them (#159, #168).
 - `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars` and the `callsite.highest()` / `lowest()` /
   `highestByBar()` / `lowestByBar()` sites throw the PineScript runtime error when the length is above 15,000:
   "The 'highest' function references too many historical candles (15001), the limit is 15000." (#164).

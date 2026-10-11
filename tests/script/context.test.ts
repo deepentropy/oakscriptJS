@@ -9,6 +9,8 @@ import {
   syminfo,
   timeframe,
   timestamp,
+  timenow,
+  chart as chartApi,
   close,
   math,
   type ChartContext,
@@ -110,5 +112,25 @@ describe('exchange time zone defaults', () => {
     expect(() => run({}, () => hour(0))).toThrow('exchange time zone is not known');
     expect(run({}, () => hour(0, 'UTC'))).toBe(0);
     expect(run({}, () => str.format('{0}', 1.5))).toBe('1.5');
+  });
+});
+
+describe('symbol type, currency, chart colours and timenow (#165)', () => {
+  it('reads the values of the chart context', () => {
+    const chart: ChartContext = {
+      symbolType: 'crypto', currency: 'USD', foregroundColor: '#DBDBDB', backgroundColor: '#0F0F0F', now: 1_700_000_000_000,
+    };
+    expect(run(chart, () => [syminfo.type, syminfo.currency, chartApi.fg_color, chartApi.bg_color, timenow.toArray()])).toEqual([
+      'crypto', 'USD', '#DBDBDB', '#0F0F0F', [1_700_000_000_000, 1_700_000_000_000, 1_700_000_000_000],
+    ]);
+  });
+
+  it('a value that was not given throws; timenow defaults to the clock', () => {
+    expect(() => run({}, () => syminfo.type)).toThrow('syminfo.type is not known');
+    expect(() => run({}, () => chartApi.bg_color)).toThrow('chart.bg_color is not known');
+    const before = Date.now();
+    const now = run({}, () => timenow.toArray());
+    expect(now[0]).toBeGreaterThanOrEqual(before);
+    expect(now[2]).toBe(now[0]);
   });
 });

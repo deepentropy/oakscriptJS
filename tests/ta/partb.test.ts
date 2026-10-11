@@ -15,9 +15,16 @@ describe('ta.highest / ta.highestbars', () => {
     expectValues(taCore.highestbars(high, 5), [N, N, N, N, -3, -4, -4, -4, -4]);
   });
 
-  it('an na value ends the window', () => {
-    expectValues(taCore.highest(na7, 4), [N, N, N, N, 52.91, 52.91, 52.91, 54.44, 54.44]);
-    expectValues(taCore.highestbars(na7, 4), [N, N, N, 0, 0, -1, -2, 0, -1]);
+  it('na values are skipped: the last length non-na values, also on the na bar', () => {
+    expectValues(taCore.highest(na7, 4), [N, N, N, 63.59, 63.59, 60.75, 58, 54.44, 54.44]);
+    expectValues(taCore.lowest(na7, 4), [N, N, N, 58, 52.91, 52.16, 51.32, 51.32, 51.32]);
+    // the offset counts bars: -4 with a length of 4 when an na bar is in between
+    expectValues(taCore.highestbars(na7, 4), [N, N, N, -3, -4, -4, -4, 0, -1]);
+  });
+
+  it('na while no value was received, also for the offsets', () => {
+    expect(taCore.highest([NaN, NaN, NaN, 5, 4], 2)).toEqual([NaN, NaN, NaN, 5, 5]);
+    expect(taCore.highestbars([NaN, NaN, NaN, 5, 4], 2)).toEqual([NaN, NaN, NaN, -0, -1]);
   });
 
   it('on equal values the newest bar wins (#160)', () => {

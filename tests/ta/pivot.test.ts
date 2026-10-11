@@ -28,10 +28,12 @@ describe('ta.pivothigh / ta.pivotlow (PineScript values)', () => {
     expect(valuesAt(taCore.pivotlow([3, 2, 2, 3, 4], 1, 1))).toEqual([[3, 2]]);
   });
 
-  it('ends the check on a side at an na neighbour', () => {
-    // center 2 (value 2): the na at index 1 ends the left check, so 3 at index 0 does not count
-    expect(valuesAt(taCore.pivothigh([3, NaN, 2, 1], 2, 1))).toEqual([[3, 2]]);
-    // an na center gives no pivot
+  it('na values are skipped: the highest of the last left + right + 1 non-na values, on the bar right bars back', () => {
+    // PineScript ta.pivothigh(src, 3, 2), src with na on bars 4 and 13 (values rounded)
+    const src = [0, 100, -24, -90, NaN, 85, -64, -55, 94, 49, -86, -15, 101, NaN, -94, 40, 93];
+    expect(valuesAt(taCore.pivothigh(src, 3, 2))).toEqual([[10, 94], [14, 101]]);
+    // 3 on bar 0 is in the window of the last 3 values, so 2 is no pivot; an na value is never a pivot
+    expect(valuesAt(taCore.pivothigh([3, NaN, 2, 1], 2, 1))).toEqual([]);
     expect(valuesAt(taCore.pivothigh([1, NaN, 1], 1, 1))).toEqual([]);
   });
 

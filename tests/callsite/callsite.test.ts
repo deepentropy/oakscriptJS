@@ -82,7 +82,7 @@ describe('callsite.barssince', () => {
   });
 });
 
-describe('callsite.lowest / highest (series length, #126)', () => {
+describe('callsite.lowest / highest (value, length, barIndex?)', () => {
   const run = (site: (v: number, l: number) => number, values: number[], lengths: number[]) =>
     values.map((v, i) => site(v, lengths[i]!));
 
@@ -93,21 +93,21 @@ describe('callsite.lowest / highest (series length, #126)', () => {
     expect(run(callsite.highest(), x, len)).toEqual(taCore.highest(x, 3));
   });
 
-  it('a smaller length scans the window again', () => {
+  it('a length that changes: the last length values of each call', () => {
     expect(run(callsite.lowest(), [1, 5, 4, 6, 7], [5, 5, 5, 5, 2])).toEqual([NaN, NaN, NaN, NaN, 6]);
+    expect(run(callsite.lowest(), [9, 1, 5, 4, 3], [2, 2, 2, 2, 4])).toEqual([NaN, 1, 1, 4, 1]);
   });
 
-  it('a larger length compares the values that enter the window with the extreme', () => {
-    expect(run(callsite.lowest(), [NaN, 1, 5, 4, 3], [2, 2, 2, 2, 4])).toEqual([NaN, 1, 1, 4, 1]);
+  it('na values are skipped, and an na call gives the extreme of the kept values', () => {
+    expect(run(callsite.highest(), [4, 9, NaN, 2, 3], [3, 3, 3, 3, 3])).toEqual([NaN, NaN, 9, 9, 9]);
+    expect(run(callsite.lowest(), [NaN, 1, 5, 4, 6, 7], [2, 2, 2, 2, 5, 5])).toEqual([NaN, 1, 1, 4, 1, 1]);
   });
 
-  it('an na value among the entering values restarts the extreme from the current value', () => {
-    // the plain minimum of the last 5 values would be 1
-    expect(run(callsite.lowest(), [NaN, 1, 5, 4, 6, 7], [2, 2, 2, 2, 5, 5])).toEqual([NaN, 1, 1, 4, 6, 6]);
-  });
-
-  it('an na value gives na and resets the extreme; the next call scans the window again', () => {
-    expect(run(callsite.highest(), [4, 9, NaN, 2, 3], [3, 3, 3, 3, 3])).toEqual([NaN, NaN, NaN, 9, 3]);
+  it('with the bar index, it is the site of lowestByBar / highestByBar', () => {
+    const a = callsite.highest();
+    const b = callsite.highestByBar();
+    const x = [5, 3, 8, 1, 9, 2, 7];
+    for (const i of [0, 2, 3, 6]) expect(a(x[i]!, 3, i)).toEqual(b(i, x[i]!, 3));
   });
 });
 
@@ -146,34 +146,101 @@ describe('callsite.linreg (ta.linreg in a conditional block, #131)', () => {
 });
 
 
-describe('callsite.lowestByBar / highestByBar (history kept by bar, #138)', () => {
-  it('a bar before the first call counts as 0 when the window is read again', () => {
+describe('callsite.lowestByBar / highestByBar: the non-na values of the calls (#159)', () => {
+  // PineScript: src = math.sin(bar_index * 1.7) * 100 + bar_index % 11, first 16 bars
+  const src = [
+    0, 100.16648104524685, -23.554110202683123, -89.58146823277325, 53.411335113860815, 84.84871126234903,
+    -63.98746875935423, -54.81371122370333, 93.91618148564957, 48.67405731306137, -86.13974918795569,
+    -14.89990258141988,
+  ];
+
+  it('if bar_index % 2 == 0: ta.highest(src, 5) is na before bar 4, then the calls so far (PineScript values)', () => {
+    const hi = callsite.highestByBar();
+    const out = src.map((v, i) => (i % 2 === 0 ? hi(i, v, 5) : NaN));
+    expect(out).toEqual([
+      NaN, NaN, NaN, NaN, 53.411335113860815, NaN, 53.411335113860815, NaN, 93.91618148564957, NaN,
+      93.91618148564957, NaN,
+    ]);
+  });
+
+  it('a first call after bar length - 1 gives its own value; a bar without a call keeps nothing', () => {
     const lo = callsite.lowestByBar();
     expect(lo(0, 300, 6)).toBeNaN(); // na before bar length - 1
-    expect(lo(6, 310, 6)).toBe(0); // 310 is not lower; 300 is 6 bars old: bars 1..5 are 0 slots
+    expect(lo(6, 310, 6)).toBe(300); // the two calls so far
+    const first = callsite.lowestByBar();
+    expect(first(7, -54.81371122370333, 5)).toBe(-54.81371122370333); // PineScript: if bar_index % 7 == 0
   });
 
-  it('na before bar length - 1 by bar, not by call', () => {
-    const lo = callsite.lowestByBar();
-    expect(lo(5, 305, 6)).toBe(305);
-  });
-
-  it('a value that passes the kept extreme replaces it before the age check', () => {
-    // called on bars 0..16 and 21; 501 on bar 10 is out of the last 6 calls, but its slot is read for bar 17
+  it('the window is the last length calls, whatever their bars', () => {
     const values = Array.from({ length: 17 }, (_, i) => (i === 10 ? 501 : i === 12 ? 400 : 100));
     const hi = callsite.highestByBar();
     const out = values.map((v, i) => hi(i, v, 6));
     expect(out[16]).toBe(400);
-    expect(hi(21, 403, 6)).toBe(403); // reading the ring again would give 501
-    expect(hi(22, 100, 6)).toBe(403);
+    expect(hi(21, 403, 6)).toBe(403);
+    expect(hi(40, 100, 6)).toBe(403); // 19 bars later, still in the last 6 calls
+  });
+
+  it('an na value is not kept, and its call gives the extreme of the kept values', () => {
+    const hi = callsite.highestByBar();
+    expect([5, NaN, 3, NaN, 2, 1, 0].map((v, i) => hi(i, v, 3))).toEqual([NaN, NaN, 5, 5, 5, 3, 2]);
+  });
+
+  it('a loop: one kept value per bar, each call replaces the value of the earlier calls of that bar (#168)', () => {
+    const hi = callsite.highestByBar();
+    // bars 0..2 with one call; bar 3 with three calls (10, na, 4)
+    [7, 8, 6].forEach((v, i) => hi(i, v, 3));
+    expect(hi(3, 10, 3)).toBe(10);
+    expect(hi(3, NaN, 3)).toBe(10); // the value of the earlier call of this bar counts
+    expect(hi(3, 4, 3)).toBe(8); // 8, 6 and its own value
+    expect(hi(4, 1, 3)).toBe(6); // the bar 3 kept 4, its last non-na value
   });
 
   it('called on every bar, equals ta.lowest / ta.highest', () => {
-    const x = [5, 3, 8, 1, 9, 2, 7, 7, 4, 6, 1, 1, 3, 9, 0, 2];
+    const x = [5, 3, 8, 1, 9, NaN, 7, 7, 4, 6, 1, 1, 3, 9, 0, 2];
     const lo = callsite.lowestByBar();
     const hi = callsite.highestByBar();
     expect(x.map((v, i) => lo(i, v, 4))).toEqual(taCore.lowest(x, 4));
     expect(x.map((v, i) => hi(i, v, 4))).toEqual(taCore.highest(x, 4));
+  });
+});
+
+describe('callsite.highestbars / lowestbars (#160)', () => {
+  it('if bar_index % 2 == 0: ta.highestbars(src, 5) counts bars to the best of the calls (PineScript values)', () => {
+    const src = [
+      0, 100.16648104524685, -23.554110202683123, -89.58146823277325, 53.411335113860815, 84.84871126234903,
+      -63.98746875935423, -54.81371122370333, 93.91618148564957, 48.67405731306137, -86.13974918795569,
+      -14.89990258141988, 100.97929001426692,
+    ];
+    const site = callsite.highestbars();
+    const out = src.map((v, i) => (i % 2 === 0 ? site(i, v, 5) : NaN));
+    expect(out).toEqual([NaN, NaN, NaN, NaN, -0, NaN, -2, NaN, -0, NaN, -2, NaN, -0]);
+  });
+
+  it('the newest value on ties; called on every bar, equals ta.lowestbars', () => {
+    const x = [5, 1, 1, 2, NaN, 3, 1, 4];
+    const site = callsite.lowestbars();
+    expect(x.map((v, i) => site(i, v, 3))).toEqual(taCore.lowestbars(x, 3));
+  });
+});
+
+describe('callsite.pivothigh / pivotlow (#169)', () => {
+  it('the highest of the last left + right + 1 calls must be on the bar right bars back', () => {
+    const site = callsite.pivothigh();
+    // calls on bars 0..5, then 8: 9 on bar 3 is the highest of the calls
+    const out = [1, 2, 3, 9, 4, 5].map((v, i) => site(i, v, 2, 2));
+    expect(out).toEqual([NaN, NaN, NaN, NaN, NaN, 9]);
+    // on bar 8 the highest of the last 5 calls is still 9 (bar 3), which is not 2 bars back
+    expect(site(8, 6, 2, 2)).toBeNaN();
+    // bar 10: the last 5 calls are bars 3, 4, 5, 8, 10; no pivot on bar 8
+    expect(site(10, 0, 2, 2)).toBeNaN();
+  });
+
+  it('called on every bar, equals ta.pivothigh / ta.pivotlow', () => {
+    const x = [5, 3, 8, 1, 9, NaN, 7, 7, 4, 6, 1, 1, 3, 9, 0, 2];
+    const hi = callsite.pivothigh();
+    const lo = callsite.pivotlow();
+    expect(x.map((v, i) => hi(i, v, 2, 1))).toEqual(taCore.pivothigh(x, 2, 1));
+    expect(x.map((v, i) => lo(i, v, 2, 1))).toEqual(taCore.pivotlow(x, 2, 1));
   });
 });
 

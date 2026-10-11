@@ -9,10 +9,11 @@
  * - {@link whenCalled}: vectorized, when the bars of the calls are known in advance.
  * - {@link crossover} / {@link crossunder} / {@link cross} / {@link barssince}: one stateful call site for bar
  *   loops, called only on the bars where the Pine call runs.
- * - {@link lowest} / {@link highest}: `ta.lowest` / `ta.highest` with a series length (a different length on each
- *   call), which PineScript computes with a state kept between calls.
- * - {@link lowestByBar} / {@link highestByBar} / {@link linreg}: `ta.lowest` / `ta.highest` / `ta.linreg` in a
- *   conditional block, whose history is kept by bar (not by call).
+ * - {@link lowestByBar} / {@link highestByBar} / {@link lowestbars} / {@link highestbars} / {@link pivothigh} /
+ *   {@link pivotlow}: `ta.lowest` / `ta.highest` / `ta.lowestbars` / `ta.highestbars` / `ta.pivothigh` /
+ *   `ta.pivotlow` in a conditional block or a loop, also with a length that changes on each call. They keep the
+ *   non-na values of their calls; {@link lowest} / {@link highest} are the same sites called with `(value, length)`.
+ * - {@link linreg}: `ta.linreg` in a conditional block, whose history is kept by bar (not by call).
  * - {@link sum} / {@link sma}: `math.sum` / `ta.sma` in a `for` / `while` loop, called several times on one bar.
  *
  * Since PineScript v6, `and` / `or` are lazy: the right operand runs only when the left operand does not decide
@@ -134,60 +135,63 @@ export function cross(): (a: number, b: number) => boolean {
   };
 }
 
-/** One `ta.lowest` / `ta.highest` call site with a series length; rules in {@link lowest}. */
-function extremeSite(isLowest: boolean): (value: number, length: number) => number {
-  const better = isLowest ? (a: number, b: number) => a < b : (a: number, b: number) => a > b;
-  const values: number[] = [];
-  let extreme = NaN;
-  let extremeAt = -1;
-  let prevLength = NaN;
-  const keep = (v: number, at: number) => {
-    extreme = v;
-    extremeAt = at;
-  };
-  const rescan = (i: number, length: number) => {
-    extreme = NaN;
-    for (let b = i; b > i - length && b >= 0; b--) {
-      const v = values[b]!;
-      if (!Number.isNaN(v) && (Number.isNaN(extreme) || !better(extreme, v))) keep(v, b);
+/** The values a ta.highest / ta.lowest / ta.pivothigh call site keeps: the non-na values of its calls, one per bar. */
+class KeptCalls {
+  readonly values: number[] = [];
+  readonly bars: number[] = [];
+
+  /** Keeps a non-na value; a later call on the same bar (a loop) replaces the value of that bar. */
+  add(barIndex: number, value: number): void {
+    if (Number.isNaN(value)) return;
+    const last = this.values.length - 1;
+    if (last >= 0 && this.bars[last] === barIndex) this.values[last] = value;
+    else {
+      this.values.push(value);
+      this.bars.push(barIndex);
     }
-  };
-  return (value, length) => {
-    checkWindowLength(isLowest ? 'lowest' : 'highest', length);
-    const i = values.length;
-    values.push(value);
-    if (Number.isNaN(value)) {
-      extreme = NaN;
-      prevLength = length;
-      return NaN;
+  }
+
+  /** Position of the best of the last `count` kept values (the newest one on ties), -1 when there is none. */
+  best(count: number, isLowest: boolean): number {
+    const last = this.values.length - 1;
+    if (last < 0 || !(count >= 1)) return -1;
+    let best = last;
+    for (let k = last - 1; k >= 0 && k > last - count; k--) {
+      if (isLowest ? this.values[k]! < this.values[best]! : this.values[k]! > this.values[best]!) best = k;
     }
-    if (length > prevLength) {
-      const from = Math.max(0, i - length + 1);
-      const to = Math.max(0, i - prevLength + 1);
-      if (values.slice(from, to).some(Number.isNaN)) keep(value, i);
-      else {
-        for (let b = from; b < to; b++) if (Number.isNaN(extreme) || better(values[b]!, extreme)) keep(values[b]!, b);
-        if (Number.isNaN(extreme) || better(value, extreme)) keep(value, i);
-      }
-    } else if (length < prevLength || Number.isNaN(extreme) || i - extremeAt >= length) rescan(i, length);
-    else if (better(value, extreme)) keep(value, i);
-    prevLength = length;
-    return i < length - 1 ? NaN : extreme;
+    return best;
+  }
+}
+
+/** One `ta.lowest` / `ta.highest` / `ta.lowestbars` / `ta.highestbars` call site; rules in {@link lowestByBar}. */
+function extremeByBarSite(
+  isLowest: boolean,
+  offsets: boolean
+): (barIndex: number, value: number, length: number) => number {
+  const kept = new KeptCalls();
+  const name = (isLowest ? 'lowest' : 'highest') + (offsets ? 'bars' : '');
+  return (barIndex, value, length) => {
+    checkWindowLength(name, length, barIndex);
+    kept.add(barIndex, value);
+    const len = Math.trunc(length);
+    if (barIndex < len - 1) return NaN;
+    const best = kept.best(len, isLowest);
+    if (best < 0) return NaN;
+    return offsets ? -(barIndex - kept.bars[best]!) : kept.values[best]!;
   };
 }
 
+/** {@link extremeByBarSite} called with `(value, length, barIndex?)`: without a bar index, every call is a new bar. */
+function extremeSite(isLowest: boolean): (value: number, length: number, barIndex?: number) => number {
+  const site = extremeByBarSite(isLowest, false);
+  let calls = 0;
+  return (value, length, barIndex) => site(barIndex ?? calls++, value, length);
+}
+
 /**
- * One `ta.lowest(source, length)` call site with a series length (a different length on each call), called with
- * `(value, length)`.
- *
- * PineScript rules (measured with a length that changes on each bar):
- * - the extreme is kept with its bar; a new value that passes it replaces it; when the kept extreme is `length`
- *   calls old, the last `length` values are scanned again (na skipped, the oldest wins a tie)
- * - a length smaller than on the previous call: the last `length` values are scanned again
- * - a length larger than on the previous call: the values that enter the window at its old end are compared with the
- *   extreme; when one of them is na, the extreme restarts from the current value (the values in between are not read)
- * - an na value gives na and resets the extreme; na before call `length - 1`
- * - a length above 15,000 throws the PineScript runtime error (also {@link highest} and the by-bar sites)
+ * One `ta.lowest(source, length)` call site, called with `(value, length, barIndex?)`: the same site as
+ * {@link lowestByBar} (same rules). Pass the bar index when the call does not run on every bar; without it every
+ * call counts as one bar, which is right for a call on every bar (for example with a length that changes).
  *
  * @example
  * ```typescript
@@ -196,63 +200,34 @@ function extremeSite(isLowest: boolean): (value: number, length: number) => numb
  * const out = closes.map((_, i) => lowPrice(i > 0 ? closes[i - 1]! : NaN, lookback[i]!));
  * ```
  */
-export function lowest(): (value: number, length: number) => number {
+export function lowest(): (value: number, length: number, barIndex?: number) => number {
   return extremeSite(true);
 }
 
 /**
- * One `ta.highest(source, length)` call site with a series length (a different length on each call), called with
- * `(value, length)`. Same rules as {@link lowest}.
+ * One `ta.highest(source, length)` call site, called with `(value, length, barIndex?)`. Same rules as
+ * {@link lowest}.
  */
-export function highest(): (value: number, length: number) => number {
+export function highest(): (value: number, length: number, barIndex?: number) => number {
   return extremeSite(false);
 }
 
-/** One `ta.lowest` / `ta.highest` call site whose history is kept by bar; rules in {@link lowestByBar}. */
-function extremeByBarSite(isLowest: boolean): (barIndex: number, value: number, length: number) => number {
-  const better = isLowest ? (a: number, b: number) => a < b : (a: number, b: number) => a > b;
-  let ring: number[] = [];
-  let extreme = NaN;
-  let extremeAt = -1;
-  return (barIndex, value, length) => {
-    checkWindowLength(isLowest ? 'lowest' : 'highest', length, barIndex);
-    const len = Math.floor(length);
-    if (ring.length !== len + 1) {
-      ring = new Array<number>(len + 1).fill(0);
-      extreme = NaN;
-    }
-    ring[barIndex % (len + 1)] = value;
-    if (Number.isNaN(extreme) || better(value, extreme)) {
-      extreme = value;
-      extremeAt = barIndex;
-    } else if (barIndex - extremeAt >= len) {
-      extreme = NaN;
-      for (let b = barIndex - len + 1; b <= barIndex; b++) {
-        const v = ring[b % (len + 1)]!;
-        if (!Number.isNaN(v) && (Number.isNaN(extreme) || better(v, extreme))) {
-          extreme = v;
-          extremeAt = b;
-        }
-      }
-    }
-    return barIndex < len - 1 ? NaN : extreme;
-  };
-}
-
 /**
- * One `ta.lowest(source, length)` call site in a conditional block whose history is kept by bar (not by call), called
- * with `(barIndex, value, length)` on the bars where the Pine call runs.
+ * One `ta.lowest(source, length)` call site in a conditional block or a loop, called with
+ * `(barIndex, value, length)` on the bars (and loop turns) where the Pine call runs. The length can change from one
+ * call to the next.
  *
- * PineScript rules (measured on a call in a ternary branch, length 6):
- * - the values are kept in a ring of `length + 1` slots indexed by the bar index, filled with 0 at the start and
- *   written only on the bars where the call runs: a bar before the first call counts as 0, and a bar without a call
- *   holds the value of the call `length + 1` bars earlier (0 if there was none)
- * - on a call, the value replaces the kept extreme when there is none or when it is strictly lower; only otherwise,
- *   when the kept extreme is `length` bars old, the last `length` bars are read again from the ring (the oldest bar
- *   wins a tie)
- * - na before bar `length - 1` (by bar, not by call)
+ * PineScript rules (measured in `if` blocks, ternaries, user functions and `for` loops, with constant lengths and
+ * lengths that change, on sources with and without na):
+ * - the call site keeps the non-na values it received, each with its bar; nothing is kept for a bar without a call
+ *   or for an na value
+ * - the result is na while `barIndex < length - 1` (by bar, not by call) and while no value was received
+ * - otherwise it is the lowest of the last `length` kept values, or of all of them when there are fewer: the first
+ *   call after bar `length - 1` gives its own value. A call with an na value also gives this result
+ * - in a loop (several calls on one bar), a bar has one kept value: each call replaces the value of the earlier
+ *   calls of that bar, so a call gives the lowest of its value and the values of the bars before
  *
- * {@link lowest} keeps the history by call instead; both rules were measured, on different scripts.
+ * Called on every bar, it equals `ta.lowest`.
  *
  * @example
  * ```typescript
@@ -262,16 +237,86 @@ function extremeByBarSite(isLowest: boolean): (barIndex: number, value: number, 
  * ```
  */
 export function lowestByBar(): (barIndex: number, value: number, length: number) => number {
-  return extremeByBarSite(true);
+  return extremeByBarSite(true, false);
 }
 
 /**
- * One `ta.highest(source, length)` call site in a conditional block whose history is kept by bar, called with
- * `(barIndex, value, length)`. Same rules as {@link lowestByBar} (a value replaces the kept extreme when it is
- * strictly higher).
+ * One `ta.highest(source, length)` call site in a conditional block or a loop, called with
+ * `(barIndex, value, length)`. Same rules as {@link lowestByBar}.
  */
 export function highestByBar(): (barIndex: number, value: number, length: number) => number {
-  return extremeByBarSite(false);
+  return extremeByBarSite(false, false);
+}
+
+/**
+ * One `ta.lowestbars(source, length)` call site in a conditional block or a loop, called with
+ * `(barIndex, value, length)`: the offset (0 or negative) from this bar to the bar of the lowest of the last `length`
+ * kept values, the newest one on equal values. The values are kept as in {@link lowestByBar}; the offset counts
+ * bars, not calls, so it can be below `-(length - 1)`.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  off = cond ? ta.lowestbars(low, 10) : na
+ * const site = callsite.lowestbars();
+ * const off = lows.map((v, i) => (cond[i] ? site(i, v, 10) : NaN));
+ * ```
+ */
+export function lowestbars(): (barIndex: number, value: number, length: number) => number {
+  return extremeByBarSite(true, true);
+}
+
+/**
+ * One `ta.highestbars(source, length)` call site in a conditional block or a loop, called with
+ * `(barIndex, value, length)`. Same rules as {@link lowestbars}.
+ */
+export function highestbars(): (barIndex: number, value: number, length: number) => number {
+  return extremeByBarSite(false, true);
+}
+
+/** One `ta.pivothigh` / `ta.pivotlow` call site; rules in {@link pivothigh}. */
+function pivotSite(isLowest: boolean): (barIndex: number, value: number, leftbars: number, rightbars: number) => number {
+  const kept = new KeptCalls();
+  return (barIndex, value, leftbars, rightbars) => {
+    kept.add(barIndex, value);
+    const left = Math.trunc(leftbars);
+    const right = Math.trunc(rightbars);
+    if (!(barIndex >= left + right)) return NaN;
+    const best = kept.best(left + right + 1, isLowest);
+    return best >= 0 && kept.bars[best] === barIndex - right ? kept.values[best]! : NaN;
+  };
+}
+
+/**
+ * One `ta.pivothigh(source, leftbars, rightbars)` call site in a conditional block, called with
+ * `(barIndex, value, leftbars, rightbars)` on the bars where the Pine call runs. The lengths can change from one call
+ * to the next (the lengths of the current call are used).
+ *
+ * PineScript rules (measured in `if` blocks and ternaries, and on sources with na):
+ * - the call site keeps the non-na values it received, each with its bar
+ * - on a call it takes the last `leftbars + rightbars + 1` kept values (all of them when there are fewer) and finds
+ *   the highest, the newest one on equal values
+ * - there is a pivot only when that value is on the bar `rightbars` BARS back (by bar index, not by call); the
+ *   result is its value, na otherwise and before bar `leftbars + rightbars`
+ *
+ * Called on every bar, it equals `ta.pivothigh`.
+ *
+ * @example
+ * ```typescript
+ * // Pine:  ph = useFilter ? ta.pivothigh(src, 5, 5) : na
+ * const site = callsite.pivothigh();
+ * const ph = src.map((v, i) => (useFilter[i] ? site(i, v, 5, 5) : NaN));
+ * ```
+ */
+export function pivothigh(): (barIndex: number, value: number, leftbars: number, rightbars: number) => number {
+  return pivotSite(false);
+}
+
+/**
+ * One `ta.pivotlow(source, leftbars, rightbars)` call site in a conditional block, called with
+ * `(barIndex, value, leftbars, rightbars)`. Same rules as {@link pivothigh} (the lowest value).
+ */
+export function pivotlow(): (barIndex: number, value: number, leftbars: number, rightbars: number) => number {
+  return pivotSite(true);
 }
 
 /**
