@@ -44,7 +44,7 @@ export { drawingOutputs, type DrawingOutputs } from './drawing/output.js';
 export { barInterval, barTime } from './drawing/bar-time.js';
 
 // Drawing registry limits (PineScript indicator(max_lines_count / max_labels_count / max_boxes_count / max_polylines_count))
-export { resetDrawings, setDrawingLimits, type DrawingLimits } from './drawing/registry.js';
+export { resetDrawings, setDrawingLimits, setDrawingBar, type DrawingLimits } from './drawing/registry.js';
 
 // Same-symbol request.security on a higher timeframe (completion and lookahead rules) and ticker.heikinashi
 export { resample, periodsOf, afterCompletion, mapToChart, heikinAshi, type Resampled } from './security/resample.js';

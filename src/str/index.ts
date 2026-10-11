@@ -45,7 +45,9 @@ export function length(str: simple_string): int {
  *
  * @remarks
  * As in PineScript:
- * - without format, numbers show up to 10 decimals ("0.3333333333"); 1e21 and more use "1E21"
+ * - without format, numbers show up to 10 decimals ("0.3333333333"), rounded on the exact value of the double
+ *   (82325.10000000005 gives "82325.1"; with the format "#.##########" it gives "82325.1000000001"); 1e21 and more
+ *   use "1E21"
  * - patterns round half away from zero on the shortest decimal form: 1.005 with "#.##" gives "1.01";
  *   at most 16 decimals from 1e-3 up (0.0012345678901234567 with 20 '#' decimals gives "0.0012345678901235")
  * - "pos;neg" patterns: a negative number takes the text of the negative subpattern ("#.##;(#.##)": "(3.5)")
@@ -72,6 +74,8 @@ export function length(str: simple_string): int {
  * ```
  */
 export function tostring(value: any, format?: simple_string, mintick?: float, pricescale?: float): string {
+  // an array: "[a, b]", each element as a single value
+  if (Array.isArray(value)) return '[' + value.map((v) => tostring(v, format, mintick, pricescale)).join(', ') + ']';
   if (typeof value !== 'number') return String(value);
   if (Number.isNaN(value)) return format === 'percent' ? 'NaN%' : 'NaN';
   if (!Number.isFinite(value)) {
@@ -83,7 +87,8 @@ export function tostring(value: any, format?: simple_string, mintick?: float, pr
     if (Math.abs(value) >= 1e21 && Number.isFinite(value)) {
       return String(value).replace('e+', 'E').replace(/\.0+E/, 'E');
     }
-    return formatNumber(value, '#.##########', 'halfUpShortest');
+    // without a format the exact value is rounded (82325.10000000005 is 82325.10000000004947...: "82325.1")
+    return formatNumber(value, '#.##########', 'halfUpExact');
   }
   switch (format) {
     case 'percent':

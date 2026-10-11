@@ -45,6 +45,7 @@
 import type { Source } from '../types/index.js';
 import { linreg as linregSeries } from '../ta/index.js';
 import { RunningSum, isNa } from '../ta/running-sum.js';
+import { checkSumLength, checkWindowLength } from '../ta/limits.js';
 import { seededRandom } from '../math/index.js';
 
 /**
@@ -152,6 +153,7 @@ function extremeSite(isLowest: boolean): (value: number, length: number) => numb
     }
   };
   return (value, length) => {
+    checkWindowLength(isLowest ? 'lowest' : 'highest', length);
     const i = values.length;
     values.push(value);
     if (Number.isNaN(value)) {
@@ -185,6 +187,7 @@ function extremeSite(isLowest: boolean): (value: number, length: number) => numb
  * - a length larger than on the previous call: the values that enter the window at its old end are compared with the
  *   extreme; when one of them is na, the extreme restarts from the current value (the values in between are not read)
  * - an na value gives na and resets the extreme; na before call `length - 1`
+ * - a length above 15,000 throws the PineScript runtime error (also {@link highest} and the by-bar sites)
  *
  * @example
  * ```typescript
@@ -212,6 +215,7 @@ function extremeByBarSite(isLowest: boolean): (barIndex: number, value: number, 
   let extreme = NaN;
   let extremeAt = -1;
   return (barIndex, value, length) => {
+    checkWindowLength(isLowest ? 'lowest' : 'highest', length, barIndex);
     const len = Math.floor(length);
     if (ring.length !== len + 1) {
       ring = new Array<number>(len + 1).fill(0);
@@ -316,6 +320,7 @@ function loopSumSite(
   return (barIndex, value, length) => {
     const len = Math.floor(length);
     if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
+    checkSumLength(name === 'sum' ? 'math.sum' : `ta.${name}`, len, barIndex);
     if (barIndex !== lastBar) {
       if (pending) {
         running.commit();

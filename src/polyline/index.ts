@@ -11,7 +11,7 @@
  */
 
 import type { ChartPoint, Polyline, color } from '../types/index.js';
-import { all as allDrawings, register, remove } from '../drawing/registry.js';
+import { all as allDrawings, checkBarIndex, register, remove } from '../drawing/registry.js';
 
 // Re-export the Polyline type for convenience
 export type { Polyline };
@@ -85,6 +85,8 @@ export function new_polyline(
     console.warn('polyline.new(): line_width must be at least 1. Using 1.');
     line_width = 1;
   }
+
+  if (xloc === 'bar_index') for (const point of points) if (point.index !== null) checkBarIndex('polyline.new', 'points', point.index, xloc);
 
   const polyline: Polyline = {
     id: generateId(),

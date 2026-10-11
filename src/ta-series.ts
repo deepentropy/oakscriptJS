@@ -40,10 +40,10 @@ export function ema(source: Series, length: number): Series {
  * @param length - Period length
  * @returns Series with WMA values
  */
-export function wma(source: Series, length: number): Series {
+export function wma(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const result = taCore.wma(sourceValues, length);
+  const result = taCore.wma(sourceValues, length instanceof Series ? length.toArray() : length);
   return Series.fromArray(bars, result);
 }
 

@@ -9,6 +9,10 @@
  *   `max_*_count` remain (default 50). Copies count as creations. Linefills follow the same rule with
  *   `max_lines_count`; lines deleted by this rule do not delete their linefills
  *
+ * - a bar index (`xloc.bar_index`) more than 10,000 bars before the current bar stops the script (runtime error
+ *   RE10026) in `line.new`, `box.new`, `label.new`, `polyline.new` and the setters of x. The current bar is the one
+ *   of `eachBar` in a script run; a port with its own bar loop gives it with {@link setDrawingBar}
+ *
  * The script API (`executeScript`) resets the registry at the start of every run and applies the
  * `max_*_count` values of `indicator()`. Outside a script run the registry is global to the module.
  *
@@ -50,6 +54,32 @@ let limits: Required<DrawingLimits> = {
   polyline: DEFAULT_MAX_COUNT,
 };
 const deleted = new WeakSet<object>();
+
+/** Largest distance, in bars, of a bar index before the current bar (PineScript runtime error RE10026 above it). */
+export const MAX_DRAWING_BARS_BACK = 10000;
+let currentBar: number | null = null;
+
+/**
+ * Tells the drawing functions which bar is being calculated (`bar_index`), so that a bar index more than 10,000
+ * bars back throws as in PineScript; `null` turns the check off. `eachBar` of the script API calls it.
+ */
+export function setDrawingBar(barIndex: number | null): void {
+  currentBar = barIndex;
+}
+
+/**
+ * Throws the PineScript runtime error RE10026 when `x` is a bar index more than 10,000 bars before the current bar.
+ * `method` and `variable` are the names of the PineScript message ("line.new", "x1").
+ */
+export function checkBarIndex(method: string, variable: string, x: number, xloc: string | undefined): void {
+  if (currentBar === null || (xloc ?? 'bar_index') !== 'bar_index') return;
+  if (currentBar - x > MAX_DRAWING_BARS_BACK) {
+    throw new Error(
+      `Error on bar ${currentBar}: Bar index value of the \`${variable}\` argument (${x}) in \`${method}()\` is too far ` +
+        'from the current bar index. Try using `time` instead.'
+    );
+  }
+}
 
 /** Numeric fields that become NaN when an object is deleted, so that its getters return `na`. */
 const COORDINATES: { [K in DrawingKind]: Array<keyof DrawingTypes[K]> } = {
@@ -102,6 +132,7 @@ export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
 /** Forgets all objects (without deleting them) and sets the maximum counts (default 50). */
 export function resetDrawings(newLimits: DrawingLimits = {}): void {
   for (const kind of Object.keys(live) as DrawingKind[]) live[kind].length = 0;
+  currentBar = null;
   limits = {
     line: newLimits.line ?? DEFAULT_MAX_COUNT,
     label: newLimits.label ?? DEFAULT_MAX_COUNT,

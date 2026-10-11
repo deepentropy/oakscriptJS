@@ -16,6 +16,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Doc comments of `LabelData`, `LineDrawingData`, `BoxData`, `PolylineData`, `TableCellData` and `TableData`: the
   PineScript value of each omitted property (v6 values, with the v4 / v5 value where it differs) (#172).
 
+- `ta.wma(source, length)` with a series length (an array, or a Series in the Series and script APIs): each bar
+  gives the result of its own length, as PineScript (#161).
+- `setDrawingBar(barIndex)` (package root): tells the drawing functions the bar being calculated, for a port with
+  its own bar loop; `eachBar` of the script API does it (#170).
+- `str.tostring(array)` gives "[a, b]".
+
+### Changed
+
+- `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars` and the `callsite.highest()` / `lowest()` /
+  `highestByBar()` / `lowestByBar()` sites throw the PineScript runtime error when the length is above 15,000:
+  "The 'highest' function references too many historical candles (15001), the limit is 15000." (#164).
+- `math.sum`, `ta.sma`, `ta.variance`, `ta.stdev`, `ta.bb` and the `callsite.sum()` / `sma()` / `stdev()` sites throw
+  the same error above 5,000, with the PineScript function names ('sum', 'sma', 'variance', 'stdev'->'variance',
+  'bb'->'sma'): a constant length on bar 0, a series length on the bar where it passes the limit (#164).
+- `line.new`, `box.new`, `label.new`, `polyline.new` and the setters of x (`line.set_x1` / `set_x2` / `set_xy1` /
+  `set_xy2`, `box.set_left` / `set_right` / `set_lefttop` / `set_rightbottom`, `label.set_x` / `set_xy`) throw the
+  PineScript runtime error when a bar index is more than 10,000 bars before the current bar: "Bar index value of the
+  `left` argument (499) in `box.new()` is too far from the current bar index. Try using `time` instead." Only with
+  `xloc.bar_index`, and only when the current bar is known (a script run, or `setDrawingBar`) (#170).
+
 ### Fixed
 
 - `ta.highestbars` / `ta.lowestbars`: on equal values the newest bar wins, as PineScript (the oldest did) (#160).
@@ -25,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loaded bar (a day in progress) and restart on each new trading day (it was `na` until the first day change). An
   anchor given by the script is unchanged (#166).
 - `line.new(width = 0)` and `box.new(border_width = 0)` keep 0 (they became 1) (#172).
+- `str.tostring(x)` without a format rounds the exact value of the double to 10 decimals: 82325.10000000005 (exactly
+  82325.10000000004947...) gives "82325.1", it gave "82325.1000000001". With a format the shortest decimal form is
+  rounded as before (`"#.##########"` gives "82325.1000000001", `1.005` with "#.##" gives "1.01") (#171).
 
 ## [0.10.1] - 2026-10-07
 

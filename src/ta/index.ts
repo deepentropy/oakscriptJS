@@ -11,6 +11,7 @@
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types/index.js';
 import { eq, ge, gt, le, lt } from '../compare/index.js';
 import { runningSum, runningSumSeries, runningVariance, runningVarianceSeries } from './running-sum.js';
+import { checkSumLength, checkWindowLength } from './limits.js';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -42,6 +43,7 @@ export function sma(source: Source, length: simple_int | ArrayLike<number>): ser
   }
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
+  checkSumLength('ta.sma', len, 0);
   return runningSum(source, len).map((sum) => sum / len);
 }
 
@@ -234,6 +236,7 @@ export function bb(
   length: simple_int,
   mult: simple_float
 ): [series_float, series_float, series_float] {
+  checkSumLength('ta.bb', length, 0);
   const basis = sma(series, length);
   const dev = stdev(series, length);
 
@@ -338,6 +341,7 @@ function windowExtremes(
 
 /** Offset of the best value of the window; on ties the newest bar wins. 0 when the window is empty. */
 function extremeOffset(source: Source, length: simple_int, lowest: boolean): series_int {
+  checkWindowLength(lowest ? 'lowestbars' : 'highestbars', length, 0);
   const { at } = windowExtremes(source, length, lowest, true);
   const len = Math.trunc(length);
   // -(i - at): -0 when the extreme is the current bar, as the offset -j of the window scan
@@ -346,6 +350,7 @@ function extremeOffset(source: Source, length: simple_int, lowest: boolean): ser
 
 /** Best value of the window (`na` when the window is empty), with the zero sign of `Math.max` / `Math.min`. */
 function extremeValue(source: Source, length: simple_int, lowest: boolean): series_float {
+  checkWindowLength(lowest ? 'lowest' : 'highest', length, 0);
   const { at, zeros } = windowExtremes(source, length, lowest);
   const len = Math.trunc(length);
   return source.map((_, i) => {
@@ -773,6 +778,8 @@ function wmaAdd(a: number, b: number): number {
  * - Summed from the oldest value to the newest; as PineScript, a partial sum `s + t` with
  *   `|s + t| <= 1e-10 * max(1, |s| + |t|)` is 0 (a cancellation residue, or values below 1e-10)
  * - More responsive to recent price changes than SMA
+ * - `length` can be an array (a length per bar, PineScript series length): each bar gives the result of its own
+ *   length (`na` for a length below 1)
  *
  * @example
  * ```typescript
@@ -780,10 +787,10 @@ function wmaAdd(a: number, b: number): number {
  * // WMA gives more weight to recent prices
  * ```
  */
-export function wma(source: Source, length: simple_int): series_float {
+export function wma(source: Source, length: simple_int | ArrayLike<number>): series_float {
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
-  const len = Math.floor(length);
+  const fixed = typeof length === 'number' ? Math.floor(length) : NaN;
   // PineScript: na on a bar with an na source (also +/-Infinity) and until `len` non-na values were received;
   // otherwise the last `len` bars, each na replaced by the previous non-na value
   const filled: number[] = [];
@@ -797,7 +804,9 @@ export function wma(source: Source, length: simple_int): series_float {
       count++;
     }
     filled.push(last);
-    if (isNa || count < len) {
+    // a series length: the window of this bar's length (the result of ta.wma with that fixed length)
+    const len = typeof length === 'number' ? fixed : Math.floor(length[i]!);
+    if (isNa || !(len >= 1) || count < len) {
       result.push(NaN);
       continue;
     }
@@ -824,6 +833,7 @@ export function wma(source: Source, length: simple_int): series_float {
  * @remarks
  * As in PineScript: an `na` value ends the window, so only the values after the last `na`
  * count, and a bar whose own value is `na` gives `na`. A fractional length is truncated (7.5 is 7 bars).
+ * A length above 15,000 throws the PineScript runtime error (also `ta.lowest`, `ta.highestbars`, `ta.lowestbars`).
  * PineScript `ta.highest(length)` (source = high) is `ta.highest(length)` in the script API.
  */
 export function highest(source: Source, length: simple_int): series_float {
@@ -1137,6 +1147,7 @@ function varianceOf(
     return biased ? result : result.map((v, i) => (Math.floor(length[i]!) > 1 ? v : NaN));
   }
   const len = Math.floor(length);
+  checkSumLength(name, len, 0);
   // PineScript: the last `len` non-na values (also +/-Infinity skipped), as ta.sma
   if ((biased ? len : len - 1) <= 0) return source.map(() => NaN);
   return runningVariance(source, len, biased);

@@ -19,6 +19,7 @@
 import type { float, int, simple_int, series_float } from '../types/index.js';
 import { Series } from '../runtime/series.js';
 import { runningSum, runningSumSeries } from '../ta/running-sum.js';
+import { checkSumLength } from '../ta/limits.js';
 
 /**
  * Returns the absolute value of a number.
@@ -489,6 +490,7 @@ export function sum(
 ): series_float | Series {
   // Handle Series objects - extract to array first
   const sourceArray = source instanceof Series ? source.toArray() : source;
+  if (typeof length === 'number') checkSumLength('math.sum', length, 0);
   // PineScript: the sum of the last `length` non-na values (also +/-Infinity skipped); an na bar keeps the previous
   // result. A compensated running sum, bit for bit as PineScript.
   const result: series_float =

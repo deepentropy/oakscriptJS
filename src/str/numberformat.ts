@@ -4,8 +4,10 @@
  * The pattern syntax is Java's DecimalFormat: `0` required digit, `#` optional digit, `,` grouping,
  * `.` decimal point, `E0` exponent, `%` multiplies by 100, `'...'` quoted literal text.
  * PineScript rules:
- * - `str.tostring` rounds half away from zero on the shortest decimal form of the number
+ * - `str.tostring` with a format rounds half away from zero on the shortest decimal form of the number
  *   (`1.005` with "#.##" gives "1.01", `2.5` with "#" gives "3")
+ * - `str.tostring` without a format rounds the exact binary value to 10 decimals (12.34500000005 is
+ *   12.34500000004999975...: "12.345", and "12.3450000001" with the format "#.##########")
  * - `str.format` rounds half to even on the exact binary value (`0.25` with "#.#" gives "0.2")
  * - a negative number that rounds to zero loses its sign; "#.00" writes `.50` (no leading zero),
  *   but "#.##" writes `0.5` (a pattern without any '0' shows one integer digit)
@@ -18,7 +20,7 @@
  *   0.1 with 20 '#' decimals gives "0.1" in both rounding modes
  */
 
-export type Rounding = 'halfUpShortest' | 'halfEvenExact';
+export type Rounding = 'halfUpShortest' | 'halfUpExact' | 'halfEvenExact';
 
 interface Pattern {
   prefix: string;
@@ -161,7 +163,7 @@ function roundDigits(d: Digits, frac: number, mode: Rounding): Digits {
   if (keep < 0) return { digits: '', intLen: 0 };
   const first = d.digits.charCodeAt(keep) - 48;
   let up: boolean;
-  if (mode === 'halfUpShortest') up = first >= 5;
+  if (mode !== 'halfEvenExact') up = first >= 5;
   else if (first !== 5) up = first > 5;
   else if (d.digits.length > keep + 1) up = true;
   else up = keep > 0 && (d.digits.charCodeAt(keep - 1) - 48) % 2 === 1;

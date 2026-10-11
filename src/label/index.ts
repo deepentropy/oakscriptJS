@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry.js';
+import { all as allDrawings, checkBarIndex, isDeleted, register, remove } from '../drawing/registry.js';
 import type { ChartPoint, Label, color } from '../types/index.js';
 
 type LabelXloc = 'bar_index' | 'bar_time';
@@ -80,6 +80,7 @@ export function new_label(...args: unknown[]): Label {
     string?, LabelXloc?, LabelYloc?, color?, LabelStyle?, color?, (string | number)?,
     ('left' | 'center' | 'right')?, string?, ('default' | 'monospace')?, boolean?, number?,
   ];
+  checkBarIndex('label.new', 'x', x, xloc);
   return register('label', {
     x,
     y,
@@ -188,6 +189,7 @@ export function copy(id: Label): Label {
  */
 export function set_x(id: Label, x: number): Label {
   if (isDeleted(id)) return id;
+  checkBarIndex('label.set_x', 'x', x, id.xloc);
   id.x = x;
   return id;
 }
@@ -227,6 +229,7 @@ export function set_y(id: Label, y: number): Label {
  */
 export function set_xy(id: Label, x: number, y: number): Label {
   if (isDeleted(id)) return id;
+  checkBarIndex('label.set_x', 'x', x, id.xloc);
   id.x = x;
   id.y = y;
   return id;

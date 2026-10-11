@@ -87,7 +87,7 @@ import * as tableCore from '../table/index.js';
 import * as chartPointCore from '../chartpoint/index.js';
 import * as textCore from '../text/index.js';
 import * as mathCore from '../math/index.js';
-import { resetDrawings, setDrawingLimits } from '../drawing/registry.js';
+import { resetDrawings, setDrawingBar, setDrawingLimits } from '../drawing/registry.js';
 import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
 import * as timeCore from '../time/index.js';
@@ -1264,6 +1264,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     for (idx = 0; idx < b.length; idx++) {
       if (pendingError && pendingError.bar === idx) throw new Error(historyError(idx, pendingError.barsBack));
       currentBar = idx;
+      setDrawingBar(idx);
       const r = fn(ctx);
       out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
       // grow the history buffers from the largest reference of this bar
@@ -1280,6 +1281,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     }
   } finally {
     currentBar = -1;
+    setDrawingBar(null);
   }
   return Series.fromArray(ctxBars, out);
 }
