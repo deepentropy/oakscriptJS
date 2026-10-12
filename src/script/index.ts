@@ -98,6 +98,7 @@ import { tickScale } from '../str/numberformat.js';
 import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
 import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
+import { securityOther } from '../security/other.js';
 import { position } from '../types/index.js';
 import type { ChartPoint } from '../types/index.js';
 import {
@@ -302,8 +303,10 @@ export function executeScript(
   ctx = freshCollector(inputs);
   resetDrawings();
   mathCore.resetRandom();
+  missingSymbols = [];
   try {
     body();
+    if (missingSymbols.length) throw new MissingSymbolDataError(missingSymbols);
     const c = ctx;
     return {
       metadata: {
@@ -1572,7 +1575,57 @@ export interface ChartContext {
   realtime?: boolean;
   /** On a realtime last bar: this run is the first update of the bar (`barstate.isnew`); default true. */
   lastBarNew?: boolean;
+  /**
+   * Bars of another symbol for `request.security(symbol, timeframe, ...)` (#179): the bars of `symbol` (the ticker id
+   * as written in the script, e.g. "NASDAQ:MSFT") on `timeframe` (the chart timeframe for ""), oldest first, times in
+   * `timeUnit`. Return undefined when they are not loaded: the run then ends with a {@link MissingSymbolDataError}
+   * that lists every request, so the host can load them and run again. Return [] for a symbol that does not exist.
+   */
+  bars?: (symbol: string, timeframe: string) => Bar[] | undefined;
+  /**
+   * Calendar and properties of another symbol: its time zone and session give the close times and trading days that
+   * `request.security` merges on (#179), and the other fields its `syminfo.*` inside the expression.
+   */
+  symbolInfo?: (symbol: string) => SymbolInfo | undefined;
 }
+
+/** Calendar and properties of a symbol, as in {@link ChartContext}. */
+export type SymbolInfo = Pick<
+  ChartContext,
+  | 'timezone'
+  | 'session'
+  | 'regularSession'
+  | 'mintick'
+  | 'minmove'
+  | 'pricescale'
+  | 'pointvalue'
+  | 'mincontract'
+  | 'symbolType'
+  | 'currency'
+>;
+
+/** A request of `request.security` for another symbol whose bars the host has not given. */
+export interface SymbolDataRequest {
+  symbol: string;
+  timeframe: string;
+}
+
+/**
+ * Thrown by `executeScript` when `request.security` asked for bars of another symbol that `ChartContext.bars` did not
+ * give (#179). `requests` lists them all, once each: load them, then run the script again.
+ */
+export class MissingSymbolDataError extends Error {
+  constructor(readonly requests: SymbolDataRequest[]) {
+    super(
+      `request.security needs the bars of ${requests.map((r) => `${r.symbol} (${r.timeframe})`).join(', ')}: ` +
+        'pass them with ChartContext.bars.'
+    );
+    this.name = 'MissingSymbolDataError';
+  }
+}
+
+/** Requests of other symbols without bars in the current run. */
+let missingSymbols: SymbolDataRequest[] = [];
 
 let chartCtx: ChartContext = {};
 
@@ -2050,10 +2103,14 @@ function valuesOf(value: Series | number | boolean, length: number): number[] {
 }
 
 /**
- * PineScript `request.security` for the chart symbol (`syminfo.tickerid`, `""`, `ticker.heikinashi(...)`,
- * `ticker.standard(...)`) and a timeframe equal to or higher than the chart's. The higher-timeframe bars are
- * built by grouping the chart bars, and `expression` runs on them (its `ta.*` calls, tuples and `timeframe.*`
- * see the higher timeframe). Other symbols need external data and throw; a lower timeframe throws.
+ * PineScript `request.security` on a timeframe equal to or higher than the chart's. For the chart symbol
+ * (`syminfo.tickerid`, `""`, `ticker.heikinashi(...)`, `ticker.standard(...)`) the higher-timeframe bars are built by
+ * grouping the chart bars; another symbol's bars come from `ChartContext.bars` (#179) and are merged on the chart bars
+ * by close time (lookahead off) or by open time / trading day (lookahead on), see `securityOther`. `expression` runs
+ * on those bars (its `ta.*` calls, tuples, `timeframe.*` and `syminfo.*` see them). A lower timeframe throws.
+ *
+ * A symbol that does not exist (bars []) stops the script with "Invalid symbol: X", or gives na with
+ * `ignore_invalid_symbol`.
  *
  * PineScript rules: lookahead off shows a period's value from the
  * bar that completes it; lookahead on from its first bar; gaps on keeps only the bar where the value appears.
@@ -2064,18 +2121,19 @@ function security<T extends SecurityValue>(
   timeframe: string,
   expression: () => T,
   gaps: string = barmerge.gaps_off,
-  lookahead: string = barmerge.lookahead_off
+  lookahead: string = barmerge.lookahead_off,
+  ignore_invalid_symbol: boolean = false
 ): T extends unknown[] ? Series[] : Series {
   collector();
   const heikin = symbol.startsWith(HEIKIN_ASHI);
   const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
-  if (base !== '' && base !== chartCtx.tickerid) {
-    throw new Error(`request.security: "${symbol}" is not the chart symbol; other symbols need external data.`);
-  }
   const chart = chartTimeframe();
   const tf = timeframeCore.info(timeframe || chart.period).period;
   if (timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
     throw new Error(`request.security: timeframe "${tf}" is lower than the chart timeframe "${chart.period}".`);
+  }
+  if (base !== '' && base !== chartCtx.tickerid) {
+    return otherSecurity(base, heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol);
   }
 
   const chartBars = ctxBars.bars;
@@ -2128,7 +2186,72 @@ function security<T extends SecurityValue>(
   return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
 }
 
-/** PineScript `request.*`: `security` for the chart symbol (issue #101). */
+/** `request.security` of another symbol (#179): its bars from `ChartContext.bars`, merged by `securityOther`. */
+function otherSecurity<T extends SecurityValue>(
+  symbol: string,
+  heikin: boolean,
+  tf: string,
+  expression: () => T,
+  gaps: string,
+  lookahead: string,
+  ignoreInvalid: boolean
+): T extends unknown[] ? Series[] : Series {
+  let bars = chartCtx.bars?.(symbol, tf);
+  if (bars === undefined && !missingSymbols.some((r) => r.symbol === symbol && r.timeframe === tf)) {
+    missingSymbols.push({ symbol, timeframe: tf });
+  }
+  if (bars !== undefined && bars.length === 0 && !ignoreInvalid) throw new Error(`Invalid symbol: ${symbol}`);
+  bars ??= [];
+  if (heikin) bars = heikinAshi(bars);
+  const info = chartCtx.symbolInfo?.(symbol) ?? {};
+  const chartBars = ctxBars.bars;
+  const savedCtx = chartCtx;
+  let result: T;
+  let values: number[][];
+  ctxBars.setAll(bars);
+  // the expression sees the other symbol: its ticker, timeframe, calendar and properties
+  chartCtx = {
+    ...chartCtx,
+    tickerid: symbol,
+    timeframe: tf,
+    timezone: info.timezone,
+    session: info.session,
+    regularSession: info.regularSession,
+    mintick: info.mintick,
+    minmove: info.minmove,
+    pricescale: info.pricescale,
+    pointvalue: info.pointvalue,
+    mincontract: info.mincontract,
+    symbolType: info.symbolType,
+    currency: info.currency,
+  };
+  try {
+    result = expression();
+    const parts = Array.isArray(result) ? result : [result];
+    values = parts.map((p) => valuesOf(p, bars!.length));
+  } finally {
+    ctxBars.setAll(chartBars);
+    chartCtx = savedCtx;
+  }
+  const index = securityOther(
+    chartBars,
+    bars,
+    tf,
+    {
+      timeframe: chartTimeframe().period,
+      timezone: chartCtx.timezone,
+      session: chartCtx.session,
+      timeUnit: chartCtx.timeUnit,
+      // the realtime rule applies to a last bar that receives live updates
+      lastBarConfirmed: chartCtx.realtime !== true,
+    },
+    { gaps: gaps === barmerge.gaps_on, lookahead: lookahead === barmerge.lookahead_on, other: info }
+  );
+  const mapped = values.map((v) => Series.fromArray(ctxBars, index.map((j) => (j < 0 ? NaN : (v[j] ?? NaN)))));
+  return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
+}
+
+/** PineScript `request.*`: `security` for the chart symbol (issue #101) and other symbols (#179). */
 export const request = { security };
 
 // ── Drawing objects ──────────────────────────────────────────────────────────

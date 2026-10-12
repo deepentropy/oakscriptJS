@@ -75,6 +75,14 @@ export { SessionBars, sessionFlags, type SessionFlags } from './session/bars.js'
 
 // Same-symbol request.security on a higher timeframe (completion and lookahead rules) and ticker.heikinashi
 export { resample, periodsOf, afterCompletion, mapToChart, heikinAshi, type Resampled } from './security/resample.js';
+// request.security of another symbol: which bar of the other symbol each chart bar shows (#179)
+export {
+  securityOther,
+  securityOtherValues,
+  type OtherSymbolChart,
+  type OtherSymbolOptions,
+  type SymbolCalendar,
+} from './security/other.js';
 
 // Export Series class (self-contained, no context)
 export { Series, BarData } from './runtime/series.js';

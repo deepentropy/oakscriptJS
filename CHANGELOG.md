@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `request.security` of another symbol in the script API (#179): the host gives the bars with
+  `ChartContext.bars(symbol, timeframe)` and the calendar with `ChartContext.symbolInfo(symbol)`; missing bars end the
+  run with a `MissingSymbolDataError` listing every `{ symbol, timeframe }` request; a symbol with no bars ([]) stops
+  with "Invalid symbol: X", or gives na with the new `ignore_invalid_symbol` argument. Merge as PineScript: lookahead
+  off by close time, lookahead on by open time (intraday charts) or by trading day / week / month start (D / W / M
+  charts), gaps on only where the shown bar changes. `securityOther` / `securityOtherValues` (package root) give the
+  same merge to ports. 771,856 of 771,856 probe values equal (AAPL, MSFT, BTCUSD, ASX:BHP on 60 / D / W / M).
 - PineScript session strings accept "F" after a start: one day before the day the run ends on ("1700F-1900:2" is
   Sunday 17:00 to Monday 19:00); `time.inSession` and `time(tf, session)` read the TVC:DXY session
   "1900-1900:3456|1700F-1900:2" (it threw "Invalid session") (#173).

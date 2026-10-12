@@ -495,6 +495,35 @@ const dailyEma = request.security('', 'D', () => ta.ema(close, 20));
 - Compute the series **inside** the expression. A series computed outside runs on the chart bars, not on the
   higher-timeframe bars, so `request.security('', 'D', () => myEma)` throws.
 
+#### Other symbols
+
+The library does not fetch data. For another symbol the host gives the bars through the chart context; the
+expression runs on them and the values are merged on the chart bars as PineScript does.
+
+```typescript
+import { executeScript, request, close, MissingSymbolDataError } from 'oakscriptjs/script';
+
+const chart = {
+  tickerid: 'NASDAQ:AAPL', timeframe: '1D', timezone: 'America/New_York', session: '0930-1600',
+  bars: (symbol, timeframe) => cache.get(`${symbol}|${timeframe}`),        // undefined: not loaded yet; []: no such symbol
+  symbolInfo: (symbol) => ({ timezone: 'Etc/UTC', session: '24x7' }),      // calendar of the other symbol
+};
+try {
+  executeScript(() => { plot(request.security('BITSTAMP:BTCUSD', 'D', () => close)); }, bars, {}, chart);
+} catch (e) {
+  if (e instanceof MissingSymbolDataError) { /* load e.requests ({ symbol, timeframe }), then run again */ }
+}
+```
+
+- Lookahead off shows the last bar of the other symbol whose close time is at or before the close of the chart bar
+  (a stock chart shows the crypto bar of the day before, a crypto chart the stock bar of the same day). Lookahead on:
+  by open time on intraday charts, by trading day (D), week start (W) or month start (M) on D / W / M charts.
+- Close times and trading days need the calendar of both symbols (`timezone` + `session`, and `symbolInfo` for the
+  other). Without them a fallback is used that is exact for symbols on the same calendar and for 24x7 symbols only.
+- `timeframe` is passed normalised ("1D", "1W", "60"); a lower timeframe than the chart's throws.
+- A port without the script API can use `securityOther(chartBars, otherBars, timeframe, chart, { lookahead, gaps,
+  other })`: the index of the other bar shown on each chart bar (-1 for na).
+
 ### The session of a chart context without a script
 
 Code that has its own bar loop can read the same session values from a chart context (timeframe, time zone,
