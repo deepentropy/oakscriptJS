@@ -140,9 +140,12 @@ class KeptCalls {
   readonly values: number[] = [];
   readonly bars: number[] = [];
 
-  /** Keeps a non-na value; a later call on the same bar (a loop) replaces the value of that bar. */
+  /**
+   * Keeps a non-na value (+/-Infinity is skipped like na, #183); a later call on the same bar (a loop) replaces the
+   * value of that bar.
+   */
   add(barIndex: number, value: number): void {
-    if (Number.isNaN(value)) return;
+    if (!Number.isFinite(value)) return;
     const last = this.values.length - 1;
     if (last >= 0 && this.bars[last] === barIndex) this.values[last] = value;
     else {

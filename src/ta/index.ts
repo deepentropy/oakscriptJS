@@ -293,14 +293,14 @@ export function stdev(
 }
 
 /**
- * The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist.
- * `isNa` tells which values are skipped (NaN by default).
+ * The last `length` non-na values up to bar `i` (the bar itself may be na), or null when fewer exist. +/-Infinity
+ * counts as na (#183).
  */
 function lastValues(source: Source, i: number, length: number): number[] | null {
   const values: number[] = [];
   for (let j = i; j >= 0 && values.length < length; j--) {
     const x = source[j]!;
-    if (!Number.isNaN(x)) values.push(x);
+    if (Number.isFinite(x)) values.push(x);
   }
   return values.length === length ? values : null;
 }
@@ -361,7 +361,7 @@ function windowExtremes(
 /**
  * The non-na values of `source` with their bars, and for each bar the position of its last non-na value (-1 when
  * there is none yet). PineScript's ta.highest / ta.lowest / ta.highestbars / ta.lowestbars / ta.pivothigh /
- * ta.pivotlow keep the non-na values they receive and nothing else.
+ * ta.pivotlow keep the non-na values they receive and nothing else; +/-Infinity is skipped like na (#183).
  */
 function keptValues(source: Source): { values: number[]; bars: number[]; last: Int32Array } {
   const values: number[] = [];
@@ -369,7 +369,7 @@ function keptValues(source: Source): { values: number[]; bars: number[]; last: I
   const last = new Int32Array(source.length);
   for (let i = 0; i < source.length; i++) {
     const x = source[i]!;
-    if (!Number.isNaN(x)) {
+    if (Number.isFinite(x)) {
       values.push(x);
       bars.push(i);
     }
@@ -910,9 +910,9 @@ export function wma(source: Source, length: simple_int | ArrayLike<number>): ser
  * @returns Highest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript: `na` values are skipped. The result is the highest of the last `length` non-na values (of all
- * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
- * value was received. A fractional length is truncated (7.5 is 7 bars).
+ * As in PineScript: `na` values (also +/-Infinity, #183) are skipped. The result is the highest of the last `length`
+ * non-na values (of all of them when there are fewer), also on a bar whose own value is `na`; `na` before bar
+ * `length - 1` and while no value was received. A fractional length is truncated (7.5 is 7 bars).
  * `length` can be an array (a length per bar, PineScript series length), also for `ta.lowest`, `ta.highestbars`
  * and `ta.lowestbars`: each bar uses its own length.
  * A length above 15,000 throws the PineScript runtime error (also `ta.lowest`, `ta.highestbars`, `ta.lowestbars`).
@@ -930,9 +930,9 @@ export function highest(source: Source, length: simple_int | ArrayLike<number>):
  * @returns Lowest value series (na on the first `length - 1` bars)
  *
  * @remarks
- * As in PineScript: `na` values are skipped. The result is the lowest of the last `length` non-na values (of all
- * of them when there are fewer), also on a bar whose own value is `na`; `na` before bar `length - 1` and while no
- * value was received.
+ * As in PineScript: `na` values (also +/-Infinity, #183) are skipped. The result is the lowest of the last `length`
+ * non-na values (of all of them when there are fewer), also on a bar whose own value is `na`; `na` before bar
+ * `length - 1` and while no value was received.
  */
 export function lowest(source: Source, length: simple_int | ArrayLike<number>): series_float {
   return extremeValue(source, length, true);
@@ -1018,7 +1018,7 @@ function monotonic(source: Source, length: simple_int, step: (newer: number, old
   for (let i = 0; i < source.length; i++) {
     const v = source[i]!;
     const prev = i > 0 ? source[i - 1]! : NaN;
-    if (!Number.isNaN(v) && !Number.isNaN(prev)) count = step(v, prev) ? count + 1 : 0;
+    if (Number.isFinite(v) && Number.isFinite(prev)) count = step(v, prev) ? count + 1 : 0;
     result.push(count >= length);
   }
   return result;
@@ -1035,8 +1035,8 @@ function monotonic(source: Source, length: simple_int, step: (newer: number, old
  * PineScript rules:
  * - a counter of rises from the previous bar (a rise is larger than the 1e-10 tolerance); a step that is not a rise
  *   resets it to 0
- * - a step from or to an `na` bar leaves the counter unchanged (so an `na` bar, and the bar after it, keep the
- *   result of the bar before the `na`)
+ * - a step from or to an `na` (or +/-Infinity) bar leaves the counter unchanged (so an `na` bar, and the bar after
+ *   it, keep the result of the bar before the `na`)
  * - true when the counter is at least `length` (false at the start)
  *
  * @example
@@ -1061,8 +1061,8 @@ export function rising(source: Source, length: simple_int): series_bool {
  * PineScript rules:
  * - a counter of falls from the previous bar (a fall is larger than the 1e-10 tolerance); a step that is not a fall
  *   resets it to 0
- * - a step from or to an `na` bar leaves the counter unchanged (so an `na` bar, and the bar after it, keep the
- *   result of the bar before the `na`)
+ * - a step from or to an `na` (or +/-Infinity) bar leaves the counter unchanged (so an `na` bar, and the bar after
+ *   it, keep the result of the bar before the `na`)
  * - true when the counter is at least `length` (false at the start)
  *
  * @example
@@ -1251,7 +1251,7 @@ function varianceOf(
  * @remarks
  * - Returns the middle value when values are sorted
  * - For an even length, returns the average of the two middle values
- * - As in PineScript: `na` values are skipped, the window holds the last `length` non-na values
+ * - As in PineScript: `na` values (also +/-Infinity) are skipped, the window holds the last `length` non-na values
  *   (going back as many bars as needed), and a bar whose own value is `na` still gets a result
  * - Returns NaN until `length` non-na values exist
  * - More robust to outliers than mean (SMA)
@@ -1287,7 +1287,7 @@ export function median(source: Source, length: simple_int): series_float {
   const mid = Math.floor(len / 2);
   for (let i = 0; i < n; i++) {
     const x = source[i]!;
-    if (!Number.isNaN(x)) {
+    if (Number.isFinite(x)) {
       kept[count++] = x;
       sorted.splice(bound(x, false), 0, x); // before the equal values: the newest first
       // the value leaving the window is the oldest, so the last of its equal values
@@ -1601,8 +1601,9 @@ export function cci(source: Source, length: simple_int): series_float {
  * - Measures where close is relative to the high-low range
  * - Values above 80 typically indicate overbought
  * - Values below 20 typically indicate oversold
- * - As PineScript: when the source, \`highest(high, length)\` or \`lowest(low, length)\` is \`na\`, or the range is 0, the
- *   result is the previous result of the call (\`na\` until a first value)
+ * - As PineScript: when the source, \`highest(high, length)\` or \`lowest(low, length)\` is \`na\`, or the range and
+ *   \`source - lowest\` are both 0, the result is the previous result of the call (\`na\` until a first value); a zero
+ *   range with another source value gives +/-Infinity (plotted as \`na\`)
  *
  * @example
  * \`\`\`typescript
@@ -1617,13 +1618,13 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
   const lowestValues = lowest(low, length);
   const highestValues = highest(high, length);
 
-  // PineScript: an na input or a zero range keeps the previous result
+  // PineScript: an na (NaN) result keeps the previous one: an na input, or 0 / 0 on a zero range; a non-zero value
+  // over a zero range gives +/-Infinity (#183)
   let previous = NaN;
   for (let i = 0; i < source.length; i++) {
-    const value = source[i]!;
     const lo = lowestValues[i]!;
-    const range = highestValues[i]! - lo;
-    if (!Number.isNaN(value) && !Number.isNaN(range) && range !== 0) previous = (100 * (value - lo)) / range;
+    const k = (100 * (source[i]! - lo)) / (highestValues[i]! - lo);
+    if (!Number.isNaN(k)) previous = k;
     result.push(previous);
   }
 
@@ -1898,8 +1899,8 @@ function pivot(source: Source, leftbars: PivotLength, rightbars: PivotLength, is
  * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
  *   index is `i - rightbars`
  * - A pivot high may equal values on its left but must be higher than all values on its right
- * - `na` values are skipped: the window is the last `leftbars + rightbars + 1` non-na values, and the highest of
- *   them must be on the bar `rightbars` bars back
+ * - `na` values (also +/-Infinity) are skipped: the window is the last `leftbars + rightbars + 1` non-na values,
+ *   and the highest of them must be on the bar `rightbars` bars back
  * - `leftbars` / `rightbars` can be arrays (a length per bar, PineScript series length), also for `ta.pivotlow`:
  *   each bar uses its own lengths
  *
@@ -1938,8 +1939,8 @@ export function pivothigh(
  * - As in PineScript, the value appears `rightbars` bars after the pivot bar: the pivot bar
  *   index is `i - rightbars`
  * - A pivot low may equal values on its left but must be lower than all values on its right
- * - `na` values are skipped: the window is the last `leftbars + rightbars + 1` non-na values, and the lowest of
- *   them must be on the bar `rightbars` bars back
+ * - `na` values (also +/-Infinity) are skipped: the window is the last `leftbars + rightbars + 1` non-na values,
+ *   and the lowest of them must be on the bar `rightbars` bars back
  *
  * @example
  * ```typescript
@@ -2529,7 +2530,7 @@ export function kcw(
  * (PineScript `ta.range(source, length)`).
  *
  * @remarks
- * As in PineScript: `na` values are skipped (the window holds the last `length` non-na
+ * As in PineScript: `na` values (also +/-Infinity) are skipped (the window holds the last `length` non-na
  * values), and a bar whose own value is `na` still gets a result.
  */
 export function range(source: Source, length: simple_int): series_float {
@@ -2545,9 +2546,9 @@ export function range(source: Source, length: simple_int): series_float {
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: the best of the last `length` non-na values, the newest one on equal values; the offset is the
- * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
- * `length - 1` and while no value was received; a fractional length is truncated.
+ * As in PineScript: the best of the last `length` non-na values (+/-Infinity skipped), the newest one on equal
+ * values; the offset is the distance in bars to its bar, so it is below `-(length - 1)` when `na` values were
+ * skipped. `na` before bar `length - 1` and while no value was received; a fractional length is truncated.
  */
 export function highestbars(source: Source, length: simple_int | ArrayLike<number>): series_int {
   return extremeOffset(source, length, false);
@@ -2558,9 +2559,9 @@ export function highestbars(source: Source, length: simple_int | ArrayLike<numbe
  * -1 for the previous bar, and so on (as in PineScript, the offset is negative).
  *
  * @remarks
- * As in PineScript: the best of the last `length` non-na values, the newest one on equal values; the offset is the
- * distance in bars to its bar, so it is below `-(length - 1)` when `na` values were skipped. `na` before bar
- * `length - 1` and while no value was received; a fractional length is truncated.
+ * As in PineScript: the best of the last `length` non-na values (+/-Infinity skipped), the newest one on equal
+ * values; the offset is the distance in bars to its bar, so it is below `-(length - 1)` when `na` values were
+ * skipped. `na` before bar `length - 1` and while no value was received; a fractional length is truncated.
  */
 export function lowestbars(source: Source, length: simple_int | ArrayLike<number>): series_int {
   return extremeOffset(source, length, true);
@@ -2570,13 +2571,13 @@ export function lowestbars(source: Source, length: simple_int | ArrayLike<number
  * All-time highest value of `source` up to each bar (PineScript `ta.max(source)`).
  *
  * @remarks
- * As in PineScript: `na` values are skipped, the value carries over `na` bars, and the
+ * As in PineScript: `na` values (also +/-Infinity) are skipped, the value carries over `na` bars, and the
  * result is `na` until the first non-na value.
  */
 export function max(source: Source): series_float {
   let best = NaN;
   return source.map((x) => {
-    if (!Number.isNaN(x) && !(x <= best)) best = x;
+    if (Number.isFinite(x) && !(x <= best)) best = x;
     return best;
   });
 }
@@ -2585,13 +2586,13 @@ export function max(source: Source): series_float {
  * All-time lowest value of `source` up to each bar (PineScript `ta.min(source)`).
  *
  * @remarks
- * As in PineScript: `na` values are skipped, the value carries over `na` bars, and the
+ * As in PineScript: `na` values (also +/-Infinity) are skipped, the value carries over `na` bars, and the
  * result is `na` until the first non-na value.
  */
 export function min(source: Source): series_float {
   let best = NaN;
   return source.map((x) => {
-    if (!Number.isNaN(x) && !(x >= best)) best = x;
+    if (Number.isFinite(x) && !(x >= best)) best = x;
     return best;
   });
 }
@@ -2647,8 +2648,8 @@ export function cog(source: Source, length: simple_int = 10): series_float {
  *
  * @remarks
  * PineScript rules:
- * - the window is the last `length` non-`na` values (an `na` bar does not enter it, and gets the mode of the
- *   window it keeps)
+ * - the window is the last `length` non-`na` values (an `na` or +/-Infinity bar does not enter it, and gets the mode
+ *   of the window it keeps)
  * - NaN until `length` non-`na` values exist
  * - If no mode exists, returns the smallest value
  */
@@ -2660,7 +2661,7 @@ export function mode(source: Source, length: simple_int): series_float {
 
   for (let i = 0; i < source.length; i++) {
     const v = source[i]!;
-    if (!Number.isNaN(v)) seen.push(v);
+    if (Number.isFinite(v)) seen.push(v);
     if (seen.length < len) {
       result.push(NaN);
       continue;

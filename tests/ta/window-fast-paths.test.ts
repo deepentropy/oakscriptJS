@@ -4,13 +4,13 @@
  */
 import { taCore, time } from '../../src';
 
-/** The window scan the one-pass functions replace: the last `length` non-na values, with their offsets. */
+/** The window scan the one-pass functions replace: the last `length` non-na values (+/-Infinity skipped, #183). */
 function scan(source: number[], rawLength: number, i: number): Array<[number, number]> {
   const length = Math.trunc(rawLength); // a fractional length is truncated
   const w: Array<[number, number]> = [];
   for (let j = 0; w.length < length && i - j >= 0; j++) {
     const x = source[i - j]!;
-    if (!Number.isNaN(x)) w.push([x, -j]);
+    if (Number.isFinite(x)) w.push([x, -j]);
   }
   return w;
 }
@@ -31,7 +31,7 @@ const refMedian = (s: number[], length: number) => {
   const L = Math.floor(length);
   return s.map((_, i) => {
     const v: number[] = [];
-    for (let j = i; j >= 0 && v.length < L; j--) if (!Number.isNaN(s[j]!)) v.push(s[j]!);
+    for (let j = i; j >= 0 && v.length < L; j--) if (Number.isFinite(s[j]!)) v.push(s[j]!);
     if (!(L >= 1) || v.length !== L) return NaN;
     v.sort((a, b) => a - b);
     const mid = Math.floor(L / 2);

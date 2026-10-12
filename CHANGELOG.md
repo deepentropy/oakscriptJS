@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `time("D", session, timezone)` / `time_close("D", ...)` with a session of several runs: the time between two runs of a
   day is inside the day (the period runs from the first start to the last end); it was na. 3,239,838 of 3,239,838
   probe values equal (BTCUSD 60 and 15, AAPL 60, 6 sessions, 3 time zones) (#182).
+- +/-Infinity is skipped like na by `ta.highest`, `ta.lowest`, `ta.highestbars`, `ta.lowestbars`, `ta.max`, `ta.min`,
+  `ta.range`, `ta.pivothigh`, `ta.pivotlow`, `ta.median`, `ta.mode`, `ta.rising`, `ta.falling` and the `callsite.*`
+  sites of the highest family; the result was +/-Infinity (plotted na) or a wrong window. `ta.stoch` keeps the previous
+  result only for an na (NaN) value: a zero range with `source != lowest` gives +/-Infinity, as `100 * x / 0`. 1,500,048
+  of 1,500,048 probe values equal (BTCUSD and AAPL daily, 88 series) (#183).
 
 ## [0.11.1] - 2026-10-12
 
