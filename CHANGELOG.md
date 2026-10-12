@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the gap, a repeated one is its first pass, the end is the minute before it plus one), and intraday timeframes align
   their periods on the run of `time.inSession` (#173).
 - Script API `ta.vwap(source)`: the default anchor is the first bar and each bar whose trading day differs from the
-  last bar that has one, so the day after an early close starts on its first bar; on D / W / M charts every bar,
+  last bar that has one, so the day after an early close starts on its first bar; of the bars after an early close
+  (no day), the first continues the day and each further one starts a new sum (#178); on D / W / M charts every bar,
   without the time zone or session (it threw "The exchange time zone is not known") (#173).
 - `ta.pivot_point_levels` rewritten from the PineScript results: the fixed levels come from the previous period
   (its high and low, the close of the bar before the anchor; it took the anchor bar itself), na until the first

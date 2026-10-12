@@ -1942,18 +1942,21 @@ function changeOf(tf: string, firstBar = false): Series {
 }
 
 /**
- * Default anchor of `ta.vwap` (#173): the first bar and each bar whose trading day differs from the last bar that has
- * one. A bar after an early close (no day) continues the day before it, and the next day starts on its first bar,
- * where `timeframe.change("D")` is false. On D / W / M charts every bar.
+ * Default anchor of `ta.vwap` (#173, #178): the first bar and each bar whose trading day differs from the last bar
+ * that has one. Bars after an early close have no day: the first of them continues the day before it, each further
+ * one starts a new sum, and the next day starts on its first bar (where `timeframe.change("D")` is false). On
+ * D / W / M charts every bar.
  */
 function vwapAnchor(): Series {
   if (chartTimeframe().isdwm) return barFlag(() => true);
   const { bars } = sessionBars();
   let last = NaN;
+  let previous = NaN;
   return perBar((t, i) => {
     const day = bars.timeOf(t, '1D');
-    const isNew = i === 0 || (!Number.isNaN(day) && day !== last);
+    const isNew = i === 0 || (Number.isNaN(day) ? Number.isNaN(previous) : day !== last);
     if (!Number.isNaN(day)) last = day;
+    previous = day;
     return isNew ? 1 : 0;
   });
 }

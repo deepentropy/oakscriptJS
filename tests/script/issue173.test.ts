@@ -140,3 +140,22 @@ describe('ta.vwap on daily bars needs no time zone or session (#173)', () => {
     expect(r.vwap).toEqual([10.9, 11.563333333333333, 11.699999999999998, 11.699999999999998]);
   });
 });
+
+describe('ta.vwap after an early close with several bars after the close (#178)', () => {
+  it('the first bar continues the day, each further one starts a new sum (AMEX:SPY 60, 26/11/2021)', () => {
+    const raw: Array<[number, number, number, number, number, number]> = [
+      [1637937000, 462.34, 463.89, 459.05, 460.98, 2491290], [1637940600, 460.96, 461.38, 458.14, 458.94, 1626867],
+      [1637944200, 458.95, 460.68, 458.34, 460.62, 1950675], [1637947800, 460.62, 461.495, 457.24, 458.09, 3117569],
+      [1637951400, 458.01, 458.14, 457.22, 457.22, 9200], [1637955000, 457.26, 457.26, 456.96, 457.16, 5527],
+      [1637958600, 456.94, 456.94, 456.94, 456.94, 209], [1638196200, 464.06, 464.59, 462.47, 462.62, 1703772],
+      [1638199800, 462.63, 463.53, 461.75, 463.06, 825131], [1638203400, 463.05, 465.77, 463.04, 465.66, 610265],
+    ];
+    const bars: Bar[] = raw.map(([time, open, high, low, close, volume]) => ({ time, open, high, low, close, volume }));
+    const chart = { timeframe: '60', timezone: NY, session: { session: '0930-1600', corrections: '0930-1300:20211126', holidays: '20211125' } };
+    const r = run(bars, chart, () => ({ vwap: ta.vwap(hlc3) }));
+    expect(r.vwap).toEqual([
+      461.3066666666666, 460.58768049396855, 460.36021421255356, 459.8788048059663, 459.876451542609, 457.1266666666667,
+      456.94000000000005, 463.22666666666663, 463.080928173204, 463.41965769804824,
+    ]);
+  });
+});
