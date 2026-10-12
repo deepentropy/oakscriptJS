@@ -80,10 +80,11 @@ describe('request.security', () => {
     expect(ha[0]).toBe((BARS[0]!.open + BARS[0]!.high + BARS[0]!.low + BARS[0]!.close) / 4);
   });
 
-  it('throws for other symbols without bars and lower timeframes', () => {
+  it('throws for other symbols and lower timeframes without bars', () => {
     // other symbols need their bars from ChartContext.bars (#179)
     expect(() => run(() => request.security('NASDAQ:MSFT', 'D', () => close))).toThrow('needs the bars of NASDAQ:MSFT (1D)');
-    expect(() => run(() => request.security('', '5', () => close))).toThrow('lower than the chart timeframe');
+    // a lower timeframe of the chart symbol needs its bars from ChartContext.bars too (#181)
+    expect(() => run(() => request.security('', '5', () => close))).toThrow('needs the bars of');
     expect(() => run(() => syminfo.tickerid, { timeframe: '60' })).toThrow('chart symbol is not known');
   });
 });

@@ -98,7 +98,7 @@ import { tickScale } from '../str/numberformat.js';
 import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
 import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
-import { securityOther } from '../security/other.js';
+import { securityLowerTf, securityOther, type OtherSymbolChart } from '../security/other.js';
 import { position } from '../types/index.js';
 import type { ChartPoint } from '../types/index.js';
 import {
@@ -2148,11 +2148,12 @@ function security<T extends SecurityValue>(
   const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
   const chart = chartTimeframe();
   const tf = timeframeCore.info(timeframe || chart.period).period;
-  if (timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
-    throw new Error(`request.security: timeframe "${tf}" is lower than the chart timeframe "${chart.period}".`);
-  }
   if (base !== '' && base !== chartCtx.tickerid) {
-    return otherSecurity(base, heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol);
+    return externalSecurity(base, heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol, false);
+  }
+  if (timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
+    // a lower timeframe of the chart symbol: its bars come from ChartContext.bars (#181)
+    return externalSecurity(chartCtx.tickerid ?? '', heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol, true);
   }
 
   const chartBars = ctxBars.bars;
@@ -2205,16 +2206,27 @@ function security<T extends SecurityValue>(
   return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
 }
 
-/** `request.security` of another symbol (#179): its bars from `ChartContext.bars`, merged by `securityOther`. */
-function otherSecurity<T extends SecurityValue>(
+/** Bars of a symbol on a timeframe from `ChartContext.bars`, with its calendar and the values of `expression` on them. */
+interface ExternalRun<T> {
+  bars: Bar[];
+  info: SymbolInfo;
+  result: T;
+  values: number[][];
+}
+
+/**
+ * Runs `expression` on the bars of `symbol` / `tf` given by `ChartContext.bars` (#179, #181). Bars not given: the
+ * request is recorded for the {@link MissingSymbolDataError} and the expression runs on no bar. `own`: the chart
+ * symbol, whose calendar defaults to the chart's.
+ */
+function runExternal<T extends SecurityValue>(
   symbol: string,
   heikin: boolean,
   tf: string,
   expression: () => T,
-  gaps: string,
-  lookahead: string,
-  ignoreInvalid: boolean
-): T extends unknown[] ? Series[] : Series {
+  ignoreInvalid: boolean,
+  own: boolean
+): ExternalRun<T> {
   let bars = chartCtx.bars?.(symbol, tf);
   if (bars === undefined && !missingSymbols.some((r) => r.symbol === symbol && r.timeframe === tf)) {
     missingSymbols.push({ symbol, timeframe: tf });
@@ -2222,13 +2234,14 @@ function otherSecurity<T extends SecurityValue>(
   if (bars !== undefined && bars.length === 0 && !ignoreInvalid) throw new Error(`Invalid symbol: ${symbol}`);
   bars ??= [];
   if (heikin) bars = heikinAshi(bars);
-  const info = chartCtx.symbolInfo?.(symbol) ?? {};
+  const given = chartCtx.symbolInfo?.(symbol);
+  const info: SymbolInfo = own ? { ...chartCtx, ...given } : (given ?? {});
   const chartBars = ctxBars.bars;
   const savedCtx = chartCtx;
   let result: T;
   let values: number[][];
   ctxBars.setAll(bars);
-  // the expression sees the other symbol: its ticker, timeframe, calendar and properties
+  // the expression sees that symbol: its ticker, timeframe, calendar and properties
   chartCtx = {
     ...chartCtx,
     tickerid: symbol,
@@ -2254,26 +2267,77 @@ function otherSecurity<T extends SecurityValue>(
     ctxBars.setAll(chartBars);
     chartCtx = savedCtx;
   }
-  const index = securityOther(
-    chartBars,
-    bars,
-    tf,
-    {
-      timeframe: chartTimeframe().period,
-      timezone: chartCtx.timezone,
-      session: chartCtx.session,
-      timeUnit: chartCtx.timeUnit,
-      // the realtime rule applies to a last bar that receives live updates
-      lastBarConfirmed: chartCtx.realtime !== true,
-    },
-    { gaps: gaps === barmerge.gaps_on, lookahead: lookahead === barmerge.lookahead_on, other: info }
-  );
+  return { bars, info, result, values };
+}
+
+/** The chart for the merge functions of `security/other`. */
+function mergeChart(): OtherSymbolChart {
+  return {
+    timeframe: chartTimeframe().period,
+    timezone: chartCtx.timezone,
+    session: chartCtx.session,
+    timeUnit: chartCtx.timeUnit,
+    // the realtime rule applies to a last bar that receives live updates
+    lastBarConfirmed: chartCtx.realtime !== true,
+  };
+}
+
+/**
+ * `request.security` of another symbol (#179), or of the chart symbol on a lower timeframe (#181): its bars from
+ * `ChartContext.bars`, merged by `securityOther`.
+ */
+function externalSecurity<T extends SecurityValue>(
+  symbol: string,
+  heikin: boolean,
+  tf: string,
+  expression: () => T,
+  gaps: string,
+  lookahead: string,
+  ignoreInvalid: boolean,
+  own: boolean
+): T extends unknown[] ? Series[] : Series {
+  const { bars, info, result, values } = runExternal(symbol, heikin, tf, expression, ignoreInvalid, own);
+  const index = securityOther(ctxBars.bars, bars, tf, mergeChart(), {
+    gaps: gaps === barmerge.gaps_on,
+    lookahead: lookahead === barmerge.lookahead_on,
+    other: info,
+  });
   const mapped = values.map((v) => Series.fromArray(ctxBars, index.map((j) => (j < 0 ? NaN : (v[j] ?? NaN)))));
   return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? Series[] : Series;
 }
 
-/** PineScript `request.*`: `security` for the chart symbol (issue #101) and other symbols (#179). */
-export const request = { security };
+/**
+ * PineScript `request.security_lower_tf(symbol, timeframe, expression, ignore_invalid_symbol)` (#181): for each
+ * chart bar, the array of the values of `expression` on the bars of the lower timeframe that the chart bar contains
+ * (those whose close is after the open of the chart bar and at or before its close; empty when there are none).
+ * The bars come from `ChartContext.bars`, for the chart symbol (`""`, `syminfo.tickerid`) as for another symbol.
+ * Returns one array per chart bar (oldest first), or one such list per tuple part.
+ * @throws Error when `timeframe` is higher than the chart timeframe
+ */
+function security_lower_tf<T extends SecurityValue>(
+  symbol: string,
+  timeframe: string,
+  expression: () => T,
+  ignore_invalid_symbol: boolean = false
+): T extends unknown[] ? number[][][] : number[][] {
+  collector();
+  const heikin = symbol.startsWith(HEIKIN_ASHI);
+  const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
+  const chart = chartTimeframe();
+  const tf = timeframeCore.info(timeframe || chart.period).period;
+  if (timeframeCore.in_seconds(tf) > timeframeCore.in_seconds(chart.period)) {
+    throw new Error(`request.security_lower_tf: timeframe "${tf}" is higher than the chart timeframe "${chart.period}".`);
+  }
+  const own = base === '' || base === chartCtx.tickerid;
+  const ticker = own ? (chartCtx.tickerid ?? '') : base;
+  const { bars, info, result, values } = runExternal(ticker, heikin, tf, expression, ignore_invalid_symbol, own);
+  const ranges = securityLowerTf(ctxBars.bars, bars, tf, mergeChart(), { other: info });
+  const mapped = values.map((v) => ranges.map(([from, to]) => v.slice(from, to)));
+  return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? number[][][] : number[][];
+}
+
+/** PineScript `request.*`: `security` (issue #101, other symbols #179, lower timeframes #181) and `security_lower_tf`. */
+export const request = { security, security_lower_tf };
 
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that

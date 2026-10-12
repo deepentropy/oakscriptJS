@@ -97,6 +97,51 @@ describe('request.security of another symbol (#179)', () => {
     const idx = securityOther(aaplTimes.map((t) => ({ time: t })), btcTimes.map((t) => ({ time: t })), 'D', { timeframe: '1D', ...AAPL }, { other: BTC });
     expect(idx).toEqual([0, 1, 2, 6, 7, 8, 9]);
     expect(securityOther([{ time: 0 }], [], 'D', { timeframe: '1D' })).toEqual([-1]);
-    expect(() => securityOther([{ time: 0 }], [{ time: 0 }], '60', { timeframe: '1D' })).toThrow(RangeError);
+    expect(securityOther([{ time: 0 }], [{ time: 0 }], '60', { timeframe: '1D' })).toEqual([0]); // a lower timeframe (#181): the hour closes inside the day
+  });
+});
+
+describe('lower timeframes (#181)', () => {
+  // BITSTAMP:BTCUSD 1D chart, 03/09/2026, with its hourly bars and the hourly bars of NASDAQ:AAPL (13:30 to 19:30 UTC)
+  const day = 1788393600; // 03/09/2026 00:00 UTC
+  const btcHours = Array.from({ length: 72 }, (_, i) => day - DAY + i * 3600); // 02/09 to 04/09
+  const aaplHours = [-1, 0, 1].flatMap((d) => Array.from({ length: 7 }, (_, i) => day + d * DAY + 13.5 * 3600 + i * 3600));
+  const ctx = {
+    tickerid: 'BITSTAMP:BTCUSD', timeframe: '1D', ...BTC,
+    bars: (symbol: string, tf: string) => (tf !== '60' ? undefined : (symbol === 'NASDAQ:AAPL' ? aaplHours : btcHours).map(bar)),
+    symbolInfo: (symbol: string) => (symbol === 'NASDAQ:AAPL' ? AAPL : BTC),
+  };
+  const chartBars = [day - DAY, day, day + DAY].map(bar);
+
+  it('request.security: lookahead off shows the last lower bar that closes by the close, lookahead on the one open at the open', () => {
+    let r: number[][] = [];
+    executeScript(() => {
+      r = [
+        request.security('', '60', () => time).toArray(),
+        request.security('', '60', () => time, barmerge.gaps_off, barmerge.lookahead_on).toArray(),
+        request.security('NASDAQ:AAPL', '60', () => time).toArray(),
+        request.security('NASDAQ:AAPL', '60', () => time, barmerge.gaps_off, barmerge.lookahead_on).toArray(),
+      ];
+    }, chartBars, {}, ctx);
+    expect(r[0]![1]).toBe(ms(day + 23 * 3600)); // 03/09 23:00
+    expect(r[1]![1]).toBe(ms(day)); // 03/09 00:00
+    expect(r[2]![1]).toBe(ms(day + 19.5 * 3600)); // AAPL 03/09 19:30
+    expect(r[3]![1]).toBe(ms(day - DAY + 19.5 * 3600)); // AAPL 02/09 19:30: the last one open at 00:00
+  });
+
+  it('request.security_lower_tf: the lower bars that close inside the chart bar', () => {
+    let own: number[][] = [];
+    let aapl: number[][] = [];
+    executeScript(() => {
+      own = request.security_lower_tf('', '60', () => time);
+      aapl = request.security_lower_tf('NASDAQ:AAPL', '60', () => time);
+    }, chartBars, {}, ctx);
+    expect(own[1]).toHaveLength(24);
+    expect([own[1]![0], own[1]![23]]).toEqual([ms(day), ms(day + 23 * 3600)]);
+    expect(aapl[1]).toEqual(Array.from({ length: 7 }, (_, i) => ms(day + 13.5 * 3600 + i * 3600)));
+  });
+
+  it('a higher timeframe in security_lower_tf throws', () => {
+    expect(() => executeScript(() => { request.security_lower_tf('', 'W', () => time); }, chartBars, {}, ctx)).toThrow('higher than the chart timeframe');
   });
 });

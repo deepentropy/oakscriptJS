@@ -79,6 +79,7 @@ export { resample, periodsOf, afterCompletion, mapToChart, heikinAshi, type Resa
 export {
   securityOther,
   securityOtherValues,
+  securityLowerTf,
   type OtherSymbolChart,
   type OtherSymbolOptions,
   type SymbolCalendar,

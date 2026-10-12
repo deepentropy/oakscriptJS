@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Lower timeframes (#181): `request.security` on a timeframe lower than the chart's (chart symbol or another one)
+  and `request.security_lower_tf(symbol, timeframe, expression, ignore_invalid_symbol)` in the script API, with the
+  bars from `ChartContext.bars`; `securityLowerTf` (package root) for ports. Lookahead off: the last lower bar that
+  closes by the close of the chart bar; lookahead on: the last one open at its open (by trading day only when both
+  timeframes are D / W / M); `security_lower_tf`: the lower bars that close inside the chart bar. 142,940 of 142,947
+  probe values equal (BTCUSD / AAPL 1D, BTCUSD 1W, AAPL 60 requesting 60 / D / 15, both symbols); the 7 others are
+  the close of the live last bar.
 - `ta.rsi(x, y)` with two series (PineScript v4 `rsi(x, y)`): 100 when `y` is within 1e-10 of zero, else 0 when `x`
   is, else `100 - 100 / (1 + x / y)`, na on a division by zero; 68,184 of 68,184 probe values equal (#180).
 - `input.symbol` (script API, `input.symbol` / `input_symbol` of the other APIs) and the input type `'symbol'`, for a

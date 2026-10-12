@@ -524,6 +524,16 @@ try {
 - A port without the script API can use `securityOther(chartBars, otherBars, timeframe, chart, { lookahead, gaps,
   other })`: the index of the other bar shown on each chart bar (-1 for na).
 
+#### Lower timeframes
+
+`request.security` on a timeframe lower than the chart's (the chart symbol or another one) and
+`request.security_lower_tf` read the lower-timeframe bars from `ChartContext.bars` as well (for the chart symbol:
+`bars(tickerid, timeframe)`). Lookahead off shows the last lower bar that closes by the close of the chart bar,
+lookahead on the last one that opened by its open. `request.security_lower_tf(symbol, timeframe, expression)` returns
+one array per chart bar: the values on the lower bars that close inside the chart bar (after its open, at or before
+its close). Ports use `securityLowerTf(chartBars, lowerBars, timeframe, chart, { other })`, which gives the
+`[from, to)` range of lower bars of each chart bar.
+
 ### The session of a chart context without a script
 
 Code that has its own bar loop can read the same session values from a chart context (timeframe, time zone,

@@ -9,8 +9,9 @@
  * - lookahead off: the last bar of the other symbol whose close time is at or before the close time of the chart bar
  *   (a daily stock bar closes at the session end, a crypto daily bar at 00:00 UTC: a stock chart shows the crypto
  *   bar of the day before, a crypto chart the stock bar of the same day)
- * - lookahead on, intraday chart: the last bar of the other symbol that opened at or before the open of the chart bar
- * - lookahead on, D / W / M chart: the last bar of the other symbol whose period starts at or before the trading day
+ * - lookahead on, intraday chart or intraday request: the last bar of the other symbol that opened at or before the
+ *   open of the chart bar
+ * - lookahead on, D / W / M chart and request: the last bar of the other symbol whose period starts at or before the trading day
  *   of the chart bar: the trading day of a D bar, the Monday of a W bar, the first day of the month of an M bar, each
  *   in the exchange time zone of its symbol (a week that opens on a Tuesday after a holiday still starts on Monday)
  * - before the first bar of the other symbol: na; on chart bars where the other symbol has no bar (weekends,
@@ -168,11 +169,31 @@ function latestAtOrBefore(keys: number[], at: number[]): number[] {
 const zoneOf = (c: SymbolCalendar | undefined): Zone | null =>
   c?.timezone && c.session ? { timezone: c.timezone, session: c.session } : null;
 
+/** Timeframes and exchange calendars of a merge: given, 24x7, the chart's, else the UTC rule. */
+function setup(
+  ct: number[],
+  ot: number[],
+  tf: string,
+  chart: OtherSymbolChart,
+  options: OtherSymbolOptions
+): { chartTf: string; otherTf: string; chartZone: Zone | null; otherZone: Zone | null } {
+  const chartTf = timeframe.info(chart.timeframe).period;
+  const otherTf = tf.trim() === '' ? chartTf : timeframe.info(tf).period;
+  if (timeframe.info(otherTf).isticks) throw new RangeError(`request.security: tick timeframe "${tf}" is not supported.`);
+  const chartZone = zoneOf(chart) ?? (tradesEveryDay(ct, chartTf) ? UTC_24X7 : null);
+  const otherZone =
+    zoneOf(options.other) ??
+    (tradesEveryDay(ot, otherTf) ? UTC_24X7 : chartZone && onCalendar(ot, otherTf, chartZone) ? chartZone : null);
+  return { chartTf, otherTf, chartZone, otherZone };
+}
+
 /**
  * PineScript `request.security` of another symbol: the index in `otherBars` of the bar shown on each chart bar, -1
  * for na (#179). `otherBars` are the bars of the other symbol on `tf` ("" for the chart timeframe, or a higher
- * timeframe: "D", "W", "240"...), with times in the unit of the chart bars. Rules in the module notes.
- * @throws RangeError when `tf` is lower than the chart timeframe
+ * or a lower one), with times in the unit of the chart bars. Rules in the module notes; the same rules hold for a
+ * lower timeframe (#181): lookahead off shows the last lower bar that closes by the close of the chart bar, lookahead
+ * on the last one that opened by its open. It also serves the chart symbol on a lower timeframe.
+ * @throws RangeError for a tick timeframe
  */
 export function securityOther(
   chartBars: ReadonlyArray<{ time: number }>,
@@ -186,20 +207,11 @@ export function securityOther(
   const unit = chart.timeUnit === 'ms' ? 1 : 1000;
   const ct = chartBars.map((b) => b.time * unit);
   const ot = otherBars.map((b) => b.time * unit);
-  const chartTf = timeframe.info(chart.timeframe).period;
-  const otherTf = tf.trim() === '' ? chartTf : timeframe.info(tf).period;
-  if (timeframe.info(otherTf).isticks || timeframe.in_seconds(otherTf) < timeframe.in_seconds(chartTf)) {
-    throw new RangeError(`request.security: timeframe "${tf}" is lower than the chart timeframe "${chartTf}".`);
-  }
+  const { chartTf, otherTf, chartZone, otherZone } = setup(ct, ot, tf, chart, options);
   if (ot.length === 0) return new Array<number>(n).fill(-1);
 
-  // exchange calendars: given, 24x7, the chart's, else the UTC rule
-  const chartZone = zoneOf(chart) ?? (tradesEveryDay(ct, chartTf) ? UTC_24X7 : null);
-  const otherZone =
-    zoneOf(options.other) ??
-    (tradesEveryDay(ot, otherTf) ? UTC_24X7 : chartZone && onCalendar(ot, otherTf, chartZone) ? chartZone : null);
-
-  const daily = timeframe.info(chartTf).isdwm;
+  // by trading day when both timeframes are D / W / M; by open time with an intraday side (#181)
+  const daily = timeframe.info(chartTf).isdwm && timeframe.info(otherTf).isdwm;
   const realtime = chart.lastBarConfirmed === false && !options.gaps;
   let on: number[] = [];
   if (options.lookahead || realtime) {
@@ -216,6 +228,29 @@ export function securityOther(
   if (realtime) index[n - 1] = on[n - 1]!;
   if (!options.gaps) return index;
   return index.map((j, i) => (i === 0 || j !== index[i - 1] ? j : -1));
+}
+
+/**
+ * PineScript `request.security_lower_tf` (#181): for each chart bar, the range `[from, to)` of the bars of
+ * `otherBars` (a lower timeframe, the chart symbol or another one) that it contains: the bars whose close time is
+ * after the open of the chart bar and at or before its close (a 13:00 hourly bar of a 24x7 symbol is in a 13:30 stock
+ * day, which closes at 20:00). An empty range for a chart bar without such bars.
+ */
+export function securityLowerTf(
+  chartBars: ReadonlyArray<{ time: number }>,
+  otherBars: ReadonlyArray<{ time: number }>,
+  tf: string,
+  chart: OtherSymbolChart,
+  options: Pick<OtherSymbolOptions, 'other'> = {}
+): Array<[number, number]> {
+  const unit = chart.timeUnit === 'ms' ? 1 : 1000;
+  const ct = chartBars.map((b) => b.time * unit);
+  const ot = otherBars.map((b) => b.time * unit);
+  const { chartTf, otherTf, chartZone, otherZone } = setup(ct, ot, tf, chart, options);
+  const oc = closeTimes(ot, otherTf, otherZone);
+  const from = latestAtOrBefore(oc, ct);
+  const to = latestAtOrBefore(oc, closeTimes(ct, chartTf, chartZone));
+  return ct.map((_, i) => [from[i]! + 1, Math.max(from[i]! + 1, to[i]! + 1)]);
 }
 
 /**
