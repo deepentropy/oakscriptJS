@@ -11,7 +11,7 @@
 import type { Bar } from '../types/index.js';
 import { info, in_seconds } from '../timeframe/index.js';
 import { afterCompletion, periodsOf, resample } from '../security/resample.js';
-import { SessionBars, sessionFlags, type SessionFlags } from './bars.js';
+import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from './bars.js';
 import { TradingCalendar, type SessionSpec } from './calendar.js';
 
 /** The part of a chart context that the session functions read (a `ChartContext` of the script API fits). */
@@ -120,6 +120,7 @@ export function resampleSession(bars: Bar[], timeframe: string, chart: SessionCo
     const periods = at ? calendar.calendar.periods(at.date) : [];
     return periods.length ? calendar.timeOf(periods[0]![0], tf.period) : starts[i]!;
   });
+  strayPeriods(starts, dayPeriods, times, s.bars, tf.isdwm ? null : in_seconds(tf.period) * 1000);
   const reaches = times.map((t) => s.bars.closeOf(t, chartTf.period) >= calendar.periodEnd(t, tf.period));
   const { group, latest } = periodsOf(starts, dayPeriods, reaches);
   // a higher-timeframe bar ends at the bar that completes it (no value from after the completion)

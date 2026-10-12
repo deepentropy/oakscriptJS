@@ -96,7 +96,7 @@ import * as strCore from '../str/index.js';
 import { formatMessage } from '../str/messageformat.js';
 import { tickScale } from '../str/numberformat.js';
 import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
-import { SessionBars, sessionFlags, type SessionFlags } from '../session/bars.js';
+import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
 import { position } from '../types/index.js';
 import type { ChartPoint } from '../types/index.js';
@@ -121,7 +121,7 @@ import {
   type StrategyTrade,
   type StrategyVariable,
 } from '../strategy/index.js';
-import { parsePineSession } from '../time/session.js';
+import { parsePineSession, sessionRun } from '../time/session.js';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -564,12 +564,12 @@ export const ta = {
     typeof sourceOrLength === 'number'
       ? taSeries.lowestbars(low, sourceOrLength)
       : taSeries.lowestbars(sourceOrLength, length!),
-  /** `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume; the default anchor is a new trading
-   *  day (`timeframe.change("1D")`), which needs the chart context (timeframe, time zone, session), and the
-   *  first bar: as in PineScript, the first loaded bars (a day in progress) have a value. */
+  /** `ta.vwap(source, anchor?, stdev_mult?)` with the chart volume; the default anchor is a new trading day
+   *  and the first bar: as in PineScript, the first loaded bars (a day in progress) have a value. On D / W / M
+   *  charts every bar is a new day (no time zone or session needed); on intraday charts it needs the chart context
+   *  (timeframe, time zone, session). */
   vwap: ((source: Series, anchor?: Series, stdev_mult?: number): Series | [Series, Series, Series] => {
-    // PineScript default: timeframe.change("1D"); the sums also start on the first bar (a day in progress)
-    const a = anchor ?? changeOf('1D', true);
+    const a = anchor ?? vwapAnchor();
     return stdev_mult === undefined ? taSeries.vwap(source, volume, a) : taSeries.vwapBands(source, volume, a, stdev_mult);
   }) as {
     (source: Series, anchor?: Series): Series;
@@ -1829,7 +1829,8 @@ function sessionBars(): { bars: SessionBars; regular: SessionBars } {
  */
 function calendarFor(
   session?: string,
-  timezone?: string
+  timezone?: string,
+  dayPlacement = false
 ): { bars: SessionBars; test: boolean; inside?: (time: number) => boolean } {
   const { bars } = sessionBars();
   if (!session && !timezone) return { bars, test: false };
@@ -1843,7 +1844,7 @@ function calendarFor(
   }
   const spec = session ? { session } : { session: toSpec(chartCtx.session!).session };
   return {
-    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol'), bars.chart.period),
+    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol', dayPlacement), bars.chart.period),
     test: true,
     // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
     inside: session
@@ -1864,18 +1865,49 @@ function callableSeries<F extends (...args: never[]) => Series>(series: Series, 
   return fn as Series & F;
 }
 
+/**
+ * `time(tf, session)` / `time_close(tf, session)` of a bar, as PineScript computes them (#173): an intraday timeframe
+ * tests the bar with the session rules of time.inSession and aligns its periods on the start of the run that
+ * contains the bar; "D" tests the bar against the day's session period (the calendar); a timeframe of more than one
+ * day ("2D", "W", "M") has no test and keeps the period's time.
+ */
+function sessionPeriods(timeframeString: string, session?: string, timezone?: string): { open: (t: number) => number; close: (t: number) => number } {
+  const tf = timeframeCore.info(timeframeString);
+  const { bars, test, inside } = calendarFor(session, timezone, !tf.isintraday);
+  const open = (t: number): number => bars.timeOf(t, timeframeString);
+  const close = (t: number): number => bars.closeOf(t, timeframeString);
+  if (!test) return { open, close };
+  if (tf.isintraday) {
+    if (session !== undefined && parsePineSession(session) !== null && !bars.chart.isdwm) {
+      const tz = timezone ?? exchangeTimezone();
+      const barMs = timeframeCore.in_seconds(bars.chart.period) * 1000;
+      const ms = timeframeCore.in_seconds(tf.period) * 1000;
+      const run = (t: number) => sessionRun(t, session, tz, barMs);
+      const start = (t: number, r: [number, number]) => r[0] + Math.floor((t - r[0]) / ms) * ms;
+      return {
+        open: (t) => { const r = run(t); return r ? start(t, r) : NaN; },
+        close: (t) => { const r = run(t); return r ? Math.min(start(t, r) + ms, r[1]) : NaN; },
+      };
+    }
+    const isIn = (t: number) => (inside ? inside(t) : bars.inside(t));
+    return { open: (t) => (isIn(t) ? open(t) : NaN), close: (t) => (isIn(t) ? close(t) : NaN) };
+  }
+  if (tf.isdaily && tf.multiplier === 1) {
+    return { open: (t) => (bars.inside(t) ? open(t) : NaN), close: (t) => (bars.inside(t) ? close(t) : NaN) };
+  }
+  return { open, close };
+}
+
 function timeFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { bars, test, inside } = calendarFor(session, timezone);
-  const timeframeString = tf || chartTimeframe().period;
-  return perBar((t) => (test && !(inside ? inside(t) : bars.inside(t)) ? NaN : bars.timeOf(t, timeframeString)));
+  const { open } = sessionPeriods(tf || chartTimeframe().period, session, timezone);
+  return perBar((t) => open(t));
 }
 
 function timeCloseFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { bars, test, inside } = calendarFor(session, timezone);
-  const timeframeString = tf || chartTimeframe().period;
-  return perBar((t) => (test && !(inside ? inside(t) : bars.inside(t)) ? NaN : bars.closeOf(t, timeframeString)));
+  const { close } = sessionPeriods(tf || chartTimeframe().period, session, timezone);
+  return perBar((t) => close(t));
 }
 
 /**
@@ -1907,6 +1939,23 @@ function changeOf(tf: string, firstBar = false): Series {
   // a bar without a period (after an early close) is no change, and neither is the bar after it
   const changed = (a: number, b: number): boolean => !Number.isNaN(a) && !Number.isNaN(b) && a !== b;
   return perBar((t, i, times) => ((i > 0 ? changed(bars.timeOf(t, tf), bars.timeOf(times[i - 1]!, tf)) : firstBar) ? 1 : 0));
+}
+
+/**
+ * Default anchor of `ta.vwap` (#173): the first bar and each bar whose trading day differs from the last bar that has
+ * one. A bar after an early close (no day) continues the day before it, and the next day starts on its first bar,
+ * where `timeframe.change("D")` is false. On D / W / M charts every bar.
+ */
+function vwapAnchor(): Series {
+  if (chartTimeframe().isdwm) return barFlag(() => true);
+  const { bars } = sessionBars();
+  let last = NaN;
+  return perBar((t, i) => {
+    const day = bars.timeOf(t, '1D');
+    const isNew = i === 0 || (!Number.isNaN(day) && day !== last);
+    if (!Number.isNaN(day)) last = day;
+    return isNew ? 1 : 0;
+  });
 }
 
 function flag(key: keyof SessionFlags): Series {
@@ -2045,6 +2094,8 @@ function security<T extends SecurityValue>(
       const periods = at ? calendar.calendar.periods(at.date) : [];
       return periods.length ? calendar.timeOf(periods[0]![0], tf) : starts[i]!;
     });
+    const tfInfo = timeframeCore.info(tf);
+    strayPeriods(starts, dayPeriods, times, loaded, tfInfo.isdwm ? null : timeframeCore.in_seconds(tf) * 1000);
     const reaches = times.map((t) => loaded.closeOf(t, chart.period) >= calendar.periodEnd(t, tf));
     ({ group, latest } = periodsOf(starts, dayPeriods, reaches));
     const unit = chartCtx.timeUnit === 'ms' ? 1 : 1000;

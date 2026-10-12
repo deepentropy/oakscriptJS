@@ -177,6 +177,11 @@ export function civilToUnix(year: number, month: number, day: number, hour = 0, 
   return days * MS_PER_DAY + Date.UTC(1970, 0, 1, hour, minute, second);
 }
 
+/**
+ * UNIX time (ms) of a wall-clock date in `timezone`. A wall time skipped by a clock change is read with the offset
+ * before the change (02:30 on a 02:00 -> 03:00 night is 03:30 after it); a wall time that occurs twice gives the
+ * later instant, or the earlier one with `earlier`.
+ */
 export function zonedToUnix(
   timezone: string,
   year: number,
@@ -184,7 +189,8 @@ export function zonedToUnix(
   day: number,
   hour: number = 0,
   minute: number = 0,
-  second: number = 0
+  second: number = 0,
+  earlier: boolean = false
 ): number {
   const zone = resolveZone(timezone);
   const local = civilToUnix(year, month, day, hour, minute, second);
@@ -195,6 +201,7 @@ export function zonedToUnix(
   const before = offsetAt(zone, local - MS_PER_DAY);
   const after = offsetAt(zone, local + MS_PER_DAY);
   const candidates = [local - before, local - after].filter((t) => local - offsetAt(zone, t) === t);
-  if (candidates.length) return Math.max(...candidates);
+  // a wall time that occurs twice: the later instant, or the earlier one with `earlier`
+  if (candidates.length) return earlier ? Math.min(...candidates) : Math.max(...candidates);
   return local - before;
 }

@@ -14,11 +14,13 @@
  *   "0000-0000" and "24x7" are the whole day, every day
  * - a run that ends at 0000 ("2000-0000") ends at 24:00 of the day it starts and belongs to that day
  *   ("2000-0000:6" is Friday 20:00 to midnight)
+ * - "F" after the start moves it one day before the day the run ends on ("1700F-1900:2": Sunday 17:00 to Monday
+ *   19:00; "1900-1900:3456|1700F-1900:2" is the TVC:DXY symbol session) (#173)
  * - a string that is empty or does not start with a digit ("regular", "extended") is the symbol's own session
  * - a malformed string ("1100 -1400", "0930-16", ":8") is an error, as the PineScript runtime error
  */
 
-import { zoneOffset, zonedFields } from './timezone.js';
+import { zoneOffset, zonedFields, zonedToUnix } from './timezone.js';
 
 const MINUTES_PER_DAY = 1440;
 const WEEKDAYS = [2, 3, 4, 5, 6];
@@ -29,17 +31,27 @@ export interface SessionRange {
   start: number;
   end: number;
   days: Set<number>;
+  /** Days between the start and the day the run ends on, given by "F" after the start (absent otherwise) */
+  startDays?: number;
 }
 
 function invalid(session: string): SyntaxError {
   return new SyntaxError(`Invalid session "${session}": expected "HHMM-HHMM[,HHMM-HHMM...][:days][|...]"`);
 }
 
-function parseRanges(text: string, session: string): Array<[number, number]> {
+function parseRanges(text: string, session: string): Array<[number, number, number?]> {
   if (!text) return [];
   const entries = text.split(',');
   if (entries.length > 1 && entries[entries.length - 1] === '') entries.pop();
-  return entries.map((entry) => {
+  return entries.map((entry): [number, number, number?] => {
+    // "HHMMF-HHMM": the start is one day before the day the run ends on
+    const f = /^(\d{4})F-(\d{4})$/.exec(entry);
+    if (f) {
+      const minutes = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(2, 4));
+      const [start, end] = [minutes(f[1]!), minutes(f[2]!)];
+      if (start >= MINUTES_PER_DAY || end >= MINUTES_PER_DAY) throw invalid(session);
+      return [start, end, 1];
+    }
     if (!/^\d{4}-\d{4}$/.test(entry)) throw invalid(session);
     let start = Number(entry.slice(0, 2)) * 60 + Number(entry.slice(2, 4));
     let end = Number(entry.slice(5, 7)) * 60 + Number(entry.slice(7, 9));
@@ -60,6 +72,9 @@ function parseDays(text: string, session: string): Set<number> {
 
 const parsed = new Map<string, SessionRange[] | null>();
 
+const range = (start: number, end: number, days: Set<number>, startDays?: number): SessionRange =>
+  startDays === undefined ? { start, end, days } : { start, end, days, startDays };
+
 /**
  * Runs of a PineScript session string, or null for the symbol's own session (empty or not starting with a digit).
  * @throws SyntaxError when the string is malformed (a PineScript runtime error)
@@ -74,7 +89,7 @@ export function parsePineSession(session: string): SessionRange[] | null {
   } else if (spec === '24x7') {
     out = [{ start: 0, end: 0, days: new Set(ALL_DAYS) }];
   } else if (!/[:,|]/.test(spec)) {
-    out = parseRanges(spec, session).map(([start, end]) => ({ start, end, days: new Set(ALL_DAYS) }));
+    out = parseRanges(spec, session).map(([start, end, startDays]) => range(start, end, new Set(ALL_DAYS), startDays));
   } else {
     const sections = spec.split('|');
     if (sections.length > 1 && sections[sections.length - 1] === '') sections.pop();
@@ -99,7 +114,7 @@ export function parsePineSession(session: string): SessionRange[] | null {
     items.forEach((it, i) => {
       if (it.days === null) for (const d of WEEKDAYS) if (!claimed.has(d)) own[i]!.add(d);
     });
-    out = items.flatMap((it, i) => (own[i]!.size ? it.ranges.map(([start, end]) => ({ start, end, days: own[i]! })) : []));
+    out = items.flatMap((it, i) => (own[i]!.size ? it.ranges.map(([start, end, startDays]) => range(start, end, own[i]!, startDays)) : []));
   }
   parsed.set(session, out);
   return out;
@@ -147,29 +162,56 @@ function clockChangeNear(time: number, timezone: string): { at: number; before: 
  * `time(timeframe, session)` in a script with the chart session
  */
 export function inSession(time: number, session: string, timezone: string, barMs?: number): boolean {
-  if (Number.isNaN(time)) return false;
+  return sessionRun(time, session, timezone, barMs) !== null;
+}
+
+/**
+ * The run of `session` that contains `time`, as [start, end) UNIX times (ms), or null outside the session; rules in
+ * {@link inSession}. PineScript aligns the intraday periods of `time(tf, session)` on the start of this run (#173).
+ */
+export function sessionRun(time: number, session: string, timezone: string, barMs?: number): [number, number] | null {
+  if (Number.isNaN(time)) return null;
   const ranges = parsePineSession(session);
   if (ranges === null) throw new Error(`Session "${session}" is the symbol session: it needs the chart session (time(timeframe, session) in a script)`);
   const change = clockChangeNear(time, timezone);
   const f = zonedFields(time, timezone);
   const minute = f.hour * 60 + f.minute;
   const nextDay = (f.dayOfWeek % 7) + 1;
-  for (const { start, end: rawEnd, days } of ranges) {
+  for (const { start, end: rawEnd, days, startDays } of ranges) {
+    if (startDays !== undefined) {
+      // "F": from `start` of `startDays` days before the end day to `end` of the end day, wall times read in the zone
+      for (let k = 0; k <= startDays + 1; k++) {
+        const endDay = Date.UTC(f.year, f.month - 1, f.day + k);
+        if (!days.has(new Date(endDay).getUTCDay() + 1)) continue;
+        const d = new Date(endDay);
+        const at = (dayShift: number, minutes: number): number =>
+          zonedToUnix(timezone, d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate() - dayShift, Math.floor(minutes / 60), minutes % 60);
+        const from = at(startDays, start);
+        const to = at(0, rawEnd);
+        if (time >= from && time < to) return [from, to];
+      }
+      continue;
+    }
     if (start === rawEnd) {
       // 24 hours: the run belongs to the day it ends ("0000-0000": the day itself)
-      if (days.has(start === 0 || minute < start ? f.dayOfWeek : nextDay)) return true;
+      if (days.has(start === 0 || minute < start ? f.dayOfWeek : nextDay)) {
+        const from = time - ((minute - start + MINUTES_PER_DAY) % MINUTES_PER_DAY) * MS_PER_MINUTE - f.second * 1000 - (time % 1000);
+        return [from, from + MS_PER_DAY];
+      }
       continue;
     }
     // a run that ends at 0000 ends at 24:00 of the day it starts
     const end = rawEnd === 0 ? MINUTES_PER_DAY : rawEnd;
     const overnight = start > end;
     if (!change) {
+      // the wall-clock minute of the bar: the run is `start` to `end` minutes of the same offset
+      const midnight = time - minute * MS_PER_MINUTE - f.second * 1000 - (time % 1000);
       if (!overnight) {
-        if (minute >= start && minute < end && days.has(f.dayOfWeek)) return true;
+        if (minute >= start && minute < end && days.has(f.dayOfWeek)) return [midnight + start * MS_PER_MINUTE, midnight + end * MS_PER_MINUTE];
       } else {
         // the part from `start` belongs to the next day
-        if (minute >= start && days.has(nextDay)) return true;
-        if (minute < end && days.has(f.dayOfWeek)) return true;
+        if (minute >= start && days.has(nextDay)) return [midnight + start * MS_PER_MINUTE, midnight + (end + MINUTES_PER_DAY) * MS_PER_MINUTE];
+        if (minute < end && days.has(f.dayOfWeek)) return [midnight + (start - MINUTES_PER_DAY) * MS_PER_MINUTE, midnight + end * MS_PER_MINUTE];
       }
       continue;
     }
@@ -182,14 +224,14 @@ export function inSession(time: number, session: string, timezone: string, barMs
       const from = day * MS_PER_DAY + (overnight ? start - MINUTES_PER_DAY : start) * MS_PER_MINUTE;
       const to = day * MS_PER_DAY + end * MS_PER_MINUTE;
       if (to === changeWall) {
-        if (time >= from - change.after && time < to - change.after) return true;
+        if (time >= from - change.after && time < to - change.after) return [from - change.after, to - change.after];
         continue;
       }
-      if (time >= place(from) && time < place(to)) return true;
+      if (time >= place(from) && time < place(to)) return [place(from), place(to)];
       // clocks going back: the second pass of the repeated hour
       const repeated = change.at + change.after;
       if (change.after < change.before && to < changeWall && to > repeated) {
-        if (time >= Math.max(from, repeated) - change.after && time < to - change.after) return true;
+        if (time >= Math.max(from, repeated) - change.after && time < to - change.after) return [place(from), to - change.after];
       }
     }
     // clocks going back, the day before: a run with an end on the wall time of the change is also true one change
@@ -201,9 +243,9 @@ export function inSession(time: number, session: string, timezone: string, barMs
         const from = day * MS_PER_DAY + (overnight ? start - MINUTES_PER_DAY : start) * MS_PER_MINUTE - change.before;
         const to = day * MS_PER_DAY + end * MS_PER_MINUTE - change.before;
         const shift = change.before - change.after;
-        if (time >= from + shift && time < to + shift && time >= to + barMs) return true;
+        if (time >= from + shift && time < to + shift && time >= to + barMs) return [from + shift, to + shift];
       }
     }
   }
-  return false;
+  return null;
 }

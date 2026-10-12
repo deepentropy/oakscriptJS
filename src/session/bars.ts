@@ -113,7 +113,8 @@ export class SessionBars {
 
   /**
    * PineScript `time(tf)` for a bar that opens at `time`; NaN when no trading day is found. An intraday bar that
-   * opens after an early close has no day: `time("D")` is NaN on it (measured; `time("W")` keeps its value).
+   * opens after an early close has no day and no intraday period: `time("D")`, `time("240")` and `time("60")` are
+   * NaN on it (measured; `time("W")` keeps its value).
    */
   timeOf(time: number, timeframe: string): number {
     const tf = info(timeframe);
@@ -121,6 +122,8 @@ export class SessionBars {
     if (!at) return NaN;
     if (tf.isintraday) {
       if (this.chart.isdwm) return time;
+      // a bar after an early close has no intraday period either (#173)
+      if (this.stray(time)) return NaN;
       const [start] = this.calendar.periods(at.date)[at.index]!;
       const ms = in_seconds(tf.period) * 1000;
       return start + Math.floor((time - start) / ms) * ms;
@@ -141,6 +144,7 @@ export class SessionBars {
       const [, end] = this.calendar.periods(at.date)[at.index]!;
       // on D / W / M charts: the end of the session period that contains the bar open
       if (this.chart.isdwm) return end;
+      if (this.stray(time)) return NaN;
       return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
     }
     const { unit, n } = unitOf(tf);
@@ -231,6 +235,25 @@ export class SessionBars {
   dayBounds(time: number): { date: DateNum; start: number; end: number } | null {
     const at = this.calendar.locate(time);
     return at ? { date: at.date, start: this.dayStart(at.date), end: this.dayEnd(at.date) } : null;
+  }
+}
+
+/**
+ * Periods of the chart bars that open after an early close, for `request.security` (#173): such a bar has no period
+ * (`time("D")` and `time("240")` are na on it), but PineScript resamples it into the D / W / M bar of the bar before
+ * it, and into an intraday bar of its own (opening at the bar's time). The bar before it still completes its period
+ * (its day period is cut there). `intradayMs` is the duration of an intraday timeframe, null for D / W / M.
+ * Changes `starts` and `dayPeriods` in place.
+ */
+export function strayPeriods(starts: number[], dayPeriods: number[], times: number[], bars: SessionBars, intradayMs: number | null): void {
+  for (let i = 1; i < starts.length; i++) {
+    if (!bars.stray(times[i]!)) continue;
+    if (Number.isNaN(starts[i]!)) {
+      // intraday: periods of `intradayMs` from the first such bar ("240": 18:30 and 20:30 are one bar)
+      const run = Number.isNaN(dayPeriods[i - 1]!) && times[i]! < starts[i - 1]! + (intradayMs ?? 0);
+      starts[i] = intradayMs === null || run ? starts[i - 1]! : times[i]!;
+    }
+    dayPeriods[i] = NaN;
   }
 }
 

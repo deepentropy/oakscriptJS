@@ -94,11 +94,16 @@ function pineVersion(text: string, from: DateNum): Version {
   const ranges = parsePineSession(text);
   if (ranges === null) throw new SyntaxError(`Session "${text}" is the symbol session`);
   const byDay: Period[][] = Array.from({ length: 8 }, () => []);
-  for (const { start, end, days } of ranges) {
+  for (const { start, end, days, startDays } of ranges) {
+    // a run that ends at 0000 ends at 24:00 of the day it starts and belongs to that day (#173)
     const period: Period =
       start === 0 && end === 0
         ? { start: 0, end: 1440, startOffset: 0, endOffset: 0 }
-        : { start, end, startOffset: end <= start ? 1 : 0, endOffset: 0 };
+        : startDays !== undefined
+          ? { start, end, startOffset: startDays, endOffset: 0 }
+          : end === 0
+            ? { start, end: 1440, startOffset: 0, endOffset: 0 }
+            : { start, end, startOffset: end <= start ? 1 : 0, endOffset: 0 };
     for (const d of days) byDay[d]!.push(period);
   }
   return { from, periods: [], days: byDay.map((p) => p.length > 0), byDay };
@@ -133,17 +138,22 @@ export class TradingCalendar {
   private readonly corrections = new Map<DateNum, Period[] | null>();
   private readonly holidays: Set<DateNum>;
   private readonly cache = new Map<DateNum, Array<[number, number]>>();
+  private readonly pine: boolean;
 
   /**
    * @param timezone - Time zone of the session hours (the exchange time zone)
    * @param spec - Session information (hours, corrections, holidays)
    * @param rule - Days without ":days": 'symbol' (Monday to Friday) or 'pine' (PineScript session strings)
+   * @param dayPlacement - PineScript session strings read for `time("D", session)`: the wall times of a clock-change
+   *   day are placed as the JVM does (see `periods`); without it, as `time.inSession` places them
    */
   constructor(
     readonly timezone: string,
     spec: SessionSpec,
-    rule: 'symbol' | 'pine' = 'symbol'
+    rule: 'symbol' | 'pine' = 'symbol',
+    dayPlacement = false
   ) {
+    this.pine = rule === 'pine' && dayPlacement;
     const [first = '', ...changes] = spec.session.split('#');
     this.versions = [parseVersion(first, 0, spec.session, rule)];
     for (const change of changes) {
@@ -177,10 +187,16 @@ export class TradingCalendar {
     const y = Math.floor(date / 10000);
     const m = Math.floor(date / 100) % 100;
     const d = date % 100;
-    out = periods.map((p) => [
-      zonedToUnix(this.timezone, y, m, d - p.startOffset, Math.floor(p.start / 60), p.start % 60),
-      zonedToUnix(this.timezone, y, m, d - p.endOffset, Math.floor(p.end / 60), p.end % 60),
-    ]);
+    const at = (dd: number, minutes: number, earlier = false): number =>
+      zonedToUnix(this.timezone, y, m, dd, Math.floor(minutes / 60), minutes % 60, 0, earlier);
+    // for "D", PineScript session strings place the wall times of a clock-change day as the JVM does: a skipped time moves
+    // past the gap, a repeated time is its first pass, and the end is the minute before it plus one minute ("0000-0300"
+    // on a 02:00 -> 03:00 night ends at 03:00 of the old offset, "0000-0400" at 04:00 of the new one) (#173)
+    out = periods.map((p) =>
+      this.pine
+        ? [at(d - p.startOffset, p.start, true), at(d - p.endOffset, p.end - 1, true) + 60_000]
+        : [at(d - p.startOffset, p.start), at(d - p.endOffset, p.end)]
+    );
     this.cache.set(date, out);
     return out;
   }

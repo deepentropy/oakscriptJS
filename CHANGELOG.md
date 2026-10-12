@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PineScript session strings accept "F" after a start: one day before the day the run ends on ("1700F-1900:2" is
+  Sunday 17:00 to Monday 19:00); `time.inSession` and `time(tf, session)` read the TVC:DXY session
+  "1900-1900:3456|1700F-1900:2" (it threw "Invalid session") (#173).
 - `setDrawingBar(barIndex, last, lastIndex)`: a third argument, the bar index of the last bar of the data; with it
   (and on the last bar), a bar index more than 500 bars after the last bar throws PineScript's RE10020 "Objects
   positioned using xloc.bar_index cannot be drawn further than 500 bars into the future." (`line.new`, `label.new`,
@@ -16,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `time(tf, session, timezone)` / `time_close(tf, session, timezone)`: a timeframe of more than one day ("2D", "W",
+  "M") has no session test and keeps the period's time (it was na outside the session hours); "D" tests the bar
+  against the day's session period, placed on clock-change days as PineScript does (a skipped wall time moves past
+  the gap, a repeated one is its first pass, the end is the minute before it plus one), and intraday timeframes align
+  their periods on the run of `time.inSession` (#173).
+- Script API `ta.vwap(source)`: the default anchor is the first bar and each bar whose trading day differs from the
+  last bar that has one, so the day after an early close starts on its first bar; on D / W / M charts every bar,
+  without the time zone or session (it threw "The exchange time zone is not known") (#173).
 - `ta.pivot_point_levels` rewritten from the PineScript results: the fixed levels come from the previous period
   (its high and low, the close of the bar before the anchor; it took the anchor bar itself), na until the first
   anchor; developing levels from bar 0; Traditional R3 to S5, Classic R3 to S4, Woodie R3 to S4 (Woodie P uses the
@@ -46,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `TradingCalendar(tz, { session }, 'pine')`: a session ending at 0000 belongs to the day it starts, as
+  `time.inSession` (it was put on the next day) (#173).
+- A bar that opens after an early close has no intraday period either: `time("240")`, `time("60")` and
+  `time_close("240")` are na on it, `timeframe.change("240")` is false on it and on the next session open (#173).
+- `request.security` / `resampleSession`: a bar after an early close is part of the D / W / M bar of its day (it was a
+  D bar of its own with a na time) and an intraday bar of its own for "240"; the bar before it completes the day
+  (#173).
 - `array.covariance` sets its running co-moment to 0 when it is within 1e-10 of zero, as PineScript (five equal
   values gave -1.73e-18 instead of 0, and later sums differed in the last bit) (#177).
 - Polylines on the last bar: once the polylines of the bars before are gone, the ones the script deleted on that

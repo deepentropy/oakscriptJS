@@ -519,6 +519,15 @@ barTimeAfter(lastBar.time, 10, chart);                    // open time of that f
 barsUntil(lastBar.time, lastBar.time + 3 * 86400, chart); // bars to the bar of that time
 ```
 
+`time(timeframe, session, timezone)` in a script tests the session as PineScript does: an intraday timeframe is na
+outside the session (the rules of `time.inSession`, its periods aligned on the start of the run), `"D"` is na outside
+the day's session period, and a timeframe of more than one day (`"2D"`, `"W"`, `"M"`) is never na: it keeps the
+period's time between the runs. On a day when the clocks change, `"D"` places the wall times of the session string
+as the JVM does (a skipped time moves past the gap, a repeated time is its first pass, the end is the minute before
+it plus one), which is not always the placement of `time.inSession`. A bar that opens after an early close has no
+`"D"` and no intraday period (`time("D")`, `time("240")` are na on it), but `request.security` puts it in the D bar
+of the day and in an intraday bar of its own.
+
 ### ta.* calls in conditional code (callsite)
 
 In PineScript every `ta.*` call keeps its own history, fed only on the bars where the call runs. This matters in
