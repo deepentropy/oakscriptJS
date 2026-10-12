@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ta.pivot_point_levels` rewritten from the PineScript results: the fixed levels come from the previous period
+  (its high and low, the close of the bar before the anchor; it took the anchor bar itself), na until the first
+  anchor; developing levels from bar 0; Traditional R3 to S5, Classic R3 to S4, Woodie R3 to S4 (Woodie P uses the
+  open of the current period) and Camarilla R5 / S5 formulas, R4 to S5 na for Fibonacci, R5 / S5 na for Classic and
+  Woodie, DM from the close against the open of the period; the RE10128 text for a developing Woodie (#177).
+- `ta.percentrank`: an na current value gives 0 from bar `length` on (it gave na) (#177).
 - `table.new` at the position of a live table deletes that table, as PineScript keeps one table per position (200
   calls at one position left 200 live tables) (#176).
 - A fractional bar index x of `line.new`, `box.new`, `label.new` and the x setters is truncated (PineScript's x is
@@ -40,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `array.covariance` sets its running co-moment to 0 when it is within 1e-10 of zero, as PineScript (five equal
+  values gave -1.73e-18 instead of 0, and later sums differed in the last bit) (#177).
 - Polylines on the last bar: once the polylines of the bars before are gone, the ones the script deleted on that
   bar count in the allowance before the next cut, so a script that deletes its polylines and creates N new ones keeps
   all N (max 100: 106 to 200 kept; the registry cut 6) (#176).

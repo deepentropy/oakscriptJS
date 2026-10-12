@@ -978,7 +978,8 @@ export function binary_search_rightmost(id: PineArray<float>, val: float): int {
  * - Formula: Cov(X,Y) = E[(X - μX)(Y - μY)]
  *
  * PineScript rules: a pair where either value is `na` is skipped and the count is the number of pairs kept; both
- * means first, then the sum of the products from the first to the last pair. One pair gives 0 biased, NaN unbiased.
+ * means first, then the sum of the products from the first to the last pair, set to 0 whenever it is within 1e-10 of
+ * zero (#177: five equal closes give 0, not -1.7e-18). One pair gives 0 biased, NaN unbiased.
  */
 export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased: bool = true): float {
   if (id1.length !== id2.length) {
@@ -1001,9 +1002,11 @@ export function covariance(id1: PineArray<float>, id2: PineArray<float>, biased:
   }
   mean1 /= n;
   mean2 /= n;
+  // the co-moment is a running sum set to 0 when it is within 1e-10 of zero, as array.sum (#177)
   let sum = 0;
   for (let i = 0; i < n; i++) {
     sum += (xs[i]! - mean1) * (ys[i]! - mean2);
+    if (Math.abs(sum) <= 1e-10) sum = 0;
   }
   return sum / (biased ? n : n - 1);
 }

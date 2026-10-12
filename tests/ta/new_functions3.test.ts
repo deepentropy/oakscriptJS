@@ -282,8 +282,10 @@ describe('ta.percentrank', () => {
     }
   });
 
-  it('is na when the current value is na', () => {
-    expect(ta.percentrank([1, 2, 3, NaN], 3)[3]).toBeNaN();
+  it('is 0 when the current value is na, from bar length on (#177)', () => {
+    // PineScript: values [na x6, 1, 2, 3, 2], length 3
+    expect(ta.percentrank([NaN, NaN, NaN, NaN, NaN, NaN, 1, 2, 3, 2], 3)).toEqual([NaN, NaN, NaN, 0, 0, 0, 0, 100 / 3, 200 / 3, 200 / 3]);
+    expect(ta.percentrank([1, 2, 3, NaN], 3)[3]).toBe(0);
   });
 
   it('compares with the 1e-10 tolerance', () => {

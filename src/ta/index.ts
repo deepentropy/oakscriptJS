@@ -1497,8 +1497,8 @@ export function correlation(source1: Source, source2: Source, length: simple_int
  *
  * PineScript rules:
  * - percentrank = count(source[k] <= source, k = 1..length) * 100 / length (in this order: the PineScript bits)
- * - a value from bar `length` on, when the current source is not `na`; an `na` value in the window counts as not
- *   `<=` the current value
+ * - a value from bar `length` on; an `na` value in the window counts as not `<=` the current value, and an `na`
+ *   current value gives 0 (#177)
  * - the comparison uses the 1e-10 tolerance
  *
  * @example
@@ -1514,11 +1514,11 @@ export function percentrank(source: Source, length: simple_int): series_float {
 
   for (let i = 0; i < source.length; i++) {
     const currentValue = source[i]!;
-    if (i < length || Number.isNaN(currentValue)) {
+    if (i < length) {
       result.push(NaN);
       continue;
     }
-    // le() is false for an na value in the window
+    // le() is false for an na value in the window, and for all of them when the current value is na (0)
     let countLessOrEqual = 0;
     for (let j = 1; j <= length; j++) {
       if (le(source[i - j]!, currentValue)) countLessOrEqual++;
@@ -2885,31 +2885,42 @@ export function rci(source: Source, length: simple_int): series_float {
 }
 
 /**
- * Pivot Point Levels
+ * Pivot Point Levels (PineScript `ta.pivot_point_levels`).
  *
- * Calculates pivot point levels using various calculation methods.
- * Returns an array containing: [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
+ * Returns 11 series: [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5] (one value per bar in each).
  *
  * @param type - Calculation type: "Traditional", "Fibonacci", "Woodie", "Classic", "DM", "Camarilla"
- * @param anchor - Condition that triggers reset of calculations
- * @param developing - If true, pivots recalculate continuously; if false, use last anchor values
- * @param high - High price series (optional, uses context if not provided)
- * @param low - Low price series (optional, uses context if not provided)
- * @param close - Close price series (optional, uses context if not provided)
- * @param open - Open price series (optional, uses context if not provided)
- * @returns Array of 11 pivot levels
+ * @param anchor - Condition that starts a new period (`timeframe.change("W")`...)
+ * @param developing - false: the levels of the previous period, constant until the next anchor; true: the levels of
+ *   the current period so far, recalculated on each bar
+ * @param high - High price series
+ * @param low - Low price series
+ * @param close - Close price series
+ * @param open - Open price series (Woodie and DM)
+ * @returns 11 series of levels
  *
  * @example
  * ```typescript
  * const weekChange = [false, false, false, false, true, false, ...]; // Weekly anchor
- * const pivots = ta.pivot_point_levels("Traditional", weekChange, false, high, low, close);
- * // pivots[i]! = [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5]
+ * const levels = ta.pivot_point_levels("Traditional", weekChange, false, high, low, close, open);
+ * // levels[0]![i] is P on bar i, levels[5]![i] is R3
  * ```
  *
  * @remarks
- * - Woodie type cannot use developing=true (will error in PineScript)
- * - DM type only calculates P, R1, S1 (other levels are NaN)
- * - All calculations follow PineScript v6 specifications
+ * As in PineScript (#177):
+ * - a period runs from an anchor bar to the bar before the next anchor; the bars before the first anchor are a
+ *   period too (from bar 0). The fixed levels use the high and low of the previous period and the close of the bar
+ *   before the anchor (na with an anchor on bar 0), and are na until the first anchor; the developing levels use
+ *   the current period's high and low and the bar's close, from bar 0
+ * - Traditional: R3 = P * 2 + (H - 2 * L), S3 = P * 2 - (2 * H - L), R4 = P * 3 + (H - 3 * L), S4 = P * 3 - (3 * H - L),
+ *   R5 = P * 4 + (H - 4 * L), S5 = P * 4 - (4 * H - L)
+ * - Fibonacci: P +- 0.382 / 0.618 / 1 * (H - L); R4 to S5 na
+ * - Classic: R3 / S3 = P +- 2 * (H - L), R4 / S4 = P +- 3 * (H - L); R5 / S5 na
+ * - Woodie: P = (H + L + 2 * open of the current period) / 4, R3 = H + 2 * (P - L), S3 = L - 2 * (H - P), R4 / S4 =
+ *   R3 + (H - L) / S3 - (H - L); R5 / S5 na. `developing` true throws (RE10128)
+ * - DM: x = H + 2 * L + C (C < open of the period), 2 * H + L + C (C > O) or H + L + 2 * C; P = x / 4,
+ *   R1 = x / 2 - L, S1 = x / 2 - H; the other levels na
+ * - Camarilla: C +- (H - L) * 1.1 / 12, / 6, / 4, / 2 for R1 to S4, R5 = (H / L) * C, S5 = 2 * C - R5
  */
 export function pivot_point_levels(
   type: series_float | string,
@@ -2920,183 +2931,96 @@ export function pivot_point_levels(
   close?: Source,
   open?: Source
 ): series_float[] {
-  // For simplicity, we need to handle the case where type is a string array
-  // But according to the docs, type is "series string", meaning it can change per bar
-  // For this implementation, we'll support constant type strings
-
   const typeStr = typeof type === 'string' ? type : String(type[0]);
-  const isDeveloping = typeof developing === 'boolean' ? developing : developing[0];
-
-  // Woodie cannot be developing
+  const isDeveloping = typeof developing === 'boolean' ? developing : Boolean(developing[0]);
   if (typeStr === 'Woodie' && isDeveloping) {
-    throw new Error('ta.pivot_point_levels: Woodie type cannot use developing=true');
+    throw new Error(
+      'Error on bar 0: The `developing` parameter of the `ta.pivot_point_levels()` cannot be `true` when `type` is "Woodie".'
+    );
   }
-
-  // Ensure all series have the same length
-  const length = anchor.length;
-  if (high && high.length !== length) throw new Error('High series length mismatch');
-  if (low && low.length !== length) throw new Error('Low series length mismatch');
-  if (close && close.length !== length) throw new Error('Close series length mismatch');
-  if (open && open.length !== length) throw new Error('Open series length mismatch');
-
-  // Initialize result arrays for all 11 levels
-  const results: series_float[] = Array.from({ length: 11 }, () => []);
-
-  // Track the last anchor point data
-  let lastH = NaN, lastL = NaN, lastC = NaN, lastO = NaN;
-  let lastAnchorIndex = -1;
-
-  for (let i = 0; i < length; i++) {
-    // Check if anchor triggered
-    if (anchor[i]!) {
-      lastAnchorIndex = i;
-      // Store OHLC at anchor point (these will be used for calculations)
-      lastH = high ? high[i]! : NaN;
-      lastL = low ? low[i]! : NaN;
-      lastC = close ? close[i]! : NaN;
-      lastO = open ? open[i]! : NaN;
-    }
-
-    // Calculate data to use
-    let h: number, l: number, c: number, o: number;
-
-    if (isDeveloping && lastAnchorIndex >= 0) {
-      // Developing: use max/min/last since anchor
-      h = high ? Math.max(...high.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
-      l = low ? Math.min(...low.slice(lastAnchorIndex, i + 1).filter(v => !isNaN(v))) : NaN;
-      c = close ? close[i]! : NaN;
-      o = open && lastAnchorIndex >= 0 ? open[lastAnchorIndex]! : NaN;
-    } else {
-      // Not developing: use last anchor values
-      h = lastH;
-      l = lastL;
-      c = lastC;
-      o = lastO;
-    }
-
-    // Calculate pivot levels based on type
-    const levels = calculatePivotLevels(typeStr, h, l, c, o);
-
-    // Push to results
-    for (let j = 0; j < 11; j++) {
-      results[j]!.push(levels[j]!);
-    }
+  const n = anchor.length;
+  for (const [s, name] of [[high, 'High'], [low, 'Low'], [close, 'Close'], [open, 'Open']] as const) {
+    if (s && s.length !== n) throw new Error(`${name} series length mismatch`);
   }
-
+  const at = (s: Source | undefined, i: number): number => (s ? (s[i] ?? NaN) : NaN);
+  const results: series_float[] = Array.from({ length: 11 }, () => new Array<number>(n));
+  // the current period (from bar 0 until the first anchor) and the previous one
+  let curH = NaN, curL = NaN, curO = NaN;
+  let prevH = NaN, prevL = NaN, prevC = NaN, prevO = NaN;
+  let anchored = false;
+  for (let i = 0; i < n; i++) {
+    const h = at(high, i), l = at(low, i);
+    if (i === 0) {
+      // the first period starts on bar 0: an anchor there makes bar 0 its own previous period
+      curH = h;
+      curL = l;
+      curO = at(open, i);
+    }
+    if (anchor[i]) {
+      prevH = curH;
+      prevL = curL;
+      prevC = i > 0 ? at(close, i - 1) : NaN;
+      prevO = curO;
+      curH = h;
+      curL = l;
+      curO = at(open, i);
+      anchored = true;
+    } else if (i > 0) {
+      if (h > curH || Number.isNaN(curH)) curH = h;
+      if (l < curL || Number.isNaN(curL)) curL = l;
+    }
+    const levels = isDeveloping
+      ? pivotLevels(typeStr, curH, curL, at(close, i), curO, at(close, i))
+      : anchored
+        ? pivotLevels(typeStr, prevH, prevL, prevC, prevO, curO)
+        : NA_LEVELS;
+    for (let k = 0; k < 11; k++) results[k]![i] = levels[k]!;
+  }
   return results;
 }
 
+const NA_LEVELS: readonly number[] = new Array<number>(11).fill(NaN);
+
 /**
- * Helper function to calculate pivot levels
+ * The 11 levels of one bar, in PineScript's operation order (bit for bit). `o` is the open of the period (DM),
+ * `wo` the close term of Woodie (the open of the current period, or the bar's close while developing).
  */
-function calculatePivotLevels(
-  type: string,
-  h: number,
-  l: number,
-  c: number,
-  o: number
-): number[] {
-  // Return NaN array if data is insufficient
-  if (isNaN(h) || isNaN(l) || isNaN(c)) {
-    return Array(11).fill(NaN);
-  }
-
-  const levels: number[] = Array(11).fill(NaN);
-
-  // Calculate pivot point (P)
-  let P: number;
-
+function pivotLevels(type: string, h: number, l: number, c: number, o: number, wo: number): readonly number[] {
+  const N = NaN;
+  const r = h - l;
   switch (type) {
-    case 'Traditional':
-    case 'Fibonacci':
-    case 'Classic':
-      P = (h + l + c) / 3;
-      break;
-    case 'Woodie':
-      P = (h + l + 2 * c) / 4;
-      break;
-    case 'DM':
-      P = (h + l + c) / 3;
-      break;
-    case 'Camarilla':
-      P = (h + l + c) / 3;
-      break;
-    default:
-      P = (h + l + c) / 3;
-  }
-
-  levels[0] = P; // P is at index 0
-
-  // Calculate resistance and support levels based on type
-  switch (type) {
-    case 'Traditional':
-    case 'Classic':
-      levels[1] = 2 * P - l;  // R1
-      levels[2] = 2 * P - h;  // S1
-      levels[3] = P + (h - l);  // R2
-      levels[4] = P - (h - l);  // S2
-      levels[5] = h + 2 * (P - l);  // R3
-      levels[6] = l - 2 * (h - P);  // S3
-      levels[7] = levels[5] + (h - l);  // R4
-      levels[8] = levels[6] - (h - l);  // S4
-      levels[9] = levels[7] + (h - l);  // R5
-      levels[10] = levels[8] - (h - l);  // S5
-      break;
-
-    case 'Fibonacci':
-      levels[1] = P + 0.382 * (h - l);  // R1
-      levels[2] = P - 0.382 * (h - l);  // S1
-      levels[3] = P + 0.618 * (h - l);  // R2
-      levels[4] = P - 0.618 * (h - l);  // S2
-      levels[5] = P + (h - l);  // R3
-      levels[6] = P - (h - l);  // S3
-      levels[7] = levels[5] + 0.618 * (h - l);  // R4
-      levels[8] = levels[6] - 0.618 * (h - l);  // S4
-      levels[9] = levels[7] + 0.382 * (h - l);  // R5
-      levels[10] = levels[8] - 0.382 * (h - l);  // S5
-      break;
-
-    case 'Woodie':
-      levels[1] = 2 * P - l;  // R1
-      levels[2] = 2 * P - h;  // S1
-      levels[3] = P + (h - l);  // R2
-      levels[4] = P - (h - l);  // S2
-      levels[5] = h + 2 * (P - l);  // R3
-      levels[6] = l - 2 * (h - P);  // S3
-      levels[7] = levels[5] + (h - l);  // R4
-      levels[8] = levels[6] - (h - l);  // S4
-      levels[9] = levels[7] + (h - l);  // R5
-      levels[10] = levels[8] - (h - l);  // S5
-      break;
-
+    case 'Traditional': {
+      const p = (h + l + c) / 3;
+      return [p, 2 * p - l, 2 * p - h, p + r, p - r, p * 2 + (h - 2 * l), p * 2 - (2 * h - l), p * 3 + (h - 3 * l),
+        p * 3 - (3 * h - l), p * 4 + (h - 4 * l), p * 4 - (4 * h - l)];
+    }
+    case 'Fibonacci': {
+      const p = (h + l + c) / 3;
+      return [p, p + 0.382 * r, p - 0.382 * r, p + 0.618 * r, p - 0.618 * r, p + 1 * r, p - 1 * r, N, N, N, N];
+    }
+    case 'Classic': {
+      const p = (h + l + c) / 3;
+      return [p, 2 * p - l, 2 * p - h, p + r, p - r, p + 2 * r, p - 2 * r, p + 3 * r, p - 3 * r, N, N];
+    }
+    case 'Woodie': {
+      const p = (h + l + 2 * wo) / 4;
+      const r3 = h + 2 * (p - l);
+      const s3 = l - 2 * (h - p);
+      return [p, 2 * p - l, 2 * p - h, p + r, p - r, r3, s3, r3 + r, s3 - r, N, N];
+    }
     case 'DM': {
-      // DM (Demark) only calculates P, R1, S1
-      const x = h + l + (c * 2) + (isNaN(o) ? c : o);
-      const newP = x / (isNaN(o) ? 4 : 5);
-      levels[0] = newP;
-      levels[1] = x / 2 - l;  // R1
-      levels[2] = x / 2 - h;  // S1
-      // R2-S5 remain NaN
-      break;
+      const x = c < o ? h + 2 * l + c : c > o ? 2 * h + l + c : h + l + 2 * c;
+      return [x / 4, x / 2 - l, x / 2 - h, N, N, N, N, N, N, N, N];
     }
-
     case 'Camarilla': {
-      const range = h - l;
-      levels[1] = c + range * 1.1 / 12;  // R1
-      levels[2] = c - range * 1.1 / 12;  // S1
-      levels[3] = c + range * 1.1 / 6;   // R2
-      levels[4] = c - range * 1.1 / 6;   // S2
-      levels[5] = c + range * 1.1 / 4;   // R3
-      levels[6] = c - range * 1.1 / 4;   // S3
-      levels[7] = c + range * 1.1 / 2;   // R4
-      levels[8] = c - range * 1.1 / 2;   // S4
-      levels[9] = h;  // R5 (high)
-      levels[10] = l; // S5 (low)
-      break;
+      const p = (h + l + c) / 3;
+      const r5 = (h / l) * c;
+      return [p, c + (r * 1.1) / 12, c - (r * 1.1) / 12, c + (r * 1.1) / 6, c - (r * 1.1) / 6, c + (r * 1.1) / 4,
+        c - (r * 1.1) / 4, c + (r * 1.1) / 2, c - (r * 1.1) / 2, r5, 2 * c - r5];
     }
+    default:
+      return NA_LEVELS;
   }
-
-  return levels;
 }
 
 /**
