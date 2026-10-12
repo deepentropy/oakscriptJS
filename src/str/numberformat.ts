@@ -10,7 +10,8 @@
  *   half to even, the conversion flags deciding a tie (see `floatingdecimal.ts`): 12.34500000005 gives "12.345"
  *   ("12.3450000001" with the format "#.##########"), 1791662400001 / 900000 gives "1990736.000001111"
  * - `str.format` rounds half to even on the exact binary value (`0.25` with "#.#" gives "0.2")
- * - a negative number that rounds to zero loses its sign; "#.00" writes `.50` (no leading zero),
+ * - a negative number that rounds to zero loses its sign, except with "%" ("#.#%": -0.0004 gives "-0%");
+ *   "#.00" writes `.50` (no leading zero),
  *   but "#.##" writes `0.5` (a pattern without any '0' shows one integer digit)
  * - with an exponent, the value is first rounded to the fraction digits ("0.00E0": 0.125 gives "1.30E-1")
  * - a pattern without digit characters (`format.price` is "price") formats like "#" after its text,
@@ -226,7 +227,8 @@ export function formatNumber(value: number, pattern: string, mode: Rounding): st
     isZero = rounded.digits === '';
     body = p.hasDigits ? layout(rounded, p) : layout(rounded, { ...p, minInt: 0, maxFrac: 0, minFrac: 0 });
   }
-  return affixes(p, x < 0 && (!isZero || !p.hasDigits), body);
+  // a negative number that rounds to zero keeps its sign with a percent pattern ("-0%", #180)
+  return affixes(p, x < 0 && (!isZero || !p.hasDigits || p.percent), body);
 }
 
 /** `body` with the text of the positive pattern, or of the negative one ("-" + prefix without "pos;neg"). */

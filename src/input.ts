@@ -9,7 +9,7 @@
  */
 export interface InputValue<T> {
   /** Input type identifier */
-  type: 'int' | 'float' | 'source' | 'bool' | 'string' | 'timeframe' | 'session' | 'time';
+  type: 'int' | 'float' | 'source' | 'bool' | 'string' | 'timeframe' | 'session' | 'time' | 'symbol';
   /** Default value */
   defaultValue: T;
   /** Current value (initially equals defaultValue) */
@@ -247,6 +247,23 @@ export const input = {
   session(defaultValue: string, options: StringInputOptions = {}): InputValue<string> {
     return {
       type: 'session' as const,
+      defaultValue,
+      value: defaultValue,
+      title: options.title,
+      options: options.options,
+    };
+  },
+
+  /**
+   * Create a symbol input parameter (PineScript `input.symbol`): a ticker id ("NASDAQ:MSFT") that an application can
+   * edit with a symbol picker (#180)
+   * @param defaultValue - Default ticker id
+   * @param options - Additional options (title, options for dropdown)
+   * @returns Input value object
+   */
+  symbol(defaultValue: string, options: StringInputOptions = {}): InputValue<string> {
+    return {
+      type: 'symbol' as const,
       defaultValue,
       value: defaultValue,
       title: options.title,

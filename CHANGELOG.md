@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ta.rsi(x, y)` with two series (PineScript v4 `rsi(x, y)`): 100 when `y` is within 1e-10 of zero, else 0 when `x`
+  is, else `100 - 100 / (1 + x / y)`, na on a division by zero; 68,184 of 68,184 probe values equal (#180).
+- `input.symbol` (script API, `input.symbol` / `input_symbol` of the other APIs) and the input type `'symbol'`, for a
+  symbol picker (#180).
+- `ChartContext.basecurrency` / `ChartContext.root` (also in `symbolInfo` for other symbols): `syminfo.basecurrency`
+  and `syminfo.root` (#180).
 - `request.security` of another symbol in the script API (#179): the host gives the bars with
   `ChartContext.bars(symbol, timeframe)` and the calendar with `ChartContext.symbolInfo(symbol)`; missing bars end the
   run with a `MissingSymbolDataError` listing every `{ symbol, timeframe }` request; a symbol with no bars ([]) stops
@@ -65,6 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `str.tostring` with a percent pattern keeps the sign of a negative value that rounds to zero ("#.#%": -0.0004 gives
+  "-0%", it gave "0%"); without "%" and with `format.percent` it is still dropped; 63 of 63 texts equal (#180).
 - `TradingCalendar(tz, { session }, 'pine')`: a session ending at 0000 belongs to the day it starts, as
   `time.inSession` (it was put on the next day) (#173).
 - A bar that opens after an early close has no intraday period either: `time("240")`, `time("60")` and

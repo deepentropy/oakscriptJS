@@ -66,10 +66,11 @@ export function rma(source: Series, length: number): Series {
  * @param length - Period length
  * @returns Series with RSI values
  */
-export function rsi(source: Series, length: number): Series {
+export function rsi(source: Series, length: number | Series): Series {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const result = taCore.rsi(sourceValues, length);
+  // a Series as second argument: PineScript v4 rsi(x, y) of two averages (#180)
+  const result = length instanceof Series ? taCore.rsi(sourceValues, length.toArray()) : taCore.rsi(sourceValues, length);
   return Series.fromArray(bars, result);
 }
 

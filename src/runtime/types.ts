@@ -72,7 +72,7 @@ export interface InputConfig {
    * Type of input. `timeframe` and `session` values are strings ("60", "1D", "0930-1600:23456";
    * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds.
    */
-  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session' | 'time';
+  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol';
   /** Default value */
   defval: unknown;
   /** Display title */

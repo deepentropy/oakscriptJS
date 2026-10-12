@@ -278,6 +278,22 @@ export function input_session(defval: string, title?: string, options?: string[]
 }
 
 /**
+ * Register a symbol input (PineScript `input.symbol`): a ticker id such as "NASDAQ:MSFT" (#180)
+ * First call registers with defval, subsequent calls return current value
+ * @param defval - Default ticker id
+ * @param title - Display title (optional)
+ * @param options - Array of symbols for a dropdown (optional)
+ * @returns Current ticker id
+ */
+export function input_symbol(defval: string, title?: string, options?: string[]): string {
+  if (!getContext()) {
+    return defval;
+  }
+  const value = registerOnce({ id: generateInputId(title, defval, 'symbol'), type: 'symbol', defval, title, options });
+  return typeof value === 'string' ? value : defval;
+}
+
+/**
  * Register a date/time input (PineScript `input.time`)
  * First call registers with defval, subsequent calls return current value
  * @param defval - Default UNIX time in milliseconds, e.g. `time.timestamp("2024-01-01")`

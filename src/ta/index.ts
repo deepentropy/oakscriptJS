@@ -134,7 +134,24 @@ export function ema(source: Source, length: simple_int): series_float {
  * const oversold = rsi14.map(v => v < 30);
  * ```
  */
-export function rsi(source: Source, length: simple_int): series_float {
+export function rsi(source: Source, length: simple_int): series_float;
+/**
+ * PineScript v4 `rsi(x, y)` with two series (#180): `x` and `y` are the averages of the upward and downward changes,
+ * already computed. As in PineScript: 100 when `y` is within 1e-10 of zero (also with an na `x`), else 0 when `x` is,
+ * else `100 - 100 / (1 + x / y)`, na when that divides by zero (`x == -y`). Versions 5 and 6 have the length form only.
+ */
+export function rsi(x: Source, y: Source): series_float;
+export function rsi(source: Source, length: simple_int | Source): series_float {
+  if (typeof length !== 'number') {
+    return Array.from(source, (xv, i) => {
+      const x = xv ?? NaN;
+      const y = length[i] ?? NaN;
+      if (eq(y, 0)) return 100;
+      if (eq(x, 0)) return 0;
+      const r = 100 - 100 / (1 + x / y);
+      return Number.isFinite(r) ? r : NaN;
+    });
+  }
   checkPositiveLength('rsi', length, 0, 'y');
   const result: series_float = [];
 

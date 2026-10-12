@@ -113,7 +113,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 43. `rising()` - Tests if series is rising
 44. `rma()` - Relative Moving Average (exponential moving average with alpha = 1 / length)
 45. `roc()` - Rate of Change
-46. `rsi()` - Relative Strength Index
+46. `rsi()` - Relative Strength Index; `rsi(x, y)` with two series (PineScript v4) too
 47. `sar()` - Parabolic SAR
 48. `sma()` - Simple Moving Average (also with a series length)
 49. `stdev()` - Standard deviation (also with a series length)

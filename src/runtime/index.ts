@@ -27,6 +27,7 @@ export {
   input_source,
   input_timeframe,
   input_session,
+  input_symbol,
   input_time,
   enableAutoRecalculate,
   disableAutoRecalculate,

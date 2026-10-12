@@ -483,6 +483,10 @@ export const input = {
       'input_session'
     );
   },
+  /** Ticker id ("NASDAQ:MSFT"), for `request.security` of another symbol (#180). */
+  symbol(defval: string, title?: string, opts: StringInputOptions = {}): string {
+    return registerInput<string>({ type: 'symbol', defval, title, options: opts.options, ...common(opts) }, 'input_symbol');
+  },
   /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
   time(defval: number, title?: string, opts: InputOptions = {}): number {
     const v = registerInput<unknown>({ type: 'time', defval, title, ...common(opts) }, 'input_time');
@@ -1560,6 +1564,13 @@ export interface ChartContext {
   symbolType?: string;
   /** Currency of the symbol (PineScript `syminfo.currency`), e.g. "USD" */
   currency?: string;
+  /**
+   * Base currency of the symbol (PineScript `syminfo.basecurrency`): "BTC" for BITSTAMP:BTCUSD, BINANCE:BTCUSDT.P and
+   * CME:BTC1!, "EUR" for FX:EURUSD, "" for a stock, an index or CME_MINI:ES1! (#180)
+   */
+  basecurrency?: string;
+  /** Root of the symbol (PineScript `syminfo.root`): "BTC" for CME:BTC1!, "ES" for CME_MINI:ES1!, "AAPL" for NASDAQ:AAPL (#180) */
+  root?: string;
   /** Chart foreground colour (PineScript `chart.fg_color`), e.g. "#DBDBDB" on a dark chart */
   foregroundColor?: string;
   /** Chart background colour (PineScript `chart.bg_color`), e.g. "#0F0F0F" on a dark chart */
@@ -1602,6 +1613,8 @@ export type SymbolInfo = Pick<
   | 'mincontract'
   | 'symbolType'
   | 'currency'
+  | 'basecurrency'
+  | 'root'
 >;
 
 /** A request of `request.security` for another symbol whose bars the host has not given. */
@@ -1708,7 +1721,7 @@ function symbolProperty(key: 'mintick' | 'pointvalue' | 'mincontract'): number {
 }
 
 /** A text value of the chart or the symbol that the host passes in the chart context. */
-function chartText(key: 'symbolType' | 'currency' | 'foregroundColor' | 'backgroundColor', name: string): string {
+function chartText(key: 'symbolType' | 'currency' | 'basecurrency' | 'root' | 'foregroundColor' | 'backgroundColor', name: string): string {
   collector();
   const value = chartCtx[key];
   if (value === undefined) {
@@ -1728,8 +1741,8 @@ function symbolScale(): [number, number] {
 
 /**
  * PineScript `syminfo.timezone`, `syminfo.tickerid`, `syminfo.session` (session type), `syminfo.mintick`,
- * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue`, `syminfo.mincontract`, `syminfo.type` and
- * `syminfo.currency`, from the chart context.
+ * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue`, `syminfo.mincontract`, `syminfo.type`,
+ * `syminfo.currency`, `syminfo.basecurrency` and `syminfo.root`, from the chart context.
  */
 export const syminfo = {
   get mintick(): number {
@@ -1766,6 +1779,12 @@ export const syminfo = {
   },
   get currency(): string {
     return chartText('currency', 'syminfo.currency');
+  },
+  get basecurrency(): string {
+    return chartText('basecurrency', 'syminfo.basecurrency');
+  },
+  get root(): string {
+    return chartText('root', 'syminfo.root');
   },
 };
 
@@ -2224,6 +2243,8 @@ function otherSecurity<T extends SecurityValue>(
     mincontract: info.mincontract,
     symbolType: info.symbolType,
     currency: info.currency,
+    basecurrency: info.basecurrency,
+    root: info.root,
   };
   try {
     result = expression();

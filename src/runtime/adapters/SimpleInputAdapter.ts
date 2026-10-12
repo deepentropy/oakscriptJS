@@ -70,7 +70,7 @@ export class SimpleInputAdapter implements InputAdapter {
 
     // Validate string, timeframe and session inputs with options
     if (
-      (config.type === 'string' || config.type === 'timeframe' || config.type === 'session') &&
+      (config.type === 'string' || config.type === 'timeframe' || config.type === 'session' || config.type === 'symbol') &&
       config.options &&
       typeof value === 'string'
     ) {
