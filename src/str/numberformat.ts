@@ -6,8 +6,9 @@
  * PineScript rules:
  * - `str.tostring` with a format rounds half away from zero on the shortest decimal form of the number
  *   (`1.005` with "#.##" gives "1.01", `2.5` with "#" gives "3")
- * - `str.tostring` without a format rounds the exact binary value to 10 decimals (12.34500000005 is
- *   12.34500000004999975...: "12.345", and "12.3450000001" with the format "#.##########")
+ * - `str.tostring` without a format rounds the digits of the JVM's binary to decimal conversion to 10 decimals,
+ *   half to even, the conversion flags deciding a tie (see `floatingdecimal.ts`): 12.34500000005 gives "12.345"
+ *   ("12.3450000001" with the format "#.##########"), 1791662400001 / 900000 gives "1990736.000001111"
  * - `str.format` rounds half to even on the exact binary value (`0.25` with "#.#" gives "0.2")
  * - a negative number that rounds to zero loses its sign; "#.00" writes `.50` (no leading zero),
  *   but "#.##" writes `0.5` (a pattern without any '0' shows one integer digit)
@@ -20,7 +21,9 @@
  *   0.1 with 20 '#' decimals gives "0.1" in both rounding modes
  */
 
-export type Rounding = 'halfUpShortest' | 'halfUpExact' | 'halfEvenExact';
+import { javaFixedDigits } from './floatingdecimal.js';
+
+export type Rounding = 'halfUpShortest' | 'halfUpExact' | 'halfEvenExact' | 'halfEvenConverted';
 
 interface Pattern {
   prefix: string;
@@ -219,7 +222,7 @@ export function formatNumber(value: number, pattern: string, mode: Rounding): st
   } else {
     // 16 decimals at most from 1e-3 up (the shortest digits of a double have no more there)
     const frac = !p.hasDigits ? 0 : Math.abs(x) >= 1e-3 ? Math.min(p.maxFrac, 16) : p.maxFrac;
-    const rounded = roundDigits(toDigits(x), frac, mode);
+    const rounded = mode === 'halfEvenConverted' ? javaFixedDigits(x, frac) : roundDigits(toDigits(x), frac, mode);
     isZero = rounded.digits === '';
     body = p.hasDigits ? layout(rounded, p) : layout(rounded, { ...p, minInt: 0, maxFrac: 0, minFrac: 0 });
   }

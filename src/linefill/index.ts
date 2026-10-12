@@ -24,6 +24,9 @@ import type { Linefill, Line, color } from '../types/index.js';
  * @remarks
  * - Automatically follows line movements (if lines are updated, fill updates too)
  * - Automatically deleted if either line is deleted
+ * - One linefill per pair of lines, as in PineScript (#174): when both lines already belong to a live linefill
+ *   (`linefill.new(b, a)` after `linefill.new(a, b)`, or `linefill.new(a, a)` after either), that linefill is
+ *   returned with the new colour instead of a new one; with several, the one created or returned last
  * - If both lines extend in same direction, fill extends too
  * - Purely visual in PineScript, but getters allow retrieving line references
  *
@@ -42,12 +45,28 @@ import type { Linefill, Line, color } from '../types/index.js';
 export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linefill {
   // PineScript: an na line gives an na linefill
   if (line1 === null || line1 === undefined || line2 === null || line2 === undefined) return null as unknown as Linefill;
-  return register('linefill', {
+  let found: Linefill | undefined;
+  for (const fill of allDrawings('linefill')) {
+    const has = (l: Line): boolean => fill.line1 === l || fill.line2 === l;
+    if (has(line1) && has(line2) && (!found || (touched.get(fill) ?? 0) > (touched.get(found) ?? 0))) found = fill;
+  }
+  if (found) {
+    found.color = fillColor;
+    touched.set(found, ++touchCount);
+    return found;
+  }
+  const fill = register('linefill', {
     line1,
     line2,
     color: fillColor
   });
+  touched.set(fill, ++touchCount);
+  return fill;
 }
+
+/** Order in which the linefills were created or returned by `linefill.new` (the last one wins a lookup). */
+const touched = new WeakMap<Linefill, number>();
+let touchCount = 0;
 
 /**
  * Returns the first line reference.

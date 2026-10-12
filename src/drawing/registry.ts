@@ -171,7 +171,10 @@ export function varDrawing<T extends object>(initial?: T): DrawingVariable<T> {
 
 /** Largest distance, in bars, of a bar index before the current bar (PineScript runtime error RE10026 above it). */
 export const MAX_DRAWING_BARS_BACK = 10000;
+/** Largest distance, in bars, of a bar index after the last bar of the data (PineScript runtime error RE10020 above it). */
+export const MAX_DRAWING_BARS_FORWARD = 500;
 let currentBar: number | null = null;
+let lastBarIndex: number | null = null;
 
 /** Kinds whose allowance on the last bar is the `P` they had when the bar started. */
 type AllowanceKind = 'line' | 'label' | 'box';
@@ -198,11 +201,14 @@ let lastBar: LastBar | null = null;
  * bars back throws as in PineScript; `null` turns the check off. `eachBar` of the script API calls it.
  *
  * The bar also dates the objects held by a `var` variable (protected from the next bar on). `last` says that it is
- * the last bar of the data, which has rules of its own for the maximum count.
+ * the last bar of the data, which has rules of its own for the maximum count. `lastIndex` is the bar index of the
+ * last bar of the data (PineScript `last_bar_index`): with it, a bar index more than 500 bars after it throws, also
+ * on the bars before the last one (RE10020).
  */
-export function setDrawingBar(barIndex: number | null, last: boolean = false): void {
+export function setDrawingBar(barIndex: number | null, last: boolean = false, lastIndex?: number): void {
   if (lastBar && !(last && barIndex === lastBar.bar)) lastBar = null;
   currentBar = barIndex;
+  lastBarIndex = barIndex === null ? null : (lastIndex ?? (last ? barIndex : null));
   if (barIndex !== null && last && !lastBar) {
     const start = (kind: AllowanceKind): number => (pending[kind] >= PENDING_RESET[kind] ? 0 : pending[kind]);
     lastBar = {
@@ -217,11 +223,18 @@ export function setDrawingBar(barIndex: number | null, last: boolean = false): v
 }
 
 /**
- * Throws the PineScript runtime error RE10026 when `x` is a bar index more than 10,000 bars before the current bar.
+ * Throws the PineScript runtime error RE10026 when `x` is a bar index more than 10,000 bars before the current bar,
+ * and RE10020 when it is more than 500 bars after the last bar of the data (when {@link setDrawingBar} knows it).
  * `method` and `variable` are the names of the PineScript message ("line.new", "x1").
  */
 export function checkBarIndex(method: string, variable: string, x: number, xloc: string | undefined): void {
   if (currentBar === null || (xloc ?? 'bar_index') !== 'bar_index') return;
+  if (lastBarIndex !== null && x - lastBarIndex > MAX_DRAWING_BARS_FORWARD) {
+    throw new Error(
+      `Error on bar ${currentBar}: Objects positioned using xloc.bar_index cannot be drawn further than ` +
+        `${MAX_DRAWING_BARS_FORWARD} bars into the future.`
+    );
+  }
   if (currentBar - x > MAX_DRAWING_BARS_BACK) {
     throw new Error(
       `Error on bar ${currentBar}: Bar index value of the \`${variable}\` argument (${x}) in \`${method}()\` is too far ` +
@@ -351,6 +364,7 @@ export function resetDrawings(newLimits: DrawingLimits = {}): void {
   heldAt = new WeakMap();
   pending = { line: 0, label: 0, box: 0, polyline: 0 };
   currentBar = null;
+  lastBarIndex = null;
   lastBar = null;
   limits = {
     line: newLimits.line ?? DEFAULT_MAX_COUNT,

@@ -295,3 +295,50 @@ describe('linefill.new with an na line (PineScript)', () => {
     expect(linefill.new(null as never, l1, '#f00')).toBeNull();
   });
 });
+
+describe('one linefill per pair of lines (#174)', () => {
+  // each count is the PineScript linefill.all.size() of the same calls (BITSTAMP:BTCUSD 1D)
+  const { resetDrawings } = jest.requireActual('../../src/drawing/registry');
+  beforeEach(() => resetDrawings());
+  afterAll(() => resetDrawings());
+  const lines = () => [line.new(0, 1, 1, 2), line.new(0, 3, 1, 4), line.new(0, 5, 1, 6)] as const;
+
+  it('a second call on the same pair returns the first linefill with the new colour', () => {
+    const [a, b] = lines();
+    const f1 = linefill.new(a, b, 'red');
+    const f2 = linefill.new(a, b, 'blue');
+    expect(f2).toBe(f1);
+    expect(f1.color).toBe('blue');
+    expect(linefill.all()).toHaveLength(1);
+    linefill.delete(f1);
+    expect(linefill.all()).toHaveLength(0);
+  });
+
+  it('the pair has no order, and (a, a) matches a linefill with a', () => {
+    const [a, b, c] = lines();
+    const ab = linefill.new(a, b, 'red');
+    expect(linefill.new(b, a, 'blue')).toBe(ab);
+    const ac = linefill.new(a, c, 'orange');
+    expect(linefill.all()).toHaveLength(2);
+    expect(linefill.new(a, a, 'green')).toBe(ac); // the one created or returned last
+    expect(linefill.new(a, b, 'yellow')).toBe(ab);
+    expect(linefill.new(a, a, 'purple')).toBe(ab);
+    expect(linefill.all()).toEqual([ab, ac]); // the order of linefill.all does not change
+  });
+
+  it('(a, a) first, then (a, b): two linefills', () => {
+    const [a, b] = lines();
+    linefill.new(a, a, 'red');
+    linefill.new(a, b, 'blue');
+    expect(linefill.all()).toHaveLength(2);
+  });
+
+  it('a deleted linefill is not reused', () => {
+    const [a, b] = lines();
+    const f1 = linefill.new(a, b, 'red');
+    linefill.delete(f1);
+    const f2 = linefill.new(a, b, 'blue');
+    expect(f2).not.toBe(f1);
+    expect(linefill.all()).toHaveLength(1);
+  });
+});

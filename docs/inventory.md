@@ -409,7 +409,7 @@ All 7 official color functions are implemented.
 
 **Core Functions:**
 1. `new()` - Create new line with coordinates
-2. `get_price()` - Get price at bar index via linear interpolation
+2. `get_price()` - Price at a bar index, the line extended on both sides (as PineScript, whatever `extend`)
 3. `get_x1()` - Get first x coordinate
 4. `get_y1()` - Get first y coordinate
 5. `get_x2()` - Get second x coordinate

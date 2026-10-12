@@ -144,11 +144,12 @@ export function barTimeAfter(time: number, count: number, chart: SessionContext)
  * Number of bars from the bar that opens at `from` to the bar that contains `to`, on the trading calendar of the
  * context (0 when `to` is in the bar of `from` or before it). For a drawing placed at a time after the last bar
  * (PineScript `time + n days` with `xloc.bar_time`): the chart shows it on the bar of that time, weekends and
- * holidays skipped. NaN when no bar is found within 100,000 bars.
+ * holidays skipped. `to` is first rounded to the nearest second, a half second going up (#174: 15 ms before a bar
+ * opens is on that bar, 501 ms before is on the bar before). NaN when no bar is found within 100,000 bars.
  */
 export function barsUntil(from: number, to: number, chart: SessionContext): number {
   const s = chartSessions(chart);
-  const target = to * s.unit;
+  const target = Math.floor((to * s.unit) / 1000 + 0.5) * 1000;
   let t = from * s.unit;
   for (let k = 0; k < 100_000; k++) {
     const next = s.bars.nextBarTime(t);

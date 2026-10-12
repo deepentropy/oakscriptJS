@@ -82,56 +82,25 @@ describe('Line Functions', () => {
     });
 
     describe('Extension modes', () => {
-      it('should return NaN outside bounds when extend=none', () => {
-        const l = line.new(10, 100, 50, 150, 'bar_index', 'none');
-
-        // Within bounds
-        expect(line.get_price(l, 30)).toBeCloseTo(125);
-
-        // Outside bounds
-        expect(line.get_price(l, 5)).toBeNaN();
-        expect(line.get_price(l, 60)).toBeNaN();
+      // PineScript reads the line as extended on both sides whatever its extend (#174)
+      it.each(['none', 'left', 'right', 'both'] as const)('extends both sides with extend=%s', (ext) => {
+        const l = line.new(10, 100, 50, 150, 'bar_index', ext);
+        expect(line.get_price(l, 0)).toBe(87.5);
+        expect(line.get_price(l, 5)).toBe(93.75);
+        expect(line.get_price(l, 30)).toBe(125);
+        expect(line.get_price(l, 60)).toBe(162.5);
+        expect(line.get_price(l, 100)).toBe(212.5);
       });
 
-      it('should extend to the left when extend=left', () => {
-        const l = line.new(10, 100, 50, 150, 'bar_index', 'left');
-
-        // Left extension
-        expect(line.get_price(l, 0)).toBeCloseTo(87.5);
-        expect(line.get_price(l, 5)).toBeCloseTo(93.75);
-
-        // Within bounds
-        expect(line.get_price(l, 30)).toBeCloseTo(125);
-
-        // Right side not extended
-        expect(line.get_price(l, 60)).toBeNaN();
+      it('computes y1 + (y2 - y1) * (x - x1) / (x2 - x1) in that order', () => {
+        // BITSTAMP:BTCUSD 1D bar 13: line from (3, close[10]) to (8, close[5]), price at 13 (PineScript 4.740000000000003)
+        const l = line.new(3, 11.7, 8, 8.22, 'bar_index', 'none');
+        expect(line.get_price(l, 13)).toBe(4.740000000000003); // the slope form gives 4.740000000000002
       });
 
-      it('should extend to the right when extend=right', () => {
-        const l = line.new(10, 100, 50, 150, 'bar_index', 'right');
-
-        // Left side not extended
-        expect(line.get_price(l, 5)).toBeNaN();
-
-        // Within bounds
-        expect(line.get_price(l, 30)).toBeCloseTo(125);
-
-        // Right extension
-        expect(line.get_price(l, 60)).toBeCloseTo(162.5);
-        expect(line.get_price(l, 100)).toBeCloseTo(212.5);
-      });
-
-      it('should extend in both directions when extend=both', () => {
-        const l = line.new(10, 100, 50, 150, 'bar_index', 'both');
-
-        // Left extension
-        expect(line.get_price(l, 0)).toBeCloseTo(87.5);
-
-        // Within bounds
-        expect(line.get_price(l, 30)).toBeCloseTo(125);
-
-        // Right extension
-        expect(line.get_price(l, 100)).toBeCloseTo(212.5);
+      it('throws RE10119 for a line placed with xloc.bar_time', () => {
+        const l = line.new(1000, 1, 2000, 2, 'bar_time');
+        expect(() => line.get_price(l, 5)).toThrow("'line.get_price' must be used with lines created using 'xloc=xloc.bar_index'.");
       });
     });
 
@@ -201,7 +170,7 @@ describe('Line Functions', () => {
         const l = line.new(1609459200000, 100, 1609545600000, 150, 'bar_time');
 
         expect(() => line.get_price(l, 1609502400000)).toThrow(
-          'line.get_price() only works with xloc.bar_index lines'
+          "'line.get_price' must be used with lines created using 'xloc=xloc.bar_index'."
         );
       });
     });

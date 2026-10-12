@@ -87,83 +87,35 @@ export function new_line(...args: unknown[]): Line {
 }
 
 /**
- * Returns the price level of a line at a given bar index.
+ * Returns the price level of a line at a given bar index (PineScript `line.get_price`).
  *
  * @param id - Line object
  * @param x - Bar index to calculate price at
- * @returns Price level at the given bar index, or NaN if outside bounds and not extended
+ * @returns Price level at the given bar index; NaN for a vertical line (x1 == x2) or a deleted line
  *
  * @remarks
- * - **CRITICAL COMPUTATIONAL FUNCTION** - Enables trend line breakout detection
- * - Uses linear interpolation: y = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
- * - Respects extend mode:
- *   - 'none': Returns NaN if x is outside [x1, x2]
- *   - 'left': Extends infinitely to the left (x < x1)
- *   - 'right': Extends infinitely to the right (x > x2)
- *   - 'both': Extends infinitely in both directions
- * - Only works with xloc='bar_index' lines (not xloc='bar_time')
- * - In PineScript, this function treats all lines as if extend='both' regardless of actual setting
- *   For compatibility, we follow the actual extend setting
+ * As in PineScript (#174):
+ * - the line is read as extended on both sides whatever its `extend`: a point before x1 or after x2 has a price
+ * - the price is `y1 + (y2 - y1) * (x - x1) / (x2 - x1)`, in that order (bit for bit)
+ * - a line placed with `xloc.bar_time` throws "'line.get_price' must be used with lines created using
+ *   'xloc=xloc.bar_index'." (runtime error RE10119)
  *
  * @example
  * ```typescript
  * const trendLine = line.new(0, 100, 50, 150, 'bar_index', 'right');
  *
- * // Within segment
- * line.get_price(trendLine, 25);  // Returns 125
- *
- * // Extended right
- * line.get_price(trendLine, 100); // Returns 200
- *
- * // Not extended left (with extend='right')
- * line.get_price(trendLine, -10); // Returns NaN
- *
- * // Use for breakout detection
- * const currentPrice = close[close.length - 1];
- * const linePrice = line.get_price(trendLine, close.length - 1);
- * if (currentPrice > linePrice) {
- *   console.log('Breakout above trend line!');
- * }
+ * line.get_price(trendLine, 25);  // 125
+ * line.get_price(trendLine, 100); // 200
+ * line.get_price(trendLine, -10); // 90: extended to the left too
  * ```
  */
 export function get_price(id: Line, x: number): number {
-  const { x1, y1, x2, y2, extend, xloc } = id;
-
-  // Only works with bar_index xloc
+  const { x1, y1, x2, y2, xloc } = id;
   if (xloc === 'bar_time') {
-    throw new Error('line.get_price() only works with xloc.bar_index lines, not xloc.bar_time');
+    throw new Error("'line.get_price' must be used with lines created using 'xloc=xloc.bar_index'.");
   }
-
-  // Avoid division by zero
-  if (x2 === x1) {
-    // Vertical line - return NaN or could return y1/y2
-    return NaN;
-  }
-
-  // Linear interpolation formula: y = y1 + (y2 - y1) * (x - x1) / (x2 - x1)
-  const slope = (y2 - y1) / (x2 - x1);
-  const price = y1 + slope * (x - x1);
-
-  // Check bounds based on extend mode
-  if (extend === 'none') {
-    // Only valid within the segment
-    if (x < Math.min(x1, x2) || x > Math.max(x1, x2)) {
-      return NaN;
-    }
-  } else if (extend === 'left') {
-    // Valid to the left and within, but not to the right
-    if (x > Math.max(x1, x2)) {
-      return NaN;
-    }
-  } else if (extend === 'right') {
-    // Valid to the right and within, but not to the left
-    if (x < Math.min(x1, x2)) {
-      return NaN;
-    }
-  }
-  // extend === 'both': always valid
-
-  return price;
+  if (x2 === x1) return NaN;
+  return y1 + ((y2 - y1) * (x - x1)) / (x2 - x1);
 }
 
 /**

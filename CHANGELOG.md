@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `setDrawingBar(barIndex, last, lastIndex)`: a third argument, the bar index of the last bar of the data; with it
+  (and on the last bar), a bar index more than 500 bars after the last bar throws PineScript's RE10020 "Objects
+  positioned using xloc.bar_index cannot be drawn further than 500 bars into the future." (`line.new`, `label.new`,
+  `box.new`, `polyline.new` and the x setters); `eachBar` passes it (#174).
+
+### Changed
+
+- `line.get_price` reads the line as extended on both sides whatever its `extend` (it returned NaN outside the two
+  points for `extend.none` / `left` / `right`), computes `y1 + (y2 - y1) * (x - x1) / (x2 - x1)` in that order (the
+  slope form differed in the last bit on 1,474 of 131,780 probe values) and throws the PineScript text
+  "'line.get_price' must be used with lines created using 'xloc=xloc.bar_index'." for a `bar_time` line (#174).
+- `linefill.new` on two lines that are both in a live linefill returns that linefill with the new colour (the one
+  created or returned last when several match), as PineScript keeps one linefill per pair; it created a new one
+  (#174).
+
+### Fixed
+
+- `str.tostring(x)` without a format: the digits of the JVM's binary to decimal conversion rounded to 10 decimals
+  half to even, the conversion deciding a tie on its last digit. 0.11.0 rounded the exact value and added a digit
+  when the converted digits already had 10 decimals or fewer: `1791662400001 / 900000` gives "1990736.000001111"
+  (0.11.0 "1990736.0000011111"), 78195689105219552 keeps its digits, 5e-11 gives "0" (#174).
+- `barsUntil` rounds the time to the nearest second (a half second up) before finding its bar: 15 ms before a bar
+  opens is on that bar (#174).
+
 ## [0.11.0] - 2026-10-12
 
 ### Added

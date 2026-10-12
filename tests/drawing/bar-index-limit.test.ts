@@ -65,3 +65,46 @@ describe('drawings more than 10,000 bars back (#170)', () => {
     expect(runWith(10000)).not.toThrow();
   });
 });
+
+describe('drawings more than 500 bars after the last bar (#174)', () => {
+  const future = (bar: number) =>
+    `Error on bar ${bar}: Objects positioned using xloc.bar_index cannot be drawn further than 500 bars into the future.`;
+  afterEach(() => resetDrawings());
+
+  it('counts from the last bar of the data, not from the current bar', () => {
+    // BITSTAMP:BTCUSD 1D, last bar 5501: x = 6001 is accepted on bar 100, 6002 stops the script
+    setDrawingBar(100, false, 5501);
+    expect(() => line.new(100, 1, 6001, 1)).not.toThrow();
+    expect(() => label.new(6001, 1, 'a')).not.toThrow();
+    expect(() => line.new(100, 1, 6002, 1)).toThrow(future(100));
+    expect(() => line.new(6002, 1, 100, 1)).toThrow(future(100));
+    expect(() => label.new(6002, 1, 'a')).toThrow(future(100));
+    expect(() => box.new(100, 2, 6002, 1)).toThrow(future(100));
+    expect(() => polyline.new([chartPoint.from_index(100, 1), chartPoint.from_index(6002, 1)])).toThrow(future(100));
+    const l = line.new(100, 1, 101, 1);
+    expect(() => line.set_x2(l, 6002)).toThrow(future(100));
+    setDrawingBar(4501, false, 5501);
+    expect(() => line.new(4501, 1, 6002, 1)).toThrow(future(4501));
+  });
+
+  it('on the last bar, without the last index', () => {
+    setDrawingBar(5501, true);
+    expect(() => line.new(5501, 1, 6001, 1)).not.toThrow();
+    expect(() => line.new(5501, 1, 6002, 1)).toThrow(future(5501));
+    expect(() => line.new(5501, 1, 99999, 1, 'bar_time')).not.toThrow();
+  });
+
+  it('the script API knows the last bar', () => {
+    const bars: Bar[] = Array.from({ length: 50 }, (_, i) => ({
+      time: 1_000_000 + i * 60, open: 1, high: 2, low: 0, close: 1, volume: 1,
+    }));
+    const runTo = (x: number) => () =>
+      executeScript(() => {
+        eachBar((c) => {
+          if (c.i === 10) scriptBox.new(c.i, 2, x, 1);
+        });
+      }, bars);
+    expect(runTo(549)).not.toThrow();
+    expect(runTo(550)).toThrow(future(10));
+  });
+});

@@ -88,4 +88,13 @@ describe('bars after a bar on the trading calendar (#165)', () => {
     // + 4 days is Tuesday 15:30: 7 bars later
     expect(barsUntil(friday1530, friday1530 + 4 * 86400, AAPL)).toBe(7);
   });
+
+  it('barsUntil places a time on a bar after rounding it to the nearest second (#174)', () => {
+    const friday1530 = at('2026-09-04T19:30Z');
+    const tuesday1530 = friday1530 + 4 * 86400;
+    expect(barsUntil(friday1530, tuesday1530 - 0.015, AAPL)).toBe(7); // 15 ms before the open: that bar
+    expect(barsUntil(friday1530, tuesday1530 - 0.5, AAPL)).toBe(7); // a half second goes up
+    expect(barsUntil(friday1530, tuesday1530 - 0.501, AAPL)).toBe(6);
+    expect(barsUntil(friday1530, tuesday1530 + 0.999, AAPL)).toBe(7);
+  });
 });
