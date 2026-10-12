@@ -430,18 +430,18 @@ Only the variable protects: an object kept in an array or in a field is deleted
 like any other. `holdDrawing(obj)` / `releaseDrawing(obj)` do the same without a
 variable object.
 
-The last bar is calculated twice in PineScript, and the objects that
-`max_*_count` deleted in the first calculation stay deleted; the count of
-`line.delete` / `label.delete` / `box.delete` calls of the bars before also
-moves the limit there. `eachBar` handles it. A port with its own bar loop says
-which bar is the last one, and leaves it at the end:
+On the last bar `max_*_count` has rules of its own: a cut deletes the objects
+of the bars before first, at most those, and the count of `line.delete` /
+`label.delete` / `box.delete` calls of the bars before moves the limit.
+`eachBar` handles it. A port with its own bar loop says which bar is the last
+one:
 
 ```typescript
 for (let i = 0; i < bars.length; i++) {
   setDrawingBar(i, i === bars.length - 1);
   // ... drawings of the bar
 }
-setDrawingBar(null); // the last bar is replayed here; read line.all() after it
+setDrawingBar(null);
 ```
 
 ### Per-bar stateful execution (eachBar)

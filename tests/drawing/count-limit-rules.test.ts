@@ -134,7 +134,7 @@ describe('polylines: the script deletes move the limit (#158)', () => {
   });
 });
 
-describe('the last bar is calculated twice (#158)', () => {
+describe('the last bar: the objects of the bars before go first (#158)', () => {
   // 17 bars: one line per bar, 10 lines alive after the 16th (the cut of that bar)
   const lastBar = (deletes: number, creations: number, kind: 'line' | 'polyline' = 'line'): number[] => {
     resetDrawings({ line: 10, polyline: 10 });
@@ -159,6 +159,24 @@ describe('the last bar is calculated twice (#158)', () => {
     return (ns.all() as object[]).map((obj) => numbers.get(obj)!);
   };
   const range = (from: number, to: number): number[] => Array.from({ length: to - from + 1 }, (_, k) => from + k);
+
+  it('the count during the last bar: the 10 old lines go first (6, then 4), the new ones stay', () => {
+    resetDrawings({ line: 10 });
+    const counts: number[] = [];
+    for (let i = 0; i < 17; i++) {
+      setDrawingBar(i, i === 16);
+      newLine(i);
+      if (i === 16) {
+        counts.push(line.all().length);
+        for (let k = 0; k < 14; k++) {
+          newLine(i);
+          counts.push(line.all().length);
+        }
+      }
+    }
+    setDrawingBar(null);
+    expect(counts).toEqual([11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15]);
+  });
 
   it('8 more lines on the last bar: one cut, as on any bar', () => {
     expect(lastBar(0, 8)).toEqual(range(-4, 8));
@@ -203,7 +221,7 @@ describe('the last bar is calculated twice (#158)', () => {
     expect(counts(8)).toEqual([12, 5]);
   });
 
-  it('a line of the last bar that the second calculation keeps has its coordinates', () => {
+  it('a line of the last bar that the count keeps has its coordinates', () => {
     resetDrawings({ line: 10 });
     const made: Line[] = [];
     run(
@@ -218,5 +236,54 @@ describe('the last bar is calculated twice (#158)', () => {
     expect(line.get_x1(made[16]!)).toBe(16);
     expect(line.get_y2(made[17]!)).toBe(4);
     expect(line.get_x1(made[15]!)).toBeNaN();
+  });
+});
+
+describe('polylines on the last bar: the ones of the bars before go first (#158)', () => {
+  /**
+   * 23 bars, one polyline per bar into an array (the same state before the last bar as the measured 11,543-bar runs),
+   * `deletes` = { barsBeforeTheLast: count } of the newest of the array, `creations` more polylines on the last bar.
+   * Returns the count after the array push of the last bar and after each creation.
+   */
+  const inBar = (max: number, creations: number, deletes: Record<number, number> = {}): number[] => {
+    resetDrawings({ polyline: max });
+    const made: Polyline[] = [];
+    const out: number[] = [];
+    const count = 23;
+    for (let i = 0; i < count; i++) {
+      const last = i === count - 1;
+      setDrawingBar(i, last);
+      made.push(newPolyline(i));
+      if (last) out.push(polyline.all().length);
+      for (let k = 0; k < (deletes[count - 1 - i] ?? 0); k++) polyline.delete(made.pop()!);
+      if (last) {
+        for (let k = 0; k < creations; k++) {
+          newPolyline(i);
+          out.push(polyline.all().length);
+        }
+        setDrawingBar(null);
+      }
+    }
+    return out;
+  };
+
+  it('maximum 10, 40 more: the 10 of the bars before go in two cuts (6 + 4), then P stays 10', () => {
+    expect(inBar(10, 40)).toEqual([
+      11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 18, 19, 20, 21, 22, 23, 24, 25, 20, 21, 22, 23,
+      24, 25, 20, 21, 22, 23, 24, 25, 20, 21, 22, 23,
+    ]);
+  });
+
+  it('maximum 3, 30 more', () => {
+    expect(inBar(3, 30)).toEqual([
+      5, 6, 7, 8, 5, 6, 7, 8, 9, 10, 11, 12, 7, 8, 9, 10, 11, 12, 7, 8, 9, 10, 11, 12, 7, 8, 9, 10, 11, 12, 7,
+    ]);
+  });
+
+  it('a P of 2 carried from the bars before counts twice: the first cut waits for 20 polylines', () => {
+    expect(inBar(10, 30, { 2: 1, 1: 1 })).toEqual([
+      15, 16, 17, 18, 19, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+      30, 31,
+    ]);
   });
 });

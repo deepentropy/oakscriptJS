@@ -58,14 +58,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     3 or more). A creation cuts when the count is above the maximum + 5 + P, down to the maximum + P, and the
     polylines of the cut are added to P. This is the "0, 1 or 2 bars late" of a script that deletes and creates a
     polyline on every bar; equal to PineScript on every closed bar of 34 probes.
-  - the last bar is calculated twice, as PineScript does: the objects of the bars before that the maximum count
-    deletes in the first calculation stay deleted (a line takes its linefills with it), the rest of the bar is
-    calculated again. With 10 lines and a maximum of 10, 13 lines on the last bar leave these 13 instead of 11.
-    Lines, labels and boxes also count the script deletes of the bars before (reset at 5) and allow that many more
-    objects on the last bar ("above 58, down to 53" for a maximum of 50 after 3 deletes). The registry replays the
-    last bar when it is left: `setDrawingBar(barIndex, true)` marks the last bar in a port with its own loop (then
-    `setDrawingBar(null)` after it); `eachBar` of the script API does both. The objects alive at the end are the
-    same as PineScript on 113 of 113 last-bar probes.
+  - the last bar has rules of its own (read from the count after each creation): a cut deletes the objects of the
+    bars before first, at most those (a line takes its linefills with it); once none is left, it deletes objects of
+    the last bar as on any bar. With 10 lines and a maximum of 10, 13 lines on the last bar leave these 13 instead
+    of 11. Lines, labels and boxes also count the script deletes of the bars before (reset at 5) and allow that many
+    more objects on the last bar ("above 58, down to 53" for a maximum of 50 after 3 deletes).
+    `setDrawingBar(barIndex, true)` marks the last bar in a port with its own loop; `eachBar` of the script API does
+    it. Lines, labels and boxes: the count after every operation of the last bar and the objects alive at the end
+    are the same as PineScript on 72 of 72 runs checked after the rule was written, and on 290 of 290 runs in all.
+  - polylines on the last bar (one calculation, read from the count after each creation): the P carried from the
+    bar before counts twice; a cut deletes polylines of the bars before first, at most those, and adds them to P;
+    once none is left, a cut deletes polylines of the last bar and P becomes the number of polylines of the bars
+    before deleted on that bar. The polylines alive at the end are the same as PineScript on 271 of 281 probe runs
+    (32 of 40 random shapes checked after the rule was chosen); the count inside the bar can differ when the script
+    deletes polylines of the last bar.
 
 - `ta.highest` / `ta.lowest` / `ta.highestbars` / `ta.lowestbars`: `na` values are skipped, as PineScript does today
   (measured on 11/10/2026; the former rule, "an `na` value ends the window", no longer matches). The result is the

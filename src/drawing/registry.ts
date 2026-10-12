@@ -27,14 +27,18 @@
  *   per bar therefore sees the cut 0, 1 or 2 bars late
  * - lines, labels and boxes use `P` on the last bar only, with its value at the start of that bar: there the cut is
  *   above the maximum + 5 + `P`, down to the maximum + `P` (up to 4 more objects)
- * - the last bar is calculated twice (measured for lines, labels and polylines, on a closed and on an open last bar;
- *   boxes are taken to do the same). The objects of the bars before that the maximum count deletes in the first
- *   calculation stay deleted, and such a line takes its linefills with it; the rest of the bar is undone and
- *   calculated again. With 10 lines and a maximum of 10, 13 lines on the last bar leave these 13 (one calculation
- *   would leave 11). For polylines `P` is not undone, and on the last bar only the first creation can set it to 0.
- *   A script function runs once per bar, so the registry replays the creations and deletions of the last bar when
- *   the bar is left ({@link setDrawingBar} with another bar or `null`); during the last bar `line.all` shows the
- *   first calculation
+ * - the last bar has rules of its own (measured from the count after each creation, on a closed and on an open last
+ *   bar): a cut deletes the objects of the bars before first, at most those (a line takes its linefills with it);
+ *   once none is left, a cut deletes objects of the last bar as on any bar. With 10 lines and a maximum of 10, 13
+ *   lines on the last bar leave these 13: the cut at the 16th line deletes the 10 old ones only. Lines, labels and
+ *   boxes: equal to PineScript, count after every operation and objects alive at the end, on 72 of 72 runs checked
+ *   after the rule was written (and 218 of 218 end states before)
+ * - polylines on the last bar: the `P` carried from the bar before is counted twice (the first creation adds it once
+ *   more, unless it sets `P` to 0), later creations do not set `P` to 0, and the polylines of the bars before that a
+ *   cut deletes are added to `P`. Once none is
+ *   left, a cut deletes polylines of the last bar and `P` becomes the number of polylines of the bars before deleted
+ *   on the last bar (by the count or by the script). Equal to PineScript for the polylines alive at the end on 271 of
+ *   281 probe runs; the count inside the bar can differ when the script deletes polylines of the last bar
  *
  * - a bar index (`xloc.bar_index`) more than 10,000 bars before the current bar stops the script (runtime error
  *   RE10026) in `line.new`, `box.new`, `label.new`, `polyline.new` and the setters of x. The current bar is the one
@@ -169,23 +173,23 @@ export function varDrawing<T extends object>(initial?: T): DrawingVariable<T> {
 export const MAX_DRAWING_BARS_BACK = 10000;
 let currentBar: number | null = null;
 
-/** What happened on the last bar, to calculate it a second time. */
+/** Kinds whose allowance on the last bar is the `P` they had when the bar started. */
+type AllowanceKind = 'line' | 'label' | 'box';
+const isAllowanceKind = (kind: DrawingKind): kind is AllowanceKind => kind === 'line' || kind === 'label' || kind === 'box';
+
+/** State of the last bar (see the module notes). */
 interface LastBar {
   bar: number;
-  /** The live objects when the bar started */
-  start: Record<CountedKind, object[]>;
+  /** The objects alive when the bar started (the objects of the bars before) */
+  old: Set<object>;
   /** `P` of lines, labels and boxes when the bar started: their allowance for the whole bar */
-  allowance: Record<CountedKind, number>;
-  /** Creations and deletions by the script, in order */
-  steps: Array<{ kind: CountedKind; create: boolean; obj: object }>;
-  /** Objects of the bars before that the maximum count deleted */
-  cut: Set<object>;
-  /** Coordinates of the objects of this bar that the maximum count deleted */
-  saved: Map<object, Record<string, unknown>>;
-  /** A polyline was created on this bar (only the first one can set `P` to 0) */
+  allowance: Record<AllowanceKind, number>;
+  /** `P` of polylines when the bar started */
+  carried: number;
+  /** A polyline was created on this bar */
   polyline: boolean;
-  /** The second calculation is running */
-  second: boolean;
+  /** Polylines of the bars before deleted on this bar (by the count or by the script) */
+  oldPolylinesGone: number;
 }
 let lastBar: LastBar | null = null;
 
@@ -194,69 +198,22 @@ let lastBar: LastBar | null = null;
  * bars back throws as in PineScript; `null` turns the check off. `eachBar` of the script API calls it.
  *
  * The bar also dates the objects held by a `var` variable (protected from the next bar on). `last` says that it is
- * the last bar of the data, which PineScript calculates twice: the registry records the bar and replays it when the
- * bar is left (another bar, or `null`).
+ * the last bar of the data, which has rules of its own for the maximum count.
  */
 export function setDrawingBar(barIndex: number | null, last: boolean = false): void {
-  if (lastBar && !(last && barIndex === lastBar.bar)) replayLastBar();
+  if (lastBar && !(last && barIndex === lastBar.bar)) lastBar = null;
   currentBar = barIndex;
   if (barIndex !== null && last && !lastBar) {
-    const start = (kind: CountedKind): number => (pending[kind] >= PENDING_RESET[kind] ? 0 : pending[kind]);
+    const start = (kind: AllowanceKind): number => (pending[kind] >= PENDING_RESET[kind] ? 0 : pending[kind]);
     lastBar = {
       bar: barIndex,
-      start: { line: [...live.line], label: [...live.label], box: [...live.box], polyline: [...live.polyline] },
-      allowance: { line: start('line'), label: start('label'), box: start('box'), polyline: 0 },
-      steps: [],
-      cut: new Set(),
-      saved: new Map(),
+      old: new Set<object>([...live.line, ...live.label, ...live.box, ...live.polyline]),
+      allowance: { line: start('line'), label: start('label'), box: start('box') },
+      carried: pending.polyline,
       polyline: false,
-      second: false,
+      oldPolylinesGone: 0,
     };
   }
-}
-
-/**
- * Second calculation of the last bar: the objects of the bars before that the maximum count deleted stay deleted,
- * the creations and deletions of the bar are applied again.
- */
-function replayLastBar(): void {
-  const pass = lastBar;
-  if (!pass || pass.second) return;
-  if (pass.cut.size === 0 && pass.saved.size === 0) {
-    lastBar = null; // no cut on this bar: the second calculation gives the same objects
-    return;
-  }
-  pass.second = true;
-  for (const kind of COUNTED_KINDS) {
-    const list = pass.start[kind].filter((obj) => !pass.cut.has(obj)) as Array<DrawingTypes[typeof kind]>;
-    for (const step of pass.steps) {
-      if (step.kind !== kind) continue;
-      const obj = step.obj as DrawingTypes[typeof kind];
-      if (step.create) {
-        list.push(obj);
-        const cut = cutOldest(kind, list, obj);
-        if (kind === 'polyline') pending.polyline += cut.length;
-      } else {
-        const index = list.indexOf(obj);
-        if (index !== -1) {
-          list.splice(index, 1);
-          if (kind === 'polyline') pending.polyline++;
-        }
-      }
-    }
-    const kept = new Set<object>(list);
-    for (const obj of live[kind]) if (!kept.has(obj)) markDeleted(kind, obj, false);
-    for (const obj of list) {
-      const coordinates = pass.saved.get(obj);
-      if (deleted.has(obj) && coordinates) {
-        deleted.delete(obj);
-        Object.assign(obj, coordinates);
-      }
-    }
-    (live[kind] as object[]).length = 0;
-    (live[kind] as object[]).push(...list);
-  }
-  lastBar = null;
 }
 
 /**
@@ -294,14 +251,19 @@ function markDeleted<K extends DrawingKind>(kind: K, obj: DrawingTypes[K], expli
 /** Objects above the maximum that the rule allows for, besides the 5: `P` of the module notes. */
 function allowance(kind: DrawingKind): number {
   if (kind === 'polyline') return pending.polyline;
-  return lastBar && isCounted(kind) ? lastBar.allowance[kind] : 0;
+  return lastBar && isAllowanceKind(kind) ? lastBar.allowance[kind] : 0;
 }
 
 /**
  * The maximum count after the creation of `obj`: removes the objects to delete from `list` (the oldest first; the new
  * object and an object held by a `var` variable are skipped and still count) and returns them.
  */
-function cutOldest<K extends DrawingKind>(kind: K, list: Array<DrawingTypes[K]>, obj: DrawingTypes[K]): Array<DrawingTypes[K]> {
+function cutOldest<K extends DrawingKind>(
+  kind: K,
+  list: Array<DrawingTypes[K]>,
+  obj: DrawingTypes[K],
+  only?: (old: object) => boolean
+): Array<DrawingTypes[K]> {
   if (kind === 'table') return []; // tables have no maximum count
   const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)] + allowance(kind);
   if (list.length <= max + SLACK) return [];
@@ -309,7 +271,7 @@ function cutOldest<K extends DrawingKind>(kind: K, list: Array<DrawingTypes[K]>,
   const cut: Array<DrawingTypes[K]> = [];
   let excess = list.length - max;
   for (const old of list) {
-    if (excess > 0 && old !== obj && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old))) {
+    if (excess > 0 && old !== obj && (!only || only(old)) && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old))) {
       excess--;
       cut.push(old);
     } else kept.push(old);
@@ -324,32 +286,37 @@ function cutOldest<K extends DrawingKind>(kind: K, list: Array<DrawingTypes[K]>,
 /** Records a new object and deletes the oldest objects of its kind when the count is too high. */
 export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): DrawingTypes[K] {
   const list = live[kind];
-  const replay = lastBar && isCounted(kind) ? lastBar : null;
-  if (isCounted(kind)) {
-    // on the last bar only the first polyline can set P to 0 (the other kinds took their P when the bar started)
-    const reset = !replay || (kind === 'polyline' && !replay.polyline);
-    if (reset && pending[kind] >= PENDING_RESET[kind]) pending[kind] = 0;
-    if (replay) {
-      if (kind === 'polyline') replay.polyline = true;
-      replay.steps.push({ kind, create: true, obj });
-    }
-  }
+  if (lastBar && isCounted(kind)) return registerLast(lastBar, kind, obj);
+  if (isCounted(kind) && pending[kind] >= PENDING_RESET[kind]) pending[kind] = 0;
   list.push(obj);
   const cut = cutOldest(kind, list, obj);
   if (kind === 'polyline') pending.polyline += cut.length;
-  for (const old of cut) {
-    if (!replay) markDeleted(kind, old, false);
-    else if (replay.start[kind as CountedKind].includes(old)) {
-      // last bar, an object of the bars before: it stays deleted, and the linefills of a line go with it
-      replay.cut.add(old);
-      markDeleted(kind, old, true);
-    } else {
-      // last bar, an object of this bar: the second calculation may keep it
-      const coordinates: Record<string, unknown> = {};
-      for (const field of COORDINATES[kind]) coordinates[field as string] = (old as unknown as Record<string, unknown>)[field as string];
-      replay.saved.set(old, coordinates);
-      markDeleted(kind, old, false);
+  for (const old of cut) markDeleted(kind, old, false);
+  return obj;
+}
+
+/** An object created on the last bar (see the module notes). */
+function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: DrawingTypes[K]): DrawingTypes[K] {
+  if (kind === 'polyline' && !bar.polyline) {
+    bar.polyline = true;
+    if (pending.polyline >= PENDING_RESET.polyline) pending.polyline = 0;
+    else pending.polyline += bar.carried; // counted twice
+  }
+  const list = live[kind];
+  list.push(obj);
+  const isOld = (old: object): boolean => bar.old.has(old);
+  if (list.some((old) => old !== obj && isOld(old) && !heldBefore(old))) {
+    // the objects of the bars before only; a line takes its linefills with it
+    const cut = cutOldest(kind, list, obj, isOld);
+    if (kind === 'polyline') {
+      pending.polyline += cut.length;
+      bar.oldPolylinesGone += cut.length;
     }
+    for (const old of cut) markDeleted(kind, old, true);
+  } else {
+    const cut = cutOldest(kind, list, obj);
+    if (kind === 'polyline' && cut.length > 0) pending.polyline = bar.oldPolylinesGone;
+    for (const old of cut) markDeleted(kind, old, false);
   }
   return obj;
 }
@@ -361,8 +328,8 @@ export function remove<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): vo
   if (index !== -1) {
     list.splice(index, 1);
     if (isCounted(kind)) pending[kind]++;
+    if (kind === 'polyline' && lastBar?.old.has(obj)) lastBar.oldPolylinesGone++;
   }
-  if (lastBar && isCounted(kind)) lastBar.steps.push({ kind, create: false, obj });
   if (!deleted.has(obj)) markDeleted(kind, obj, true);
 }
 
