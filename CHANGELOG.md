@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-12
+
 ### Added
 
 - `periodTime(time, timeframe, chart, session?, timezone?)` and `periodClose(...)` take the session and time zone of
