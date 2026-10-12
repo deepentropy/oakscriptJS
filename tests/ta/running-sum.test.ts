@@ -188,7 +188,9 @@ describe('series length (#140)', () => {
   });
 
   it('rejects a length below 1 or a length series shorter than the source', () => {
-    expect(() => math.sum([1, 2, 3], [2, 0, 2])).toThrow(/length must be at least 1/);
+    expect(() => math.sum([1, 2, 3], [2, 0, 2])).toThrow(
+      "Error on bar 1: Invalid value of the 'length' argument (0.0) in the 'sum' function. It must be > 0."
+    );
     expect(() => taCore.sma([1, 2, 3], [2, 2])).toThrow(/2 values for 3 bars/);
   });
 });

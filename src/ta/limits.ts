@@ -37,11 +37,38 @@ export function windowError(name: string, length: number, bar?: number, max = MA
 /** Throws RE10004 when the (truncated) length of a window function is above the limit. */
 export function checkWindowLength(name: string, length: number, bar?: number, max = MAX_WINDOW_LENGTH): void {
   const len = Math.trunc(length);
+  if (len <= 0) throw new Error(lengthError(name, len, bar));
   if (len > max) throw new Error(windowError(name, len, bar, max));
 }
 
 /** Throws RE10004 for a function of {@link SUM_FUNCTIONS} ("ta.sma", ...) with a length above 5,000. */
 export function checkSumLength(name: string, length: number, bar?: number): void {
   const fn = SUM_FUNCTIONS[name];
-  if (fn !== undefined) checkWindowLength(fn, length, bar, MAX_SUM_LENGTH);
+  if (fn === undefined) return;
+  // RE10001 names 'bb' itself, RE10004 its inner 'sma'
+  checkPositiveLength(name === 'ta.bb' ? 'bb' : fn, length, bar);
+  checkWindowLength(fn, length, bar, MAX_SUM_LENGTH);
+}
+
+/**
+ * PineScript's runtime error RE10001 text for a length that is 0 or negative. `name` is the function, or a call path
+ * "atr->rma" (printed 'atr'->'rma'); the value prints as a float ("0.0", "-1.0").
+ */
+export function lengthError(name: string, value: number, bar?: number, arg = 'length'): string {
+  const fn = name.split('->').map((part) => `'${part}'`).join('->');
+  const text = Number.isInteger(value) ? value.toFixed(1) : String(value);
+  return (
+    (bar === undefined ? '' : `Error on bar ${bar}: `) +
+    `Invalid value of the '${arg}' argument (${text}) in the ${fn} function. It must be > 0.`
+  );
+}
+
+/**
+ * Throws RE10001 when the (truncated) length is 0 or negative, as PineScript does for every window function on the
+ * bar of the call (#175): `ta.sma(close, 0)` stops on bar 0, a series length that becomes 0 on the bar where it
+ * does. `ta.hma(src, 1)` stops in its inner `wma(src, 0)`. An na length is not checked here.
+ */
+export function checkPositiveLength(name: string, length: number, bar?: number, arg = 'length'): void {
+  const len = Math.trunc(length);
+  if (len <= 0) throw new Error(lengthError(name, len, bar, arg));
 }

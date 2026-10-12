@@ -177,8 +177,8 @@ function seriesLengths(lengths: ArrayLike<number>, count: number, name: string):
   }
   return Array.from({ length: count }, (_, i) => {
     const len = Math.floor(lengths[i]!);
-    if (!(len >= 1)) throw new Error(`${name}: length must be at least 1 (bar ${i}: ${lengths[i]})`);
     checkSumLength(name, len, i);
+    if (!(len >= 1)) throw new Error(`${name}: length must be at least 1 (bar ${i}: ${lengths[i]})`);
     return len;
   });
 }

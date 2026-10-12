@@ -18,9 +18,15 @@ describe('ta.wma with a series length (#161)', () => {
     });
   });
 
-  it('a fractional length is truncated; a length below 1, na or above the bars so far gives na', () => {
+  it('a fractional length is truncated; a length na or above the bars so far gives na', () => {
     expect(taCore.wma([1, 2, 3, 4, 5, 6], [1, 1, 3, 2.9, 30, 3])).toEqual([1, 2, 14 / 6, 11 / 3, na, 32 / 6]);
-    expect(taCore.wma([1, 2, 3], [0, 2, NaN])).toEqual([na, 5 / 3, na]);
+    expect(taCore.wma([1, 2, 3], [1, 2, NaN])).toEqual([1, 5 / 3, na]);
+  });
+
+  it('a length below 1 stops the script on its bar (RE10001, #175)', () => {
+    expect(() => taCore.wma([1, 2, 3], [2, 0, 2])).toThrow(
+      "Error on bar 1: Invalid value of the 'length' argument (0.0) in the 'wma' function. It must be > 0."
+    );
   });
 });
 

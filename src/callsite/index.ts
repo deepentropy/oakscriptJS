@@ -364,8 +364,8 @@ function loopSumSite(
   let pending = false;
   return (barIndex, value, length) => {
     const len = Math.floor(length);
-    if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
     checkSumLength(name === 'sum' ? 'math.sum' : `ta.${name}`, len, barIndex);
+    if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
     if (barIndex !== lastBar) {
       if (pending) {
         running.commit();

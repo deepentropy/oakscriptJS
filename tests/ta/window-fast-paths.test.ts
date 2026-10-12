@@ -52,7 +52,7 @@ function data(n: number, seed: number): number[] {
 const bits = (values: number[]) => values.map((v) => (Object.is(v, -0) ? '-0' : String(v)));
 
 describe('one-pass window functions match the window scan bit for bit', () => {
-  const lengths = [1, 2, 2.5, 5, 14, 0.5, 0, -2, NaN, 600];
+  const lengths = [1, 2, 2.5, 5, 14, NaN, 600];
   for (const seed of [1, 7, 42]) {
     const s = data(500, seed);
     for (const L of lengths) {
@@ -65,6 +65,15 @@ describe('one-pass window functions match the window scan bit for bit', () => {
       });
     }
   }
+
+  it('a length below 1 stops the script, as PineScript (RE10001, #175)', () => {
+    const s = data(50, 1);
+    for (const L of [0.5, 0, -2]) {
+      expect(() => taCore.highest(s, L)).toThrow(`Invalid value of the 'length' argument (${Math.trunc(L).toFixed(1)}) in the 'highest' function. It must be > 0.`);
+      expect(() => taCore.lowestbars(s, L)).toThrow("in the 'lowestbars' function");
+      expect(() => taCore.median(s, L)).toThrow("in the 'median' function");
+    }
+  });
 
   it('highest prefers +0 and lowest -0, as Math.max / Math.min', () => {
     expect(bits(taCore.highest([-0, 0, -0], 3))).toEqual(['NaN', 'NaN', '0']);

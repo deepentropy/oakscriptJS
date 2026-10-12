@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A length of 0 or less stops the script with PineScript's RE10001 text, as for a too long length since #164:
+  "Error on bar 0: Invalid value of the 'length' argument (0.0) in the 'highest' function. It must be > 0." for
+  `ta.highest`, `lowest`, `highestbars`, `lowestbars`, `sma`, `ema`, `rma`, `wma`, `hma`, `math.sum`, `stdev`
+  ('stdev'->'variance'), `variance`, `linreg`, `rsi` (argument 'y'), `mom`, `change`, `roc`, `atr` ('atr'->'rma'),
+  `dev`, `median`, `percentrank`, `cci`, `mfi`, `cmo`, `vwma` ('vwma'->'sma'), `alma`, `stoch` ('stoch'->'highest'),
+  `correlation`, `rising`, `falling`, `mode`, `range`, `percentile_nearest_rank`, `percentile_linear_interpolation`,
+  `rci`, `wpr`, `cog`, `bbw`, `bb`, `kc`, `tsi` ('tsi'->'ema'); `ta.hma(src, 1)` stops in its inner
+  `wma(src, 0)`; a series length on the bar where it reaches 0. These returned na on every bar (#175).
 - `line.get_price` reads the line as extended on both sides whatever its `extend` (it returned NaN outside the two
   points for `extend.none` / `left` / `right`), computes `y1 + (y2 - y1) * (x - x1) / (x2 - x1)` in that order (the
   slope form differed in the last bit on 1,474 of 131,780 probe values) and throws the PineScript text

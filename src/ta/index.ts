@@ -11,7 +11,7 @@
 import type { series_float, series_bool, series_int, int, Source, simple_int, simple_float, simple_bool } from '../types/index.js';
 import { eq, ge, gt, le, lt } from '../compare/index.js';
 import { runningSum, runningSumSeries, runningVariance, runningVarianceSeries } from './running-sum.js';
-import { checkSumLength, checkWindowLength } from './limits.js';
+import { checkPositiveLength, checkSumLength, checkWindowLength } from './limits.js';
 
 /**
  * Simple Moving Average - returns the moving average (sum of last y values divided by y).
@@ -68,6 +68,7 @@ export function sma(source: Source, length: simple_int | ArrayLike<number>): ser
  * ```
  */
 export function ema(source: Source, length: simple_int): series_float {
+  checkPositiveLength('ema', length, 0);
   const result: series_float = [];
   const len = Math.floor(length);
   const multiplier = 2 / (len + 1);
@@ -134,6 +135,7 @@ export function ema(source: Source, length: simple_int): series_float {
  * ```
  */
 export function rsi(source: Source, length: simple_int): series_float {
+  checkPositiveLength('rsi', length, 0, 'y');
   const result: series_float = [];
 
   // Calculate price changes
@@ -506,6 +508,7 @@ export function crossunder(series1: Source, series2: Source): series_bool {
  * ```
  */
 export function change(source: Source, length: simple_int = 1): series_float {
+  checkPositiveLength('change', length, 0);
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -618,6 +621,7 @@ export function tr(
  * ```
  */
 export function atr(length: simple_int, high?: Source, low?: Source, close?: Source): series_float {
+  checkPositiveLength('atr->rma', length, 0);
   if (!high || !low || !close) {
     throw new Error(
       'ta.atr() requires high, low, and close series. ' +
@@ -763,6 +767,7 @@ export function supertrend(
  * ```
  */
 export function rma(source: Source, length: simple_int): series_float {
+  checkPositiveLength('rma', length, 0);
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const len = Math.floor(length);
@@ -846,6 +851,7 @@ export function wma(source: Source, length: simple_int | ArrayLike<number>): ser
   const result: series_float = [];
   // Floor the length to match PineScript's auto-truncation of float to int
   const fixed = typeof length === 'number' ? Math.floor(length) : NaN;
+  if (typeof length === 'number') checkPositiveLength('wma', fixed, 0);
   // PineScript: na on a bar with an na source (also +/-Infinity) and until `len` non-na values were received;
   // otherwise the last `len` bars, each na replaced by the previous non-na value
   const filled: number[] = [];
@@ -861,6 +867,7 @@ export function wma(source: Source, length: simple_int | ArrayLike<number>): ser
     filled.push(last);
     // a series length: the window of this bar's length (the result of ta.wma with that fixed length)
     const len = typeof length === 'number' ? fixed : Math.floor(length[i]!);
+    if (typeof length !== 'number') checkPositiveLength('wma', len, i);
     if (isNa || !(len >= 1) || count < len) {
       result.push(NaN);
       continue;
@@ -1022,6 +1029,7 @@ function monotonic(source: Source, length: simple_int, step: (newer: number, old
  * ```
  */
 export function rising(source: Source, length: simple_int): series_bool {
+  checkPositiveLength('rising', length, 0);
   return monotonic(source, length, gt);
 }
 
@@ -1047,6 +1055,7 @@ export function rising(source: Source, length: simple_int): series_bool {
  * ```
  */
 export function falling(source: Source, length: simple_int): series_bool {
+  checkPositiveLength('falling', length, 0);
   return monotonic(source, length, lt);
 }
 
@@ -1072,6 +1081,7 @@ export function falling(source: Source, length: simple_int): series_bool {
  * ```
  */
 export function roc(source: Source, length: simple_int): series_float {
+  checkPositiveLength('roc', length, 0);
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1112,6 +1122,7 @@ export function roc(source: Source, length: simple_int): series_float {
  * ```
  */
 export function mom(source: Source, length: simple_int): series_float {
+  checkPositiveLength('mom', length, 0);
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1151,6 +1162,7 @@ export function mom(source: Source, length: simple_int): series_float {
  * ```
  */
 export function dev(source: Source, length: simple_int): series_float {
+  checkPositiveLength('dev', length, 0);
   const len = Math.floor(length);
   return sma(source, len).map((mean, i) => {
     if (i < len - 1 || Number.isNaN(mean)) return NaN;
@@ -1234,6 +1246,7 @@ function varianceOf(
  * ```
  */
 export function median(source: Source, length: simple_int): series_float {
+  checkPositiveLength('median', length, 0);
   const len = Math.floor(length);
   const n = source.length;
   const out: series_float = new Array<number>(n).fill(NaN);
@@ -1321,6 +1334,7 @@ export function swma(source: Source): series_float {
  * ```
  */
 export function vwma(source: Source, length: simple_int, volume?: Source): series_float {
+  checkPositiveLength('vwma->sma', length, 0);
   if (!volume) {
     throw new Error(
       'ta.vwma() requires volume series. ' +
@@ -1374,6 +1388,7 @@ export function vwma(source: Source, length: simple_int, volume?: Source): serie
  * ```
  */
 export function linreg(source: Source, length: simple_int, offset: simple_int = 0): series_float {
+  checkPositiveLength('linreg', length, 0);
   const result: series_float = [];
     // Floor the length to match PineScript's auto-truncation of float to int
     const len = Math.floor(length);
@@ -1443,6 +1458,7 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  * ```
  */
 export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
+  checkPositiveLength('correlation', length, 0);
   // PineScript: from compensated running sums, cov = sma(x * y) - sma(x) * sma(y), r = cov / sqrt(var(x) * var(y))
   // (biased variances); each running sum skips its own na values
   const product = Array.from({ length: source1.length }, (_, i) => {
@@ -1493,6 +1509,7 @@ export function correlation(source1: Source, source2: Source, length: simple_int
  * ```
  */
 export function percentrank(source: Source, length: simple_int): series_float {
+  checkPositiveLength('percentrank', length, 0);
   const result: series_float = [];
 
   for (let i = 0; i < source.length; i++) {
@@ -1541,6 +1558,7 @@ export function percentrank(source: Source, length: simple_int): series_float {
  * \`\`\`
  */
 export function cci(source: Source, length: simple_int): series_float {
+  checkPositiveLength('cci', length, 0);
   const smaValues = sma(source, length);
   const devValues = dev(source, length);
   let last = 0;
@@ -1577,6 +1595,7 @@ export function cci(source: Source, length: simple_int): series_float {
  * \`\`\`
  */
 export function stoch(source: Source, high: Source, low: Source, length: simple_int): series_float {
+  checkPositiveLength('stoch->highest', length, 0);
   const result: series_float = [];
   const lowestValues = lowest(low, length);
   const highestValues = highest(high, length);
@@ -1629,6 +1648,7 @@ export function stoch(source: Source, high: Source, low: Source, length: simple_
  * ```
  */
 export function mfi(source: Source, length: simple_int, volume?: Source): series_float {
+  checkPositiveLength('mfi', length, 0);
   if (!volume) {
     throw new Error(
       'ta.mfi() requires volume series. ' +
@@ -1687,6 +1707,7 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
  * ```
  */
 export function hma(source: Source, length: simple_int): series_float {
+  checkPositiveLength('hma', length, 0);
   const halfLength = Math.floor(length / 2);
   const sqrtLength = Math.floor(Math.sqrt(length));
 
@@ -2093,6 +2114,7 @@ export function dmi(
  * ```
  */
 export function tsi(source: Source, shortLength: simple_int, longLength: simple_int): series_float {
+  checkPositiveLength('tsi->ema', shortLength, 0);
   const momentum: series_float = [];
 
   // Calculate momentum (price change)
@@ -2142,6 +2164,7 @@ export function tsi(source: Source, shortLength: simple_int, longLength: simple_
  * ```
  */
 export function cmo(source: Source, length: simple_int): series_float {
+  checkPositiveLength('cmo', length, 0);
   // PineScript definition: mom = ta.change(src), sm1 = math.sum(mom >= 0 ? mom : 0, length),
   // sm2 = math.sum(mom >= 0 ? 0 : -mom, length), cmo = 100 * (sm1 - sm2) / (sm1 + sm2), with the running sums of
   // math.sum (bit for bit). A comparison with na is false: an na change adds 0 to sm1 and na (skipped) to sm2.
@@ -2191,6 +2214,7 @@ export function kc(
   low?: Source,
   close?: Source
 ): [series_float, series_float, series_float] {
+  checkPositiveLength('kc', length, 0);
   // Calculate middle band (EMA of source)
   const middle = ema(source, length);
 
@@ -2250,6 +2274,7 @@ export function kc(
  * ```
  */
 export function bbw(source: Source, length: simple_int, mult: simple_float): series_float {
+  checkPositiveLength('bbw', length, 0);
   const [basis, upper, lower] = bb(source, length, mult);
   const result: series_float = [];
 
@@ -2293,6 +2318,7 @@ export function bbw(source: Source, length: simple_int, mult: simple_float): ser
  * ```
  */
 export function wpr(high: Source, low: Source, close: Source, length: simple_int = 14): series_float {
+  checkPositiveLength('wpr', length, 0);
   const highs = highest(high, length);
   const lows = lowest(low, length);
   return Array.from({ length: close.length }, (_, i) => {
@@ -2393,6 +2419,7 @@ export function alma(
   sigma: simple_float = 6,
   floor: boolean = false
 ): series_float {
+  checkPositiveLength('alma', length, 0);
   const result: series_float = [];
     const m = floor ? Math.floor(offset * (length - 1)) : offset * (length - 1);
   const s = length / sigma;
@@ -2489,6 +2516,7 @@ export function kcw(
  * values), and a bar whose own value is `na` still gets a result.
  */
 export function range(source: Source, length: simple_int): series_float {
+  checkPositiveLength('range', length, 0);
   return source.map((_, i) => {
     const values = lastValues(source, i, length);
     return values ? Math.max(...values) - Math.min(...values) : NaN;
@@ -2574,6 +2602,7 @@ export function min(source: Source): series_float {
  * ```
  */
 export function cog(source: Source, length: simple_int = 10): series_float {
+  checkPositiveLength('cog', length, 0);
   const len = Math.floor(length);
   return runningSum(source, len).map((sum, i) => {
     if (i < len - 1 || Number.isNaN(sum) || sum === 0) return NaN;
@@ -2607,6 +2636,7 @@ export function cog(source: Source, length: simple_int = 10): series_float {
  * - If no mode exists, returns the smallest value
  */
 export function mode(source: Source, length: simple_int): series_float {
+  checkPositiveLength('mode', length, 0);
   const result: series_float = [];
   const len = Math.floor(length);
   const seen: number[] = []; // non-na values so far
@@ -2684,6 +2714,7 @@ export function percentile_linear_interpolation(
   length: simple_int,
   percentage: number
 ): series_float {
+  checkPositiveLength('percentile_linear_interpolation', length, 0);
   return sortedWindow(source, length, (s) => {
     const pos = (percentage / 100) * length - 0.5;
     if (pos <= 0) return s[0]!;
@@ -2753,6 +2784,7 @@ export function percentile_nearest_rank(
   length: simple_int,
   percentage: number
 ): series_float {
+  checkPositiveLength('percentile_nearest_rank', length, 0);
   const rank = Math.min(length, Math.max(1, Math.ceil((percentage / 100) * length)));
   return sortedWindow(source, length, (s) => s[rank - 1]!);
 }
@@ -2789,6 +2821,7 @@ export function percentile_nearest_rank(
  *   where the `na` was
  */
 export function rci(source: Source, length: simple_int): series_float {
+  checkPositiveLength('rci', length, 0);
   const len = Math.floor(length);
   const result: series_float = [];
   // PineScript keeps the values in a ring of `length + 1` slots indexed by the bar index, filled with 0 at the start
