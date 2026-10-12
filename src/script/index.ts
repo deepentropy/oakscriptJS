@@ -122,7 +122,7 @@ import {
   type StrategyTrade,
   type StrategyVariable,
 } from '../strategy/index.js';
-import { parsePineSession, sessionRun } from '../time/session.js';
+import { sessionPeriods, type SessionPeriods } from '../session/context.js';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
@@ -1894,37 +1894,6 @@ function sessionBars(): { bars: SessionBars; regular: SessionBars } {
   return sessionCache;
 }
 
-/**
- * Calendar for `time(tf, session, timezone)` arguments. Without session and time zone: the loaded
- * session. As in PineScript, an explicit time zone reads the symbol session hours in that zone without
- * corrections and holidays, and an explicit session follows PineScript's session string rules.
- */
-function calendarFor(
-  session?: string,
-  timezone?: string,
-  dayPlacement = false
-): { bars: SessionBars; test: boolean; inside?: (time: number) => boolean } {
-  const { bars } = sessionBars();
-  if (!session && !timezone) return { bars, test: false };
-  const tz = timezone ?? exchangeTimezone();
-  // a session string that is empty or does not start with a digit is the symbol session: "regular" the regular
-  // hours, "extended" and any other name the loaded hours (PineScript)
-  if (session !== undefined && parsePineSession(session) === null) {
-    const name = session.trim();
-    const symbol = name === 'regular' && chartCtx.regularSession ? chartCtx.regularSession : chartCtx.session!;
-    return { bars: new SessionBars(new TradingCalendar(tz, { session: toSpec(symbol).session }, 'symbol'), bars.chart.period), test: true };
-  }
-  const spec = session ? { session } : { session: toSpec(chartCtx.session!).session };
-  return {
-    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol', dayPlacement), bars.chart.period),
-    test: true,
-    // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
-    inside: session
-      ? (time) => timeCore.inSession(time, session, tz, timeframeCore.in_seconds(bars.chart.period) * 1000)
-      : undefined,
-  };
-}
-
 function perBar(fn: (t: number, i: number, times: number[]) => number): Series {
   const times = ctxBars.bars.map(barTime);
   return Series.fromArray(ctxBars, times.map((t, i) => fn(t, i, times)));
@@ -1937,48 +1906,21 @@ function callableSeries<F extends (...args: never[]) => Series>(series: Series, 
   return fn as Series & F;
 }
 
-/**
- * `time(tf, session)` / `time_close(tf, session)` of a bar, as PineScript computes them (#173): an intraday timeframe
- * tests the bar with the session rules of time.inSession and aligns its periods on the start of the run that
- * contains the bar; "D" tests the bar against the day's session period (the calendar); a timeframe of more than one
- * day ("2D", "W", "M") has no test and keeps the period's time.
- */
-function sessionPeriods(timeframeString: string, session?: string, timezone?: string): { open: (t: number) => number; close: (t: number) => number } {
-  const tf = timeframeCore.info(timeframeString);
-  const { bars, test, inside } = calendarFor(session, timezone, !tf.isintraday);
-  const open = (t: number): number => bars.timeOf(t, timeframeString);
-  const close = (t: number): number => bars.closeOf(t, timeframeString);
-  if (!test) return { open, close };
-  if (tf.isintraday) {
-    if (session !== undefined && parsePineSession(session) !== null && !bars.chart.isdwm) {
-      const tz = timezone ?? exchangeTimezone();
-      const barMs = timeframeCore.in_seconds(bars.chart.period) * 1000;
-      const ms = timeframeCore.in_seconds(tf.period) * 1000;
-      const run = (t: number) => sessionRun(t, session, tz, barMs);
-      const start = (t: number, r: [number, number]) => r[0] + Math.floor((t - r[0]) / ms) * ms;
-      return {
-        open: (t) => { const r = run(t); return r ? start(t, r) : NaN; },
-        close: (t) => { const r = run(t); return r ? Math.min(start(t, r) + ms, r[1]) : NaN; },
-      };
-    }
-    const isIn = (t: number) => (inside ? inside(t) : bars.inside(t));
-    return { open: (t) => (isIn(t) ? open(t) : NaN), close: (t) => (isIn(t) ? close(t) : NaN) };
-  }
-  if (tf.isdaily && tf.multiplier === 1) {
-    return { open: (t) => (bars.inside(t) ? open(t) : NaN), close: (t) => (bars.inside(t) ? close(t) : NaN) };
-  }
-  return { open, close };
+/** `time(tf, session, timezone)` / `time_close(...)` periods of the run's chart (see session/context `sessionPeriods`). */
+function chartSessionPeriods(timeframeString: string, session?: string, timezone?: string): SessionPeriods {
+  const { bars } = sessionBars();
+  return sessionPeriods(bars, { ...chartCtx, timezone: exchangeTimezone() }, timeframeString, session, timezone);
 }
 
 function timeFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { open } = sessionPeriods(tf || chartTimeframe().period, session, timezone);
+  const { open } = chartSessionPeriods(tf || chartTimeframe().period, session, timezone);
   return perBar((t) => open(t));
 }
 
 function timeCloseFunction(tf?: string, session?: string, timezone?: string): Series {
   collector();
-  const { close } = sessionPeriods(tf || chartTimeframe().period, session, timezone);
+  const { close } = chartSessionPeriods(tf || chartTimeframe().period, session, timezone);
   return perBar((t) => close(t));
 }
 

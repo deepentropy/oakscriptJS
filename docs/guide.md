@@ -546,6 +546,7 @@ import { periodTime, tradingDayTime, chartSessionFlags, resampleSession, mapToCh
 const chart = { timeframe: '60', timezone: 'America/New_York', session: { session: '0930-1600', holidays: '20260907' } };
 
 periodTime(bar.time, 'D', chart);        // time("D")
+periodTime(bar.time, '240', chart, '0930-1200,1300-1600', 'Europe/Paris'); // time("240", session, timezone)
 tradingDayTime(bar.time, chart);         // time_tradingday
 chartSessionFlags(times, chart);         // session.isfirstbar, islastbar, ismarket ...
 

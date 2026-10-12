@@ -11,6 +11,7 @@
 import type { Bar } from '../types/index.js';
 import { info, in_seconds } from '../timeframe/index.js';
 import { afterCompletion, periodsOf, resample } from '../security/resample.js';
+import { parsePineSession, sessionRun } from '../time/session.js';
 import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from './bars.js';
 import { TradingCalendar, type SessionSpec } from './calendar.js';
 
@@ -61,16 +62,107 @@ export function chartSessions(chart: SessionContext): ChartSessions {
   return out;
 }
 
-/** PineScript `time(timeframe)` (ms) of a bar that opens at `time`: the start of its period; NaN without one. */
-export function periodTime(time: number, timeframe: string, chart: SessionContext): number {
-  const s = chartSessions(chart);
-  return s.bars.timeOf(time * s.unit, timeframe);
+/** Open and close (ms) of the period that contains a bar opening at a time in ms; NaN outside the session. */
+export interface SessionPeriods {
+  open: (time: number) => number;
+  close: (time: number) => number;
 }
 
-/** PineScript `time_close(timeframe)` (ms) of a bar that opens at `time`. */
-export function periodClose(time: number, timeframe: string, chart: SessionContext): number {
+/**
+ * Calendar for the `session` / `timezone` arguments of `time(tf, session, timezone)`. Without both: the loaded
+ * session. As in PineScript, an explicit time zone reads the symbol session hours in that zone without corrections
+ * and holidays, and an explicit session follows PineScript's session string rules.
+ */
+function calendarFor(
+  bars: SessionBars,
+  chart: SessionContext,
+  session: string | undefined,
+  timezone: string | undefined,
+  dayPlacement: boolean
+): { bars: SessionBars; test: boolean; inside?: (time: number) => boolean } {
+  if (!session && !timezone) return { bars, test: false };
+  const tz = timezone ?? chart.timezone!;
+  // a session string that is empty or does not start with a digit is the symbol session: "regular" the regular
+  // hours, "extended" and any other name the loaded hours (PineScript)
+  if (session !== undefined && parsePineSession(session) === null) {
+    const name = session.trim();
+    const symbol = name === 'regular' && chart.regularSession ? chart.regularSession : chart.session!;
+    return { bars: new SessionBars(new TradingCalendar(tz, { session: toSpec(symbol).session }, 'symbol'), bars.chart.period), test: true };
+  }
+  const spec = session ? { session } : { session: toSpec(chart.session!).session };
+  return {
+    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol', dayPlacement), bars.chart.period),
+    test: true,
+    // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
+    inside: session ? (time) => sessionRun(time, session, tz, in_seconds(bars.chart.period) * 1000) !== null : undefined,
+  };
+}
+
+/**
+ * `time(tf, session, timezone)` / `time_close(tf, session, timezone)` of a bar, as PineScript computes them (#173):
+ * an intraday timeframe tests the bar with the session rules of time.inSession and aligns its periods on the start
+ * of the run that contains the bar; "D" tests the bar against the day's session period (the calendar; the time
+ * between two runs of a day is inside it, #182); a timeframe of more than one day ("2D", "W", "M") has no test and
+ * keeps the period's time. `bars` is the calendar of the loaded session (`chartSessions(chart).bars`).
+ */
+export function sessionPeriods(
+  bars: SessionBars,
+  chart: SessionContext,
+  timeframe: string,
+  session?: string,
+  timezone?: string
+): SessionPeriods {
+  const tf = info(timeframe);
+  const { bars: calendar, test, inside } = calendarFor(bars, chart, session, timezone, !tf.isintraday);
+  const open = (t: number): number => calendar.timeOf(t, timeframe);
+  const close = (t: number): number => calendar.closeOf(t, timeframe);
+  if (!test) return { open, close };
+  if (tf.isintraday) {
+    if (session !== undefined && parsePineSession(session) !== null && !calendar.chart.isdwm) {
+      const tz = timezone ?? chart.timezone!;
+      const barMs = in_seconds(calendar.chart.period) * 1000;
+      const ms = in_seconds(tf.period) * 1000;
+      const run = (t: number) => sessionRun(t, session, tz, barMs);
+      const start = (t: number, r: [number, number]) => r[0] + Math.floor((t - r[0]) / ms) * ms;
+      return {
+        open: (t) => { const r = run(t); return r ? start(t, r) : NaN; },
+        close: (t) => { const r = run(t); return r ? Math.min(start(t, r) + ms, r[1]) : NaN; },
+      };
+    }
+    const isIn = (t: number) => (inside ? inside(t) : calendar.inside(t));
+    return { open: (t) => (isIn(t) ? open(t) : NaN), close: (t) => (isIn(t) ? close(t) : NaN) };
+  }
+  if (tf.isdaily && tf.multiplier === 1) {
+    return { open: (t) => (calendar.inside(t) ? open(t) : NaN), close: (t) => (calendar.inside(t) ? close(t) : NaN) };
+  }
+  return { open, close };
+}
+
+const periodCache = new WeakMap<object, Map<string, SessionPeriods>>();
+
+function periodsOfChart(chart: SessionContext, timeframe: string, session?: string, timezone?: string): { s: ChartSessions; p: SessionPeriods } {
   const s = chartSessions(chart);
-  return s.bars.closeOf(time * s.unit, timeframe);
+  let byKey = periodCache.get(chart);
+  if (!byKey) periodCache.set(chart, (byKey = new Map()));
+  const key = `${timeframe}|${session ?? ''}|${timezone ?? ''}`;
+  let p = byKey.get(key);
+  if (!p) byKey.set(key, (p = sessionPeriods(s.bars, chart, timeframe, session, timezone)));
+  return { s, p };
+}
+
+/**
+ * PineScript `time(timeframe, session, timezone)` (ms) of a bar that opens at `time`: the start of its period; NaN
+ * without one or outside `session` (#182). Without `session` and `timezone`, the periods of the loaded session.
+ */
+export function periodTime(time: number, timeframe: string, chart: SessionContext, session?: string, timezone?: string): number {
+  const { s, p } = periodsOfChart(chart, timeframe, session, timezone);
+  return p.open(time * s.unit);
+}
+
+/** PineScript `time_close(timeframe, session, timezone)` (ms) of a bar that opens at `time` (#182). */
+export function periodClose(time: number, timeframe: string, chart: SessionContext, session?: string, timezone?: string): number {
+  const { s, p } = periodsOfChart(chart, timeframe, session, timezone);
+  return p.close(time * s.unit);
 }
 
 /** PineScript `time_tradingday` (ms, 00:00 UTC of the trading day) of a bar that opens at `time`. */

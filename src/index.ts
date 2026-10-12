@@ -55,10 +55,12 @@ export {
   type DrawingVariable,
 } from './drawing/registry.js';
 
-// The session of a chart context without a script run: time(tf), time_close(tf), time_tradingday, session.* flags,
-// request.security periods with the session and holidays, and bars after the last bar on the trading calendar
+// The session of a chart context without a script run: time(tf, session, timezone), time_close(...), time_tradingday,
+// session.* flags, request.security periods with the session and holidays, and bars after the last bar on the trading
+// calendar
 export {
   chartSessions,
+  sessionPeriods,
   periodTime,
   periodClose,
   tradingDayTime,
@@ -68,6 +70,7 @@ export {
   barsUntil,
   type SessionContext,
   type ChartSessions,
+  type SessionPeriods,
   type SessionResample,
 } from './session/context.js';
 export { TradingCalendar, type SessionSpec } from './session/calendar.js';

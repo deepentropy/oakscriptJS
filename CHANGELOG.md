@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `periodTime(time, timeframe, chart, session?, timezone?)` and `periodClose(...)` take the session and time zone of
+  PineScript `time(timeframe, session, timezone)` / `time_close(...)`, with the same rules as the script API, for code
+  without a script run; `sessionPeriods` gives both functions of one call (#182).
+
+### Changed
+
+- Two-series `ta.rsi(x, y)` (PineScript v4) gives -Infinity when `x = -y` (`100 - 100 / 0`) instead of na. `na()` and
+  `nz()` still treat it as na, but comparisons see it (`r < 30` is true) (#182).
+
+### Fixed
+
+- `table.new` and `table.set_position` delete only the live table at the same position with the same
+  `force_overlay`: a table on the price pane (`force_overlay = true`) and one on the indicator pane share a
+  position, also in an overlay script. `table.set_position` onto the position of a live table now deletes it (#182).
+- `time("D", session, timezone)` / `time_close("D", ...)` with a session of several runs: the time between two runs of a
+  day is inside the day (the period runs from the first start to the last end); it was na. 3,239,838 of 3,239,838
+  probe values equal (BTCUSD 60 and 15, AAPL 60, 6 sessions, 3 time zones) (#182).
+
 ## [0.11.1] - 2026-10-12
 
 ### Added

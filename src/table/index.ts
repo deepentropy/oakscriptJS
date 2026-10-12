@@ -12,7 +12,9 @@
  * - `table.cell_set_*` changes one property of a cell (a cell that was not defined is created)
  * - a column or row outside the table is a runtime error
  * - a deleted table is `na`: its functions do nothing
- * - one live table per position: `table.new` at the position of a live table deletes that table (#176)
+ * - one live table per position and pane: `table.new` or `table.set_position` at the position of a live table with
+ *   the same `force_overlay` deletes that table (#176, #182); a table with `force_overlay = true` and one without
+ *   keep each their own position, also in an overlay script
  *
  * @version 6
  */
@@ -25,9 +27,16 @@ type HAlign = 'left' | 'center' | 'right';
 type VAlign = 'top' | 'center' | 'bottom';
 type FontFamily = 'default' | 'monospace';
 
+/** Deletes the live tables other than `keep` at `position` with the same `force_overlay` (#176, #182). */
+function freePosition(position: TablePosition, force_overlay: boolean, keep?: Table): void {
+  for (const old of allDrawings('table')) {
+    if (old !== keep && old.position === position && (old.force_overlay ?? false) === force_overlay) remove('table', old);
+  }
+}
+
 /**
- * Creates a new table (PineScript `table.new`). A live table at the same position is deleted, as PineScript keeps
- * one table per position (#176).
+ * Creates a new table (PineScript `table.new`). A live table at the same position with the same `force_overlay` is
+ * deleted, as PineScript keeps one table per position and pane (#176, #182).
  *
  * @example
  * ```typescript
@@ -46,7 +55,7 @@ export function new_table(
   border_width?: number,
   force_overlay?: boolean
 ): Table {
-  for (const old of allDrawings('table')) if (old.position === position) remove('table', old);
+  freePosition(position, force_overlay ?? false);
   return register('table', {
     position,
     columns,
@@ -196,8 +205,15 @@ function setTable<K extends keyof Table>(field: K) {
   };
 }
 
-/** Moves the table to another position (`position.*`). */
-export const set_position = setTable('position');
+/**
+ * Moves the table to another position (`position.*`). A live table at that position with the same `force_overlay` is
+ * deleted (#182).
+ */
+export function set_position(table_id: Table, position: TablePosition): void {
+  if (isDeleted(table_id)) return;
+  freePosition(position, table_id.force_overlay ?? false, table_id);
+  table_id.position = position;
+}
 /** Sets the background colour of the table. */
 export const set_bgcolor = setTable('bgcolor');
 /** Sets the colour of the outer frame. */

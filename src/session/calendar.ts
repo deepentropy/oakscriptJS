@@ -197,6 +197,9 @@ export class TradingCalendar {
         ? [at(d - p.startOffset, p.start, true), at(d - p.endOffset, p.end - 1, true) + 60_000]
         : [at(d - p.startOffset, p.start), at(d - p.endOffset, p.end)]
     );
+    // for "D", the runs of a PineScript session string on one day are one period, from the earliest start to the
+    // latest end: the time between two runs is inside the day (#182)
+    if (this.pine && out.length > 1) out = [[Math.min(...out.map((p) => p[0])), Math.max(...out.map((p) => p[1]))]];
     this.cache.set(date, out);
     return out;
   }
