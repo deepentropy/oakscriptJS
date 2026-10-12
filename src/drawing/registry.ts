@@ -36,8 +36,9 @@
  * - polylines on the last bar: the `P` carried from the bar before is counted twice (the first creation adds it once
  *   more, unless it sets `P` to 0), later creations do not set `P` to 0, and the polylines of the bars before that a
  *   cut deletes are added to `P`. Once none is
- *   left, a cut deletes polylines of the last bar and `P` becomes the number of polylines of the bars before deleted
- *   on the last bar (by the count or by the script). Equal to PineScript for the polylines alive at the end on 271 of
+ *   left, `P` is at least the number of polylines of the bars before deleted on the last bar (by the count or by
+ *   the script) and a cut deletes polylines of the last bar: a script that deletes its 100 polylines and creates 200
+ *   on the last bar keeps them all (#176). Equal to PineScript for the polylines alive at the end on 271 of
  *   281 probe runs; the count inside the bar can differ when the script deletes polylines of the last bar
  *
  * - a bar index (`xloc.bar_index`) more than 10,000 bars before the current bar stops the script (runtime error
@@ -226,9 +227,14 @@ export function setDrawingBar(barIndex: number | null, last: boolean = false, la
  * Throws the PineScript runtime error RE10026 when `x` is a bar index more than 10,000 bars before the current bar,
  * and RE10020 when it is more than 500 bars after the last bar of the data (when {@link setDrawingBar} knows it).
  * `method` and `variable` are the names of the PineScript message ("line.new", "x1").
+ *
+ * Returns `x`, truncated when it is a bar index: PineScript's x is an int (a box from 5537.94 starts on bar 5537,
+ * #176).
  */
-export function checkBarIndex(method: string, variable: string, x: number, xloc: string | undefined): void {
-  if (currentBar === null || (xloc ?? 'bar_index') !== 'bar_index') return;
+export function checkBarIndex(method: string, variable: string, x: number, xloc: string | undefined): number {
+  if ((xloc ?? 'bar_index') !== 'bar_index') return x;
+  x = Math.trunc(x);
+  if (currentBar === null) return x;
   if (lastBarIndex !== null && x - lastBarIndex > MAX_DRAWING_BARS_FORWARD) {
     throw new Error(
       `Error on bar ${currentBar}: Objects positioned using xloc.bar_index cannot be drawn further than ` +
@@ -241,6 +247,7 @@ export function checkBarIndex(method: string, variable: string, x: number, xloc:
         'from the current bar index. Try using `time` instead.'
     );
   }
+  return x;
 }
 
 /** Numeric fields that become NaN when an object is deleted, so that its getters return `na`. */
@@ -327,6 +334,8 @@ function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: Drawing
     }
     for (const old of cut) markDeleted(kind, old, true);
   } else {
+    // the polylines of the bars before deleted on this bar count before the cut (#176)
+    if (kind === 'polyline' && pending.polyline < bar.oldPolylinesGone) pending.polyline = bar.oldPolylinesGone;
     const cut = cutOldest(kind, list, obj);
     if (kind === 'polyline' && cut.length > 0) pending.polyline = bar.oldPolylinesGone;
     for (const old of cut) markDeleted(kind, old, false);

@@ -70,8 +70,8 @@ export function new_line(...args: unknown[]): Line {
   const [xloc, extend, lineColor, style, width, force_overlay] = rest as [
     LineXloc?, LineExtend?, color?, LineStyle?, number?, boolean?,
   ];
-  checkBarIndex('line.new', 'x1', x1, xloc);
-  checkBarIndex('line.new', 'x2', x2, xloc);
+  x1 = checkBarIndex('line.new', 'x1', x1, xloc);
+  x2 = checkBarIndex('line.new', 'x2', x2, xloc);
   return register('line', {
     x1,
     y1,
@@ -219,7 +219,7 @@ export function copy(id: Line): Line {
  */
 export function set_x1(id: Line, x: number): Line {
   if (isDeleted(id)) return id;
-  checkBarIndex('line.set_x***', 'x1', x, id.xloc);
+  x = checkBarIndex('line.set_x***', 'x1', x, id.xloc);
   id.x1 = x;
   return id;
 }
@@ -239,7 +239,7 @@ export function set_x1(id: Line, x: number): Line {
  */
 export function set_x2(id: Line, x: number): Line {
   if (isDeleted(id)) return id;
-  checkBarIndex('line.set_x***', 'x2', x, id.xloc);
+  x = checkBarIndex('line.set_x***', 'x2', x, id.xloc);
   id.x2 = x;
   return id;
 }
@@ -298,7 +298,7 @@ export function set_y2(id: Line, y: number): Line {
  */
 export function set_xy1(id: Line, x: number, y: number): Line {
   if (isDeleted(id)) return id;
-  checkBarIndex('line.set_x***', 'x1', x, id.xloc);
+  x = checkBarIndex('line.set_x***', 'x1', x, id.xloc);
   id.x1 = x;
   id.y1 = y;
   return id;
@@ -320,7 +320,7 @@ export function set_xy1(id: Line, x: number, y: number): Line {
  */
 export function set_xy2(id: Line, x: number, y: number): Line {
   if (isDeleted(id)) return id;
-  checkBarIndex('line.set_x***', 'x2', x, id.xloc);
+  x = checkBarIndex('line.set_x***', 'x2', x, id.xloc);
   id.x2 = x;
   id.y2 = y;
   return id;

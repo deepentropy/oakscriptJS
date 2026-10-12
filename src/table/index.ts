@@ -12,6 +12,7 @@
  * - `table.cell_set_*` changes one property of a cell (a cell that was not defined is created)
  * - a column or row outside the table is a runtime error
  * - a deleted table is `na`: its functions do nothing
+ * - one live table per position: `table.new` at the position of a live table deletes that table (#176)
  *
  * @version 6
  */
@@ -25,7 +26,8 @@ type VAlign = 'top' | 'center' | 'bottom';
 type FontFamily = 'default' | 'monospace';
 
 /**
- * Creates a new table (PineScript `table.new`).
+ * Creates a new table (PineScript `table.new`). A live table at the same position is deleted, as PineScript keeps
+ * one table per position (#176).
  *
  * @example
  * ```typescript
@@ -44,6 +46,7 @@ export function new_table(
   border_width?: number,
   force_overlay?: boolean
 ): Table {
+  for (const old of allDrawings('table')) if (old.position === position) remove('table', old);
   return register('table', {
     position,
     columns,

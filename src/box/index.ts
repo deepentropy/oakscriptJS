@@ -91,8 +91,8 @@ export function new_box(...args: unknown[]): Box {
     (string | number)?, color?, ('left' | 'center' | 'right')?, ('top' | 'center' | 'bottom')?,
     ('none' | 'auto')?, ('default' | 'monospace')?, boolean?, number?,
   ];
-  checkBarIndex('box.new', 'left', left, xloc);
-  checkBarIndex('box.new', 'right', right, xloc);
+  left = checkBarIndex('box.new', 'left', left, xloc);
+  right = checkBarIndex('box.new', 'right', right, xloc);
   return register('box', {
     left,
     top,
@@ -248,7 +248,7 @@ export function copy(id: Box): Box {
  */
 export function set_left(id: Box, left: number): Box {
   if (isDeleted(id)) return id;
-  checkBarIndex('box.set_(left*/xloc)', 'left', left, id.xloc);
+  left = checkBarIndex('box.set_(left*/xloc)', 'left', left, id.xloc);
   id.left = left;
   return id;
 }
@@ -268,7 +268,7 @@ export function set_left(id: Box, left: number): Box {
  */
 export function set_right(id: Box, right: number): Box {
   if (isDeleted(id)) return id;
-  checkBarIndex('box.set_(right*/xlock)', 'right', right, id.xloc);
+  right = checkBarIndex('box.set_(right*/xlock)', 'right', right, id.xloc);
   id.right = right;
   return id;
 }
@@ -327,7 +327,7 @@ export function set_bottom(id: Box, bottom: number): Box {
  */
 export function set_lefttop(id: Box, left: number, top: number): Box {
   if (isDeleted(id)) return id;
-  checkBarIndex('box.set_(left*/xloc)', 'left', left, id.xloc);
+  left = checkBarIndex('box.set_(left*/xloc)', 'left', left, id.xloc);
   id.left = left;
   id.top = top;
   return id;
@@ -349,7 +349,7 @@ export function set_lefttop(id: Box, left: number, top: number): Box {
  */
 export function set_rightbottom(id: Box, right: number, bottom: number): Box {
   if (isDeleted(id)) return id;
-  checkBarIndex('box.set_(right*/xlock)', 'right', right, id.xloc);
+  right = checkBarIndex('box.set_(right*/xlock)', 'right', right, id.xloc);
   id.right = right;
   id.bottom = bottom;
   return id;

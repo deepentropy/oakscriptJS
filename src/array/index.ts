@@ -41,7 +41,7 @@ function position(name: string, id: PineArray<unknown>, index: number, extra = 0
   const i = Math.trunc(index);
   const n = id.length;
   if (i < -n || i >= n + extra) {
-    throw new Error(`array.${name}: index ${i} is out of bounds, array size is ${n}`);
+    throw new Error(`In 'array.${name}()' function. Index ${i} is out of bounds, array size is ${n}.`);
   }
   return i < 0 ? i + n : i;
 }
@@ -50,7 +50,12 @@ function position(name: string, id: PineArray<unknown>, index: number, extra = 0
  * Returns the element at the specified index.
  *
  * PineScript rules: a negative index counts from the end (`get(a, -1)` is the last element); an index outside
- * `-size .. size - 1` is a runtime error (throws); an `na` index gives `na`.
+ * `-size .. size - 1` is a runtime error (throws "In 'array.get()' function. Index 5 is out of bounds, array size
+ * is 3."); an `na` index gives `na`.
+ *
+ * Negative indexes are a PineScript v6 rule, which oakscriptjs follows: a version 5 script stops on them with the
+ * same out of bounds error (`array.get(a, -1)`, #176). A port of a v5 script that the original stops must check the
+ * index itself.
  */
 export function get<T>(id: PineArray<T>, index: simple_int): T {
   if (Number.isNaN(index)) return naOf(id);

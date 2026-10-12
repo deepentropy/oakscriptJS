@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `table.new` at the position of a live table deletes that table, as PineScript keeps one table per position (200
+  calls at one position left 200 live tables) (#176).
+- A fractional bar index x of `line.new`, `box.new`, `label.new` and the x setters is truncated (PineScript's x is
+  an int: 295.67 draws on bar 295); the object had no time before (#176).
+- `array.get` / `set` / `insert` / `remove` and the other index functions: an index out of bounds throws the
+  PineScript text "In 'array.get()' function. Index 5 is out of bounds, array size is 3." (#176).
 - A length of 0 or less stops the script with PineScript's RE10001 text, as for a too long length since #164:
   "Error on bar 0: Invalid value of the 'length' argument (0.0) in the 'highest' function. It must be > 0." for
   `ta.highest`, `lowest`, `highestbars`, `lowestbars`, `sma`, `ema`, `rma`, `wma`, `hma`, `math.sum`, `stdev`
@@ -34,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Polylines on the last bar: once the polylines of the bars before are gone, the ones the script deleted on that
+  bar count in the allowance before the next cut, so a script that deletes its polylines and creates N new ones keeps
+  all N (max 100: 106 to 200 kept; the registry cut 6) (#176).
 - `str.tostring(x)` without a format: the digits of the JVM's binary to decimal conversion rounded to 10 decimals
   half to even, the conversion deciding a tie on its last digit. 0.11.0 rounded the exact value and added a digit
   when the converted digits already had 10 decimals or fewer: `1791662400001 / 900000` gives "1990736.000001111"
