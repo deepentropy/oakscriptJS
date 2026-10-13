@@ -75,6 +75,27 @@ describe('labels', () => {
     expect(inMs.result.labels!.map((l) => l.time)).toEqual([ms, msBars[1]!.time]);
   });
 
+  test("bar_time drawings keep xloc 'bar_time' (a future time is placed on the chart calendar); bar indexes do not", () => {
+    const ms = (BARS[4]!.time as number) * 1000;
+    const future = ms + 30 * DAY * 1000;
+    const run = executeScript(() => {
+      indicator('Xloc');
+      label.new(ms, 100, 'T', 'bar_time');
+      label.new(2, 100, 'I');
+      line.new(ms, 100, future, 100, 'bar_time');
+      line.new(1, 100, LAST + 2, 100);
+      box.new(ms, 110, future, 100, undefined, undefined, undefined, undefined, 'bar_time');
+      box.new(1, 110, 2, 100);
+      polyline.new([chart.point.from_time(ms, 100), chart.point.from_time(future, 101)], false, false, 'bar_time');
+      polyline.new([chart.point.from_index(1, 100), chart.point.from_index(2, 101)]);
+    }, BARS);
+    expect(run.result.labels!.map((l) => l.xloc)).toEqual(['bar_time', undefined]);
+    expect(run.result.lines!.map((l) => l.xloc)).toEqual(['bar_time', undefined]);
+    expect(run.result.lines![0]!.time2).toBe(BARS[4]!.time + 30 * DAY);
+    expect(run.result.boxes!.map((b) => b.xloc)).toEqual(['bar_time', undefined]);
+    expect(run.result.polylines!.map((p) => p.xloc)).toEqual(['bar_time', undefined]);
+  });
+
   test('all properties, na colour as transparent, force_overlay', () => {
     const run = executeScript(() => {
       indicator('Props', { overlay: false });
@@ -215,6 +236,7 @@ describe('polylines', () => {
       },
       {
         points: [{ time: BARS[3]!.time, price: 99 }],
+        xloc: 'bar_time',
         curved: false,
         closed: true,
         lineColor: '#000000',

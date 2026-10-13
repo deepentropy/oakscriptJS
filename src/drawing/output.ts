@@ -4,7 +4,8 @@
  *
  * Conversion rules:
  * - x coordinates become bar times: a `bar_index` x is the time of that bar, or of a future bar after the last bar
- *   (see {@link barTime}); a `bar_time` x (UNIX ms, as PineScript) is converted to the unit of the bar times
+ *   (see {@link barTime}); a `bar_time` x (UNIX ms, as PineScript) is converted to the unit of the bar times and the
+ *   object keeps `xloc: 'bar_time'` (a renderer places a time after the last bar on the chart's own calendar)
  * - an object with an `na` coordinate (or a bar index before the first bar) is not drawn, as in PineScript
  * - a property the script did not set is omitted (the renderer uses the PineScript default); a colour set to `na`
  *   is 'transparent'
@@ -51,6 +52,9 @@ function compact<T extends object>(obj: T): T {
 
 const overlay = (flag: boolean | undefined): true | undefined => (flag ? true : undefined);
 
+/** xloc of the result: kept only for times given by the script ('bar_time'). */
+const xlocOut = (xloc: string | undefined): 'bar_time' | undefined => (xloc === 'bar_time' ? 'bar_time' : undefined);
+
 /**
  * Converts the live drawing objects of the registry. `bars` are the chart bars (their `time` in `timeUnit`, 's' by
  * default as lightweight-charts); they give the time of a bar index.
@@ -71,6 +75,7 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
       price1: l.y1,
       time2,
       price2: l.y2,
+      xloc: xlocOut(l.xloc),
       color: colorOut(l.color),
       width: l.width,
       style: l.style,
@@ -86,6 +91,7 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
     return compact({
       time,
       price: l.y,
+      xloc: xlocOut(l.xloc),
       text: l.text ?? '',
       color: colorOut(l.color),
       textColor: colorOut(l.textcolor),
@@ -109,6 +115,7 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
       price1: b.top,
       time2,
       price2: b.bottom,
+      xloc: xlocOut(b.xloc),
       bgColor: colorOut(b.bgcolor),
       borderColor: colorOut(b.border_color),
       borderWidth: b.border_width,
@@ -136,6 +143,7 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
     if (points.length === 0) return undefined;
     return compact({
       points,
+      xloc: xlocOut(p.xloc),
       curved: p.curved,
       closed: p.closed,
       lineColor: colorOut(p.line_color),
