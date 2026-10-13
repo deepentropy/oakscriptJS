@@ -216,9 +216,19 @@ describe('executeScript', () => {
     }, BARS);
     expect(run.alertConfig).toHaveLength(2);
     expect(run.result.alerts).toEqual([
-      { id: 'alert0', title: 'Always', message: 'msg', triggered: true },
-      { id: 'alert1', title: 'Never', message: undefined, triggered: false },
+      { id: 'alert0', title: 'Always', message: 'msg', triggered: true, times: BARS.map((b) => b.time) },
+      { id: 'alert1', title: 'Never', message: undefined, triggered: false, times: [] },
     ]);
+  });
+
+  test('alertcondition gives the times of the bars where it is true', () => {
+    const run = executeScript(() => {
+      indicator('Alert bars');
+      alertcondition(close.gt(close.offset(1)), 'Up');
+    }, BARS);
+    const want = BARS.filter((b, i) => i > 0 && b.close > BARS[i - 1]!.close).map((b) => b.time);
+    expect(run.result.alerts![0]!.times).toEqual(want);
+    expect(run.result.alerts![0]!.triggered).toBe(want[want.length - 1] === BARS[BARS.length - 1]!.time);
   });
 
   test('duplicate input titles get unique ids', () => {

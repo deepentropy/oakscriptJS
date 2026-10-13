@@ -154,12 +154,14 @@ export interface AlertConditionConfig {
   message?: string;
 }
 
-/** Per-run alert evaluation: whether the condition is true on the last bar. */
+/** Per-run alert evaluation: whether the condition is true on the last bar, and on which bars it is true. */
 export interface AlertState {
   id: string;
   title: string;
   message?: string;
   triggered: boolean;
+  /** Times of the bars (as given in the input bars) on which the condition is true (not na, not 0), oldest first. */
+  times: number[];
 }
 
 /** Handle returned by plot()/hline() so fill() can reference them. */
@@ -2379,8 +2381,15 @@ export function alertcondition(condition: Series, title: string, message?: strin
   const c = collector();
   const id = `alert${c.alertConfig.length}`;
   c.alertConfig.push({ id, title, message });
-  const last = condition.length() ? condition.last() : NaN;
-  c.alerts.push({ id, title, message, triggered: !isNA(last) && last !== 0 });
+  const values = condition.toArray();
+  const b = ctxBars.bars;
+  const times: number[] = [];
+  for (let i = 0; i < values.length && i < b.length; i++) {
+    const v = values[i]!;
+    if (!isNA(v) && v !== 0) times.push(b[i]!.time as number);
+  }
+  const last = values.length ? values[values.length - 1]! : NaN;
+  c.alerts.push({ id, title, message, triggered: !isNA(last) && last !== 0, times });
 }
 
 // ── Convenience re-exports ───────────────────────────────────────────────────

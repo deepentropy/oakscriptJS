@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.4] - 2026-10-13
+
+### Added
+
+- `alertcondition()` results (`result.alerts[]`) carry `times`: the times of the bars on which the condition is true
+  (not na, not 0), so a host can read every bar of a condition, not only the last one (`triggered`).
+
 ## [0.11.3] - 2026-10-13
 
 ### Added
