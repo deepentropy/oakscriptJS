@@ -31,11 +31,11 @@ describe('ta.roc', () => {
     expect(roc3[4]).toBeCloseTo(14.29, 2); // (120-105)/105 * 100 = 14.29%
   });
 
-  it('should return NaN for division by zero', () => {
+  it('should divide by a zero base as PineScript (#184)', () => {
     const source = [0, 10, 20];
     const roc1 = ta.roc(source, 1);
 
-    expect(roc1[1]).toBeNaN(); // oldValue is 0
+    expect(roc1[1]).toBe(Infinity); // oldValue is 0
   });
 
   it('should handle NaN values', () => {

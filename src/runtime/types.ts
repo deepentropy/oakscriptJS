@@ -70,9 +70,10 @@ export interface InputConfig {
   id: string;
   /**
    * Type of input. `timeframe` and `session` values are strings ("60", "1D", "0930-1600:23456";
-   * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds.
+   * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds. A `text_area`
+   * value is a string that can hold several lines.
    */
-  type: 'int' | 'float' | 'bool' | 'string' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol';
+  type: 'int' | 'float' | 'bool' | 'string' | 'text_area' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol';
   /** Default value */
   defval: unknown;
   /** Display title */
@@ -95,7 +96,7 @@ export interface InputConfig {
   confirm?: boolean;
   /**
    * Where the input value is shown (PineScript `display`); not set means the PineScript default: 'none' for
-   * bool, color and time inputs, 'all' for the others
+   * bool, color, time and text_area inputs, 'all' for the others
    */
   display?: 'all' | 'none' | 'data_window' | 'status_line';
   /**

@@ -348,6 +348,7 @@ export interface OHLC {
   high: series_float;
   low: series_float;
   close: series_float;
+  volume?: series_float;
 }
 
 // Constants

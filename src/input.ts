@@ -9,7 +9,7 @@
  */
 export interface InputValue<T> {
   /** Input type identifier */
-  type: 'int' | 'float' | 'source' | 'bool' | 'string' | 'timeframe' | 'session' | 'time' | 'symbol';
+  type: 'int' | 'float' | 'source' | 'bool' | 'string' | 'text_area' | 'timeframe' | 'session' | 'time' | 'symbol';
   /** Default value */
   defaultValue: T;
   /** Current value (initially equals defaultValue) */
@@ -89,9 +89,9 @@ export interface TimeInputOptions {
 }
 
 /**
- * Source type for price data
+ * Source type for price data (PineScript `input.source` built-in sources, `volume` included)
  */
-export type SourceType = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4';
+export type SourceType = 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4' | 'volume';
 
 /**
  * Input helper functions for creating indicator parameters
@@ -163,7 +163,7 @@ export const input = {
       defaultValue,
       value: defaultValue,
       title: options.title,
-      options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'],
+      options: ['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'volume'],
     };
   },
 
@@ -207,6 +207,30 @@ export const input = {
       value: defaultValue,
       title: options.title,
       options: options.options,
+    };
+  },
+
+  /**
+   * Create a multi-line text input parameter (PineScript `input.text_area`, #184)
+   * @param defaultValue - Default text; lines are separated by "
+"
+   * @param options - Additional options (title)
+   * @returns Input value object
+   *
+   * @example
+   * ```typescript
+   * const list = input.text_area('AAPL, MSFT
+BTCUSD', { title: 'Symbol list' });
+   * console.log(list.value); // 'AAPL, MSFT
+BTCUSD'
+   * ```
+   */
+  text_area(defaultValue: string, options: TimeInputOptions = {}): InputValue<string> {
+    return {
+      type: 'text_area' as const,
+      defaultValue,
+      value: defaultValue,
+      title: options.title,
     };
   },
 

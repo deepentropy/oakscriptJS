@@ -6,6 +6,7 @@
 import type { series_float, int, float, Source, Bar, OHLC } from '../types/index.js';
 import { sma, ema, wma, rma } from '../ta/index.js';
 import { Series } from '../runtime/series.js';
+import type { SourceType } from '../input.js';
 import { isDeleted } from '../drawing/registry.js';
 
 /**
@@ -165,7 +166,8 @@ export function getOpen(ohlc: OHLC): series_float {
  * Extract a specific source from OHLC data or bar array
  *
  * @param data - Bar array or OHLC data
- * @param source - Source type: 'close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'
+ * @param source - Source type: 'close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'volume' (NaN for a
+ *   bar without volume)
  * @returns Series of the requested source
  *
  * @example
@@ -177,7 +179,7 @@ export function getOpen(ohlc: OHLC): series_float {
  */
 export function getSource(
   data: Bar[] | OHLC,
-  source: 'close' | 'open' | 'high' | 'low' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4' = 'close'
+  source: SourceType = 'close'
 ): series_float {
   // Check if data is OHLC structure
   const isOHLC = 'open' in data && Array.isArray(data.open);
@@ -193,6 +195,7 @@ export function getSource(
       case 'hlc3': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]!) / 3);
       case 'ohlc4': return ohlc.open.map((o, i) => (o + ohlc.high[i]! + ohlc.low[i]! + ohlc.close[i]!) / 4);
       case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]! + ohlc.close[i]!) / 4);
+      case 'volume': return ohlc.volume ?? ohlc.close.map(() => NaN);
     }
   } else {
     const bars = data as Bar[];
@@ -205,6 +208,7 @@ export function getSource(
       case 'hlc3': return bars.map(b => (b.high + b.low + b.close) / 3);
       case 'ohlc4': return bars.map(b => (b.open + b.high + b.low + b.close) / 4);
       case 'hlcc4': return bars.map(b => (b.high + b.low + b.close + b.close) / 4);
+      case 'volume': return bars.map(b => b.volume ?? NaN);
     }
   }
 }
@@ -227,7 +231,7 @@ export function getSource(
  */
 export function getSourceSeries(
   bars: Bar[],
-  source: 'open' | 'high' | 'low' | 'close' | 'hl2' | 'hlc3' | 'ohlc4' | 'hlcc4' = 'close'
+  source: SourceType = 'close'
 ): Series {
   const open = new Series(bars, (bar) => bar.open);
   const high = new Series(bars, (bar) => bar.high);
@@ -243,6 +247,7 @@ export function getSourceSeries(
     case 'hlc3': return high.add(low).add(close).div(3);
     case 'ohlc4': return open.add(high).add(low).add(close).div(4);
     case 'hlcc4': return high.add(low).add(close).add(close).div(4);
+    case 'volume': return Series.fromBars(bars, 'volume');
     default: return close;
   }
 }

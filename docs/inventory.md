@@ -362,7 +362,8 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 1. `timestamp(dateString)` - RFC 2822 / ISO 8601 date string, GMT+0 when no time zone is given
 2. `timestamp(timezone, year, month, day, hour?, minute?, second?)` - calendar fields in a time zone
 3. `timestamp(year, month, day, hour?, minute?, second?)` - calendar fields in the host time zone (PineScript: exchange time zone)
-4. `year()`, `month()`, `dayofmonth()`, `dayofweek()`, `weekofyear()`, `hour()`, `minute()`, `second()` - `(time, timezone)`
+4. `year()`, `month()`, `dayofmonth()`, `dayofweek()`, `weekofyear()`, `hour()`, `minute()`, `second()` - `(time, timezone)`;
+   an na time gives the fields of time 0 in the time zone (`year(na)` is 1970 in UTC, 1969 in America/New_York)
 5. `timeframe.in_seconds(timeframe)` - timeframe string to seconds (1M = 2,628,003 s)
 6. `timeframe.from_seconds(seconds)` - seconds to timeframe string
 7. `inSession(time, session, timezone)` - custom: the session test of `time(timeframe, session, timezone)`
@@ -634,6 +635,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
 | `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
+| `input.text_area` | Implemented | multi-line string (`InputConfig.type` `'text_area'`, display `none` by default) |
 | input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active`, copied to `InputConfig`; `isInputActive()` evaluates `active` |
 | `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset, force_overlay; `plot.style_*`, `plot.linestyle_*` constants |
 | `hline()` | Implemented | static level, color, linestyle (default dashed), linewidth; `hline.style_*` constants |

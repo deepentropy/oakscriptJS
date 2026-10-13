@@ -64,9 +64,9 @@ describe('time calendar functions', () => {
     expect(time.weekofyear(monday, NY)).toBe(time.weekofyear(friday, NY) + 1);
   });
 
-  it('returns NaN for a NaN time', () => {
-    expect(time.hour(NaN, NY)).toBeNaN();
-    expect(time.weekofyear(NaN, 'UTC')).toBeNaN();
+  it('reads an na time as time 0 (#184)', () => {
+    expect(time.hour(NaN, NY)).toBe(19);
+    expect(time.weekofyear(NaN, 'UTC')).toBe(1);
   });
 
   // Accepted and rejected spellings as in PineScript

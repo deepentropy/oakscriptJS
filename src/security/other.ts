@@ -18,7 +18,8 @@
  *   holidays, closed hours), gaps off repeats the last value
  * - gaps on: a value only on the chart bar where the shown bar changes (and on the first chart bar), na on the others
  * - the last bar while it is open (`lastBarConfirmed` false) with gaps off: the realtime update shows the bar given by
- *   lookahead on (the open bar of a higher timeframe), with lookahead off as well
+ *   lookahead on (the open bar of a higher timeframe), with lookahead off as well; a lower timeframe keeps the rules
+ *   above (the last lower bar so far with lookahead off, the first one of the chart bar with lookahead on)
  *
  * Close times, trading days and time zones come from the exchange calendars of the chart and of the other symbol
  * (time zone and session, read by the session functions). Without them:
@@ -212,7 +213,9 @@ export function securityOther(
 
   // by trading day when both timeframes are D / W / M; by open time with an intraday side (#181)
   const daily = timeframe.info(chartTf).isdwm && timeframe.info(otherTf).isdwm;
-  const realtime = chart.lastBarConfirmed === false && !options.gaps;
+  // a lower timeframe keeps its rule on the open last bar: the last lower bar so far, not the first one (#184)
+  const realtime =
+    chart.lastBarConfirmed === false && !options.gaps && timeframe.in_seconds(otherTf) >= timeframe.in_seconds(chartTf);
   let on: number[] = [];
   if (options.lookahead || realtime) {
     if (daily) {

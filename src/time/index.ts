@@ -5,6 +5,8 @@
  * Every function takes an explicit time zone: UTC/GMT offset notation ("UTC-5",
  * "GMT+0530", "UTC+05:30") or an IANA name ("America/New_York"). The PineScript
  * default time zone (the exchange time zone, `syminfo.timezone`) is not known here.
+ * As in PineScript, the calendar fields (`year` ... `second`) of an na time are those
+ * of time 0 in the time zone.
  */
 
 import type { int, simple_int } from '../types/index.js';
@@ -72,8 +74,9 @@ export function timestamp(first: string | simple_int, ...rest: Array<simple_int 
 
 // ── Calendar fields ──────────────────────────────────────────────────────────
 
+// PineScript reads an na time as 0: year(na) is 1970 in UTC, 1969 in America/New_York (#184)
 function field(time: number, timezone: string, pick: (f: ReturnType<typeof zonedFields>) => number): int {
-  return Number.isNaN(time) ? NaN : pick(zonedFields(time, timezone));
+  return pick(zonedFields(Number.isNaN(time) ? 0 : time, timezone));
 }
 
 /**

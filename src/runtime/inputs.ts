@@ -246,6 +246,22 @@ function registerOnce(config: InputConfig): unknown {
 }
 
 /**
+ * Register a multi-line text input (PineScript `input.text_area`, #184)
+ * First call registers with defval, subsequent calls return current value
+ * @param defval - Default text; lines are separated by "
+"
+ * @param title - Display title (optional)
+ * @returns Current text
+ */
+export function input_text_area(defval: string, title?: string): string {
+  if (!getContext()) {
+    return defval;
+  }
+  const value = registerOnce({ id: generateInputId(title, defval, 'text_area'), type: 'text_area', defval, title });
+  return typeof value === 'string' ? value : defval;
+}
+
+/**
  * Register a timeframe input (PineScript `input.timeframe`)
  * First call registers with defval, subsequent calls return current value
  * @param defval - Default timeframe string ("60", "1D", "W"); "" means the chart timeframe

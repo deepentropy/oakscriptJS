@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `volume` as a source: `SourceType`, `input.source` options, `getSource` and `getSourceSeries` (NaN for a bar
+  without volume); `OHLC.volume` optional (#184).
+- `syminfo.description` in the script API, from `ChartContext.description` and, inside `request.security` of another
+  symbol, from `SymbolInfo.description` ("Apple Inc.", "Bitcoin / U.S. dollar") (#184).
+- `input.text_area` (script API, `input_text_area`, core `input.text_area`): a multi-line string input,
+  `InputConfig.type` `'text_area'`, display `none` by default as in PineScript (#184).
+
+### Changed
+
+- `ta.roc` with a zero base divides by zero as PineScript: +/-Infinity (a -0 base gives the opposite sign), NaN for
+  0 / 0; it was NaN (#184).
+- `year`, `month`, `dayofmonth`, `dayofweek`, `weekofyear`, `hour`, `minute`, `second` of an na time give the fields
+  of time 0 in the time zone, as PineScript (`year(na)` is 1970 in UTC, 1969 in America/New_York); they were NaN
+  (#184).
+- ZigZag library as the PineScript ZigZag library (v7 and v8): the first pivot moves its start with its end while it
+  is the only pivot; a pivot's volume sums `nz(volume[depth])`, not the volume of the current bar; the extension adds
+  `math.sum(volume, max(depth, 1))` of the last bar (#184). Ports that shifted the volume themselves must pass the bar
+  volume again.
+
+### Fixed
+
+- `securityOther` / `request.security` on a lower timeframe with an open last bar (`lastBarConfirmed` false,
+  `realtime`) showed the first lower bar of the chart bar; it shows the last lower bar so far, as PineScript (the
+  realtime rule only applies to the chart timeframe and higher ones) (#184).
+
 ## [0.11.4] - 2026-10-13
 
 ### Added

@@ -1088,6 +1088,7 @@ export function falling(source: Source, length: simple_int): series_bool {
  * - Equivalent to: `100 * (source - source[length]) / source[length]`
  * - Returns percentage change, e.g., 5.0 means 5% increase
  * - `na` values in the source series are included in calculations and will produce an `na` result
+ * - A zero `source[length]` gives +/-Infinity (NaN when `source` is 0 too), as in PineScript
  * - Useful for momentum analysis and trend strength measurement
  *
  * @example
@@ -1106,9 +1107,10 @@ export function roc(source: Source, length: simple_int): series_float {
       result.push(NaN);
     } else {
       const oldValue = source[i - length]!;
-      if (oldValue === 0 || isNaN(oldValue) || isNaN(source[i]!)) {
+      if (isNaN(oldValue) || isNaN(source[i]!)) {
         result.push(NaN);
       } else {
+        // a zero base divides by zero as in PineScript: +/-Infinity, NaN for 0 / 0 (#184)
         const changeValue = source[i]! - oldValue;
         result.push((100 * changeValue) / oldValue);
       }

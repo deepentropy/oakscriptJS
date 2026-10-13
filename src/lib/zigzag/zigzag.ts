@@ -8,6 +8,7 @@
  */
 
 import type { Bar } from '../../types/index.js';
+import { RunningSum, isNa } from '../../ta/running-sum.js';
 
 // ============ Types ============
 
@@ -44,9 +45,9 @@ export interface ZigZagPoint {
 export interface ZigZagPivot {
   /** True if this is a pivot high, false for pivot low */
   isHigh: boolean;
-  /** Cumulative volume from start to end */
+  /** Cumulative volume from start to end: the sum of `volume[depth]` over the bars that built the pivot */
   volume: number;
-  /** Starting point of this segment */
+  /** Starting point of this segment (the first pivot starts on its own end point) */
   start: ZigZagPoint;
   /** Ending point (the pivot) of this segment */
   end: ZigZagPoint;
@@ -83,7 +84,11 @@ export class ZigZag {
   private highBuffer: number[] = [];
   private lowBuffer: number[] = [];
   private timeBuffer: number[] = [];
+  private volumeBuffer: number[] = [];
   private barCount: number = 0;
+  /** math.sum(volume, max(depth, 1)) of the current bar, for the extension */
+  private remVol: number = NaN;
+  private readonly remVolSum = new RunningSum();
 
   constructor(settings?: Partial<ZigZagSettings>) {
     this.settings = { ...defaultSettings, ...settings };
@@ -99,10 +104,17 @@ export class ZigZag {
     this.highBuffer.push(bar.high);
     this.lowBuffer.push(bar.low);
     this.timeBuffer.push(bar.time);
+    const volume = bar.volume ?? NaN;
+    this.volumeBuffer.push(volume);
     this.barCount++;
 
     const depth = Math.max(2, Math.floor(this.settings.depth / 2));
-    this.sumVol += bar.volume ?? 0;
+    // PineScript: sumVol += nz(volume[depth]); the extension adds math.sum(volume, max(depth, 1)) (#184)
+    const pastVolume = this.volumeBuffer[this.volumeBuffer.length - 1 - depth];
+    this.sumVol += pastVolume === undefined || Number.isNaN(pastVolume) ? 0 : pastVolume;
+    const sumLength = Math.max(depth, 1);
+    this.remVol = isNa(volume) ? this.remVolSum.stepNa(sumLength) : this.remVolSum.step(volume, sumLength);
+    this.remVolSum.commit();
 
     // Need enough bars for pivot detection (depth bars before and after)
     if (this.barCount < depth * 2 + 1) return false;
@@ -128,7 +140,8 @@ export class ZigZag {
   }
 
   /**
-   * Get extension line to current bar (if extendLast enabled)
+   * Get extension line to current bar (if extendLast enabled). Call it after {@link update} of `currentBar`: its
+   * volume is the cumulative volume plus the volume of the last max(depth, 1) bars (na before that many bars).
    */
   getExtension(currentBar: Bar, barIndex: number): ZigZagPivot | null {
     if (!this.settings.extendLast) return null;
@@ -142,7 +155,7 @@ export class ZigZag {
 
     return {
       isHigh,
-      volume: this.sumVol,
+      volume: this.sumVol + this.remVol,
       start: last.end,
       end: { time: currentBar.time, barIndex, price },
     };
@@ -250,7 +263,8 @@ export class ZigZag {
         : point.price < last.end.price;
 
       if (isMoreExtreme) {
-        // Update the existing pivot to the new extreme
+        // Update the existing pivot to the new extreme; the first pivot moves its start with its end (#184)
+        if (this.pivots.length === 1) last.start = point;
         last.end = point;
         last.volume += this.sumVol;
         this.sumVol = 0;

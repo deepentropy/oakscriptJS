@@ -24,6 +24,7 @@ export {
   input_float,
   input_bool,
   input_string,
+  input_text_area,
   input_source,
   input_timeframe,
   input_session,
