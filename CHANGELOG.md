@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-13
+
+### Added
+
+- `drawingOutputs` keeps `xloc: 'bar_time'` on the lines, labels, boxes and polylines whose x coordinates are times
+  given by the script (xloc.bar_time), so a renderer can place a time after the last bar on the chart's own calendar
+  (trading sessions); bar-index drawings have no `xloc`.
+
 ## [0.11.2] - 2026-10-12
 
 ### Added
