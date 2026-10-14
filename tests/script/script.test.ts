@@ -13,6 +13,8 @@ import {
   plotarrow,
   bgcolor,
   alertcondition,
+  alert,
+  eachBar,
   ta,
   color,
   close,
@@ -229,6 +231,54 @@ describe('executeScript', () => {
     const want = BARS.filter((b, i) => i > 0 && b.close > BARS[i - 1]!.close).map((b) => b.time);
     expect(run.result.alerts![0]!.times).toEqual(want);
     expect(run.result.alerts![0]!.triggered).toBe(want[want.length - 1] === BARS[BARS.length - 1]!.time);
+  });
+
+  test('alert() calls inside eachBar: bar time, message and frequency (default once per bar)', () => {
+    const run = executeScript(() => {
+      indicator('Alert calls');
+      eachBar((c) => {
+        if (c.i > 0 && c.close > c.get(close, 1)) alert(`Up ${c.close}`);
+        if (c.i === 3) alert('Bar 3', alert.freq_all);
+        if (c.i === c.n - 1) alert('Last', alert.freq_once_per_bar_close);
+      });
+    }, BARS);
+    const ups = BARS.filter((b, i) => i > 0 && b.close > BARS[i - 1]!.close).map((b) => ({ time: b.time, message: `Up ${b.close}`, freq: 'once_per_bar' }));
+    const last = BARS[BARS.length - 1]!.time;
+    const want = [...ups, { time: BARS[3]!.time, message: 'Bar 3', freq: 'all' }, { time: last, message: 'Last', freq: 'once_per_bar_close' }];
+    const key = (x: { time: number; message: string }) => `${x.time}|${x.message}`;
+    expect([...run.result.alertCalls!].sort((a, b) => a.time - b.time || key(a).localeCompare(key(b)))).toEqual(want.sort((a, b) => a.time - b.time || key(a).localeCompare(key(b))));
+    // In call order on each bar.
+    expect(run.result.alertCalls!.filter((x) => x.time === BARS[3]!.time).map((x) => x.message)).toEqual(['Up 103', 'Bar 3']);
+    expect(run.hasAlertFunction).toBe(true);
+    expect(alert.freq_all).toBe('all');
+    expect(alert.freq_once_per_bar).toBe('once_per_bar');
+    expect(alert.freq_once_per_bar_close).toBe('once_per_bar_close');
+  });
+
+  test('alert() at the top level is a call on every bar; one text per bar, na makes no call', () => {
+    const run = executeScript(() => {
+      indicator('Top level');
+      alert('Every bar');
+      alert(BARS.map((b, i) => (i % 2 ? undefined : `even ${i}`)), alert.freq_all);
+    }, BARS);
+    const calls = run.result.alertCalls!;
+    expect(calls.filter((x) => x.message === 'Every bar').map((x) => x.time)).toEqual(BARS.map((b) => b.time));
+    expect(calls.filter((x) => x.freq === 'all')).toEqual(BARS.flatMap((b, i) => (i % 2 ? [] : [{ time: b.time, message: `even ${i}`, freq: 'all' }])));
+  });
+
+  test('a script without alert() calls has no alertCalls; a wrong frequency throws', () => {
+    const run = executeScript(() => {
+      indicator('None');
+      plot(close, 'c');
+    }, BARS);
+    expect(run.result.alertCalls).toBeUndefined();
+    expect(run.hasAlertFunction).toBe(false);
+    expect(() =>
+      executeScript(() => {
+        indicator('Bad');
+        alert('x', 'sometimes' as never);
+      }, BARS),
+    ).toThrow(/freq must be/);
   });
 
   test('duplicate input titles get unique ids', () => {

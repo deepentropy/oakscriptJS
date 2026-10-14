@@ -13,7 +13,7 @@
  *
  * Execution model: the host calls {@link executeScript} with the script body,
  * the bars and the current input values. Declaration calls (indicator, input.*,
- * plot, hline, fill, alertcondition) run as the body executes and are collected
+ * plot, hline, fill, alertcondition, alert) run as the body executes and are collected
  * into a {@link ScriptRunResult}: the declarative configs (inputConfig,
  * plotConfig, hlineConfig, fillConfig) plus an IndicatorResult with the plot
  * data. Re-running the body with new bars or inputs is PineScript's
@@ -145,7 +145,10 @@ export interface ScriptRunResult {
    * colours, candles and bars, and the drawings (labels, lines, boxes, linefills, polylines, tables) alive after the
    * last bar.
    */
-  result: IndicatorResult & { alerts?: AlertState[] };
+  result: IndicatorResult & { alerts?: AlertState[]; alertCalls?: AlertCall[] };
+  /** The script called alert() during the run (PineScript `hasAlertFunction` is known at compile time: a host that
+   *  needs it before any bar runs reads the source). */
+  hasAlertFunction: boolean;
 }
 
 export interface AlertConditionConfig {
@@ -162,6 +165,16 @@ export interface AlertState {
   triggered: boolean;
   /** Times of the bars (as given in the input bars) on which the condition is true (not na, not 0), oldest first. */
   times: number[];
+}
+
+/** How often an alert() call may trigger the alert (PineScript `alert.freq_*`). */
+export type AlertFrequency = 'all' | 'once_per_bar' | 'once_per_bar_close';
+
+/** One alert() call: the time of the bar it ran on (as given in the input bars), its message and frequency. */
+export interface AlertCall {
+  time: number;
+  message: string;
+  freq: AlertFrequency;
 }
 
 /** Handle returned by plot()/hline() so fill() can reference them. */
@@ -198,6 +211,8 @@ interface Collector {
   plotBars: Record<string, PlotBarData[]>;
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
+  alertCalls: AlertCall[];
+  hasAlertFunction: boolean;
   strategy?: StrategyRun;
 }
 
@@ -252,6 +267,8 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     plotBars: {},
     alertConfig: [],
     alerts: [],
+    alertCalls: [],
+    hasAlertFunction: false,
   };
 }
 
@@ -341,7 +358,9 @@ export function executeScript(
         plotBars: Object.keys(c.plotBars).length ? c.plotBars : undefined,
         ...drawingOutputs(ctxBars.bars, chartCtx.timeUnit),
         alerts: c.alerts.length ? c.alerts : undefined,
+        alertCalls: c.alertCalls.length ? c.alertCalls : undefined,
       },
+      hasAlertFunction: c.hasAlertFunction,
     };
   } finally {
     ctx = null;
@@ -2406,6 +2425,39 @@ export function alertcondition(condition: Series, title: string, message?: strin
   const last = values.length ? values[values.length - 1]! : NaN;
   c.alerts.push({ id, title, message, triggered: !isNA(last) && last !== 0, times });
 }
+
+const ALERT_FREQUENCIES: readonly AlertFrequency[] = ['all', 'once_per_bar', 'once_per_bar_close'];
+
+/**
+ * PineScript `alert(message, freq)`, with the `alert.freq_*` constants: the calls are collected per bar with their
+ * message and frequency (`result.alertCalls`) for the host's alert engine, which fires the ones made on the realtime
+ * bar. Called inside eachBar() / strategy.eachBar() it is a call on the current bar; at the top level of the script
+ * (which PineScript runs on every bar) it is a call on every bar, `message` then being a text or one text per bar
+ * (a bar whose text is na makes no call). Default frequency: `alert.freq_once_per_bar`.
+ */
+function alertImpl(message: string | ReadonlyArray<string | undefined>, freq: AlertFrequency = 'once_per_bar'): void {
+  const c = collector();
+  if (!ALERT_FREQUENCIES.includes(freq)) {
+    throw new Error(`alert(): freq must be alert.freq_all, alert.freq_once_per_bar or alert.freq_once_per_bar_close, not ${String(freq)}.`);
+  }
+  c.hasAlertFunction = true;
+  const b = ctxBars.bars;
+  const textAt = (i: number): string | undefined => (typeof message === 'string' ? message : message[i]);
+  const call = (i: number): void => {
+    const text = textAt(i);
+    if (text === undefined || text === null) return;
+    c.alertCalls.push({ time: b[i]!.time as number, message: String(text), freq });
+  };
+  if (currentBar >= 0) call(currentBar);
+  else for (let i = 0; i < b.length; i++) call(i);
+}
+
+/** PineScript `alert()` with the `alert.freq_*` constants: `alert('Crossed', alert.freq_once_per_bar_close)`. */
+export const alert = Object.assign(alertImpl, {
+  freq_all: 'all',
+  freq_once_per_bar: 'once_per_bar',
+  freq_once_per_bar_close: 'once_per_bar_close',
+} as const);
 
 // ── Convenience re-exports ───────────────────────────────────────────────────
 

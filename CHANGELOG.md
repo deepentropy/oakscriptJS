@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.5] - 2026-10-14
+
 ### Added
 
 - `volume` as a source: `SourceType`, `input.source` options, `getSource` and `getSourceSeries` (NaN for a bar
@@ -15,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   symbol, from `SymbolInfo.description` ("Apple Inc.", "Bitcoin / U.S. dollar") (#184).
 - `input.text_area` (script API, `input_text_area`, core `input.text_area`): a multi-line string input,
   `InputConfig.type` `'text_area'`, display `none` by default as in PineScript (#184).
+- `alert(message, freq)` in the script API with `alert.freq_all`, `alert.freq_once_per_bar` (default) and
+  `alert.freq_once_per_bar_close`: the calls go to `result.alertCalls` (bar time, message, frequency) for the host's
+  alert engine; inside `eachBar()` / `strategy.eachBar()` a call is on the current bar, at the top level of the
+  script on every bar (a text or one text per bar, na makes no call). `ScriptRunResult.hasAlertFunction` tells that
+  the run called it; types `AlertCall`, `AlertFrequency`.
 
 ### Changed
 

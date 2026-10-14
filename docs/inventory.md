@@ -2,7 +2,7 @@
 
 This document tracks the implementation status of all PineScript v6 functions against the official PineScript v6 language reference.
 
-**Last Updated:** 13/10/2026 (v0.11.4)
+**Last Updated:** 14/10/2026 (v0.11.5)
 
 ## Architecture Overview
 
@@ -59,7 +59,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
 | **syminfo** | 2 | Platform symbol metadata |
-| **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `plotcandle`, `plotbar`, `bgcolor`, `barcolor`, `alertcondition` |
+| **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `plotcandle`, `plotbar`, `bgcolor`, `barcolor`, `alertcondition`, `alert` |
 | **TOTAL** | **~118** | -- |
 
 ---
@@ -648,6 +648,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `plotcandle()` | Implemented | candles from open / high / low / close (no candle on a bar with an na value); static or per-bar color, wickcolor, bordercolor, display, force_overlay; `candleConfig` + `result.plotCandles` |
 | `plotbar()` | Implemented | OHLC bars; static or per-bar color, display, force_overlay; `candleConfig` + `result.plotBars` |
 | `alertcondition()` | Implemented | collected for the host alert engine |
+| `alert()` | Implemented | calls per bar (message, `alert.freq_*`) collected for the host alert engine |
 
 ### Per-bar execution
 
