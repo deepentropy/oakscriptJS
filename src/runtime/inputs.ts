@@ -8,6 +8,7 @@
 
 import type { InputConfig, InputOptions } from './types.js';
 import { getContext, recalculate } from './runtime.js';
+import { externalSource } from '../utils/source-resolver.js';
 
 // Track registered inputs for idempotent registration
 const registeredInputs = new Map<string, boolean>();
@@ -403,7 +404,11 @@ function getSourceData(
         const c = ohlcv.close[i];
         return h !== undefined && l !== undefined && c !== undefined ? (o + h + l + c) / 4 : NaN;
       });
-    default:
-      return ohlcv.close;
+    default: {
+      // Another source (study on study), else close.
+      const ext = externalSource(sourceName);
+      if (!ext) return ohlcv.close;
+      return ohlcv.close.map((_, i) => (ext as ArrayLike<number>)[i] ?? NaN);
+    }
   }
 }

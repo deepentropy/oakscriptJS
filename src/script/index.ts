@@ -78,6 +78,7 @@ import * as taSeries from '../ta-series.js';
 import * as colorCore from '../color/index.js';
 import { inputColorDefault } from '../color/parse.js';
 import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
+import { externalSource } from '../utils/source-resolver.js';
 import * as lineCore from '../line/index.js';
 import * as labelCore from '../label/index.js';
 import * as boxCore from '../box/index.js';
@@ -557,7 +558,13 @@ for (const s of [hl2, hlc3, ohlc4, hlcc4]) s.fullHistory = true;
 const SOURCES: Record<string, Series> = { open, high, low, close, volume, hl2, hlc3, ohlc4, hlcc4 };
 
 function sourceSeries(name: string): Series {
-  return SOURCES[name] ?? close;
+  const builtin = SOURCES[name];
+  if (builtin) return builtin;
+  // Another source (study on study): its values as the host gives them now, aligned with the bars.
+  const ext = externalSource(name);
+  if (!ext) return close;
+  const values = Array.from(ext);
+  return new Series(ctxBars, (_bar, i) => values[i] ?? NaN);
 }
 
 // ── Bound ta namespace ───────────────────────────────────────────────────────

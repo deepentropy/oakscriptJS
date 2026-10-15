@@ -8,6 +8,7 @@ import { sma, ema, wma, rma } from '../ta/index.js';
 import { Series } from '../runtime/series.js';
 import type { SourceType } from '../input.js';
 import { isDeleted } from '../drawing/registry.js';
+import { externalSource } from './source-resolver.js';
 
 /**
  * Validates that a series has sufficient data for a given length
@@ -197,6 +198,9 @@ export function getSource(
       case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]! + ohlc.close[i]!) / 4);
       case 'volume': return ohlc.volume ?? ohlc.close.map(() => NaN);
     }
+    const ext = externalSource(source);
+    if (!ext) return ohlc.close;
+    return ohlc.close.map((_, i) => (ext as ArrayLike<number>)[i] ?? NaN);
   } else {
     const bars = data as Bar[];
     switch (source) {
@@ -210,6 +214,10 @@ export function getSource(
       case 'hlcc4': return bars.map(b => (b.high + b.low + b.close + b.close) / 4);
       case 'volume': return bars.map(b => b.volume ?? NaN);
     }
+    // Another source (study on study), else close.
+    const ext = externalSource(source);
+    if (!ext) return bars.map(b => b.close);
+    return bars.map((_, i) => (ext as ArrayLike<number>)[i] ?? NaN);
   }
 }
 
@@ -248,7 +256,13 @@ export function getSourceSeries(
     case 'ohlc4': return open.add(high).add(low).add(close).div(4);
     case 'hlcc4': return high.add(low).add(close).add(close).div(4);
     case 'volume': return Series.fromBars(bars, 'volume');
-    default: return close;
+    default: {
+      // Another source (study on study), else close.
+      const ext = externalSource(source);
+      if (!ext) return close;
+      const values = Array.from({ length: bars.length }, (_, i) => ext[i] ?? NaN);
+      return new Series(bars, (_bar, i) => values[i] ?? NaN);
+    }
   }
 }
 
