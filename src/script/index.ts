@@ -136,6 +136,11 @@ export interface ScriptRunResult {
   barColorConfig: BarColorConfig[];
   /** plotcandle() / plotbar() declarations */
   candleConfig: CandleConfig[];
+  /**
+   * The plot(), plotshape(), plotchar(), plotarrow(), plotcandle() and plotbar() declarations in the order the
+   * script made them (the id of each in its own config). PineScript numbers a script's outputs in this order.
+   */
+  outputs: ScriptOutput[];
   defaultInputs: Record<string, unknown>;
   alertConfig: AlertConditionConfig[];
   /** Strategy properties (declared values, else the PineScript defaults) when the script declares strategy(). */
@@ -143,9 +148,10 @@ export interface ScriptRunResult {
   /**
    * The renderable output: plots keyed by plotConfig ids, plot-pair fills, markers, arrows, background and bar
    * colours, candles and bars, and the drawings (labels, lines, boxes, linefills, polylines, tables) alive after the
-   * last bar.
+   * last bar. `outputValues`: per plotshape() / plotchar() / plotarrow() id, the value of its series on each bar where
+   * it is not na (a condition gives 1 or 0), at the bar it was computed on (the offset not applied).
    */
-  result: IndicatorResult & { alerts?: AlertState[]; alertCalls?: AlertCall[] };
+  result: IndicatorResult & { alerts?: AlertState[]; alertCalls?: AlertCall[]; outputValues?: Record<string, TimeValue[]> };
   /** The script called alert() during the run (PineScript `hasAlertFunction` is known at compile time: a host that
    *  needs it before any bar runs reads the source). */
   hasAlertFunction: boolean;
@@ -177,6 +183,14 @@ export interface AlertCall {
   freq: AlertFrequency;
 }
 
+/** One output declaration of a script: plot(), plotshape() ('shape'), plotchar() ('char'), plotarrow() ('arrow'),
+ *  plotcandle() ('candle') or plotbar() ('bar'), with its id in plotConfig / shapeConfig / arrowConfig / candleConfig. */
+export interface ScriptOutput {
+  kind: 'plot' | 'shape' | 'char' | 'arrow' | 'candle' | 'bar';
+  id: string;
+  title?: string;
+}
+
 /** Handle returned by plot()/hline() so fill() can reference them. */
 export interface PlotHandle {
   id: string;
@@ -201,6 +215,7 @@ interface Collector {
   fillConfig: FillConfig[];
   shapeConfig: ShapeConfig[];
   markers: MarkerData[];
+  outputValues: Record<string, TimeValue[]>;
   arrowConfig: ArrowConfig[];
   arrows: ArrowData[];
   barColorConfig: BarColorConfig[];
@@ -209,6 +224,7 @@ interface Collector {
   candleConfig: CandleConfig[];
   plotCandles: Record<string, PlotCandleData[]>;
   plotBars: Record<string, PlotBarData[]>;
+  outputs: ScriptOutput[];
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
   alertCalls: AlertCall[];
@@ -257,6 +273,7 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     fillConfig: [],
     shapeConfig: [],
     markers: [],
+    outputValues: {},
     arrowConfig: [],
     arrows: [],
     barColorConfig: [],
@@ -265,6 +282,7 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     candleConfig: [],
     plotCandles: {},
     plotBars: {},
+    outputs: [],
     alertConfig: [],
     alerts: [],
     alertCalls: [],
@@ -343,6 +361,7 @@ export function executeScript(
       arrowConfig: c.arrowConfig,
       barColorConfig: c.barColorConfig,
       candleConfig: c.candleConfig,
+      outputs: c.outputs,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
       strategyConfig: c.strategy?.properties,
@@ -351,6 +370,7 @@ export function executeScript(
         plots: c.plots,
         fills: c.fills.length ? c.fills : undefined,
         markers: c.markers.length ? c.markers : undefined,
+        outputValues: Object.keys(c.outputValues).length ? c.outputValues : undefined,
         arrows: c.arrows.length ? c.arrows : undefined,
         bgColors: c.bgColors.length ? c.bgColors : undefined,
         barColors: c.barColors.length ? c.barColors : undefined,
@@ -690,6 +710,7 @@ function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {
     histbase: options.histbase,
     forceOverlay: options.force_overlay,
   });
+  c.outputs.push({ kind: 'plot', id, title: title ?? id });
   const values = series.toArray();
   const b = bars();
   const data: TimeValue[] = [];
@@ -899,6 +920,18 @@ function markerPosition(location: MarkerLocation, shape: ShapeStyle | undefined)
 /** Default colour of plotshape / plotchar markers. */
 const MARKER_COLOR = '#2962FF';
 
+/** The value of an output's series on each bar where it is not na (a condition: 1 or 0), at the bar it was computed
+ *  on: what PineScript gives for the output in an alert message. */
+function outputSeries(values: ArrayLike<unknown>, b: readonly Bar[]): TimeValue[] {
+  const series: TimeValue[] = [];
+  for (let i = 0; i < b.length; i++) {
+    const v = values[i];
+    if (typeof v === 'number' && Number.isFinite(v)) series.push({ time: b[i]!.time, value: v });
+    else if (typeof v === 'boolean') series.push({ time: b[i]!.time, value: v ? 1 : 0 });
+  }
+  return series;
+}
+
 /** Shared emitter for plotshape()/plotchar(). Emits one marker per bar where
  *  the condition is truthy (not na, not 0). A plotchar marker has the shape 'circle' and its character in `char`. */
 function emitMarkers(
@@ -926,6 +959,7 @@ function emitMarkers(
     offset: options.offset,
     forceOverlay: options.force_overlay,
   });
+  c.outputs.push({ kind, id, title });
   const shapeStyle = kind === 'shape' ? (style as ShapeStyle) : undefined;
   const template: Omit<MarkerData, 'time'> = {
     position: markerPosition(location, shapeStyle),
@@ -942,6 +976,7 @@ function emitMarkers(
   const values = condition.toArray();
   const b = bars();
   const off = options.offset ?? 0;
+  c.outputValues[id] = outputSeries(values, b);
   for (let i = 0; i < b.length; i++) {
     const v = values[i];
     if (v === undefined || Number.isNaN(v) || v === 0) continue;
@@ -1001,9 +1036,11 @@ export function plotarrow(series: Series, title?: string, options: PlotArrowOpti
     display: options.display,
     forceOverlay: options.force_overlay,
   });
+  c.outputs.push({ kind: 'arrow', id, title });
   const values = series.toArray();
   const b = bars();
   const off = options.offset ?? 0;
+  c.outputValues[id] = outputSeries(values, b);
   for (let i = 0; i < b.length; i++) {
     const v = values[i];
     if (v === undefined || Number.isNaN(v) || v === 0) continue;
@@ -1135,6 +1172,7 @@ export function plotcandle(
     display: options.display,
     forceOverlay: options.force_overlay,
   });
+  c.outputs.push({ kind: 'candle', id, title });
   const b = bars();
   c.plotCandles[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
     const candle: PlotCandleData = { time: b[i]!.time, ...ohlc };
@@ -1171,6 +1209,7 @@ export function plotbar(
     display: options.display,
     forceOverlay: options.force_overlay,
   });
+  c.outputs.push({ kind: 'bar', id, title });
   const b = bars();
   c.plotBars[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
     const bar: PlotBarData = { time: b[i]!.time, ...ohlc };

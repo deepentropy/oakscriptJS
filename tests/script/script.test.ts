@@ -11,6 +11,8 @@ import {
   plotshape,
   plotchar,
   plotarrow,
+  plotcandle,
+  plotbar,
   bgcolor,
   alertcondition,
   alert,
@@ -279,6 +281,48 @@ describe('executeScript', () => {
         alert('x', 'sometimes' as never);
       }, BARS),
     ).toThrow(/freq must be/);
+  });
+
+  test('outputs lists plot / plotshape / plotchar / plotarrow / plotcandle / plotbar in declaration order', () => {
+    const run = executeScript(() => {
+      indicator('Outputs');
+      plotshape(close.gt(104), 'Up');
+      plot(close, 'Close');
+      plotchar(close.sub(100), 'Delta');
+      plotcandle(close, close, close, close, 'Candles');
+      plotarrow(close.sub(105), 'Arrow');
+      plot(close.mul(2), 'Double');
+      plotbar(close, close, close, close);
+    }, BARS);
+    expect(run.outputs).toEqual([
+      { kind: 'shape', id: 'shape0', title: 'Up' },
+      { kind: 'plot', id: 'plot0', title: 'Close' },
+      { kind: 'char', id: 'char0', title: 'Delta' },
+      { kind: 'candle', id: 'plotcandle0', title: 'Candles' },
+      { kind: 'arrow', id: 'arrow0', title: 'Arrow' },
+      { kind: 'plot', id: 'plot1', title: 'Double' },
+      { kind: 'bar', id: 'plotbar0', title: undefined },
+    ]);
+    // A condition gives 1 / 0 on every bar; a number its value; the offset is not applied.
+    expect(run.result.outputValues!['shape0']).toEqual(BARS.map((b) => ({ time: b.time, value: b.close > 104 ? 1 : 0 })));
+    expect(run.result.outputValues!['char0']).toEqual(BARS.map((b) => ({ time: b.time, value: b.close - 100 })));
+    // An arrow's series on every bar, 0 included (the arrows themselves leave 0 out).
+    expect(run.result.outputValues!['arrow0']).toEqual(BARS.map((b) => ({ time: b.time, value: b.close - 105 })));
+  });
+
+  test('outputValues leaves na out and ignores the offset', () => {
+    const run = executeScript(() => {
+      indicator('Shape values');
+      plotchar(ta.sma(close, 3), 'SMA', { offset: 2 });
+    }, BARS);
+    const values = run.result.outputValues!['char0']!;
+    expect(values.map((v) => v.time)).toEqual(BARS.slice(2).map((b) => b.time));
+    expect(values[0]!.value).toBeCloseTo((100 + 102 + 101) / 3, 10);
+    const noShapes = executeScript(() => {
+      indicator('None');
+      plot(close, 'c');
+    }, BARS);
+    expect(noShapes.result.outputValues).toBeUndefined();
   });
 
   test('duplicate input titles get unique ids', () => {

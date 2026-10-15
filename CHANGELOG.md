@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ScriptRunResult.outputs`: the `plot()`, `plotshape()`, `plotchar()`, `plotarrow()`, `plotcandle()` and `plotbar()`
+  declarations in the order the script made them (kind, id in its config, title), type `ScriptOutput`. PineScript
+  numbers a script's outputs in this order (alert message placeholders `{{plot_<n>}}`).
+- `result.outputValues`: per `plotshape()` / `plotchar()` / `plotarrow()` id, the value of its series on each bar where
+  it is not na (a condition gives 1 or 0), at the bar it was computed on (the offset not applied), what the output
+  gives in an alert message.
+
 ## [0.11.5] - 2026-10-14
 
 ### Added
