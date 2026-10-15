@@ -124,6 +124,7 @@ export { rgb, from_hex as color_from_hex, new_color } from './color/index.js';
 
 // Export chart data utilities
 export { ohlcFromBars, getClose, getHigh, getLow, getOpen, getSource, getSourceSeries, at, div } from './utils/index.js';
+export { setSourceResolver, externalSource, BUILTIN_SOURCES, type SourceResolver } from './utils/source-resolver.js';
 
 // Export libraries (ZigZag, etc.)
 export * from './lib/index.js';
@@ -219,7 +220,7 @@ export type { LightweightSeriesDefinitions } from './runtime/adapters/Lightweigh
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter.js';
 
 // Version
-export const VERSION = '0.11.6';
+export const VERSION = '0.11.7';
 
 /**
  * Library information

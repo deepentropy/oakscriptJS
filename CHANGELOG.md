@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.7] - 2026-10-15
+
+### Added
+
+- Sources other than the bar fields (a study calculated on another study's output): `setSourceResolver(fn)` lets the
+  host resolve a source input value such as `"<sourceId>$<plotIndex>"` to values aligned with the bars of the
+  calculation; `getSource`, `getSourceSeries`, `input.source` and the runtime `input_source` read it, a name the host
+  does not know still falls back to close. Also `externalSource(name)` and `BUILTIN_SOURCES`.
+
 ## [0.11.6] - 2026-10-15
 
 ### Added
