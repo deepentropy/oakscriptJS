@@ -303,9 +303,18 @@ function cutOldest<K extends DrawingKind>(
   return cut;
 }
 
+/** Kinds of the objects created since the last reset (a table counts too), in no order. */
+const created = new Set<DrawingKind>();
+
+/** The kinds of drawing objects created since the last {@link resetDrawings}, even when none is alive any more. */
+export function createdDrawingKinds(): DrawingKind[] {
+  return [...created];
+}
+
 /** Records a new object and deletes the oldest objects of its kind when the count is too high. */
 export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): DrawingTypes[K] {
   const list = live[kind];
+  created.add(kind);
   if (lastBar && isCounted(kind)) return registerLast(lastBar, kind, obj);
   if (isCounted(kind) && pending[kind] >= PENDING_RESET[kind]) pending[kind] = 0;
   list.push(obj);
@@ -368,6 +377,7 @@ export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
 /** Forgets all objects (without deleting them) and sets the maximum counts (default 50). */
 export function resetDrawings(newLimits: DrawingLimits = {}): void {
   for (const kind of Object.keys(live) as DrawingKind[]) live[kind].length = 0;
+  created.clear();
   held = new WeakMap();
   releasedAt = new WeakMap();
   heldAt = new WeakMap();

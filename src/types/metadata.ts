@@ -184,6 +184,8 @@ export interface PlotData {
  * Horizontal line data
  */
 export interface HLineData {
+    /** Id of the declaration that produced it (its config entry) */
+    id?: string;
   /** Y-axis value */
   value: number;
   /** Line options */
@@ -194,6 +196,8 @@ export interface HLineData {
  * Fill data (area between two plots)
  */
 export interface FillData {
+    /** Id of the declaration that produced it (its config entry) */
+    id?: string;
   /** First plot index or name */
   plot1: number | string;
   /** Second plot index or name */
@@ -345,6 +349,8 @@ export interface ArrowData {
  * Per-bar candle color (barcolor() output)
  */
 export interface BarColorData {
+    /** Id of the declaration that produced it (its config entry) */
+    id?: string;
   /** Time of the colored bar (offset already applied) */
   time: number;
   /** Color */
@@ -355,6 +361,8 @@ export interface BarColorData {
  * Per-bar background color (bgcolor() output)
  */
 export interface BgColorData {
+    /** Id of the declaration that produced it (its config entry) */
+    id?: string;
   /** Time of the colored bar (offset already applied) */
   time: number;
   /** Color (with its transparency) */

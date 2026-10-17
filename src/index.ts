@@ -51,6 +51,8 @@ export {
   holdDrawing,
   releaseDrawing,
   varDrawing,
+  createdDrawingKinds,
+  type DrawingKind,
   type DrawingLimits,
   type DrawingVariable,
 } from './drawing/registry.js';
@@ -204,6 +206,8 @@ export type {
   FillConfig,
   ArrowConfig,
   CandleConfig,
+  ShapeConfig,
+  BarColorConfig,
 } from './runtime/types.js';
 
 // Strategy types and constants (the script API forwards strategy.* calls to a host engine)
@@ -220,7 +224,7 @@ export type { LightweightSeriesDefinitions } from './runtime/adapters/Lightweigh
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter.js';
 
 // Version
-export const VERSION = '0.11.7';
+export const VERSION = '0.12.0';
 
 /**
  * Library information

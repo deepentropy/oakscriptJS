@@ -88,7 +88,7 @@ import * as tableCore from '../table/index.js';
 import * as chartPointCore from '../chartpoint/index.js';
 import * as textCore from '../text/index.js';
 import * as mathCore from '../math/index.js';
-import { resetDrawings, setDrawingBar, setDrawingLimits } from '../drawing/registry.js';
+import { createdDrawingKinds, resetDrawings, setDrawingBar, setDrawingLimits, type DrawingKind } from '../drawing/registry.js';
 export { holdDrawing, releaseDrawing, varDrawing, type DrawingVariable } from '../drawing/registry.js';
 import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
@@ -137,6 +137,11 @@ export interface ScriptRunResult {
   barColorConfig: BarColorConfig[];
   /** plotcandle() / plotbar() declarations */
   candleConfig: CandleConfig[];
+  /**
+   * The kinds of drawing objects (label.new, line.new, box.new, linefill.new, polyline.new, table.new) the run
+   * created, even the ones deleted since: the drawing groups a user can show or hide.
+   */
+  drawingKinds: DrawingKind[];
   /**
    * The plot(), plotshape(), plotchar(), plotarrow(), plotcandle() and plotbar() declarations in the order the
    * script made them (the id of each in its own config). PineScript numbers a script's outputs in this order.
@@ -362,6 +367,7 @@ export function executeScript(
       arrowConfig: c.arrowConfig,
       barColorConfig: c.barColorConfig,
       candleConfig: c.candleConfig,
+      drawingKinds: createdDrawingKinds(),
       outputs: c.outputs,
       defaultInputs: c.defaultInputs,
       alertConfig: c.alertConfig,
@@ -698,6 +704,8 @@ export interface ScriptPlotOptions {
   histbase?: number;
   /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
   force_overlay?: boolean;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 /** PineScript `plot()` — declares the plot and supplies its data in one call. */
@@ -716,6 +724,7 @@ function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {
     display: options.display,
     histbase: options.histbase,
     forceOverlay: options.force_overlay,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   c.outputs.push({ kind: 'plot', id, title: title ?? id });
   const values = series.toArray();
@@ -756,6 +765,8 @@ export interface ScriptHLineOptions {
   /** Line style; default dashed (PineScript). */
   linestyle?: HLineConfig['linestyle'];
   linewidth?: number;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 /** PineScript `hline()` — a static horizontal level. Default line style: dashed (PineScript). */
@@ -769,6 +780,7 @@ function hlineImpl(price: number, title?: string, options: ScriptHLineOptions = 
     color: options.color,
     linestyle: options.linestyle ?? 'dashed',
     linewidth: options.linewidth,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   return { id, kind: 'hline' };
 }
@@ -784,6 +796,8 @@ export interface ScriptFillOptions {
   /** Static color, or a per-bar color array from color.when(). */
   color?: string | string[];
   title?: string;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 /** A fill colour argument: a colour, na (null / undefined), or a per-bar array from color.when(). */
@@ -801,14 +815,20 @@ function perBarColors(c: ScriptFillColor, n: number): Array<string | null> {
   return new Array<string | null>(n).fill(c ?? null);
 }
 
+/** The colour of every bar when it is the same on all of them (and not na). */
+function sameColor(colors: Array<string | null>): string | undefined {
+  const first = colors[0];
+  return first && colors.every((x) => x === first) ? first : undefined;
+}
+
 /**
  * PineScript `fill()`, with the three PineScript overloads (positional arguments), for two plots or two hlines:
  * - `fill(p1, p2, color?, title?, ...)`
  * - `fill(p1, p2, top_value, bottom_value, top_color, bottom_color, title?, ...)`: gradient fill; values and colours
  *   can change per bar (a Series / a color.when() array)
  * - `fill(p1, p2, { color, title })`: options object (oakscriptjs form, kept for existing scripts)
- * Arguments that change only how the chart shows the fill (`editable`, `show_last`, `fillgaps`, `display`) are
- * accepted and not used.
+ * `editable = false` keeps the fill out of the Style settings; `show_last`, `fillgaps` and `display` are accepted
+ * and not used. Every fill has an id in `fillConfig` (the fills between plots also list it on their data).
  */
 export function fill(a: PlotHandle, b: PlotHandle, options?: ScriptFillOptions): void;
 export function fill(a: PlotHandle, b: PlotHandle, color: ScriptFillColor, title?: string, ...rest: unknown[]): void;
@@ -829,6 +849,7 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
   let staticColor: string | undefined;
   let title: string | undefined;
   let gradient: FillGradient | undefined;
+  let editable: unknown;
   if (typeof third === 'number' || third instanceof Series) {
     const n = ctxBars.bars.length;
     gradient = {
@@ -838,30 +859,39 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
       bottomColor: perBarColors(args[3] as ScriptFillColor, n),
     };
     title = args[4] as string | undefined;
+    editable = args[5];
   } else if (third !== null && typeof third === 'object' && !Array.isArray(third)) {
     const options = third as ScriptFillOptions;
     perBar = Array.isArray(options.color) ? options.color : undefined;
     staticColor = typeof options.color === 'string' ? options.color : undefined;
     title = options.title;
+    editable = options.editable;
   } else {
     const color = third as ScriptFillColor;
     perBar = Array.isArray(color) ? color.map((x) => x ?? '') : undefined;
     staticColor = typeof color === 'string' ? color : undefined;
     title = args[1] as string | undefined;
+    editable = args[2];
   }
-  if (a.kind === 'hline' && b.kind === 'hline') {
-    c.fillConfig.push({
-      id: `fill${c.fillConfig.length}`,
-      plot1: a.id,
-      plot2: b.id,
-      color: staticColor,
-      colors: perBar,
-      gradient,
-      title,
-    });
-    return;
-  }
+  const id = `fill${c.fillConfig.length}`;
+  const topColor = gradient && sameColor(gradient.topColor);
+  const bottomColor = gradient && sameColor(gradient.bottomColor);
+  const hlines = a.kind === 'hline' && b.kind === 'hline';
+  c.fillConfig.push({
+    id,
+    plot1: a.id,
+    plot2: b.id,
+    color: staticColor,
+    // the per-bar data of a fill between plots is in the result
+    ...(hlines ? { colors: perBar, gradient } : {}),
+    title,
+    ...(topColor ? { topColor } : {}),
+    ...(bottomColor ? { bottomColor } : {}),
+    ...(editable === false ? { editable: false } : {}),
+  });
+  if (hlines) return;
   c.fills.push({
+    id,
     plot1: a.id,
     plot2: b.id,
     options: { color: staticColor, title },
@@ -883,6 +913,8 @@ export interface PlotShapeOptions {
   tooltip?: string;
   /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
   force_overlay?: boolean;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 export interface PlotCharOptions extends Omit<PlotShapeOptions, 'style'> {
@@ -965,6 +997,7 @@ function emitMarkers(
     size: options.size,
     offset: options.offset,
     forceOverlay: options.force_overlay,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   c.outputs.push({ kind, id, title });
   const shapeStyle = kind === 'shape' ? (style as ShapeStyle) : undefined;
@@ -1018,6 +1051,8 @@ export interface PlotArrowOptions {
   display?: ArrowConfig['display'];
   /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
   force_overlay?: boolean;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 /**
@@ -1042,6 +1077,7 @@ export function plotarrow(series: Series, title?: string, options: PlotArrowOpti
     offset: options.offset,
     display: options.display,
     forceOverlay: options.force_overlay,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   c.outputs.push({ kind: 'arrow', id, title });
   const values = series.toArray();
@@ -1065,11 +1101,21 @@ export function plotarrow(series: Series, title?: string, options: PlotArrowOpti
 function emitBarColors(
   kind: 'bgcolor' | 'barcolor',
   colors: string | Array<string | undefined>,
-  options: { offset?: number; title?: string; force_overlay?: boolean }
+  options: { offset?: number; title?: string; force_overlay?: boolean; editable?: boolean }
 ): void {
   const c = collector();
   const id = `${kind}${c.barColorConfig.filter((x) => x.kind === kind).length}`;
-  c.barColorConfig.push({ id, kind, title: options.title, offset: options.offset, forceOverlay: options.force_overlay });
+  c.barColorConfig.push({
+    id,
+    kind,
+    title: options.title,
+    offset: options.offset,
+    forceOverlay: options.force_overlay,
+    // a constant colour is a palette of one colour (PineScript)
+    ...(typeof colors === 'string' ? { palette: [colors] } : {}),
+    ...(options.editable === false ? { editable: false } : {}),
+    outputIndex: c.outputs.length,
+  });
   const b = bars();
   const off = options.offset ?? 0;
   const target: BgColorData[] = kind === 'bgcolor' ? c.bgColors : c.barColors;
@@ -1079,7 +1125,7 @@ function emitBarColors(
     if (!col) continue;
     const j = i + off;
     if (j < 0 || j >= b.length) continue;
-    target.push(forceOverlay ? { time: b[j]!.time, color: col, forceOverlay } : { time: b[j]!.time, color: col });
+    target.push(forceOverlay ? { time: b[j]!.time, color: col, id, forceOverlay } : { time: b[j]!.time, color: col, id });
   }
 }
 
@@ -1089,7 +1135,7 @@ function emitBarColors(
  */
 export function bgcolor(
   colors: string | Array<string | undefined>,
-  options: { offset?: number; title?: string; force_overlay?: boolean } = {}
+  options: { offset?: number; title?: string; force_overlay?: boolean; editable?: boolean } = {}
 ): void {
   emitBarColors('bgcolor', colors, options);
 }
@@ -1097,7 +1143,7 @@ export function bgcolor(
 /** PineScript `barcolor()` — per-bar candle color override. */
 export function barcolor(
   colors: string | Array<string | undefined>,
-  options: { title?: string } = {}
+  options: { title?: string; editable?: boolean } = {}
 ): void {
   emitBarColors('barcolor', colors, options);
 }
@@ -1115,6 +1161,8 @@ export interface PlotCandleOptions {
   display?: CandleConfig['display'];
   /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
   force_overlay?: boolean;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 export interface PlotBarOptions {
@@ -1123,6 +1171,8 @@ export interface PlotBarOptions {
   display?: CandleConfig['display'];
   /** Draw on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false. */
   force_overlay?: boolean;
+  /** False: not listed in the Style settings of the study (PineScript `editable`); default true. */
+  editable?: boolean;
 }
 
 /** Colour of bar i: undefined when the argument is not given, 'transparent' for an na entry. */
@@ -1178,6 +1228,7 @@ export function plotcandle(
     borderColor: staticColor(options.bordercolor),
     display: options.display,
     forceOverlay: options.force_overlay,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   c.outputs.push({ kind: 'candle', id, title });
   const b = bars();
@@ -1215,6 +1266,7 @@ export function plotbar(
     color: staticColor(options.color),
     display: options.display,
     forceOverlay: options.force_overlay,
+    ...(options.editable === false ? { editable: false } : {}),
   });
   c.outputs.push({ kind: 'bar', id, title });
   const b = bars();

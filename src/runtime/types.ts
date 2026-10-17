@@ -134,6 +134,11 @@ export interface PlotConfig {
     linestyle?: 'solid' | 'dashed' | 'dotted';
     /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
     forceOverlay?: boolean;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
 }
 
 /**
@@ -160,6 +165,11 @@ export interface ArrowConfig {
     display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
     /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
     forceOverlay?: boolean;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
 }
 
 /**
@@ -183,6 +193,17 @@ export interface CandleConfig {
     display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
     /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
     forceOverlay?: boolean;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
+    /**
+     * The colours the study chooses from per bar (the PineScript palette of the body / wick / border colour), when they
+     * are a fixed set: a user can change each of them. Unset: a single colour (`color` / `wickColor` / `borderColor`)
+     * or colours computed per bar
+     */
+    palettes?: { color?: string[]; wickColor?: string[]; borderColor?: string[] };
 }
 
 /**
@@ -204,6 +225,11 @@ export interface HLineConfig {
     linewidth?: number;
     /** Display mode */
     display?: 'all' | 'none' | 'data_window' | 'status_line' | 'pane';
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
 }
 
 /**
@@ -227,6 +253,20 @@ export interface FillConfig {
     title?: string;
     /** Whether the fill is visible (can be boolean or expression string for dynamic visibility) */
     visible?: boolean | string;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
+    /** Gradient fill: its colour at the top value when it is the same on every bar */
+    topColor?: string;
+    /** Gradient fill: its colour at the bottom value when it is the same on every bar */
+    bottomColor?: string;
+    /**
+     * The colours the fill chooses from per bar when they are a fixed set (PineScript palette): a user can change each
+     * of them. Unset: `color` (one colour) or colours computed per bar
+     */
+    palette?: string[];
 }
 
 /**
@@ -258,6 +298,16 @@ export interface ShapeConfig {
     offset?: number;
     /** Drawn on the main chart pane even when the script is not an overlay (PineScript `force_overlay`); default false */
     forceOverlay?: boolean;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
+    /**
+     * The colours the output chooses from per bar when they are a fixed set (PineScript palette): a user can change
+     * each of them. Unset: `color` (one colour) or colours computed per bar
+     */
+    palette?: string[];
 }
 
 /**
@@ -275,6 +325,21 @@ export interface BarColorConfig {
     /** bgcolor only: drawn on the main chart pane even when the script is not an overlay (PineScript
      *  `force_overlay`); default false */
     forceOverlay?: boolean;
+    /**
+     * False: the output is not listed in the Style settings of the study (PineScript `editable = false`); it is still
+     * drawn. Default true
+     */
+    editable?: boolean;
+    /**
+     * The colours the output chooses from per bar (PineScript palette): a user can change each of them. A colour given
+     * as a constant is a palette of one colour. Unset: colours computed per bar
+     */
+    palette?: string[];
+    /**
+     * Where the output comes among the plot / shape / character / arrow / candle outputs (`outputs` of the script): it
+     * was declared after the first `outputIndex` of them. The Style settings list it there. Unset: after all of them
+     */
+    outputIndex?: number;
 }
 
 /**

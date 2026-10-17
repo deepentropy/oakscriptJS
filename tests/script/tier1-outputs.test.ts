@@ -152,7 +152,7 @@ describe('bgcolor', () => {
     const bg = run.result.bgColors!;
     // closes > 106: 108, 107, 109 → 3 entries
     expect(bg).toHaveLength(3);
-    expect(bg[0]).toEqual({ time: BARS[7]!.time, color: 'rgba(0,0,255,0.1)' });
+    expect(bg[0]).toEqual({ time: BARS[7]!.time, color: 'rgba(0,0,255,0.1)', id: 'bgcolor0' });
     expect(run.barColorConfig[0]).toMatchObject({ id: 'bgcolor0', kind: 'bgcolor' });
   });
 
@@ -179,7 +179,7 @@ describe('bgcolor', () => {
       indicator('BgOverlay', { overlay: false });
       bgcolor('#FF000020', { force_overlay: true });
     }, BARS);
-    expect(run.result.bgColors![0]).toEqual({ time: BARS[0]!.time, color: '#FF000020', forceOverlay: true });
+    expect(run.result.bgColors![0]).toEqual({ time: BARS[0]!.time, color: '#FF000020', id: 'bgcolor0', forceOverlay: true });
   });
 });
 

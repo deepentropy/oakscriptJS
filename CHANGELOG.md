@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-17
+
+### Added
+
+- What a host needs for the Style settings of a study (every output a user can show, hide or recolour):
+  - an `id` on the per-bar data of `bgcolor()` / `barcolor()` (`BgColorData` / `BarColorData`) and on the fills between
+    plots (`FillData`); `HLineData.id` for libraries that emit hlines
+  - every `fill()` has a `fillConfig` entry (fills between plots too, their per-bar data staying in the result)
+  - `editable: false` (PineScript `editable`) on PlotConfig, HLineConfig, FillConfig, ShapeConfig, ArrowConfig,
+    BarColorConfig and CandleConfig: the output is drawn but not listed
+  - default colours: `palette` on ShapeConfig / FillConfig / BarColorConfig (a constant `bgcolor` / `barcolor` colour
+    is a palette of one colour), `palettes` on CandleConfig, `topColor` / `bottomColor` on FillConfig (gradient
+    colours that are the same on every bar)
+  - `BarColorConfig.outputIndex`: where a `bgcolor()` / `barcolor()` comes among the script's outputs
+  - `ScriptRunResult.drawingKinds`: the kinds of drawing objects the run created (deleted ones included),
+    `createdDrawingKinds()`, type `DrawingKind`
+- `ShapeConfig` and `BarColorConfig` exported from the package root.
+
 ## [0.11.7] - 2026-10-15
 
 ### Added
