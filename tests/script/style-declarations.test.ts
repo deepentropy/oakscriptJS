@@ -23,6 +23,7 @@ import {
   high,
   low,
   close,
+  fixnan,
 } from '../../src/script';
 import type { Bar } from '../../src/types';
 
@@ -104,14 +105,14 @@ describe('editable', () => {
 });
 
 describe('palettes', () => {
-  test('a constant bgcolor / barcolor colour is a palette of one colour; per-bar colours have none', () => {
+  test('a constant bgcolor / barcolor colour is a palette of one colour; color.when colours keep theirs', () => {
     const run = executeScript(() => {
       indicator('Palettes');
       bgcolor('rgba(41,98,255,0.1)');
       barcolor(color.when(close.gt(105), 'red', 'green'));
     }, BARS);
     expect(run.barColorConfig[0].palette).toEqual(['rgba(41,98,255,0.1)']);
-    expect(run.barColorConfig[1].palette).toBeUndefined();
+    expect(run.barColorConfig[1].palette).toEqual(['red', 'green']);
   });
 
   test('bgcolor / barcolor know their place among the outputs', () => {
@@ -175,5 +176,35 @@ describe('default titles', () => {
     expect(run.barColorConfig.map((x) => x.title)).toEqual(['Background Color', 'Bar Color']);
     expect(run.candleConfig.map((x) => x.title)).toEqual(['PlotCandle', 'PlotBar']);
     expect(run.outputs.map((o) => o.title)).toEqual(['Plot', 'Plot', 'Shapes', 'Chars', 'Arrows', 'PlotCandle', 'PlotBar']);
+  });
+});
+
+describe('palettes of per-bar colours', () => {
+  test('color.when gives a palette in the order of its colours, na left out; fixnan keeps it', () => {
+    const run = executeScript(() => {
+      indicator('Pal');
+      plot(close, 'Two', { color: color.when(close.gt(open), '#00FF00', '#FF0000') });
+      plot(close, 'One', { color: color.when(close.gt(105), '#0000FF') });
+      bgcolor(fixnan(color.when(close.gt(105), 'rgba(0,0,255,0.1)')));
+      const a = plot(high, 'H');
+      const b = plot(low, 'L');
+      fill(a, b, color.when(close.gt(open), 'teal', 'maroon'), 'F');
+      plotcandle(open, high, low, close, 'K', { color: color.when(close.gt(open), 'green', 'red'), bordercolor: color.when(close.gt(open), 'lime', 'orange') });
+    }, BARS);
+    expect(run.plotConfig.map((p) => p.palette)).toEqual([['#00FF00', '#FF0000'], ['#0000FF'], undefined, undefined]);
+    expect(run.barColorConfig[0].palette).toEqual(['rgba(0,0,255,0.1)']);
+    expect(run.fillConfig[0].palette).toEqual(['teal', 'maroon']);
+    expect(run.candleConfig[0].palettes).toEqual({ color: ['green', 'red'], borderColor: ['lime', 'orange'] });
+  });
+
+  test('colours computed per bar have no palette', () => {
+    const run = executeScript(() => {
+      indicator('Computed');
+      const cols = close.toArray().map((v) => (v > 105 ? '#00FF00' : '#FF0000'));
+      plot(close, 'C', { color: cols });
+      barcolor(cols);
+    }, BARS);
+    expect(run.plotConfig[0].palette).toBeUndefined();
+    expect(run.barColorConfig[0].palette).toBeUndefined();
   });
 });

@@ -139,6 +139,12 @@ export interface PlotConfig {
      * drawn. Default true
      */
     editable?: boolean;
+    /**
+     * The colours the plot chooses from per bar when they are a fixed set (PineScript palette of a plot coloured by a
+     * condition): a user can change each of them, the points drawn with one take the new colour. Unset: `color` (one
+     * colour) or colours computed per bar
+     */
+    palette?: string[];
 }
 
 /**

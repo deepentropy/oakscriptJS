@@ -346,7 +346,7 @@ describe('plotcandle / plotbar', () => {
     }, BARS);
     expect(run.candleConfig).toEqual([
       { id: 'plotcandle0', kind: 'candle', title: 'HA', color: undefined, wickColor: '#787B86', borderColor: '#000000',
-        display: undefined, forceOverlay: true },
+        display: undefined, forceOverlay: true, palettes: { color: ['#26A69A'] } },
     ]);
     const candles = run.result.plotCandles!['plotcandle0']!;
     expect(candles).toHaveLength(BARS.length - 1); // bar 3 has an na open

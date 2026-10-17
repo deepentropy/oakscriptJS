@@ -670,10 +670,29 @@ export const ta = {
 export function fixnan(source: Series): Series;
 export function fixnan(source: Array<string | undefined>): Array<string | undefined>;
 export function fixnan(source: Series | Array<string | undefined>): Series | Array<string | undefined> {
-  return source instanceof Series ? Series.fromArray(ctxBars, fixnanValues(source.toArray())) : fixnanValues(source);
+  if (source instanceof Series) return Series.fromArray(ctxBars, fixnanValues(source.toArray()));
+  // the colours are the same set: the palette stays
+  return withPalette(fixnanValues(source), colorPalettes.get(source));
 }
 
 // ── Color helpers ────────────────────────────────────────────────────────────
+
+/**
+ * The palette of a per-bar colour array: the constant colours it chooses from (PineScript compiles the colours of a
+ * conditional colour expression into a palette, in their order in the expression). An array without one (colours
+ * computed per bar) has none: its colours cannot be changed one by one.
+ */
+const colorPalettes = new WeakMap<object, string[]>();
+
+function withPalette<T extends object>(colors: T, palette: string[] | undefined): T {
+  if (palette?.length) colorPalettes.set(colors, palette);
+  return colors;
+}
+
+/** The palette of a colour argument given as a per-bar array, if it has one. */
+function paletteOfColors(col: unknown): string[] | undefined {
+  return typeof col === 'object' && col !== null ? colorPalettes.get(col) : undefined;
+}
 
 /** Per-bar color selection: truthy → colorTrue, else colorFalse.
  *  colorFalse may be omitted (PineScript `na`): those bars get no color,
@@ -681,7 +700,9 @@ export function fixnan(source: Series | Array<string | undefined>): Series | Arr
 function colorWhen(cond: Series, colorTrue: string, colorFalse: string): string[];
 function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<string | undefined>;
 function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<string | undefined> {
-  return cond.toArray().map((v) => (!isNA(v) && v !== 0 ? colorTrue : colorFalse));
+  const colors = cond.toArray().map((v) => (!isNA(v) && v !== 0 ? colorTrue : colorFalse));
+  const palette = [colorTrue, ...(colorFalse !== undefined && colorFalse !== colorTrue ? [colorFalse] : [])];
+  return withPalette(colors, palette);
 }
 
 /** color.* plus `when` — per-bar conditional colors for plot()/fill()/bgcolor()/barcolor(). */
@@ -743,6 +764,7 @@ function plotImpl(series: Series, title: string = DEFAULT_OUTPUT_TITLES.plot, op
     histbase: options.histbase,
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),
+    ...(paletteOfColors(perBar) ? { palette: paletteOfColors(perBar) } : {}),
   });
   c.outputs.push({ kind: 'plot', id, title });
   const values = series.toArray();
@@ -868,6 +890,8 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
   let title: string | undefined;
   let gradient: FillGradient | undefined;
   let editable: unknown;
+  /** The per-bar colour argument as given (its palette) */
+  let perBarArg: unknown;
   if (typeof third === 'number' || third instanceof Series) {
     const n = ctxBars.bars.length;
     gradient = {
@@ -881,12 +905,14 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
   } else if (third !== null && typeof third === 'object' && !Array.isArray(third)) {
     const options = third as ScriptFillOptions;
     perBar = Array.isArray(options.color) ? options.color : undefined;
+    perBarArg = perBar;
     staticColor = typeof options.color === 'string' ? options.color : undefined;
     title = options.title;
     editable = options.editable;
   } else {
     const color = third as ScriptFillColor;
     perBar = Array.isArray(color) ? color.map((x) => x ?? '') : undefined;
+    perBarArg = Array.isArray(color) ? color : undefined;
     staticColor = typeof color === 'string' ? color : undefined;
     title = args[1] as string | undefined;
     editable = args[2];
@@ -907,6 +933,7 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
     ...(topColor ? { topColor } : {}),
     ...(bottomColor ? { bottomColor } : {}),
     ...(editable === false ? { editable: false } : {}),
+    ...(paletteOfColors(perBarArg) ? { palette: paletteOfColors(perBarArg) } : {}),
   });
   if (hlines) return;
   c.fills.push({
@@ -1132,8 +1159,8 @@ function emitBarColors(
     title: options.title ?? DEFAULT_OUTPUT_TITLES[kind],
     offset: options.offset,
     forceOverlay: options.force_overlay,
-    // a constant colour is a palette of one colour (PineScript)
-    ...(typeof colors === 'string' ? { palette: [colors] } : {}),
+    // a constant colour is a palette of one colour (PineScript); per-bar colours from constants keep theirs
+    ...(typeof colors === 'string' ? { palette: [colors] } : paletteOfColors(colors) ? { palette: paletteOfColors(colors) } : {}),
     ...(options.editable === false ? { editable: false } : {}),
     outputIndex: c.outputs.length,
   });
@@ -1232,6 +1259,16 @@ const staticColor = (col: ScriptCandleColor | undefined): string | undefined => 
  */
 export const DEFAULT_CANDLE_COLORS = { color: '#2962FF', wickColor: '#737375', borderColor: '#000000' } as const;
 
+/** The palettes of the per-bar colour arguments of a plotcandle / plotbar that have one. */
+function candlePalettes(cols: { color?: ScriptCandleColor; wickColor?: ScriptCandleColor; borderColor?: ScriptCandleColor }): { palettes?: CandleConfig['palettes'] } {
+  const palettes: NonNullable<CandleConfig['palettes']> = {};
+  for (const k of ['color', 'wickColor', 'borderColor'] as const) {
+    const pal = paletteOfColors(cols[k]);
+    if (pal) palettes[k] = pal;
+  }
+  return Object.keys(palettes).length ? { palettes } : {};
+}
+
 /** A colour argument, or the default when it is left out. */
 const orDefault = (col: ScriptCandleColor | undefined, fallback: string): ScriptCandleColor => (col === undefined ? fallback : col);
 
@@ -1260,6 +1297,7 @@ export function plotcandle(
     color: staticColor(color),
     wickColor: staticColor(wickcolor),
     borderColor: staticColor(bordercolor),
+    ...candlePalettes({ color, wickColor: wickcolor, borderColor: bordercolor }),
     display: options.display,
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),
@@ -1300,6 +1338,7 @@ export function plotbar(
     kind: 'bar',
     title,
     color: staticColor(barColor),
+    ...candlePalettes({ color: barColor }),
     display: options.display,
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),

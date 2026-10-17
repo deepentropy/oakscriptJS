@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-10-17
+
+### Added
+
+- Colour palettes of script outputs (#185): `color.when(cond, a, b)` arrays carry the palette of their constant
+  colours (in that order, na left out; `fixnan` keeps it), and the declarations of the outputs coloured with them get
+  it: `PlotConfig.palette`, `FillConfig.palette`, `BarColorConfig.palette`, `CandleConfig.palettes` (body / wick /
+  border). Colours computed per bar have none. A host lists one colour row per palette colour, as the reference does.
+- `PlotConfig.palette` (type): the colours a plot chooses from per bar.
+
 ## [0.12.2] - 2026-10-17
 
 ### Changed
