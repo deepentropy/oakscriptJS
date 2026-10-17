@@ -345,7 +345,7 @@ describe('plotcandle / plotbar', () => {
       });
     }, BARS);
     expect(run.candleConfig).toEqual([
-      { id: 'plotcandle0', kind: 'candle', title: 'HA', color: undefined, wickColor: '#787B86', borderColor: undefined,
+      { id: 'plotcandle0', kind: 'candle', title: 'HA', color: undefined, wickColor: '#787B86', borderColor: '#000000',
         display: undefined, forceOverlay: true },
     ]);
     const candles = run.result.plotCandles!['plotcandle0']!;
@@ -358,8 +358,26 @@ describe('plotcandle / plotbar', () => {
       close: BARS[0]!.close,
       color: '#26A69A',
       wickColor: '#787B86',
+      borderColor: '#000000',
       forceOverlay: true,
     });
+  });
+
+  test('colours left out: body / bar #2962FF, wick #737375, border #000000 (the wick and border do not follow the body)', () => {
+    const run = executeScript(() => {
+      indicator('Defaults', { overlay: false });
+      plotcandle(open, high, low, close);
+      plotcandle(open, high, low, close, 'Green', { color: '#00FF00' });
+      plotbar(open, high, low, close);
+    }, BARS);
+    expect(run.candleConfig.map(({ color, wickColor, borderColor }) => ({ color, wickColor, borderColor }))).toEqual([
+      { color: '#2962FF', wickColor: '#737375', borderColor: '#000000' },
+      { color: '#00FF00', wickColor: '#737375', borderColor: '#000000' },
+      { color: '#2962FF', wickColor: undefined, borderColor: undefined },
+    ]);
+    expect(run.result.plotCandles!['plotcandle0']![0]).toMatchObject({ color: '#2962FF', wickColor: '#737375', borderColor: '#000000' });
+    expect(run.result.plotCandles!['plotcandle1']![0]).toMatchObject({ color: '#00FF00', wickColor: '#737375', borderColor: '#000000' });
+    expect(run.result.plotBars!['plotbar0']![0]!.color).toBe('#2962FF');
   });
 
   test('plotbar goes to result.plotBars; color.when without a false colour gives transparent bars', () => {

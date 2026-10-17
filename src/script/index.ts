@@ -1227,6 +1227,15 @@ function ohlcRows(o: Series, h: Series, l: Series, cl: Series): OhlcRow[] {
 const staticColor = (col: ScriptCandleColor | undefined): string | undefined => (typeof col === 'string' ? col : undefined);
 
 /**
+ * Colours of a plotcandle / plotbar argument left out, as the PineScript compiler declares them and the chart draws
+ * them (reference: body / bar #2962FF, wick #737375, border #000000; the wick and border do not follow the body).
+ */
+export const DEFAULT_CANDLE_COLORS = { color: '#2962FF', wickColor: '#737375', borderColor: '#000000' } as const;
+
+/** A colour argument, or the default when it is left out. */
+const orDefault = (col: ScriptCandleColor | undefined, fallback: string): ScriptCandleColor => (col === undefined ? fallback : col);
+
+/**
  * PineScript `plotcandle(open, high, low, close, title?, { color, wickcolor, bordercolor, display, force_overlay })`:
  * candles in `result.plotCandles[id]`, the declaration in `candleConfig`. A bar with an na value has no candle.
  */
@@ -1239,15 +1248,18 @@ export function plotcandle(
   options: PlotCandleOptions = {}
 ): void {
   const c = collector();
+  const color = orDefault(options.color, DEFAULT_CANDLE_COLORS.color);
+  const wickcolor = orDefault(options.wickcolor, DEFAULT_CANDLE_COLORS.wickColor);
+  const bordercolor = orDefault(options.bordercolor, DEFAULT_CANDLE_COLORS.borderColor);
   const id = `plotcandle${c.candleConfig.filter((x) => x.kind === 'candle').length}`;
   title ??= DEFAULT_OUTPUT_TITLES.candle;
   c.candleConfig.push({
     id,
     kind: 'candle',
     title,
-    color: staticColor(options.color),
-    wickColor: staticColor(options.wickcolor),
-    borderColor: staticColor(options.bordercolor),
+    color: staticColor(color),
+    wickColor: staticColor(wickcolor),
+    borderColor: staticColor(bordercolor),
     display: options.display,
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),
@@ -1256,10 +1268,10 @@ export function plotcandle(
   const b = bars();
   c.plotCandles[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
     const candle: PlotCandleData = { time: b[i]!.time, ...ohlc };
-    const color = candleColor(options.color, i);
-    const wickColor = candleColor(options.wickcolor, i);
-    const borderColor = candleColor(options.bordercolor, i);
-    if (color !== undefined) candle.color = color;
+    const body = candleColor(color, i);
+    const wickColor = candleColor(wickcolor, i);
+    const borderColor = candleColor(bordercolor, i);
+    if (body !== undefined) candle.color = body;
     if (wickColor !== undefined) candle.wickColor = wickColor;
     if (borderColor !== undefined) candle.borderColor = borderColor;
     if (options.force_overlay) candle.forceOverlay = true;
@@ -1280,13 +1292,14 @@ export function plotbar(
   options: PlotBarOptions = {}
 ): void {
   const c = collector();
+  const barColor = orDefault(options.color, DEFAULT_CANDLE_COLORS.color);
   const id = `plotbar${c.candleConfig.filter((x) => x.kind === 'bar').length}`;
   title ??= DEFAULT_OUTPUT_TITLES.bar;
   c.candleConfig.push({
     id,
     kind: 'bar',
     title,
-    color: staticColor(options.color),
+    color: staticColor(barColor),
     display: options.display,
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),
@@ -1295,7 +1308,7 @@ export function plotbar(
   const b = bars();
   c.plotBars[id] = ohlcRows(open, high, low, close).map(({ i, ...ohlc }) => {
     const bar: PlotBarData = { time: b[i]!.time, ...ohlc };
-    const color = candleColor(options.color, i);
+    const color = candleColor(barColor, i);
     if (color !== undefined) bar.color = color;
     if (options.force_overlay) bar.forceOverlay = true;
     return bar;

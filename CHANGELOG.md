@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-10-17
+
+### Changed
+
+- `plotcandle()` / `plotbar()` colours left out take the defaults the reference app declares and draws
+  (`DEFAULT_CANDLE_COLORS`): body / bar #2962FF, wick #737375, border #000000, in the declarations and on every candle;
+  the wick and border no longer depend on the body colour (deepentropy/opentrader#121).
+
 ## [0.12.1] - 2026-10-17
 
 ### Changed
