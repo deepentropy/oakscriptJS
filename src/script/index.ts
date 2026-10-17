@@ -708,15 +708,33 @@ export interface ScriptPlotOptions {
   editable?: boolean;
 }
 
+/**
+ * Titles of untitled outputs, as the PineScript compiler names them (reference metadata of a script whose outputs have
+ * no title): the Style settings and the alert output lists show them.
+ */
+export const DEFAULT_OUTPUT_TITLES = {
+  plot: 'Plot',
+  hline: 'Level',
+  plotFill: 'Plots Background',
+  hlineFill: 'Hlines Background',
+  shape: 'Shapes',
+  char: 'Chars',
+  arrow: 'Arrows',
+  bgcolor: 'Background Color',
+  barcolor: 'Bar Color',
+  candle: 'PlotCandle',
+  bar: 'PlotBar',
+} as const;
+
 /** PineScript `plot()` — declares the plot and supplies its data in one call. */
-function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {}): PlotHandle {
+function plotImpl(series: Series, title: string = DEFAULT_OUTPUT_TITLES.plot, options: ScriptPlotOptions = {}): PlotHandle {
   const c = collector();
   const id = `plot${c.plotConfig.length}`;
   const perBar = Array.isArray(options.color) ? options.color : undefined;
   const staticColor = typeof options.color === 'string' ? options.color : (perBar?.[perBar.length - 1] ?? '#2962FF');
   c.plotConfig.push({
     id,
-    title: title ?? id,
+    title,
     color: staticColor,
     lineWidth: options.linewidth,
     style: options.style,
@@ -726,7 +744,7 @@ function plotImpl(series: Series, title?: string, options: ScriptPlotOptions = {
     forceOverlay: options.force_overlay,
     ...(options.editable === false ? { editable: false } : {}),
   });
-  c.outputs.push({ kind: 'plot', id, title: title ?? id });
+  c.outputs.push({ kind: 'plot', id, title });
   const values = series.toArray();
   const b = bars();
   const data: TimeValue[] = [];
@@ -770,7 +788,7 @@ export interface ScriptHLineOptions {
 }
 
 /** PineScript `hline()` — a static horizontal level. Default line style: dashed (PineScript). */
-function hlineImpl(price: number, title?: string, options: ScriptHLineOptions = {}): PlotHandle {
+function hlineImpl(price: number, title: string = DEFAULT_OUTPUT_TITLES.hline, options: ScriptHLineOptions = {}): PlotHandle {
   const c = collector();
   const id = `hline${c.hlineConfig.length}`;
   c.hlineConfig.push({
@@ -874,6 +892,7 @@ export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
     editable = args[2];
   }
   const id = `fill${c.fillConfig.length}`;
+  title ??= a.kind === 'hline' && b.kind === 'hline' ? DEFAULT_OUTPUT_TITLES.hlineFill : DEFAULT_OUTPUT_TITLES.plotFill;
   const topColor = gradient && sameColor(gradient.topColor);
   const bottomColor = gradient && sameColor(gradient.bottomColor);
   const hlines = a.kind === 'hline' && b.kind === 'hline';
@@ -981,6 +1000,7 @@ function emitMarkers(
 ): void {
   const c = collector();
   const id = `${kind}${c.shapeConfig.filter((s) => s.kind === kind).length}`;
+  title ??= DEFAULT_OUTPUT_TITLES[kind];
   const style: ShapeStyle | 'char' = kind === 'shape' ? (options.style ?? 'xcross') : 'char';
   const char = kind === 'char' ? (options.char ?? '*') : undefined;
   const location = options.location ?? 'abovebar';
@@ -1063,6 +1083,7 @@ export interface PlotArrowOptions {
 export function plotarrow(series: Series, title?: string, options: PlotArrowOptions = {}): void {
   const c = collector();
   const id = `arrow${c.arrowConfig.length}`;
+  title ??= DEFAULT_OUTPUT_TITLES.arrow;
   const pick = (col: string | Array<string | undefined> | undefined, fallback: string, i: number): string | undefined =>
     col === undefined ? fallback : typeof col === 'string' ? col : col[i];
   const colorup = typeof options.colorup === 'string' ? options.colorup : '#00FF00';
@@ -1108,7 +1129,7 @@ function emitBarColors(
   c.barColorConfig.push({
     id,
     kind,
-    title: options.title,
+    title: options.title ?? DEFAULT_OUTPUT_TITLES[kind],
     offset: options.offset,
     forceOverlay: options.force_overlay,
     // a constant colour is a palette of one colour (PineScript)
@@ -1219,6 +1240,7 @@ export function plotcandle(
 ): void {
   const c = collector();
   const id = `plotcandle${c.candleConfig.filter((x) => x.kind === 'candle').length}`;
+  title ??= DEFAULT_OUTPUT_TITLES.candle;
   c.candleConfig.push({
     id,
     kind: 'candle',
@@ -1259,6 +1281,7 @@ export function plotbar(
 ): void {
   const c = collector();
   const id = `plotbar${c.candleConfig.filter((x) => x.kind === 'bar').length}`;
+  title ??= DEFAULT_OUTPUT_TITLES.bar;
   c.candleConfig.push({
     id,
     kind: 'bar',

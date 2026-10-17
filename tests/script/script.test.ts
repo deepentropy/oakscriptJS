@@ -301,7 +301,7 @@ describe('executeScript', () => {
       { kind: 'candle', id: 'plotcandle0', title: 'Candles' },
       { kind: 'arrow', id: 'arrow0', title: 'Arrow' },
       { kind: 'plot', id: 'plot1', title: 'Double' },
-      { kind: 'bar', id: 'plotbar0', title: undefined },
+      { kind: 'bar', id: 'plotbar0', title: 'PlotBar' },
     ]);
     // A condition gives 1 / 0 on every bar; a number its value; the offset is not applied.
     expect(run.result.outputValues!['shape0']).toEqual(BARS.map((b) => ({ time: b.time, value: b.close > 104 ? 1 : 0 })));

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-17
+
+### Changed
+
+- Untitled outputs get the titles the PineScript compiler gives them (`DEFAULT_OUTPUT_TITLES`): plot "Plot" (was its
+  id), hline "Level", fill "Plots Background" / "Hlines Background", plotshape "Shapes", plotchar "Chars", plotarrow
+  "Arrows", bgcolor "Background Color", barcolor "Bar Color", plotcandle "PlotCandle", plotbar "PlotBar"
+  (deepentropy/opentrader#120).
+
 ## [0.12.0] - 2026-10-17
 
 ### Added

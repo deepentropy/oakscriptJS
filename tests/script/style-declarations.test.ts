@@ -148,3 +148,32 @@ describe('drawing kinds', () => {
     expect(run.drawingKinds).toEqual([]);
   });
 });
+
+describe('default titles', () => {
+  test('untitled outputs get the names the PineScript compiler gives them', () => {
+    const run = executeScript(() => {
+      indicator('Untitled');
+      const a = plot(high);
+      const b = plot(low);
+      fill(a, b, 'red');
+      const u = hline(110);
+      const d = hline(90);
+      fill(u, d, 'blue');
+      plotshape(close.gt(105));
+      plotchar(close.gt(105));
+      plotarrow(close.sub(open));
+      bgcolor('red');
+      barcolor('blue');
+      plotcandle(open, high, low, close);
+      plotbar(open, high, low, close);
+    }, BARS);
+    expect(run.plotConfig.map((p) => p.title)).toEqual(['Plot', 'Plot']);
+    expect(run.hlineConfig.map((h) => h.title)).toEqual(['Level', 'Level']);
+    expect(run.fillConfig.map((f) => f.title)).toEqual(['Plots Background', 'Hlines Background']);
+    expect(run.shapeConfig.map((s) => s.title)).toEqual(['Shapes', 'Chars']);
+    expect(run.arrowConfig[0].title).toBe('Arrows');
+    expect(run.barColorConfig.map((x) => x.title)).toEqual(['Background Color', 'Bar Color']);
+    expect(run.candleConfig.map((x) => x.title)).toEqual(['PlotCandle', 'PlotBar']);
+    expect(run.outputs.map((o) => o.title)).toEqual(['Plot', 'Plot', 'Shapes', 'Chars', 'Arrows', 'PlotCandle', 'PlotBar']);
+  });
+});
