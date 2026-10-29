@@ -43,6 +43,8 @@ export interface StrategyOptions {
   pyramiding?: number;
   calc_on_order_fills?: boolean;
   calc_on_every_tick?: boolean;
+  /** Runs the strategy on each tick of the history bars too (the reference app's "On history bar tick"). */
+  calc_on_every_history_tick?: boolean;
   max_bars_back?: number;
   backtest_fill_limits_assumption?: number;
   default_qty_type?: StrategyQtyType;
@@ -74,6 +76,7 @@ export interface StrategyProperties {
   pyramiding: number;
   calc_on_order_fills: boolean;
   calc_on_every_tick: boolean;
+  calc_on_every_history_tick: boolean;
   backtest_fill_limits_assumption: number;
   default_qty_type: StrategyQtyType;
   default_qty_value: number;
@@ -98,6 +101,7 @@ export const STRATEGY_DEFAULTS: StrategyProperties = {
   pyramiding: 0,
   calc_on_order_fills: false,
   calc_on_every_tick: false,
+  calc_on_every_history_tick: false,
   backtest_fill_limits_assumption: 0,
   // v6 values; PineScript v5: fixed / 1 / 1000000 and margins 0
   default_qty_type: 'percent_of_equity',

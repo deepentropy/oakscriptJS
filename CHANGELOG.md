@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-29
+
+### Added
+
+- Intrabar runs of a strategy (deepentropy/opentrader#125): `executeIntrabar(body, bars, inputs, chart, options)`
+  runs a strategy once more on a bar, inside the bar (`calc_on_order_fills`, `calc_on_every_history_tick`). The run
+  covers the bars up to that bar; the bars before replay the engine answers recorded by the main run (their order
+  calls are dropped), the bar itself calls the main run's engine without `processBar` / `processClose`. The script's
+  values are calculated again, so its variables come back to their state at the start of the bar (PineScript
+  rollback). `last_bar_index`, `barstate.islast` and `BarContext.n` keep the chart's last bar; the bar is a confirmed
+  history bar; risk rules are not declared again; the outputs are dropped.
+- `StrategyRecorder`: the engine answers of each bar and the `varip` values, kept by the host for a backtest
+  (`ScriptOptions.recorder` on the main run, `IntrabarOptions.recorder` on the intrabar runs).
+- `varip(initial)`: a variable that keeps the changes of the intrabar runs (no rollback); a plain variable without
+  them.
+- `strategy(calc_on_every_history_tick)`: declared, passed to the engine (default false).
+
+### Changed
+
+- `executeScript()` is re-entrant: a run started inside another one (an intrabar run inside the bar loop of the main
+  run) puts the outer run back when it ends (bars, chart context, drawings, random generators, bar cursor).
+
 ## [0.12.3] - 2026-10-17
 
 ### Added

@@ -88,7 +88,15 @@ import * as tableCore from '../table/index.js';
 import * as chartPointCore from '../chartpoint/index.js';
 import * as textCore from '../text/index.js';
 import * as mathCore from '../math/index.js';
-import { createdDrawingKinds, resetDrawings, setDrawingBar, setDrawingLimits, type DrawingKind } from '../drawing/registry.js';
+import {
+  createdDrawingKinds,
+  resetDrawings,
+  restoreDrawingState,
+  saveDrawingState,
+  setDrawingBar,
+  setDrawingLimits,
+  type DrawingKind,
+} from '../drawing/registry.js';
 export { holdDrawing, releaseDrawing, varDrawing, type DrawingVariable } from '../drawing/registry.js';
 import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
@@ -321,9 +329,87 @@ export interface StrategySetup {
 export interface ScriptOptions {
   /** Creates the order engine of a strategy script; called by strategy(). */
   strategyEngine?: (setup: StrategySetup) => StrategyEngine;
+  /**
+   * Records the strategy engine's answers of each bar and the `varip` values, for the intrabar runs of a strategy
+   * (see {@link executeIntrabar}). The host keeps one recorder for the main run of a backtest and its intrabar runs.
+   */
+  recorder?: StrategyRecorder;
 }
 
 let scriptOptions: ScriptOptions = {};
+
+/** Intrabar run of the current run (see {@link executeIntrabar}); null in a main run. */
+interface IntrabarRun {
+  /** The bar calculated inside the bar: the last bar of the run. */
+  bar: number;
+  /** Bar index of the chart's last bar (`last_bar_index`, `barstate.islast`, `BarContext.n`). */
+  lastBarIndex: number;
+  engine: StrategyEngine;
+  recorder: StrategyRecorder;
+}
+let intrabarRun: IntrabarRun | null = null;
+
+/**
+ * Answers of the strategy engine recorded in the main run of a strategy, bar by bar, and its `varip` values: an
+ * intrabar run replays the bars before its bar from them (see {@link executeIntrabar}). Create one per backtest and
+ * pass it to the main run (`ScriptOptions.recorder`) and to every intrabar run.
+ */
+export class StrategyRecorder {
+  /** Per bar: the values the engine returned to the strategy.eachBar() callback (strategy.*, trades...), in order. */
+  readonly answers: unknown[][] = [];
+  /** Per bar: the `varip` values when the bar's strategy.eachBar() callback started in the main run. */
+  readonly varipStarts: unknown[][] = [];
+  /** Current `varip` values: kept through the intrabar runs (no rollback). */
+  readonly varip: unknown[] = [];
+}
+
+/** Module state of a run, saved around a nested run (an intrabar run inside the bar loop of the main run). */
+interface RunState {
+  bars: Bar[];
+  ctx: Collector | null;
+  chartCtx: ChartContext;
+  runNow: number;
+  scriptOptions: ScriptOptions;
+  currentBar: number;
+  missingSymbols: SymbolDataRequest[];
+  sessionCache: typeof sessionCache;
+  intrabarRun: IntrabarRun | null;
+  varip: VaripRun;
+  drawings: ReturnType<typeof saveDrawingState>;
+  random: ReturnType<typeof mathCore.saveRandom>;
+}
+
+function saveRunState(): RunState {
+  return {
+    bars: ctxBars.bars,
+    ctx,
+    chartCtx,
+    runNow,
+    scriptOptions,
+    currentBar,
+    missingSymbols,
+    sessionCache,
+    intrabarRun,
+    varip: varipRun,
+    drawings: saveDrawingState(),
+    random: mathCore.saveRandom(),
+  };
+}
+
+function restoreRunState(st: RunState): void {
+  ctxBars.setAll(st.bars);
+  ctx = st.ctx;
+  chartCtx = st.chartCtx;
+  runNow = st.runNow;
+  scriptOptions = st.scriptOptions;
+  currentBar = st.currentBar;
+  missingSymbols = st.missingSymbols;
+  sessionCache = st.sessionCache;
+  intrabarRun = st.intrabarRun;
+  varipRun = st.varip;
+  restoreDrawingState(st.drawings);
+  mathCore.restoreRandom(st.random);
+}
 
 /**
  * Runs a script body against `bars` with the given input overrides and
@@ -339,11 +425,16 @@ export function executeScript(
   chart: ChartContext = {},
   options: ScriptOptions = {}
 ): ScriptRunResult {
+  // A run inside another one (an intrabar run of a strategy) puts the outer run back when it ends.
+  const outer = ctx ? saveRunState() : null;
   ctxBars.setAll(barsInput);
   chartCtx = { ...chart };
   runNow = chart.now ?? Date.now();
   scriptOptions = options;
   ctx = freshCollector(inputs);
+  intrabarRun = null;
+  varipRun = { slot: 0, recorder: options.recorder ?? null, mode: 'live', scratch: null };
+  currentBar = -1;
   resetDrawings();
   mathCore.resetRandom();
   missingSymbols = [];
@@ -391,7 +482,110 @@ export function executeScript(
     };
   } finally {
     ctx = null;
+    if (outer) restoreRunState(outer);
   }
+}
+
+/** What {@link executeIntrabar} needs besides the script. */
+export interface IntrabarOptions {
+  /** The bar calculated inside the bar: `bars` ends with it, as it stands at the tick (close = the tick price). */
+  bar: number;
+  /** Bar index of the chart's last bar (the main run's last bar). */
+  lastBarIndex: number;
+  /** The strategy engine of the main run: the order calls and `strategy.*` reads of bar `bar` go to it. */
+  engine: StrategyEngine;
+  /** The recorder of the main run. */
+  recorder: StrategyRecorder;
+}
+
+/**
+ * Runs a strategy once more on a bar, inside the bar (PineScript `calc_on_order_fills` and calculations on the
+ * ticks of history bars): `bars` holds the bars up to that bar, the last one as it stands at the tick (its close is
+ * the tick price, its high and low the extremes reached so far). The script's values are calculated again on these
+ * bars, so its variables come back to their state at the start of the bar (PineScript rollback), except `varip`
+ * ones. In strategy.eachBar(), the bars before replay the engine's answers that the main run recorded (their
+ * order calls are dropped), and the bar itself calls `options.engine` without processBar / processClose (the host
+ * is filling its orders). That bar is a confirmed history bar (`barstate.isconfirmed`); `barstate.islast`, `last_bar_index` and
+ * `BarContext.n` keep the chart's last bar. Strategy risk rules are not declared again, and the outputs (plots,
+ * drawings) are dropped. Re-entrant: the host calls it inside the bar loop of the main run.
+ */
+export function executeIntrabar(
+  body: () => void,
+  bars: Bar[],
+  inputs: Record<string, unknown>,
+  chart: ChartContext,
+  options: IntrabarOptions
+): void {
+  const run: IntrabarRun = {
+    bar: options.bar,
+    lastBarIndex: options.lastBarIndex,
+    engine: options.engine,
+    recorder: options.recorder,
+  };
+  executeScript(
+    () => {
+      intrabarRun = run;
+      varipRun = { slot: 0, recorder: options.recorder, mode: 'live', scratch: null };
+      body();
+    },
+    bars,
+    inputs,
+    // History bars are confirmed, also on their ticks (the reference app: a barstate.isconfirmed entry fills on them).
+    { ...chart, lastBarConfirmed: true, realtime: false },
+    { strategyEngine: () => options.engine }
+  );
+}
+
+// ── varip ────────────────────────────────────────────────────────────────────
+
+/** How `varip` boxes read and write in the running code. */
+interface VaripRun {
+  /** Next slot (boxes are numbered in their call order in the script). */
+  slot: number;
+  recorder: StrategyRecorder | null;
+  /** live: the recorder's current values; replay: the copy of a replayed bar's start values. */
+  mode: 'live' | 'replay';
+  scratch: unknown[] | null;
+}
+let varipRun: VaripRun = { slot: 0, recorder: null, mode: 'live', scratch: null };
+
+/** A `varip` variable: `.value` reads and writes it. */
+export interface VaripVariable<T> {
+  value: T;
+}
+
+/**
+ * PineScript `varip`: a variable that keeps the changes made in the intrabar runs of a strategy (PineScript
+ * rollback leaves it alone). A plain `let` variable of the script comes back to its value at the start of the bar
+ * in each intrabar run; a `varip` one does not. Declare it once in the script body (outside the callbacks), in the
+ * same order on each run; read and write it in strategy.eachBar(). Without intrabar runs it is a plain variable.
+ */
+export function varip<T>(initial: T): VaripVariable<T> {
+  collector();
+  const slot = varipRun.slot++;
+  const state = varipRun;
+  const rec = state.recorder;
+  if (!rec) {
+    let current = initial;
+    return {
+      get value() {
+        return current;
+      },
+      set value(v: T) {
+        current = v;
+      },
+    };
+  }
+  if (rec.varip.length <= slot) rec.varip[slot] = initial;
+  const store = (): unknown[] => (state.mode === 'replay' && state.scratch ? state.scratch : rec.varip);
+  return {
+    get value() {
+      return store()[slot] as T;
+    },
+    set value(v: T) {
+      store()[slot] = v;
+    },
+  };
 }
 
 // ── Declarations ─────────────────────────────────────────────────────────────
@@ -1418,6 +1612,8 @@ interface HistoryBuffer {
 export function eachBar(fn: (c: BarContext) => number | boolean | void): Series {
   collector(); // same lifecycle guard (and error message) as the declaration calls
   const b = bars();
+  // An intrabar run ends on its bar: the chart's last bar stays the main run's.
+  const lastIndex = intrabarRun ? intrabarRun.lastBarIndex : b.length - 1;
   const out: number[] = new Array(b.length).fill(NaN);
   const cache = new Map<Series, number[]>();
   const buffers = new Map<Series, HistoryBuffer>();
@@ -1427,7 +1623,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     get i() {
       return idx;
     },
-    n: b.length,
+    n: lastIndex + 1,
     get time() {
       return b[idx]!.time as number;
     },
@@ -1472,7 +1668,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     for (idx = 0; idx < b.length; idx++) {
       if (pendingError && pendingError.bar === idx) throw new Error(historyError(idx, pendingError.barsBack));
       currentBar = idx;
-      setDrawingBar(idx, idx === b.length - 1, b.length - 1);
+      setDrawingBar(idx, idx === lastIndex, lastIndex);
       const r = fn(ctx);
       out[idx] = typeof r === 'number' ? r : typeof r === 'boolean' ? (r ? 1 : 0) : NaN;
       // grow the history buffers from the largest reference of this bar
@@ -1552,6 +1748,7 @@ function strategyVariable(name: StrategyVariable): number | string {
 }
 
 function riskRule(rule: StrategyRiskRule): void {
+  if (intrabarRun) return; // declared by the main run
   const engine = strategyEngine(`strategy.risk.${rule.rule}()`);
   if (!engine.risk) throw new Error(`strategy.risk.${rule.rule}() is not provided by the strategy engine.`);
   engine.risk(rule);
@@ -1598,16 +1795,101 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
   const engine = strategyEngine('strategy.eachBar()');
   if (run.looped) throw new Error('strategy.eachBar() runs once per script run.');
   run.looped = true;
+  const intrabar = intrabarRun;
+  if (intrabar) {
+    // Intrabar run: the bars before replay the main run's answers, the bar itself calls the engine (whose
+    // orders the host is filling: no processBar / processClose).
+    const varipState = varipRun;
+    return eachBar((c) => {
+      const replay = c.i < intrabar.bar;
+      run.engine = replay ? replayEngine(intrabar.recorder.answers[c.i] ?? []) : intrabar.engine;
+      varipState.mode = replay ? 'replay' : 'live';
+      varipState.scratch = replay ? [...(intrabar.recorder.varipStarts[c.i] ?? intrabar.recorder.varip)] : null;
+      run.inLoop = true;
+      try {
+        return fn(c);
+      } finally {
+        run.inLoop = false;
+        run.engine = intrabar.engine;
+        varipState.mode = 'live';
+        varipState.scratch = null;
+      }
+    });
+  }
+  const recorder = scriptOptions.recorder;
   return eachBar((c) => {
     engine.processBar(c.i);
+    if (recorder) {
+      recorder.varipStarts[c.i] = [...recorder.varip];
+      run.engine = recordingEngine(engine, (recorder.answers[c.i] = []));
+    }
     run.inLoop = true;
     try {
       return fn(c);
     } finally {
       run.inLoop = false;
+      run.engine = engine;
       engine.processClose(c.i);
     }
   });
+}
+
+/** The engine of a main run that records its answers (see {@link StrategyRecorder}). */
+function recordingEngine(engine: StrategyEngine, log: unknown[]): StrategyEngine {
+  const keep = <T>(v: T): T => {
+    log.push(v);
+    return v;
+  };
+  return {
+    ...forward(engine),
+    get: (name) => keep(engine.get(name)),
+    openTrade: (index) => keep(engine.openTrade(index)),
+    closedTrade: (index) => keep(engine.closedTrade(index)),
+    defaultEntryQty: engine.defaultEntryQty ? (price) => keep(engine.defaultEntryQty!(price)) : undefined,
+  };
+}
+
+/** An engine that gives back recorded answers in order and drops the order calls (a replayed bar). */
+function replayEngine(log: readonly unknown[]): StrategyEngine {
+  let k = 0;
+  const next = <T>(): T => log[k++] as T;
+  const none = (): void => {};
+  return {
+    processBar: none,
+    processClose: none,
+    entry: none,
+    order: none,
+    exit: none,
+    close: none,
+    close_all: none,
+    cancel: none,
+    cancel_all: none,
+    risk: none,
+    get: () => next(),
+    openTrade: () => next(),
+    closedTrade: () => next(),
+    defaultEntryQty: () => next(),
+  };
+}
+
+/** The calls of `engine`, bound to it. */
+function forward(engine: StrategyEngine): StrategyEngine {
+  return {
+    processBar: (bar) => engine.processBar(bar),
+    processClose: (bar) => engine.processClose(bar),
+    entry: (id, direction, options) => engine.entry(id, direction, options),
+    order: (id, direction, options) => engine.order(id, direction, options),
+    exit: (id, options) => engine.exit(id, options),
+    close: (id, options) => engine.close(id, options),
+    close_all: (options) => engine.close_all(options),
+    cancel: (id) => engine.cancel(id),
+    cancel_all: () => engine.cancel_all(),
+    risk: engine.risk ? (rule) => engine.risk!(rule) : undefined,
+    get: (name) => engine.get(name),
+    openTrade: (index) => engine.openTrade(index),
+    closedTrade: (index) => engine.closedTrade(index),
+    defaultEntryQty: engine.defaultEntryQty ? (price) => engine.defaultEntryQty!(price) : undefined,
+  };
 }
 
 /** Numeric `strategy.*` variables, read from the engine (current bar inside strategy.eachBar()). */
@@ -2195,6 +2477,9 @@ function barFlag(test: (i: number, n: number) => boolean): Series {
   return Series.fromArray(ctxBars, Array.from({ length: n }, (_, i) => (test(i, n) ? 1 : 0)));
 }
 
+/** Number of bars of the chart: an intrabar run ends before the chart's last bar. */
+const chartBarCount = (n: number): number => (intrabarRun ? intrabarRun.lastBarIndex + 1 : n);
+
 const lastRealtime = (i: number, n: number): boolean => i === n - 1 && chartCtx.realtime === true;
 
 /**
@@ -2206,7 +2491,7 @@ const lastRealtime = (i: number, n: number): boolean => i === n - 1 && chartCtx.
  */
 export const barstate = {
   get isfirst(): Series { return barFlag((i) => i === 0); },
-  get islast(): Series { return barFlag((i, n) => i === n - 1); },
+  get islast(): Series { return barFlag((i, n) => i === chartBarCount(n) - 1); },
   get isconfirmed(): Series { return barFlag((i, n) => i < n - 1 || chartCtx.lastBarConfirmed === true); },
   get isrealtime(): Series { return barFlag(lastRealtime); },
   get ishistory(): Series { return barFlag((i, n) => !lastRealtime(i, n)); },
@@ -2214,7 +2499,8 @@ export const barstate = {
   get islastconfirmedhistory(): Series {
     return barFlag((i, n) => {
       const lastConfirmed = chartCtx.lastBarConfirmed === true && chartCtx.realtime !== true;
-      return i === (lastConfirmed ? n - 1 : n - 2);
+      const count = chartBarCount(n);
+      return i === (lastConfirmed ? count - 1 : count - 2);
     });
   },
 };
@@ -2658,8 +2944,11 @@ export type {
 } from '../strategy/index.js';
 
 /** PineScript `math.*`; `math.round_to_mintick(x)` uses `syminfo.mintick` of the chart context. */
+const { saveRandom: _saveRandom, restoreRandom: _restoreRandom, ...mathScript } = mathCore;
+void _saveRandom;
+void _restoreRandom;
 export const math = {
-  ...mathCore,
+  ...mathScript,
   round_to_mintick: ((number: number | Series, mintick?: number) => {
     const tick = mintick ?? syminfo.mintick;
     return number instanceof Series ? mathCore.round_to_mintick(number, tick) : mathCore.round_to_mintick(number, tick);

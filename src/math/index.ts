@@ -1069,6 +1069,17 @@ export function resetRandom(): void {
   seeded.clear();
 }
 
+/** The random generators of the current run, saved around a nested run (see {@link restoreRandom}). */
+export function saveRandom(): Map<number, (min?: float, max?: float) => float> {
+  return new Map(seeded);
+}
+
+/** Puts back the random generators saved by {@link saveRandom}. */
+export function restoreRandom(saved: Map<number, (min?: float, max?: float) => float>): void {
+  seeded.clear();
+  for (const [k, v] of saved) seeded.set(k, v);
+}
+
 /**
  * Returns a pseudo-random number.
  *

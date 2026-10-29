@@ -397,3 +397,59 @@ export function resetDrawings(newLimits: DrawingLimits = {}): void {
 export function setDrawingLimits(newLimits: DrawingLimits): void {
   limits = { ...limits, ...Object.fromEntries(Object.entries(newLimits).filter(([, v]) => v !== undefined)) };
 }
+
+/** The registry state of a run, saved around a nested run (see {@link restoreDrawingState}). */
+export interface DrawingState {
+  live: { [K in DrawingKind]: Array<DrawingTypes[K]> };
+  created: DrawingKind[];
+  held: WeakMap<object, number>;
+  releasedAt: WeakMap<object, number>;
+  heldAt: WeakMap<object, number>;
+  pending: Record<CountedKind, number>;
+  currentBar: number | null;
+  lastBarIndex: number | null;
+  lastBar: LastBar | null;
+  limits: Required<DrawingLimits>;
+}
+
+/** Saves the registry of the current run before a nested run (an intrabar run of a strategy). */
+export function saveDrawingState(): DrawingState {
+  return {
+    live: {
+      line: [...live.line],
+      label: [...live.label],
+      box: [...live.box],
+      polyline: [...live.polyline],
+      linefill: [...live.linefill],
+      table: [...live.table],
+    },
+    created: [...created],
+    held,
+    releasedAt,
+    heldAt,
+    pending: { ...pending },
+    currentBar,
+    lastBarIndex,
+    lastBar,
+    limits: { ...limits },
+  };
+}
+
+/** Puts back the registry saved by {@link saveDrawingState} after the nested run. */
+export function restoreDrawingState(s: DrawingState): void {
+  for (const kind of Object.keys(live) as DrawingKind[]) {
+    const list = live[kind] as object[];
+    list.length = 0;
+    list.push(...(s.live[kind] as object[]));
+  }
+  created.clear();
+  for (const kind of s.created) created.add(kind);
+  held = s.held;
+  releasedAt = s.releasedAt;
+  heldAt = s.heldAt;
+  pending = { ...s.pending };
+  currentBar = s.currentBar;
+  lastBarIndex = s.lastBarIndex;
+  lastBar = s.lastBar;
+  limits = { ...s.limits };
+}
