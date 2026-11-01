@@ -338,6 +338,9 @@ export interface ScriptOptions {
 
 let scriptOptions: ScriptOptions = {};
 
+/** The `varip` values of a replayed bar in a script without `varip`. */
+const NO_VARIP: unknown[] = [];
+
 /** Intrabar run of the current run (see {@link executeIntrabar}); null in a main run. */
 interface IntrabarRun {
   /** The bar calculated inside the bar: the last bar of the run. */
@@ -474,7 +477,7 @@ export function executeScript(
         barColors: c.barColors.length ? c.barColors : undefined,
         plotCandles: Object.keys(c.plotCandles).length ? c.plotCandles : undefined,
         plotBars: Object.keys(c.plotBars).length ? c.plotBars : undefined,
-        ...drawingOutputs(ctxBars.bars, chartCtx.timeUnit),
+        ...(intrabarRun ? {} : drawingOutputs(ctxBars.bars, chartCtx.timeUnit)),
         alerts: c.alerts.length ? c.alerts : undefined,
         alertCalls: c.alertCalls.length ? c.alertCalls : undefined,
       },
@@ -943,6 +946,7 @@ export const DEFAULT_OUTPUT_TITLES = {
 
 /** PineScript `plot()` — declares the plot and supplies its data in one call. */
 function plotImpl(series: Series, title: string = DEFAULT_OUTPUT_TITLES.plot, options: ScriptPlotOptions = {}): PlotHandle {
+  if (intrabarRun) return { id: '', kind: 'plot' }; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const id = `plot${c.plotConfig.length}`;
   const perBar = Array.isArray(options.color) ? options.color : undefined;
@@ -1077,6 +1081,7 @@ export function fill(
   ...rest: unknown[]
 ): void;
 export function fill(a: PlotHandle, b: PlotHandle, ...args: unknown[]): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const third = args[0];
   let perBar: string[] | undefined;
@@ -1219,6 +1224,7 @@ function emitMarkers(
   title: string | undefined,
   options: PlotShapeOptions & PlotCharOptions
 ): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const id = `${kind}${c.shapeConfig.filter((s) => s.kind === kind).length}`;
   title ??= DEFAULT_OUTPUT_TITLES[kind];
@@ -1302,6 +1308,7 @@ export interface PlotArrowOptions {
  * `arrowConfig`; the renderer scales the height with the absolute value between minheight and maxheight.
  */
 export function plotarrow(series: Series, title?: string, options: PlotArrowOptions = {}): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const id = `arrow${c.arrowConfig.length}`;
   title ??= DEFAULT_OUTPUT_TITLES.arrow;
@@ -1345,6 +1352,7 @@ function emitBarColors(
   colors: string | Array<string | undefined>,
   options: { offset?: number; title?: string; force_overlay?: boolean; editable?: boolean }
 ): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const id = `${kind}${c.barColorConfig.filter((x) => x.kind === kind).length}`;
   c.barColorConfig.push({
@@ -1478,6 +1486,7 @@ export function plotcandle(
   title?: string,
   options: PlotCandleOptions = {}
 ): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const color = orDefault(options.color, DEFAULT_CANDLE_COLORS.color);
   const wickcolor = orDefault(options.wickcolor, DEFAULT_CANDLE_COLORS.wickColor);
@@ -1523,6 +1532,7 @@ export function plotbar(
   title?: string,
   options: PlotBarOptions = {}
 ): void {
+  if (intrabarRun) return; // dropped: an intrabar run's outputs aren't read
   const c = collector();
   const barColor = orDefault(options.color, DEFAULT_CANDLE_COLORS.color);
   const id = `plotbar${c.candleConfig.filter((x) => x.kind === 'bar').length}`;
@@ -1800,11 +1810,18 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
     // Intrabar run: the bars before replay the main run's answers, the bar itself calls the engine (whose
     // orders the host is filling: no processBar / processClose).
     const varipState = varipRun;
+    const replayLog: { answers: readonly unknown[]; next: number } = { answers: [], next: 0 };
+    const replayed = replayEngine(replayLog);
     return eachBar((c) => {
       const replay = c.i < intrabar.bar;
-      run.engine = replay ? replayEngine(intrabar.recorder.answers[c.i] ?? []) : intrabar.engine;
+      if (replay) {
+        replayLog.answers = intrabar.recorder.answers[c.i] ?? [];
+        replayLog.next = 0;
+      }
+      run.engine = replay ? replayed : intrabar.engine;
       varipState.mode = replay ? 'replay' : 'live';
-      varipState.scratch = replay ? [...(intrabar.recorder.varipStarts[c.i] ?? intrabar.recorder.varip)] : null;
+      const starts = replay ? intrabar.recorder.varipStarts[c.i] ?? intrabar.recorder.varip : null;
+      varipState.scratch = starts ? (starts.length ? [...starts] : NO_VARIP) : null;
       run.inLoop = true;
       try {
         return fn(c);
@@ -1850,9 +1867,8 @@ function recordingEngine(engine: StrategyEngine, log: unknown[]): StrategyEngine
 }
 
 /** An engine that gives back recorded answers in order and drops the order calls (a replayed bar). */
-function replayEngine(log: readonly unknown[]): StrategyEngine {
-  let k = 0;
-  const next = <T>(): T => log[k++] as T;
+function replayEngine(log: { answers: readonly unknown[]; next: number }): StrategyEngine {
+  const next = <T>(): T => log.answers[log.next++] as T;
   const none = (): void => {};
   return {
     processBar: none,
@@ -2477,6 +2493,27 @@ function barFlag(test: (i: number, n: number) => boolean): Series {
   return Series.fromArray(ctxBars, Array.from({ length: n }, (_, i) => (test(i, n) ? 1 : 0)));
 }
 
+/**
+ * An intrabar run reads the flag on the same bars as the run before, with at most one bar more, and the flags only
+ * differ on their last bars: the values are kept between runs (the series only reads them).
+ */
+const FLAG_TAIL = 3;
+const flagValues = new Map<string, number[]>();
+function namedFlag(name: string, test: (i: number, n: number) => boolean): Series {
+  if (!intrabarRun) return barFlag(test);
+  const n = ctxBars.bars.length;
+  let values = flagValues.get(name);
+  if (!values || values.length > n) {
+    values = Array.from({ length: n }, (_, i) => (test(i, n) ? 1 : 0));
+    flagValues.set(name, values);
+  } else {
+    const from = Math.max(0, Math.min(values.length, n) - FLAG_TAIL);
+    values.length = n;
+    for (let i = from; i < n; i++) values[i] = test(i, n) ? 1 : 0;
+  }
+  return Series.fromArray(ctxBars, values);
+}
+
 /** Number of bars of the chart: an intrabar run ends before the chart's last bar. */
 const chartBarCount = (n: number): number => (intrabarRun ? intrabarRun.lastBarIndex + 1 : n);
 
@@ -2490,14 +2527,14 @@ const lastRealtime = (i: number, n: number): boolean => i === n - 1 && chartCtx.
  * `islastconfirmedhistory` is the last bar when it is confirmed and not realtime, else the bar before it.
  */
 export const barstate = {
-  get isfirst(): Series { return barFlag((i) => i === 0); },
-  get islast(): Series { return barFlag((i, n) => i === chartBarCount(n) - 1); },
-  get isconfirmed(): Series { return barFlag((i, n) => i < n - 1 || chartCtx.lastBarConfirmed === true); },
-  get isrealtime(): Series { return barFlag(lastRealtime); },
-  get ishistory(): Series { return barFlag((i, n) => !lastRealtime(i, n)); },
-  get isnew(): Series { return barFlag((i, n) => !lastRealtime(i, n) || chartCtx.lastBarNew !== false); },
+  get isfirst(): Series { return namedFlag('isfirst', (i) => i === 0); },
+  get islast(): Series { return namedFlag('islast', (i, n) => i === chartBarCount(n) - 1); },
+  get isconfirmed(): Series { return namedFlag('isconfirmed', (i, n) => i < n - 1 || chartCtx.lastBarConfirmed === true); },
+  get isrealtime(): Series { return namedFlag('isrealtime', lastRealtime); },
+  get ishistory(): Series { return namedFlag('ishistory', (i, n) => !lastRealtime(i, n)); },
+  get isnew(): Series { return namedFlag('isnew', (i, n) => !lastRealtime(i, n) || chartCtx.lastBarNew !== false); },
   get islastconfirmedhistory(): Series {
-    return barFlag((i, n) => {
+    return namedFlag('islastconfirmedhistory', (i, n) => {
       const lastConfirmed = chartCtx.lastBarConfirmed === true && chartCtx.realtime !== true;
       const count = chartBarCount(n);
       return i === (lastConfirmed ? count - 1 : count - 2);
