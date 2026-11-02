@@ -42,7 +42,9 @@
   "files": [
     "dist",
     "src",
+    "skills",
     "README.md",
+    "AGENTS.md",
     "LICENSE"
   ],
   "scripts": {
