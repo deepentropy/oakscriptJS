@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 02/11/2026
+
+### Added
+
+- Agent guide for coding agents: `skills/oakscript/` (SKILL.md, references, examples run in CI) and `AGENTS.md`, shipped in the package (#186).
+
+### Fixed
+
+- `VERSION` reports the package version (it said 0.12.3).
+
 ## [0.13.0] - 2026-10-29
 
 ### Added
