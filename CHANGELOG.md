@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 04/11/2026
+
 ### Added
 
 - Named arguments of the inputs and of `request.security` / `request.security_lower_tf`, as PineScript: `input.int(14, { title: "Length", minval: 1 })`, `input.int({ defval: 14, title: "Length" })`, `request.security(sym, "W", () => high.offset(1), { lookahead: barmerge.lookahead_on })`. An unknown name throws with the closest names (`min` gives "Did you mean minval?"); before, an options object in the title's place crashed an input and was ignored by `request.security`. `currency` and `calc_bars_count` throw (not supported).
