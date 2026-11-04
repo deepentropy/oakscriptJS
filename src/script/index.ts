@@ -643,10 +643,15 @@ function declare(c: Collector, kind: 'indicator' | 'strategy'): void {
 
 /** Options of every `input.*` kind (PineScript `group`, `inline`, `tooltip`, `confirm`, `display`, `active`). */
 export interface InputOptions {
+  /** Group title: every input with the same `group` is listed under it, at the place of the group's first input. */
   group?: string;
+  /** Inputs with the same `inline` id share one row of their group (ungrouped inputs share rows among themselves). */
   inline?: string;
+  /** Help text shown next to the input. */
   tooltip?: string;
+  /** The host asks for the value when the script is added. */
   confirm?: boolean;
+  /** Where the value is shown besides the settings: 'all', 'none', 'status_line', 'data_window'. */
   display?: InputConfig['display'];
   /**
    * PineScript `active`: false greys the input out in the settings (it keeps its value). A boolean as in

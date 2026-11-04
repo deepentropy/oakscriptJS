@@ -36,24 +36,38 @@ plot(close.sub(atr.mul(2)), "Lower");
 Each `input.*` call declares the input for the host's settings and returns its current value: the host's
 override when there is one, else the default.
 
+Every kind takes an options object after the title. `...common` stands for the options of every kind: `group`,
+`inline`, `tooltip`, `confirm`, `display`, `active`.
+
 | Call | Returns |
 |---|---|
-| `input.int(defval, title, { minval, maxval, step })` | integer (rounded) |
-| `input.float(defval, title, { minval, maxval, step })` | number |
-| `input.bool(defval, title)` | boolean |
-| `input.string(defval, title, { options: [...] })` | string (a choice list with `options`) |
-| `input.text_area(defval, title)` | multi-line string |
-| `input.color(defval, title)` | colour string |
-| `input.source("close", title)` | Series (`open high low close volume hl2 hlc3 ohlc4 hlcc4`, or another script's output when the host allows it) |
-| `input.timeframe("D", title, { options })` | timeframe string (`""`: the chart timeframe) |
-| `input.session("0930-1600", title)` | session string |
-| `input.symbol("NASDAQ:AAPL", title)` | ticker id for `request.security` |
-| `input.time(timestamp("2024-01-01"), title)` | UNIX time in ms |
+| `input.int(defval, title, { minval, maxval, step, ...common })` | integer (rounded) |
+| `input.float(defval, title, { minval, maxval, step, ...common })` | number |
+| `input.price(defval, title, { ...common })` | number (a price level) |
+| `input.bool(defval, title, { ...common })` | boolean |
+| `input.string(defval, title, { options: [...], ...common })` | string (a choice list with `options`) |
+| `input.text_area(defval, title, { ...common })` | multi-line string |
+| `input.color(defval, title, { ...common })` | colour string |
+| `input.source("close", title, { ...common })` | Series (`open high low close volume hl2 hlc3 ohlc4 hlcc4`, or another script's output when the host allows it) |
+| `input.timeframe("D", title, { options, ...common })` | timeframe string (`""`: the chart timeframe) |
+| `input.session("0930-1600", title, { options, ...common })` | session string |
+| `input.symbol("NASDAQ:AAPL", title, { options, ...common })` | ticker id for `request.security` |
+| `input.time(timestamp("2024-01-01"), title, { ...common })` | UNIX time in ms |
 
-Options of every kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active` (false greys the input out). They
-have Pine's names (`minval`, not `min`): an unknown name throws with the closest names. The title can also be in the
-options object (`input.int(14, { title: "Length", minval: 1 })`), or every argument named (`input.int({ defval: 14,
-title: "Length" })`).
+The common options, as in Pine:
+
+| Option | Effect in the host's settings |
+|---|---|
+| `group` | a group title; every input with the same `group` is listed under it, at the place of the group's first input |
+| `inline` | inputs with the same `inline` id share one row of their group (ungrouped inputs share rows among themselves); any kinds can share a row |
+| `tooltip` | a help text shown next to the input |
+| `confirm` | the host asks for the value when the script is added |
+| `display` | where the value is shown besides the settings: `display.all`, `display.none`, `display.status_line`, `display.data_window` (default `none` for bool, color, time and text_area inputs, `all` for the others) |
+| `active` | false greys the input out (it keeps its value) |
+
+Inputs without `group` or `inline` keep a row of their own. The options have Pine's names (`minval`, not `min`): an
+unknown name throws with the closest names. The title can also be in the options object (`input.int(14, { title:
+"Length", minval: 1 })`), or every argument named (`input.int({ defval: 14, title: "Length" })`).
 
 ```js
 indicator("Inputs demo");
