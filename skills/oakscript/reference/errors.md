@@ -45,6 +45,8 @@ The run stops at the first error; the message names the call. The ones you will 
 | `xyz is not defined` | a global that does not exist (Pine-only name such as `shape`, `location`, `size`, `xloc`, `bar_index`) | [pine-differences.md](pine-differences.md): strings for the constants, `c.i` for `bar_index` |
 | `TypeError: Cannot read properties of undefined (reading 'toArray')` | a missing Series argument, e.g. `ta.stoch(close, high, low)` | pass it: `ta.stoch(close, high, low, 14)` |
 | `TypeError: label.new(): unknown argument "textcolour". Did you mean textcolor?` | a misspelt named argument of a drawing | the name it suggests |
+| `TypeError: input.int(): unknown argument "min". Did you mean minval?` | an input option that is not Pine's (`min`, `max`, `choices`) | Pine's name: `minval`, `maxval`, `options` |
+| `TypeError: request.security(): unknown argument "lookahed"...` | a misspelt named argument of `request.security` | `gaps`, `lookahead`, `ignore_invalid_symbol` |
 | `TypeError: label.new(): argument 1 is a Series, a drawing takes one value: call label.new() inside eachBar()...` | a drawing created at the top level with a Series (`label.new(bar_index, high)`) | create it in a bar loop |
 | `TypeError: strategy.opentrades.entry_price is not a function` | `strategy.opentrades` is the count | `strategy.opentrade(0)?.entry_price` |
 | `Error on bar N: Invalid value of the 'length' argument (0.0) in the 'sma' function. It must be > 0.` | a length of 0, negative or NaN (often an input) | `minval: 1` on the input, or guard the value |

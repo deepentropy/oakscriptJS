@@ -76,7 +76,7 @@ import type {
 import { BarData, Series, MAX_BARS_BACK, historyError } from '../runtime/series.js';
 import * as taSeries from '../ta-series.js';
 import * as pineConstants from './constants.js';
-import { drawingNamespace } from './drawing-args.js';
+import { drawingNamespace, isPlainObject, namedArguments, unknownArgument } from './drawing-args.js';
 import * as colorCore from '../color/index.js';
 import { inputColorDefault } from '../color/parse.js';
 import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
@@ -697,63 +697,130 @@ function registerNumeric(type: 'int' | 'float', defval: number, title?: string, 
   return typeof v === 'number' ? v : defval;
 }
 
-/** PineScript `input.*` — declares an input AND returns its current value. */
+/** Named arguments of an input: its options, with `title` (and `defval` when every argument is named). */
+type InputArgs<O, D> = O & { title?: string; defval?: D };
+
+const COMMON_INPUT_KEYS = ['tooltip', 'inline', 'group', 'confirm', 'display', 'active'] as const;
+/** The PineScript arguments of each input kind (named arguments are checked against them). */
+const INPUT_KEYS: Record<string, readonly string[]> = {
+  int: ['defval', 'title', 'minval', 'maxval', 'step', ...COMMON_INPUT_KEYS],
+  float: ['defval', 'title', 'minval', 'maxval', 'step', ...COMMON_INPUT_KEYS],
+  price: ['defval', 'title', ...COMMON_INPUT_KEYS],
+  bool: ['defval', 'title', ...COMMON_INPUT_KEYS],
+  string: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
+  text_area: ['defval', 'title', ...COMMON_INPUT_KEYS],
+  color: ['defval', 'title', ...COMMON_INPUT_KEYS],
+  source: ['defval', 'title', ...COMMON_INPUT_KEYS],
+  timeframe: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
+  session: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
+  symbol: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
+  time: ['defval', 'title', ...COMMON_INPUT_KEYS],
+};
+
+/**
+ * The default, title and options of an `input.*` call, as PineScript writes it: `(defval, title, options)`,
+ * `(defval, { title, ...options })` or every argument by name (`{ defval, title, ...options }`). An unknown named
+ * argument throws with the closest names (`min` for `minval`).
+ */
+function inputArgs<D, O extends object>(
+  kind: string,
+  defvalOrArgs: unknown,
+  titleOrArgs: unknown,
+  opts: O | undefined
+): { defval: D; title: string | undefined; opts: O } {
+  const name = `input.${kind}`;
+  const keys = INPUT_KEYS[kind]!;
+  let named: Record<string, unknown> = {};
+  let defval = defvalOrArgs;
+  let title: unknown = titleOrArgs;
+  if (isPlainObject(defvalOrArgs)) {
+    named = { ...defvalOrArgs };
+    defval = named.defval;
+    title = undefined;
+  } else if (isPlainObject(titleOrArgs)) {
+    named = { ...titleOrArgs };
+    title = undefined;
+  }
+  if (opts !== undefined) {
+    if (!isPlainObject(opts)) throw new TypeError(`${name}(): the options are an object, e.g. { tooltip: "..." }.`);
+    named = { ...named, ...opts };
+  }
+  for (const key of Object.keys(named)) if (!keys.includes(key)) throw unknownArgument(name, key, keys);
+  if (title !== undefined && typeof title !== 'string') {
+    throw new TypeError(`${name}(): the title is a string, got ${typeof title}.`);
+  }
+  const { defval: namedDefval, title: namedTitle, ...rest } = named;
+  return {
+    defval: (defval ?? namedDefval) as D,
+    title: (title as string | undefined) ?? (namedTitle as string | undefined),
+    opts: rest as O,
+  };
+}
+
+/** PineScript `input.*` — declares an input AND returns its current value. The arguments after the default can be
+ *  named, as in PineScript: `input.int(14, "Length", { minval: 1 })`, `input.int(14, { title: "Length", minval: 1 })`,
+ *  `input.int({ defval: 14, title: "Length" })`. */
 export const input = strictNamespace('input', {
-  int(defval: number, title?: string, opts: NumericInputOptions = {}): number {
-    return Math.round(registerNumeric('int', defval, title, opts));
+  int(defval: number | InputArgs<NumericInputOptions, number>, title?: string | InputArgs<NumericInputOptions, number>, opts?: NumericInputOptions): number {
+    const a = inputArgs<number, NumericInputOptions>('int', defval, title, opts);
+    return Math.round(registerNumeric('int', a.defval, a.title, a.opts));
   },
-  float(defval: number, title?: string, opts: NumericInputOptions = {}): number {
-    return registerNumeric('float', defval, title, opts);
+  float(defval: number | InputArgs<NumericInputOptions, number>, title?: string | InputArgs<NumericInputOptions, number>, opts?: NumericInputOptions): number {
+    const a = inputArgs<number, NumericInputOptions>('float', defval, title, opts);
+    return registerNumeric('float', a.defval, a.title, a.opts);
   },
-  bool(defval: boolean, title?: string, opts: InputOptions = {}): boolean {
-    return registerInput<boolean>({ type: 'bool', defval, title, ...common(opts) }, 'input_bool');
+  bool(defval: boolean | InputArgs<InputOptions, boolean>, title?: string | InputArgs<InputOptions, boolean>, opts?: InputOptions): boolean {
+    const a = inputArgs<boolean, InputOptions>('bool', defval, title, opts);
+    return registerInput<boolean>({ type: 'bool', defval: a.defval, title: a.title, ...common(a.opts) }, 'input_bool');
   },
-  string(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>({ type: 'string', defval, title, options: opts.options, ...common(opts) }, 'input_string');
+  string(defval: string | InputArgs<StringInputOptions, string>, title?: string | InputArgs<StringInputOptions, string>, opts?: StringInputOptions): string {
+    const a = inputArgs<string, StringInputOptions>('string', defval, title, opts);
+    return registerInput<string>({ type: 'string', defval: a.defval, title: a.title, options: a.opts.options, ...common(a.opts) }, 'input_string');
   },
-  /** Multi-line text ("
-" between the lines), e.g. a list a script parses (#184). */
-  text_area(defval: string, title?: string, opts: InputOptions = {}): string {
-    return registerInput<string>({ type: 'text_area', defval, title, ...common(opts) }, 'input_text_area');
+  /** Multi-line text (lines separated by a newline), e.g. a list a script parses (#184). */
+  text_area(defval: string | InputArgs<InputOptions, string>, title?: string | InputArgs<InputOptions, string>, opts?: InputOptions): string {
+    const a = inputArgs<string, InputOptions>('text_area', defval, title, opts);
+    return registerInput<string>({ type: 'text_area', defval: a.defval, title: a.title, ...common(a.opts) }, 'input_text_area');
   },
   /**
    * Declares a colour input. As in PineScript, the default keeps an alpha of 2 decimals: an input default
    * `color.new(c, 90)` has the alpha byte 26 (25 in the script). A value given by the host is not changed.
    */
-  color(defval: string, title?: string, opts: InputOptions = {}): string {
-    return registerInput<string>({ type: 'color', defval: inputColorDefault(defval), title, ...common(opts) }, 'input_color');
+  color(defval: string | InputArgs<InputOptions, string>, title?: string | InputArgs<InputOptions, string>, opts?: InputOptions): string {
+    const a = inputArgs<string, InputOptions>('color', defval, title, opts);
+    return registerInput<string>({ type: 'color', defval: inputColorDefault(a.defval), title: a.title, ...common(a.opts) }, 'input_color');
   },
   /** Declares a source input and returns it as a Series. */
-  source(defval: string | Series = 'close', title?: string, opts: InputOptions = {}): Series {
-    const name = registerInput<string>({ type: 'source', defval: sourceName(defval), title, ...common(opts) }, 'input_source');
+  source(defval: string | Series = 'close', title?: string | InputArgs<InputOptions, string | Series>, opts?: InputOptions): Series {
+    const a = inputArgs<string | Series, InputOptions>('source', defval, title, opts);
+    const name = registerInput<string>({ type: 'source', defval: sourceName(a.defval ?? 'close'), title: a.title, ...common(a.opts) }, 'input_source');
     return sourceSeries(name);
   },
   /** Timeframe string ("60", "1D", "W"). As in PineScript, "" means the chart timeframe. */
-  timeframe(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>(
-      { type: 'timeframe', defval, title, options: opts.options, ...common(opts) },
-      'input_timeframe'
-    );
+  timeframe(defval: string | InputArgs<StringInputOptions, string>, title?: string | InputArgs<StringInputOptions, string>, opts?: StringInputOptions): string {
+    const a = inputArgs<string, StringInputOptions>('timeframe', defval, title, opts);
+    return registerInput<string>({ type: 'timeframe', defval: a.defval, title: a.title, options: a.opts.options, ...common(a.opts) }, 'input_timeframe');
   },
   /** Session string ("0930-1600", "0930-1600:23456"). */
-  session(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>(
-      { type: 'session', defval, title, options: opts.options, ...common(opts) },
-      'input_session'
-    );
+  session(defval: string | InputArgs<StringInputOptions, string>, title?: string | InputArgs<StringInputOptions, string>, opts?: StringInputOptions): string {
+    const a = inputArgs<string, StringInputOptions>('session', defval, title, opts);
+    return registerInput<string>({ type: 'session', defval: a.defval, title: a.title, options: a.opts.options, ...common(a.opts) }, 'input_session');
   },
   /** Ticker id ("NASDAQ:MSFT"), for `request.security` of another symbol (#180). */
-  symbol(defval: string, title?: string, opts: StringInputOptions = {}): string {
-    return registerInput<string>({ type: 'symbol', defval, title, options: opts.options, ...common(opts) }, 'input_symbol');
+  symbol(defval: string | InputArgs<StringInputOptions, string>, title?: string | InputArgs<StringInputOptions, string>, opts?: StringInputOptions): string {
+    const a = inputArgs<string, StringInputOptions>('symbol', defval, title, opts);
+    return registerInput<string>({ type: 'symbol', defval: a.defval, title: a.title, options: a.opts.options, ...common(a.opts) }, 'input_symbol');
   },
   /** PineScript `input.price`: a price level, a float input (the host shows it as a number). */
-  price(defval: number, title?: string, opts: NumericInputOptions = {}): number {
-    return registerNumeric('float', defval, title, opts);
+  price(defval: number | InputArgs<InputOptions, number>, title?: string | InputArgs<InputOptions, number>, opts?: InputOptions): number {
+    const a = inputArgs<number, InputOptions>('price', defval, title, opts);
+    return registerNumeric('float', a.defval, a.title, a.opts);
   },
   /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
-  time(defval: number, title?: string, opts: InputOptions = {}): number {
-    const v = registerInput<unknown>({ type: 'time', defval, title, ...common(opts) }, 'input_time');
-    return typeof v === 'number' ? v : defval;
+  time(defval: number | InputArgs<InputOptions, number>, title?: string | InputArgs<InputOptions, number>, opts?: InputOptions): number {
+    const a = inputArgs<number, InputOptions>('time', defval, title, opts);
+    const v = registerInput<unknown>({ type: 'time', defval: a.defval, title: a.title, ...common(a.opts) }, 'input_time');
+    return typeof v === 'number' ? v : a.defval;
   },
 });
 
@@ -2926,7 +2993,67 @@ function security_lower_tf<T extends SecurityValue>(
 }
 
 /** PineScript `request.*`: `security` (issue #101, other symbols #179, lower timeframes #181) and `security_lower_tf`. */
-export const request = strictNamespace('request', { security, security_lower_tf });
+/** PineScript parameters of `request.security` / `request.security_lower_tf`, in their positional order. */
+const SECURITY_PARAMETERS = ['symbol', 'timeframe', 'expression', 'gaps', 'lookahead', 'ignore_invalid_symbol', 'currency', 'calc_bars_count'] as const;
+const SECURITY_LOWER_TF_PARAMETERS = ['symbol', 'timeframe', 'expression', 'ignore_invalid_symbol', 'currency', 'ignore_invalid_timeframe', 'calc_bars_count'] as const;
+
+/** Named arguments of `request.security` (PineScript names). */
+export interface SecurityArgs<T extends SecurityValue = SecurityValue> {
+  symbol?: string;
+  timeframe?: string;
+  expression?: () => T;
+  gaps?: string;
+  lookahead?: string;
+  ignore_invalid_symbol?: boolean;
+  currency?: string;
+  calc_bars_count?: number;
+}
+
+/** Named arguments of `request.security_lower_tf` (PineScript names). */
+export interface SecurityLowerTfArgs<T extends SecurityValue = SecurityValue> {
+  symbol?: string;
+  timeframe?: string;
+  expression?: () => T;
+  ignore_invalid_symbol?: boolean;
+  currency?: string;
+  ignore_invalid_timeframe?: boolean;
+  calc_bars_count?: number;
+}
+
+/** `currency` and `calc_bars_count` change the values in PineScript: they throw instead of being ignored. */
+function unsupportedSecurityArgs(name: string, currency: unknown, calcBarsCount: unknown): void {
+  if (currency !== undefined && currency !== '' && currency !== 'NONE') {
+    throw new Error(`${name}(): the currency argument (conversion of the values) is not supported.`);
+  }
+  if (calcBarsCount !== undefined) throw new Error(`${name}(): the calc_bars_count argument is not supported.`);
+}
+
+/** `request.security` with PineScript's named arguments: `request.security(sym, "D", () => close, { lookahead: barmerge.lookahead_on })`. */
+function securityCall<T extends SecurityValue>(
+  ...args:
+    | [symbol: string, timeframe: string, expression: () => T, gaps?: string, lookahead?: string, ignore_invalid_symbol?: boolean]
+    | [symbol: string, timeframe: string, expression: () => T, args: SecurityArgs<T>]
+    | [args: SecurityArgs<T> & { symbol: string; timeframe: string; expression: () => T }]
+): T extends unknown[] ? Series[] : Series {
+  const a = namedArguments('request.security', SECURITY_PARAMETERS, args);
+  unsupportedSecurityArgs('request.security', a[6], a[7]);
+  return security(a[0] as string, a[1] as string, a[2] as () => T, a[3] as string | undefined, a[4] as string | undefined, a[5] as boolean | undefined);
+}
+
+/** `request.security_lower_tf` with PineScript's named arguments. */
+function securityLowerTfCall<T extends SecurityValue>(
+  ...args:
+    | [symbol: string, timeframe: string, expression: () => T, ignore_invalid_symbol?: boolean]
+    | [symbol: string, timeframe: string, expression: () => T, args: SecurityLowerTfArgs<T>]
+    | [args: SecurityLowerTfArgs<T> & { symbol: string; timeframe: string; expression: () => T }]
+): T extends unknown[] ? number[][][] : number[][] {
+  const a = namedArguments('request.security_lower_tf', SECURITY_LOWER_TF_PARAMETERS, args);
+  unsupportedSecurityArgs('request.security_lower_tf', a[4], a[6]);
+  if (a[5] !== undefined && a[5] !== false) throw new Error('request.security_lower_tf(): the ignore_invalid_timeframe argument is not supported.');
+  return security_lower_tf(a[0] as string, a[1] as string, a[2] as () => T, a[3] as boolean | undefined);
+}
+
+export const request = strictNamespace('request', { security: securityCall, security_lower_tf: securityLowerTfCall });
 
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that

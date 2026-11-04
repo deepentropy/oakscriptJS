@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Named arguments of the inputs and of `request.security` / `request.security_lower_tf`, as PineScript: `input.int(14, { title: "Length", minval: 1 })`, `input.int({ defval: 14, title: "Length" })`, `request.security(sym, "W", () => high.offset(1), { lookahead: barmerge.lookahead_on })`. An unknown name throws with the closest names (`min` gives "Did you mean minval?"); before, an options object in the title's place crashed an input and was ignored by `request.security`. `currency` and `calc_bars_count` throw (not supported).
 - `oakscript check` command and `oakscriptjs/check` (`checkScript`): runs a script like a host and reports its inputs, outputs, values, signals and trades, errors with their line, warnings for the mistakes that give no error (empty plot, signal on every bar or never, unused input...), and the result of a spec and of a reference. A spec with an unknown key is an error (JSON Schema: `skills/oakscript/spec.schema.json`); behaviour checks (`--checks`, `t.plot` / `t.signal` / `t.expect` / `t.everyBar`); runs on edge-case bars (`--scenarios`); a chart export as bars and reference (`--export`); `assertCheck(report)` for test suites.
 - `oakscriptjs/script/globals`: types of the script globals, to type-check a script source with TypeScript.
 - Script guards: a JavaScript operator on a Series, a `ta.*` call inside `eachBar()` and an unknown member of `ta`, `math`, `str`, `color`, `input`, `request` throw with the fix.

@@ -636,7 +636,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `input.int/float/bool/string/color/source/price` | Implemented | declares AND returns the current value; `input.source` returns a Series (default `close` or `"close"`); `input.price` is a float input |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
 | `input.text_area` | Implemented | multi-line string (`InputConfig.type` `'text_area'`, display `none` by default) |
-| input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active`, copied to `InputConfig`; `isInputActive()` evaluates `active` |
+| input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active`, copied to `InputConfig`; `isInputActive()` evaluates `active`; the title in the options object or every argument named (`{ defval, title, ... }`); an unknown name throws |
 | `plot()` | Implemented | static or per-bar color, style, linestyle, linewidth, histbase, offset, force_overlay; `plot.style_*`, `plot.linestyle_*` constants |
 | `hline()` | Implemented | static level, color, linestyle (default dashed), linewidth; `hline.style_*` constants |
 | `fill()` | Implemented | plot-to-plot or hline-to-hline |

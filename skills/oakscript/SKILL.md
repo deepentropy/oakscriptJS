@@ -70,7 +70,8 @@ plotshape(ta.crossover(close, sma), "Cross", { style: shape.triangleup, location
    `position.*`, `text.*`, `alert.freq_*`, `session.*`, `barstate.*`. Their values are strings
    (`shape.triangleup` is `"triangleup"`), which also work.
 5. **Arguments**: Pine's named arguments are an object after the leading arguments, with Pine's names:
-   `plot(series, title, { color, linewidth, style })`, `strategy.exit(id, { from_entry, stop })`,
+   `plot(series, title, { color, linewidth, style })`, `input.int(14, { title: "Length", minval: 1 })`,
+   `request.security(sym, "W", () => open, { lookahead: barmerge.lookahead_on })`, `strategy.exit(id, { from_entry, stop })`,
    `label.new(c.i, c.high, "A", { style: label.style_label_down, textcolor: color.white })`. Drawing functions
    also take all their arguments by name (`line.new({ x1, y1, x2, y2, extend: extend.right })`); an unknown name
    throws with the closest names. In a bar loop a Series argument of a drawing is its value on the current bar

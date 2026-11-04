@@ -83,6 +83,8 @@ export interface CheckContext {
   signal(name: string): CheckSignal;
   /** Closed trades of a strategy (empty for an indicator). */
   trades: readonly StrategyTrade[];
+  /** The whole result of the run (labels, lines, boxes, tables, markers... as a host gets them). */
+  result: ScriptRunResult['result'];
   /** The value of an input in the run, by id or title. */
   input(name: string): unknown;
   /** Records a check: `ok` false fails it; `detail` is shown when it fails. */
@@ -119,6 +121,7 @@ export function runChecks(
     bars,
     n: bars.length,
     trades,
+    result: run.result,
     plot(name) {
       const p = find(run.plotConfig, name);
       if (!p) throw new Error(`t.plot("${name}"): no plot with this id or title (plots: ${run.plotConfig.map((x) => `"${x.title ?? x.id}"`).join(', ') || 'none'})`);

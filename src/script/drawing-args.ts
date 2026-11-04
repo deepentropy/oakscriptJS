@@ -49,7 +49,8 @@ export const DRAWING_PARAMETERS: Record<string, { coords: readonly string[]; poi
 /** Parameters that take an object: a plain object there is the argument, not named arguments. */
 const OBJECT_PARAMETERS = new Set(['point', 'first_point', 'second_point', 'top_left', 'bottom_right', 'table_id', 'line1', 'line2', 'points']);
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+/** A plain object (an object literal): named arguments, not a Series, an array or a class instance. */
+export const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && !(v instanceof Series) &&
   (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
 
@@ -82,6 +83,36 @@ function closest(name: string, names: readonly string[]): string[] {
     .map(({ k }) => k);
 }
 
+/** The error of an unknown named argument, with the closest names and the list of the arguments. */
+export function unknownArgument(name: string, key: string, list: readonly string[]): TypeError {
+  const near = closest(key, list);
+  return new TypeError(
+    `${name}(): unknown argument "${key}".` + (near.length ? ` Did you mean ${near.join(', ')}?` : '') +
+      ` The arguments are: ${list.join(', ')}.`
+  );
+}
+
+/**
+ * The positional arguments of a call to a function of PineScript parameters `list`, whose last argument may be an
+ * object of named arguments (`request.security(sym, "D", () => close, { lookahead: barmerge.lookahead_on })`, or every
+ * argument by name). An unknown name throws with the closest names; a name given by position too throws.
+ */
+export function namedArguments(name: string, list: readonly string[], args: readonly unknown[]): unknown[] {
+  const last = args[args.length - 1];
+  if (!isPlainObject(last)) return [...args];
+  const positional = args.slice(0, -1);
+  const out = [...positional];
+  for (const [key, value] of Object.entries(last)) {
+    const index = list.indexOf(key);
+    if (index < 0) throw unknownArgument(name, key, list);
+    if (index < positional.length && positional[index] !== undefined) {
+      throw new TypeError(`${name}(): "${key}" is given twice (by position and by name).`);
+    }
+    out[index] = value;
+  }
+  return out;
+}
+
 /** The positional arguments of a call whose last argument may be named arguments. */
 export function positionalArguments(name: string, args: readonly unknown[]): unknown[] {
   const params = DRAWING_PARAMETERS[name];
@@ -103,13 +134,7 @@ export function positionalArguments(name: string, args: readonly unknown[]): unk
   const out = [...positional];
   for (const [key, value] of Object.entries(last)) {
     const index = list.indexOf(key);
-    if (index < 0) {
-      const near = closest(key, list);
-      throw new TypeError(
-        `${name}(): unknown argument "${key}".` + (near.length ? ` Did you mean ${near.join(', ')}?` : '') +
-          ` The arguments are: ${list.join(', ')}.`
-      );
-    }
+    if (index < 0) throw unknownArgument(name, key, list);
     if (index < positional.length && positional[index] !== undefined) {
       throw new TypeError(`${name}(): "${key}" is given twice (by position and by name).`);
     }

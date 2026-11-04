@@ -50,7 +50,10 @@ override when there is one, else the default.
 | `input.symbol("NASDAQ:AAPL", title)` | ticker id for `request.security` |
 | `input.time(timestamp("2024-01-01"), title)` | UNIX time in ms |
 
-Options of every kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active` (false greys the input out).
+Options of every kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active` (false greys the input out). They
+have Pine's names (`minval`, not `min`): an unknown name throws with the closest names. The title can also be in the
+options object (`input.int(14, { title: "Length", minval: 1 })`), or every argument named (`input.int({ defval: 14,
+title: "Length" })`).
 
 ```js
 indicator("Inputs demo");

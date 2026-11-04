@@ -35,9 +35,13 @@ plot(prevLow, "Previous day low", { color: color.red, style: plot.style_linebr }
 
 ```js
 indicator("Weekly open", { overlay: true });
-const weekOpen = request.security("", "W", () => open, barmerge.gaps_off, barmerge.lookahead_on);
+const weekOpen = request.security("", "W", () => open, { lookahead: barmerge.lookahead_on });
 plot(weekOpen, "Week open", { color: color.purple, style: plot.style_stepline });
 ```
+
+The arguments after the expression are Pine's, by position (`gaps, lookahead, ignore_invalid_symbol`) or by name in an
+object (`{ gaps, lookahead, ignore_invalid_symbol }`); an unknown name throws with the closest names. `currency` and
+`calc_bars_count` are not supported (they throw).
 
 ### Other symbols
 

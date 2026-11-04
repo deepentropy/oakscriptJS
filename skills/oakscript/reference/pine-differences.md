@@ -10,7 +10,7 @@ from the vectorized execution.
 |---|---|
 | `//@version=6` | nothing |
 | `indicator("T", overlay=true)` | `indicator("T", { overlay: true })` |
-| `len = input.int(14, "Length", minval=1)` | `const len = input.int(14, "Length", { minval: 1 })` |
+| `len = input.int(14, "Length", minval=1)` | `const len = input.int(14, "Length", { minval: 1 })` or `input.int(14, { title: "Length", minval: 1 })` |
 | `src = input.source(close, "Source")` | `const src = input.source(close, "Source")` |
 | `a + b`, `a - b`, `a * b`, `a / b` on series | `a.add(b)`, `a.sub(b)`, `a.mul(b)`, `a.div(b)` |
 | `a > b`, `a == b`, `a and b`, `not a` on series | `a.gt(b)`, `a.eq(b)`, `a.and(b)`, `a.not()` |
@@ -31,6 +31,7 @@ from the vectorized execution.
 | `line.new(x1, y1, x2, y2, extend=extend.right)` | `line.new(x1, y1, x2, y2, { extend: extend.right })` |
 | `xloc.bar_time`, `yloc.abovebar`, `line.style_dashed`, `format.volume`, `display.none`, `dayofweek.monday` | the same |
 | `request.security(sym, "D", ta.ema(close, 20))` | `request.security(sym, "D", () => ta.ema(close, 20))` |
+| `request.security(sym, "W", high[1], lookahead = barmerge.lookahead_on)` | `request.security(sym, "W", () => high.offset(1), { lookahead: barmerge.lookahead_on })` |
 | `strategy.entry("L", strategy.long, when = cond)` | `strategy.eachBar((c) => { if (c.get(cond) === 1) strategy.entry("L", strategy.long); })` |
 | `strategy.opentrades.entry_price(0)` | `strategy.opentrade(0)?.entry_price` (`strategy.opentrades` is the count: a JavaScript number cannot also hold the functions) |
 | `strategy.closedtrades.profit(i)` | `strategy.closedtrade(i)?.profit` |

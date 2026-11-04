@@ -93,6 +93,9 @@ describe('script globals typings', () => {
       'indicator("Pine forms", { overlay: true, scale: scale.right, format: format.price });',
       'const src = input.source(close, "Source");',
       'const level = input.price(100, "Level");',
+      'const fast = input.int(9, { title: "Fast", minval: 1 });',
+      'const slow = input.int({ defval: 21, title: "Slow" });',
+      'const weekly = request.security("", "W", () => high.offset(1), { lookahead: barmerge.lookahead_on });',
       'plot(ta.vwma(src, 20), "VWMA", { offset: 1, display: display.all });',
       'plotshape(ta.crossover(src, ta.sma(src, 10)), "Up", { style: shape.triangleup, location: location.belowbar, size: size.small });',
       'eachBar((c) => {',
@@ -113,8 +116,9 @@ describe('script globals typings', () => {
       'indicator("Typos");',
       'plotshape(close.gt(open), "Up", { style: shape.triangel });', // 2 unknown constant
       'eachBar((c) => { label.new(c.i, c.high, "A", { textcolour: color.red }); });', // 3 unknown named argument
+      'const len = input.int(9, { title: "Length", min: 1 });', // 4 Pine's name is minval
     ].join('\n');
-    expect(check({ 'typos.js': source })).toEqual(['typos.js:2 TS2339', 'typos.js:3 TS2769']);
+    expect(check({ 'typos.js': source })).toEqual(['typos.js:2 TS2339', 'typos.js:3 TS2769', 'typos.js:4 TS2353']);
   });
 
   it('report TypeScript syntax in a script', () => {
