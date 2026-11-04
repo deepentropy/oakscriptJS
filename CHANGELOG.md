@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 04/11/2026
+
+### Documentation
+
+- Guide input table: every input kind shows its options object with the common options (`group`, `inline`, `tooltip`, `confirm`, `display`, `active`), the `input.price` row, and how a host lays out `group` and `inline`. `InputOptions` documents each common option (editor hover) (#195).
+
 ## [0.14.0] - 04/11/2026
 
 ### Added
