@@ -56,7 +56,7 @@ function body() {
   const slow = ta.sma(close, input.int(30, 'Slow'));
   plot(fast, 'Fast', { color: color.blue });
   plot(slow, 'Slow', { color: color.orange });
-  plotshape(ta.crossover(fast, slow), 'Cross up', { style: 'triangleup', location: 'belowbar', color: color.green });
+  plotshape(ta.crossover(fast, slow), 'Cross up', { style: shape.triangleup, location: location.belowbar, color: color.green });
   bgcolor(color.when(fast.gt(slow), color.new(color.green, 90)));
 }
 

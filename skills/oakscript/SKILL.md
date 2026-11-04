@@ -13,7 +13,7 @@ indicator("My SMA", { overlay: true });                      // one declaration:
 const length = input.int(20, "Length", { minval: 1 });       // an input: declared AND read here
 const sma = ta.sma(close, length);                           // Series math, all bars at once
 plot(sma, "SMA", { color: color.blue, linewidth: 2 });       // an output
-plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "belowbar" });
+plotshape(ta.crossover(close, sma), "Cross", { style: shape.triangleup, location: location.belowbar });
 ```
 
 ## The script format
@@ -31,7 +31,11 @@ plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "b
 
 ## Workflow
 
-1. **Declare** with `indicator(title, { overlay })` (overlay `true`: on the price pane; `false`: own pane) or
+0. **Write the spec first** when you can run a command: the user's request as a small JSON file (title, pane,
+   inputs and defaults, outputs, what the signals look like, `"scenarios": true`) and, for the behaviour it cannot
+   count ("Buy only when the RSI is below 30"), a checks file; `oakscript check` checks both (step 6). An unknown spec
+   key is an error. See [check](reference/check.md#the-spec).
+1. **Declare** with `indicator(title, { overlay })` (overlay `true`: on the price pane; `false`, the default: own pane) or
    `strategy(title, { ...properties })`. Exactly one declaration, at the top.
 2. **Inputs**: `input.int / float / bool / string / color / source / timeframe / session / symbol / time`.
    They return plain values (a Series for `input.source`). The input id is the title in snake case
@@ -42,10 +46,12 @@ plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "b
    `strategy.eachBar((c) => ...)` holds the orders.
 5. **Outputs**: `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `bgcolor`, `barcolor`,
    `plotcandle`, drawings (`label.new`, `line.new`, `box.new`, `table.new`), `alertcondition`, `alert`.
-6. **Type-check it** when you can run a command: `npx tsc -p .` with the `tsconfig.json` of
-   [Type-checking](#type-checking) reports operators on Series, misspelt functions and options, missing arguments
-   and bad style strings, with their line, before the script runs.
-7. **Run it and check the values**: compile errors, runtime errors, then the plot values on the last bars
+6. **Check it**: `npx oakscript check script.js --spec spec.json` type-checks the script, runs it on 1,500 bars
+   and reports errors with their line, the inputs and outputs, the values and signal counts, the failed spec items and
+   warnings (an empty plot, a signal on every bar or never, an input that changes nothing). Fix until the exit code is
+   0, or 2 with warnings you have read. For a port, `--export chart-export.csv` compares the values bar by bar. See
+   [check](reference/check.md).
+7. **Without a command**, check by hand: compile errors, runtime errors, then the plot values on the last bars
    (an empty plot means NaN everywhere). See [errors](reference/errors.md).
 8. Start from the closest [example](#examples) rather than from scratch.
 
@@ -58,15 +64,17 @@ plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "b
    `c.get(series, 1)` are numbers: JS operators, `if`, `for` work. A condition reads `c.get(cond) === 1`.
 3. **Compute `ta.*` outside the loops.** A `ta.*` call inside a bar callback throws: compute the Series before
    the loop and read it with `c.get()`.
-4. **Pine constants are strings**: `shape.triangleup` is `"triangleup"`, `location.belowbar` `"belowbar"`,
-   `size.small` `"small"`, `label.style_label_down` `"label_down"`, `xloc.bar_index` `"bar_index"`,
-   `extend.right` `"right"`, `line.style_dashed` `"dashed"`. These namespaces do exist: `color.*`,
-   `plot.style_*`, `plot.linestyle_*`, `hline.style_*`, `strategy.*`, `barmerge.*`, `position.*`, `text.*`,
-   `alert.freq_*`, `session.*`, `barstate.*`.
-5. **Arguments**: declarations, inputs, plots and orders take named options in an object after the leading
-   arguments (`plot(series, title, { color, linewidth, style })`, `strategy.exit(id, { from_entry, stop })`).
-   Drawing functions (`label.new`, `line.new`, `box.new`, `table.cell`...) are positional only, in the
-   Pine order: pass `undefined` to skip one.
+4. **Pine constants exist** as in Pine: `shape.*`, `location.*`, `size.*`, `xloc.*`, `yloc.*`, `extend.*`,
+   `display.*`, `format.*`, `font.*`, `scale.*`, `order.*`, `currency.*`, `label.style_*`, `line.style_*`,
+   `dayofweek.*`, `color.*`, `plot.style_*`, `plot.linestyle_*`, `hline.style_*`, `strategy.*`, `barmerge.*`,
+   `position.*`, `text.*`, `alert.freq_*`, `session.*`, `barstate.*`. Their values are strings
+   (`shape.triangleup` is `"triangleup"`), which also work.
+5. **Arguments**: Pine's named arguments are an object after the leading arguments, with Pine's names:
+   `plot(series, title, { color, linewidth, style })`, `strategy.exit(id, { from_entry, stop })`,
+   `label.new(c.i, c.high, "A", { style: label.style_label_down, textcolor: color.white })`. Drawing functions
+   also take all their arguments by name (`line.new({ x1, y1, x2, y2, extend: extend.right })`); an unknown name
+   throws with the closest names. In a bar loop a Series argument of a drawing is its value on the current bar
+   (`label.new(bar_index, high, "A")`).
 6. **na is NaN.** There is no `na` constant: use `NaN` (`undefined` for a colour). `na(x)` and `nz(x, y)` take
    numbers (use them in a bar loop); on a Series use `x.iff(x, 0)` for `nz(x)`, `fixnan(x)`, or a bar loop.
    Plots skip NaN bars. JS comparisons with NaN are false; for the Pine rules (1e-10 tolerance) use
@@ -89,7 +97,7 @@ plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "b
 | `a + b`, `a > b`, `c ? x : y` (series) | `a.add(b)`, `a.gt(b)`, `c.iff(x, y)` |
 | `close[1]` | `close.offset(1)`; in a loop `c.get(close, 1)` |
 | `var x = 0` / `x := ...` | `let x = 0` before `eachBar`, assigned in the callback |
-| `bar_index`, `last_bar_index` | `c.i`, `c.n - 1` in a bar loop |
+| `bar_index`, `last_bar_index` | the Series `bar_index`, `last_bar_index`; in a bar loop `c.i`, `c.n - 1` |
 | `plot(x, "T", color=c, linewidth=2)` | `plot(x, "T", { color: c, linewidth: 2 })` |
 | `[a, b, c] = ta.macd(...)` | `const [a, b, c] = ta.macd(...)` |
 | `if cond` + `strategy.entry(...)` | `strategy.eachBar((c) => { if (c.get(cond) === 1) strategy.entry(...) })` |
@@ -101,12 +109,13 @@ Full table, the deviations and the unsupported parts: [reference/pine-difference
 - `if (series)`, `series ? a : b` at the top level: always true, with no error; use Series methods (rule 1).
 - `close - open`, `ma > 50`: a TypeError; use Series methods (rule 1).
 - `ta.sma(...)` inside `eachBar`: an error; compute it before the loop (rule 3).
-- `ta.vwma(close, 20)` throws: pass the volume, `ta.vwma(close, 20, volume)`. `ta.stoch(close, high, low, 14)`
-  takes all four arguments, as in Pine.
+- `ta.stoch(close, high, low, 14)` takes all four arguments, as in Pine.
 - A per-bar colour from a JS ternary on a Series (`cond ? green : red`): one colour; use `color.when()`.
 - `strategy.position_size` at the top level: read it inside `strategy.eachBar()`.
 - Two `indicator()` calls, or `indicator()` and `strategy()` in one script: one declaration only.
-- Pine named arguments in drawings (`label.new(x, y, text = "A", style = ...)`): positional, with strings.
+- Pine named arguments with `=` (`label.new(x, y, text = "A", style = ...)`): an object, `{ style: ... }`.
+- `strategy.opentrades.entry_price(0)`: `strategy.opentrades` is the count (a number); use
+  `strategy.opentrade(0)?.entry_price` (same for `strategy.closedtrades.*` with `strategy.closedtrade(i)`).
 
 ## Reading errors
 
@@ -146,11 +155,13 @@ Complete scripts, run by the package's CI on synthetic bars:
 - [reference/pine-differences.md](reference/pine-differences.md): Pine Script v6 to OakScript, what is not
   supported.
 - [reference/errors.md](reference/errors.md): compiler and runtime errors, silent mistakes.
+- [reference/check.md](reference/check.md): `oakscript check`, its warnings, the spec and reference files.
 
 ## Type-checking
 
-`oakscriptjs/script/globals` types the script globals. A `tsconfig.json` next to the scripts, then `npx tsc -p .`
-(one error per mistake, with its line; no output means no type error):
+`oakscript check` runs this type check itself. On its own: `oakscriptjs/script/globals` types the script globals; a
+`tsconfig.json` next to the scripts, then `npx tsc -p .` (one error per mistake, with its line; no output means no
+type error):
 
 ```json
 {

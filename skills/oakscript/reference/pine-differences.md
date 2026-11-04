@@ -11,7 +11,7 @@ from the vectorized execution.
 | `//@version=6` | nothing |
 | `indicator("T", overlay=true)` | `indicator("T", { overlay: true })` |
 | `len = input.int(14, "Length", minval=1)` | `const len = input.int(14, "Length", { minval: 1 })` |
-| `src = input.source(close, "Source")` | `const src = input.source("close", "Source")` (the default is a name) |
+| `src = input.source(close, "Source")` | `const src = input.source(close, "Source")` |
 | `a + b`, `a - b`, `a * b`, `a / b` on series | `a.add(b)`, `a.sub(b)`, `a.mul(b)`, `a.div(b)` |
 | `a > b`, `a == b`, `a and b`, `not a` on series | `a.gt(b)`, `a.eq(b)`, `a.and(b)`, `a.not()` |
 | `cond ? x : y` on series | `cond.iff(x, y)` |
@@ -21,27 +21,29 @@ from the vectorized execution.
 | `if close > open` (per bar) | in a bar loop: `if (c.close > c.open)` |
 | `for i = 0 to n - 1` | `for (let i = 0; i < n; i++)` in a bar loop |
 | `switch` / `if` returning a value | JS `switch` / `if` in a bar loop, or `iff` chains on Series |
-| `bar_index`, `last_bar_index` | `c.i`, `c.n - 1` |
+| `bar_index`, `last_bar_index` | the Series `bar_index`, `last_bar_index`; in a bar loop `c.i`, `c.n - 1` |
 | `myFunc(x) => ...` | a JS `function`; on Series it composes Series methods |
 | `[a, b] = f()` | `const [a, b] = f()` |
 | `plot(x, "T", color=c, style=plot.style_columns)` | `plot(x, "T", { color: c, style: plot.style_columns })` |
 | `plot(x, color = cond ? c1 : c2)` | `plot(x, "T", { color: color.when(cond, c1, c2) })` |
-| `plotshape(cond, style=shape.triangleup, location=location.belowbar, size=size.small)` | `plotshape(cond, "T", { style: "triangleup", location: "belowbar", size: "small" })` |
-| `label.new(bar_index, high, "A", style=label.style_label_down)` | `label.new(c.i, c.high, "A", undefined, undefined, undefined, "label_down")` (positional) |
-| `line.new(x1, y1, x2, y2, extend=extend.right)` | `line.new(x1, y1, x2, y2, "bar_index", "right")` |
-| `xloc.bar_time`, `yloc.abovebar`, `line.style_dashed`, `format.volume`, `display.none` | `"bar_time"`, `"abovebar"`, `"dashed"`, `"volume"`, `"none"` |
-| `dayofweek.monday` | `2` (1 = Sunday ... 7 = Saturday) |
+| `plotshape(cond, style=shape.triangleup, location=location.belowbar, size=size.small)` | `plotshape(cond, "T", { style: shape.triangleup, location: location.belowbar, size: size.small })` |
+| `label.new(bar_index, high, "A", style=label.style_label_down)` (in an `if`) | in a bar loop: `label.new(bar_index, high, "A", { style: label.style_label_down })` (or `c.i`, `c.high`) |
+| `line.new(x1, y1, x2, y2, extend=extend.right)` | `line.new(x1, y1, x2, y2, { extend: extend.right })` |
+| `xloc.bar_time`, `yloc.abovebar`, `line.style_dashed`, `format.volume`, `display.none`, `dayofweek.monday` | the same |
 | `request.security(sym, "D", ta.ema(close, 20))` | `request.security(sym, "D", () => ta.ema(close, 20))` |
 | `strategy.entry("L", strategy.long, when = cond)` | `strategy.eachBar((c) => { if (c.get(cond) === 1) strategy.entry("L", strategy.long); })` |
-| `strategy.opentrades.entry_price(0)` | `strategy.opentrade(0)?.entry_price` |
+| `strategy.opentrades.entry_price(0)` | `strategy.opentrade(0)?.entry_price` (`strategy.opentrades` is the count: a JavaScript number cannot also hold the functions) |
 | `strategy.closedtrades.profit(i)` | `strategy.closedtrade(i)?.profit` |
 | `array.new_float(10, 0)`, `matrix.new<float>()`, `map.new<string, float>()` | `import { array, matrix, map } from "oakscriptjs";` then `array.new_float(10, 0)`, `matrix.new_matrix(...)`, `map.new_map()`; or plain JS arrays / `Map` |
 | `log.info("x = " + str.tostring(x))` | not available: plot it with `display: "data_window"` or put it in a label |
 
-Constants that **do** exist as namespaces: `color.*`, `plot.style_*`, `plot.linestyle_*`, `hline.style_*`,
+The Pine constants exist with their Pine names: `shape.*`, `location.*`, `size.*`, `xloc.*`, `yloc.*`,
+`extend.*`, `display.*`, `format.*`, `font.family_*`, `scale.*`, `order.*`, `currency.*`, `adjustment.*`,
+`label.style_*`, `line.style_*`, `dayofweek.*`, `color.*`, `plot.style_*`, `plot.linestyle_*`, `hline.style_*`,
 `strategy.long / short / fixed / cash / percent_of_equity`, `strategy.commission.*`, `strategy.direction.*`,
 `strategy.oca.*`, `barmerge.*`, `position.*`, `text.align_* / wrap_* / format_*`, `alert.freq_*`,
-`session.regular / extended`, `math.pi / e / phi / rphi`.
+`session.regular / extended`, `math.pi / e / phi / rphi`. Their values are the strings the functions take
+(`shape.triangleup` is `"triangleup"`).
 
 ## Execution differences
 
@@ -62,16 +64,14 @@ Constants that **do** exist as namespaces: `color.*`, `plot.style_*`, `plot.line
 
 ## API differences
 
-- `ta.vwma(source, length, volume)` needs the volume Series (Pine reads the chart volume).
 - `color.from_gradient` takes numbers: build per-bar gradients in a bar loop.
-- `plot()` has no `offset`, `show_last`, `trackprice` or `join` option; shift a series right with
-  `x.offset(k)`. `plotshape`, `plotchar`, `plotarrow` and `bgcolor` accept `offset` (negative too).
+- `plot()` has no `show_last`, `trackprice` or `join` option. `offset` shifts the plot as in Pine (values past the
+  first or last bar are not drawn).
 - `fill()` accepts `show_last` / `fillgaps` / `display` and ignores them.
-- `input.enum` and `input.price` do not exist (use `input.string(..., { options })` and `input.float`).
+- `input.enum` does not exist (no `enum` declarations): use `input.string(..., { options })`.
 - `request.*`: only `request.security` and `request.security_lower_tf`. No `request.financial`,
   `request.dividends`, `request.earnings`, `request.splits`, `request.economic`, `request.seed`,
   `request.currency_rate`, `request.footprint`. `ticker.*`: only `ticker.heikinashi` and `ticker.standard`.
-- `box.set_xloc()` is not implemented.
 - `math.random(min, max, seed)`: with a seed, Pine's sequence, but one generator per seed value (Pine has one
   per call site): two calls with the same seed need `callsite.random(seed)`.
 - `math.log`, `math.exp`, `math.pow`, `math.sin`, `math.cos`, `math.tan`, `math.log10` can differ from Pine in

@@ -15,6 +15,9 @@ The rest of this file is for working on the library itself.
   `request.security`, the context-bound `ta`). `src/script/globals.ts`: the types of the script globals
   (`oakscriptjs/script/globals`, for type-checking scripts); a new value export of the script API goes there too
   (`tests/skills/typecheck.test.ts` checks it).
+- `src/check/`: `checkScript` (`oakscriptjs/check`: the report of a script, warnings, spec and reference checks),
+  `harness.ts` (synthetic bars, test chart, test order engine; also used by `tests/skills/`), `node.ts` (the
+  `oakscript check` command of `bin/oakscript.mjs`: file lines, time limit, type check, files).
 - `src/runtime/series.ts`: `Series` and `BarData`. `src/ta-series.ts`: Series wrappers of `src/ta/index.ts`
   (array functions, `taCore`).
 - `src/<namespace>/`: `math`, `array`, `matrix`, `map`, `str`, `color`, `time`, `timeframe`, `line`, `label`,

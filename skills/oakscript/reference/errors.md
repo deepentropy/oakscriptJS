@@ -1,8 +1,8 @@
 # Errors and how to read them
 
 A script fails in one of three ways: it does not compile, it stops with a runtime error, or it runs and gives a
-wrong output. Fix them in that order, then check the values. A type check (`npx tsc -p .`, see
-[Type-checking](../SKILL.md#type-checking)) finds most runtime errors of the table below before the script runs.
+wrong output. Fix them in that order, then check the values. `npx oakscript check script.js` ([check](check.md))
+reports all three, with the lines, and warns about the silent mistakes of the last table.
 
 ## Type-check errors
 
@@ -13,7 +13,9 @@ wrong output. Fix them in that order, then check the values. A type check (`npx 
 | `TS2339` / `TS2551` `Property 'smaa' does not exist on type...` | a misspelt or Pine-only name | the name it suggests, [pine-differences.md](pine-differences.md) |
 | `TS2322` `Type '"triangel"' is not assignable to type 'ShapeStyle'` | a bad constant string | one of the strings it lists |
 | `TS2561` / `TS2353` `Object literal may only specify known properties` | a misspelt option (`colour`) | the option it suggests |
-| `TS2554` `Expected 3 arguments, but got 2` | a missing argument (`ta.vwma(close, 20)`) | pass it: `ta.vwma(close, 20, volume)` |
+| `TS2554` `Expected 4 arguments, but got 3` | a missing argument (`ta.stoch(close, high, low)`) | pass it: `ta.stoch(close, high, low, 14)` |
+| `TS2339` `Property 'entry_price' does not exist on type 'number'` | `strategy.opentrades.entry_price(0)` (`strategy.opentrades` is the count) | `strategy.opentrade(0)?.entry_price`, `strategy.closedtrade(i)?.profit` |
+| `TS2769` `No overload matches this call` on a drawing | a misspelt named argument (`{ textcolour: ... }`) | the Pine name (`textcolor`) |
 | `TS8010` `Type annotations can only be used in TypeScript files` | TypeScript syntax | remove the types |
 
 ## Compile errors (syntax)
@@ -41,7 +43,10 @@ The run stops at the first error; the message names the call. The ones you will 
 | `TypeError: ta.smaa does not exist. Did you mean ta.sma?` (also `math.`, `str.`, `color.`, `input.`, `request.`) | a misspelt or Pine-only member | a suggested name, [pine-differences.md](pine-differences.md) |
 | `TypeError: series.toArray is not a function` | a number or NaN passed where a Series is expected: `plot(5)`, `ta.sma(c.close, 10)` | a Series; a constant level: `hline(5)` |
 | `xyz is not defined` | a global that does not exist (Pine-only name such as `shape`, `location`, `size`, `xloc`, `bar_index`) | [pine-differences.md](pine-differences.md): strings for the constants, `c.i` for `bar_index` |
-| `TypeError: Cannot read properties of undefined (reading 'toArray')` | a missing Series argument, e.g. `ta.vwma(close, 20)` | pass it: `ta.vwma(close, 20, volume)` |
+| `TypeError: Cannot read properties of undefined (reading 'toArray')` | a missing Series argument, e.g. `ta.stoch(close, high, low)` | pass it: `ta.stoch(close, high, low, 14)` |
+| `TypeError: label.new(): unknown argument "textcolour". Did you mean textcolor?` | a misspelt named argument of a drawing | the name it suggests |
+| `TypeError: label.new(): argument 1 is a Series, a drawing takes one value: call label.new() inside eachBar()...` | a drawing created at the top level with a Series (`label.new(bar_index, high)`) | create it in a bar loop |
+| `TypeError: strategy.opentrades.entry_price is not a function` | `strategy.opentrades` is the count | `strategy.opentrade(0)?.entry_price` |
 | `Error on bar N: Invalid value of the 'length' argument (0.0) in the 'sma' function. It must be > 0.` | a length of 0, negative or NaN (often an input) | `minval: 1` on the input, or guard the value |
 | `Error on bar N: The 'sma' function references too many historical candles (6000), the limit is 5000.` | a window longer than 5000 bars | a shorter length |
 | `Error on bar N: The script attempts to reference historical data that is too far from the current bar (K bars back)...` | `x.offset(k)` / `c.get(x, k)` with k above 5000, or a history that keeps growing (`c.get(x, c.i)`) | bounded offsets |

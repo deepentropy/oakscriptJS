@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `oakscript check` command and `oakscriptjs/check` (`checkScript`): runs a script like a host and reports its inputs, outputs, values, signals and trades, errors with their line, warnings for the mistakes that give no error (empty plot, signal on every bar or never, unused input...), and the result of a spec and of a reference. A spec with an unknown key is an error (JSON Schema: `skills/oakscript/spec.schema.json`); behaviour checks (`--checks`, `t.plot` / `t.signal` / `t.expect` / `t.everyBar`); runs on edge-case bars (`--scenarios`); a chart export as bars and reference (`--export`); `assertCheck(report)` for test suites.
+- `oakscriptjs/script/globals`: types of the script globals, to type-check a script source with TypeScript.
+- Script guards: a JavaScript operator on a Series, a `ta.*` call inside `eachBar()` and an unknown member of `ta`, `math`, `str`, `color`, `input`, `request` throw with the fix.
+- PineScript constants with their Pine names: `shape.*`, `location.*`, `size.*`, `xloc.*`, `yloc.*`, `extend.*`, `display.*`, `format.*`, `font.*`, `scale.*`, `order.*`, `currency.*`, `adjustment.*`, `label.style_*`, `line.style_*`, `dayofweek.*` (their values are the strings the functions already took).
+- Named arguments of the drawing functions: `label.new(c.i, c.high, "A", { style: label.style_label_down })`, or every argument by name (`label.new`, `line.new`, `box.new`, `table.new`, `table.cell`, `polyline.new`, `linefill.new`); in a bar loop a Series argument of a drawing function is its value on the current bar (`label.new(bar_index, high, "A")`).
+- `bar_index` and `last_bar_index` Series, `input.price`, `input.source(close)` (the built-in Series as the default), `plot(..., { offset })`, `indicator(..., { scale })`.
+- `ta.vwma(source, length)` uses the chart volume, as PineScript (a third argument still gives another volume).
+
+### Changed
+
+- `indicator()` without `overlay` draws in its own pane (`overlay: false`), as PineScript; it was the price pane. A script without a declaration also runs in its own pane.
+
 ## [0.13.2] - 02/11/2026
 
 ### Added

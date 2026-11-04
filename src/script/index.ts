@@ -75,6 +75,8 @@ import type {
 } from '../runtime/types.js';
 import { BarData, Series, MAX_BARS_BACK, historyError } from '../runtime/series.js';
 import * as taSeries from '../ta-series.js';
+import * as pineConstants from './constants.js';
+import { drawingNamespace } from './drawing-args.js';
 import * as colorCore from '../color/index.js';
 import { inputColorDefault } from '../color/parse.js';
 import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
@@ -109,7 +111,7 @@ import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from '../s
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
 import { securityLowerTf, securityOther, type OtherSymbolChart } from '../security/other.js';
 import { position } from '../types/index.js';
-import type { ChartPoint } from '../types/index.js';
+import type { Box, ChartPoint, Label, Line, Linefill, Polyline, Table } from '../types/index.js';
 import {
   STRATEGY_CONSTANTS,
   STRATEGY_DEFAULTS,
@@ -135,7 +137,7 @@ import { sessionPeriods, type SessionPeriods } from '../session/context.js';
 
 /** Everything one run of a script produced. */
 export interface ScriptRunResult {
-  metadata: { title: string; shortTitle?: string; overlay: boolean; precision?: number; format?: string };
+  metadata: { title: string; shortTitle?: string; overlay: boolean; precision?: number; format?: string; scale?: 'right' | 'left' | 'none' };
   inputConfig: InputConfig[];
   plotConfig: PlotConfig[];
   hlineConfig: HLineConfig[];
@@ -218,6 +220,8 @@ interface Collector {
   overlay: boolean;
   precision?: number;
   format?: string;
+  /** indicator(..., { scale }): the price scale the script uses. */
+  scale?: 'right' | 'left' | 'none';
   inputValues: Record<string, unknown>;
   inputConfig: InputConfig[];
   inputIds: Set<string>;
@@ -275,7 +279,7 @@ function collector(): Collector {
 function freshCollector(inputValues: Record<string, unknown>): Collector {
   return {
     title: 'Untitled',
-    overlay: true,
+    overlay: false,
     inputValues,
     inputConfig: [],
     inputIds: new Set(),
@@ -452,6 +456,7 @@ export function executeScript(
         overlay: c.overlay,
         precision: c.precision,
         format: c.format,
+        ...(c.scale ? { scale: c.scale } : {}),
       },
       inputConfig: c.inputConfig,
       plotConfig: c.plotConfig,
@@ -595,9 +600,12 @@ export function varip<T>(initial: T): VaripVariable<T> {
 
 export interface IndicatorOptions {
   shorttitle?: string;
+  /** true: drawn on the price pane; false (default, as PineScript): in its own pane. */
   overlay?: boolean;
   precision?: number;
   format?: string;
+  /** The price scale: `scale.right`, `scale.left` or `scale.none` (recorded in `metadata.scale` for the host). */
+  scale?: 'right' | 'left' | 'none';
   /** Lines kept before the oldest are deleted (default 50; PineScript keeps up to 5 more). */
   max_lines_count?: number;
   /** Labels kept before the oldest are deleted (default 50). */
@@ -614,9 +622,10 @@ export function indicator(title: string, options: IndicatorOptions = {}): void {
   declare(c, 'indicator');
   c.title = title;
   c.shortTitle = options.shorttitle;
-  c.overlay = options.overlay ?? true;
+  c.overlay = options.overlay ?? false;
   c.precision = options.precision;
   c.format = options.format;
+  c.scale = options.scale;
   setDrawingLimits({
     line: options.max_lines_count,
     label: options.max_labels_count,
@@ -715,8 +724,8 @@ export const input = strictNamespace('input', {
     return registerInput<string>({ type: 'color', defval: inputColorDefault(defval), title, ...common(opts) }, 'input_color');
   },
   /** Declares a source input and returns it as a Series. */
-  source(defval: string = 'close', title?: string, opts: InputOptions = {}): Series {
-    const name = registerInput<string>({ type: 'source', defval, title, ...common(opts) }, 'input_source');
+  source(defval: string | Series = 'close', title?: string, opts: InputOptions = {}): Series {
+    const name = registerInput<string>({ type: 'source', defval: sourceName(defval), title, ...common(opts) }, 'input_source');
     return sourceSeries(name);
   },
   /** Timeframe string ("60", "1D", "W"). As in PineScript, "" means the chart timeframe. */
@@ -737,6 +746,10 @@ export const input = strictNamespace('input', {
   symbol(defval: string, title?: string, opts: StringInputOptions = {}): string {
     return registerInput<string>({ type: 'symbol', defval, title, options: opts.options, ...common(opts) }, 'input_symbol');
   },
+  /** PineScript `input.price`: a price level, a float input (the host shows it as a number). */
+  price(defval: number, title?: string, opts: NumericInputOptions = {}): number {
+    return registerNumeric('float', defval, title, opts);
+  },
   /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
   time(defval: number, title?: string, opts: InputOptions = {}): number {
     const v = registerInput<unknown>({ type: 'time', defval, title, ...common(opts) }, 'input_time');
@@ -755,10 +768,26 @@ export const hl2 = new Series(ctxBars, (b) => (b.high + b.low) / 2);
 export const hlc3 = new Series(ctxBars, (b) => (b.high + b.low + b.close) / 3);
 export const ohlc4 = new Series(ctxBars, (b) => (b.open + b.high + b.low + b.close) / 4);
 export const hlcc4 = new Series(ctxBars, (b) => (b.high + b.low + b.close + b.close) / 4);
+/** PineScript `bar_index`: the index of each bar (0 on the first). In a bar loop, `c.i` is the same number. */
+export const bar_index = new Series(ctxBars, (_b, i) => i);
+bar_index.fullHistory = true;
+/** PineScript `last_bar_index`: the index of the last bar, on every bar. In a bar loop, `c.n - 1`. */
+export const last_bar_index = new Series(ctxBars, (_b, _i, data) => data.length - 1);
+last_bar_index.fullHistory = true;
 // built-in price variables keep the whole history (no 5000-bar limit)
 for (const s of [hl2, hlc3, ohlc4, hlcc4]) s.fullHistory = true;
 
 const SOURCES: Record<string, Series> = { open, high, low, close, volume, hl2, hlc3, ohlc4, hlcc4 };
+
+/** The name of a source default: `input.source(close)` as `input.source("close")` (PineScript passes the series). */
+function sourceName(defval: string | Series): string {
+  if (typeof defval === 'string') return defval;
+  const name = Object.keys(SOURCES).find((k) => SOURCES[k] === defval);
+  if (!name) {
+    throw new Error('input.source(): the default must be a built-in source (open, high, low, close, volume, hl2, hlc3, ohlc4, hlcc4).');
+  }
+  return name;
+}
 
 function sourceSeries(name: string): Series {
   const builtin = SOURCES[name];
@@ -915,6 +944,8 @@ export const ta = strictNamespace('ta', outsideBarLoops({
     (source: Series, anchor?: Series): Series;
     (source: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series];
   },
+  /** `ta.vwma(source, length)` with the chart volume, as PineScript; a third argument gives another volume. */
+  vwma: (source: Series, length: number, vol?: Series): Series => taSeries.vwma(source, length, vol ?? volume),
   /** `ta.mfi(source, length)` with the chart volume (PineScript takes 2 arguments). */
   mfi: (source: Series, length: number): Series => taSeries.mfi(source, length, volume),
   /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
@@ -989,6 +1020,8 @@ export const color = strictNamespace('color', {
 // ── Drawing declarations ─────────────────────────────────────────────────────
 
 export interface ScriptPlotOptions {
+  /** Shift in bars (PineScript `offset`): the value of bar i is drawn on bar i + offset (negative: to the left). */
+  offset?: number;
   /** Static color, or a per-bar color array from color.when(). */
   color?: string | string[];
   linewidth?: number;
@@ -1045,10 +1078,14 @@ function plotImpl(series: Series, title: string = DEFAULT_OUTPUT_TITLES.plot, op
   const values = series.toArray();
   const b = bars();
   const data: TimeValue[] = [];
-  for (let i = 0; i < b.length; i++) {
+  // offset (PineScript plot(offset = k)): the value and colour of bar i are drawn on bar i + k; bars past the
+  // chart's first or last bar are dropped
+  const off = Math.trunc(options.offset ?? 0);
+  for (let j = Math.max(0, off); j < b.length && j - off < b.length; j++) {
+    const i = j - off;
     const value = values[i];
     if (value === undefined || !Number.isFinite(value)) continue; // PineScript plots +/-Infinity as na
-    data.push(perBar ? { time: b[i]!.time, value, color: perBar[i] } : { time: b[i]!.time, value });
+    data.push(perBar ? { time: b[j]!.time, value, color: perBar[i] } : { time: b[j]!.time, value });
   }
   c.plots[id] = data;
   return { id, kind: 'plot' };
@@ -2393,7 +2430,8 @@ export const weekofyear = calendar(timeCore.weekofyear);
 /** PineScript `dayofmonth(time, timezone?)`; the default time zone is the exchange time zone. */
 export const dayofmonth = calendar(timeCore.dayofmonth);
 /** PineScript `dayofweek(time, timezone?)`; the default time zone is the exchange time zone. */
-export const dayofweek = calendar(timeCore.dayofweek);
+/** `dayofweek(time, timezone?)`, with the PineScript constants `dayofweek.sunday` (1) ... `dayofweek.saturday` (7). */
+export const dayofweek = Object.assign(calendar(timeCore.dayofweek), pineConstants.daysOfWeek);
 /** PineScript `hour(time, timezone?)`; the default time zone is the exchange time zone. */
 export const hour = calendar(timeCore.hour);
 /** PineScript `minute(time, timezone?)`; the default time zone is the exchange time zone. */
@@ -2895,53 +2933,182 @@ export const request = strictNamespace('request', { security, security_lower_tf 
 // executeScript() resets. `line.all` etc. are read like PineScript variables.
 
 /** PineScript `line.*`; `line.all` lists the live lines in creation order. */
-export const line = {
-  ...lineCore,
-  get all() {
-    return lineCore.all();
-  },
+// ── Drawing namespaces (named arguments, Series arguments in bar loops) ──────
+
+type Numeric = number | Series;
+/** A function whose number parameters also take a Series (read on the current bar inside a bar loop). */
+type WithSeries<F> = F extends (...args: infer A) => infer R
+  ? (...args: { [K in keyof A]: number extends A[K] ? A[K] | Series : A[K] }) => R
+  : never;
+type ScriptDrawing<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? T[K] & WithSeries<T[K]> : T[K] };
+type Colour = string | undefined;
+
+/** Named arguments of `label.new` (PineScript parameter names). */
+export interface LabelNewArgs {
+  x?: Numeric;
+  y?: Numeric;
+  point?: ChartPoint;
+  text?: string;
+  xloc?: 'bar_index' | 'bar_time';
+  yloc?: 'price' | 'abovebar' | 'belowbar';
+  color?: Colour;
+  style?: NonNullable<Label['style']>;
+  textcolor?: Colour;
+  size?: string | number;
+  textalign?: 'left' | 'center' | 'right';
+  tooltip?: string;
+  text_font_family?: 'default' | 'monospace';
+  force_overlay?: boolean;
+  text_formatting?: number;
+}
+
+/** Named arguments of `line.new`. */
+export interface LineNewArgs {
+  x1?: Numeric;
+  y1?: Numeric;
+  x2?: Numeric;
+  y2?: Numeric;
+  first_point?: ChartPoint;
+  second_point?: ChartPoint;
+  xloc?: 'bar_index' | 'bar_time';
+  extend?: 'none' | 'left' | 'right' | 'both';
+  color?: Colour;
+  style?: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
+  width?: Numeric;
+  force_overlay?: boolean;
+}
+
+/** Named arguments of `box.new`. */
+export interface BoxNewArgs {
+  left?: Numeric;
+  top?: Numeric;
+  right?: Numeric;
+  bottom?: Numeric;
+  top_left?: ChartPoint;
+  bottom_right?: ChartPoint;
+  border_color?: Colour;
+  border_width?: Numeric;
+  border_style?: 'solid' | 'dotted' | 'dashed';
+  extend?: 'none' | 'left' | 'right' | 'both';
+  xloc?: 'bar_index' | 'bar_time';
+  bgcolor?: Colour;
+  text?: string;
+  text_size?: string | number;
+  text_color?: Colour;
+  text_halign?: 'left' | 'center' | 'right';
+  text_valign?: 'top' | 'center' | 'bottom';
+  text_wrap?: 'none' | 'auto';
+  text_font_family?: 'default' | 'monospace';
+  force_overlay?: boolean;
+  text_formatting?: number;
+}
+
+/** Named arguments of `table.new`. */
+export interface TableNewArgs {
+  position?: string;
+  columns?: number;
+  rows?: number;
+  bgcolor?: Colour;
+  frame_color?: Colour;
+  frame_width?: number;
+  border_color?: Colour;
+  border_width?: number;
+  force_overlay?: boolean;
+}
+
+/** Named arguments of `table.cell`. */
+export interface TableCellArgs {
+  table_id?: Table;
+  column?: number;
+  row?: number;
+  text?: string;
+  width?: number;
+  height?: number;
+  text_color?: Colour;
+  text_halign?: 'left' | 'center' | 'right';
+  text_valign?: 'top' | 'center' | 'bottom';
+  text_size?: string | number;
+  bgcolor?: Colour;
+  tooltip?: string;
+  text_font_family?: 'default' | 'monospace';
+  text_formatting?: number;
+}
+
+/** Named arguments of `polyline.new`. */
+export interface PolylineNewArgs {
+  points?: ChartPoint[];
+  curved?: boolean;
+  closed?: boolean;
+  xloc?: 'bar_index' | 'bar_time';
+  line_color?: Colour;
+  fill_color?: Colour | null;
+  line_style?: 'solid' | 'dotted' | 'dashed';
+  line_width?: number;
+  force_overlay?: boolean;
+}
+
+/** Named arguments of `linefill.new`. */
+export interface LinefillNewArgs {
+  line1?: Line;
+  line2?: Line;
+  color?: Colour;
+}
+
+const loopBar = (): number => currentBar;
+
+/** Wraps a drawing namespace and keeps its `all` getter (the live drawings in creation order). */
+function drawings<T extends Record<string, unknown>, D>(name: string, members: T, all: () => D[]) {
+  const out = drawingNamespace(name, members, loopBar) as ScriptDrawing<T>;
+  return Object.defineProperty(out, 'all', { get: all, enumerable: true }) as Omit<ScriptDrawing<T>, 'all'> & { readonly all: D[] };
+}
+
+const lineNs = drawings('line', { ...lineCore, ...pineConstants.lineStyles }, () => lineCore.all());
+/** PineScript `line.*` (with `line.style_*`); `line.all` lists the live lines in creation order. */
+export const line = lineNs as typeof lineNs & {
+  new: ((args: LineNewArgs) => Line) &
+    ((x1: Numeric, y1: Numeric, x2: Numeric, y2: Numeric, args: LineNewArgs) => Line) &
+    ((first_point: ChartPoint, second_point: ChartPoint, args: LineNewArgs) => Line);
 };
 
-/** PineScript `label.*`; `label.all` lists the live labels in creation order. */
-export const label = {
-  ...labelCore,
-  get all() {
-    return labelCore.all();
-  },
+const labelNs = drawings('label', { ...labelCore, ...pineConstants.labelStyles }, () => labelCore.all());
+/** PineScript `label.*` (with `label.style_*`); `label.all` lists the live labels in creation order. */
+export const label = labelNs as typeof labelNs & {
+  new: ((args: LabelNewArgs) => Label) &
+    ((x: Numeric, y: Numeric, args: LabelNewArgs) => Label) &
+    ((x: Numeric, y: Numeric, text: string, args: LabelNewArgs) => Label) &
+    ((point: ChartPoint, args: LabelNewArgs) => Label) &
+    ((point: ChartPoint, text: string, args: LabelNewArgs) => Label);
 };
 
+const boxNs = drawings('box', { ...boxCore }, () => boxCore.all());
 /** PineScript `box.*`; `box.all` lists the live boxes in creation order. */
-export const box = {
-  ...boxCore,
-  get all() {
-    return boxCore.all();
-  },
+export const box = boxNs as typeof boxNs & {
+  new: ((args: BoxNewArgs) => Box) &
+    ((left: Numeric, top: Numeric, right: Numeric, bottom: Numeric, args: BoxNewArgs) => Box) &
+    ((top_left: ChartPoint, bottom_right: ChartPoint, args: BoxNewArgs) => Box);
 };
 
+const linefillNs = drawings('linefill', { ...linefillCore }, () => linefillCore.all());
 /** PineScript `linefill.*`; `linefill.all` lists the live linefills in creation order. */
-export const linefill = {
-  ...linefillCore,
-  get all() {
-    return linefillCore.all();
-  },
+export const linefill = linefillNs as typeof linefillNs & {
+  new: ((args: LinefillNewArgs) => Linefill) & ((line1: Line, line2: Line, args: LinefillNewArgs) => Linefill);
 };
 
+const polylineNs = drawings('polyline', { ...polylineCore }, () => polylineCore.all());
 /** PineScript `polyline.*`; `polyline.all` lists the live polylines in creation order. */
-export const polyline = {
-  ...polylineCore,
-  get all() {
-    return polylineCore.all();
-  },
+export const polyline = polylineNs as typeof polylineNs & {
+  new: ((args: PolylineNewArgs) => Polyline) & ((points: ChartPoint[], args: PolylineNewArgs) => Polyline);
 };
 
+const tableNs = drawings('table', { ...tableCore }, () => tableCore.all());
 /**
  * PineScript `table.*`; `table.all` lists the live tables in creation order. The live tables go to `result.tables`.
  */
-export const table = {
-  ...tableCore,
-  get all() {
-    return tableCore.all();
-  },
+export const table = tableNs as typeof tableNs & {
+  new: ((args: TableNewArgs) => Table) & ((position: string, columns: number, rows: number, args: TableNewArgs) => Table);
+  cell: ((args: TableCellArgs) => void) &
+    ((table_id: Table, column: number, row: number, args: TableCellArgs) => void) &
+    ((table_id: Table, column: number, row: number, text: string, args: TableCellArgs) => void);
 };
 
 /** PineScript `position.*` constants (table positions). */
@@ -2949,6 +3116,11 @@ export { position };
 
 /** PineScript `text.format_*`, `text.align_*` and `text.wrap_*` constants. */
 export const text = { ...textCore };
+
+/** PineScript constant namespaces (`shape.triangleup`, `size.small`, `xloc.bar_time`, `extend.right`...): the strings
+ *  the functions take. */
+export const { shape, location, size, xloc, yloc, extend, display, format, font, scale, order, currency, adjustment } =
+  pineConstants;
 
 /**
  * PineScript `chart.point.*`. `chart.point.now(price?)` is the point of the current bar

@@ -632,8 +632,8 @@ The script entry provides the PineScript-style authoring surface. These are not
 
 | Function | Status | Notes |
 |----------|--------|-------|
-| `indicator()` | Implemented | title, shorttitle, overlay, precision, format |
-| `input.int/float/bool/string/color/source` | Implemented | declares AND returns the current value; `input.source` returns a Series |
+| `indicator()` | Implemented | title, shorttitle, overlay (default false, as Pine), precision, format, scale, max_*_count |
+| `input.int/float/bool/string/color/source/price` | Implemented | declares AND returns the current value; `input.source` returns a Series (default `close` or `"close"`); `input.price` is a float input |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
 | `input.text_area` | Implemented | multi-line string (`InputConfig.type` `'text_area'`, display `none` by default) |
 | input options | Implemented | every `input.*` kind: `group`, `inline`, `tooltip`, `confirm`, `display`, `active`, copied to `InputConfig`; `isInputActive()` evaluates `active` |
@@ -649,6 +649,10 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `plotbar()` | Implemented | OHLC bars; static or per-bar color, display, force_overlay; `candleConfig` + `result.plotBars` |
 | `alertcondition()` | Implemented | collected for the host alert engine |
 | `alert()` | Implemented | calls per bar (message, `alert.freq_*`) collected for the host alert engine |
+| constants | Implemented | `shape.*`, `location.*`, `size.*`, `xloc.*`, `yloc.*`, `extend.*`, `display.*`, `format.*`, `font.family_*`, `scale.*`, `order.*`, `currency.*`, `adjustment.*`, `label.style_*`, `line.style_*`, `dayofweek.*` (the strings / numbers the functions take) |
+| `bar_index`, `last_bar_index` | Implemented | Series (in a bar loop: `c.i`, `c.n - 1`) |
+| drawing arguments | Implemented | named arguments (an object after the positional ones, Pine names) for `label.new`, `line.new`, `box.new`, `table.new`, `table.cell`, `polyline.new`, `linefill.new`; a Series argument in a bar loop is its value on the current bar |
+| `strategy.opentrades.*(i)` / `strategy.closedtrades.*(i)` | Different | `strategy.opentrades` / `strategy.closedtrades` are the counts; the trades are `strategy.opentrade(i)` / `strategy.closedtrade(i)` |
 
 ### Per-bar execution
 
@@ -681,7 +685,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | ~~7~~ | ~~line~~ | ~~`set_first_point()`~~ | ~~Implemented~~ |
 | ~~8~~ | ~~line~~ | ~~`set_second_point()`~~ | ~~Implemented~~ |
 | ~~9~~ | ~~box~~ | ~~`set_text_formatting()`~~ | ~~Implemented~~ |
-| 10 | box | `set_xloc()` | Set x-location mode with borders |
+| ~~10~~ | ~~box~~ | ~~`set_xloc()`~~ | ~~Implemented~~ |
 | ~~11~~ | ~~label~~ | ~~`set_point()`~~ | ~~Implemented~~ |
 | ~~12~~ | ~~label~~ | ~~`set_text_formatting()`~~ | ~~Implemented~~ |
 | ~~13~~ | ~~chartPoint~~ | ~~`now()`~~ | ~~Implemented~~ |
@@ -697,7 +701,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | ~~23~~ | ~~map~~ | ~~`size()`~~ | ~~Implemented~~ |
 | ~~24~~ | ~~map~~ | ~~`values()`~~ | ~~Implemented~~ |
 
-**Total: 2 official functions not yet implemented across in-scope namespaces.**
+**Total: 1 official function not yet implemented across in-scope namespaces.**
 
 ---
 

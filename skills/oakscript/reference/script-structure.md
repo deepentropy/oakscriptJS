@@ -19,7 +19,7 @@ values they plot.
 ```js
 indicator("Average True Range Bands", {
   shorttitle: "ATR Bands", // legend title
-  overlay: true,           // default true: price pane; false: own pane
+  overlay: true,           // true: price pane; false (default): own pane
   precision: 2,            // decimals shown
   max_labels_count: 100,   // also max_lines_count, max_boxes_count, max_polylines_count (default 50)
 });
@@ -29,7 +29,7 @@ plot(close.sub(atr.mul(2)), "Lower");
 ```
 
 `strategy(title, options)` replaces `indicator()` for a strategy (default `overlay: false`); its properties are in
-[strategies.md](strategies.md). A script without a declaration runs with the title "Untitled" and overlay on.
+[strategies.md](strategies.md). A script without a declaration runs with the title "Untitled" in its own pane.
 
 ## Inputs
 
@@ -132,7 +132,7 @@ const trail = eachBar((c) => {
 });
 const up = seriesOf(dirs).eq(1);
 plot(trail, "Stop", { style: plot.style_linebr, color: color.when(up, color.teal, color.red) });
-plotshape(up.and(up.offset(1).not()), "Flip up", { style: "circle", location: "belowbar", color: color.teal, size: "tiny" });
+plotshape(up.and(up.offset(1).not()), "Flip up", { style: shape.circle, location: location.belowbar, color: color.teal, size: size.tiny });
 ```
 
 - A `let` before the loop is Pine `var`: it keeps its value from bar to bar. A `const` inside the callback is a
@@ -169,7 +169,7 @@ executeScript(body, bars, inputs, { ... })".
 indicator("Session marks", { overlay: true });
 const newDay = timeframe.change("D");
 bgcolor(color.when(newDay, color.new(color.blue, 80)), { title: "New day" });
-plotchar(barstate.islast, "Last", { char: "L", location: "abovebar" });
+plotchar(barstate.islast, "Last", { char: "L", location: location.abovebar });
 plot(close, "Close", { display: "none" });
 ```
 

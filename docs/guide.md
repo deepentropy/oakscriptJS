@@ -350,7 +350,32 @@ next to the scripts, then `npx tsc -p .`:
 ```
 
 `lib` leaves out `DOM` (its `open`, `close` and `alert` are other globals); `moduleDetection: "force"` gives each
-script its own top-level names. A condition used as a JavaScript boolean (`if (ta.crossover(a, b))`) is not an
+script its own top-level names.
+
+#### PineScript constants and named arguments
+
+The PineScript constant namespaces are exported with their Pine names: `shape.*`, `location.*`, `size.*`,
+`xloc.*`, `yloc.*`, `extend.*`, `display.*`, `format.*`, `font.*`, `scale.*`, `order.*`, `currency.*`,
+`adjustment.*`, `label.style_*`, `line.style_*`, `dayofweek.*`; their values are the strings the functions take
+(`shape.triangleup === 'triangleup'`). The drawing constructors (`label.new`, `line.new`, `box.new`, `table.new`,
+`table.cell`, `polyline.new`, `linefill.new`) take PineScript's named arguments as an object after the positional ones
+(`label.new(c.i, c.high, 'A', { style: label.style_label_down })`), or every argument by name; an unknown name throws
+with the closest names. Inside `eachBar()`, a Series argument of a drawing function is its value on the current bar,
+so `label.new(bar_index, high, 'A')` works as in Pine (`bar_index` and `last_bar_index` are Series).
+
+#### Checking a script (`oakscript check`)
+
+`npx oakscript check script.js [--spec spec.json] [--bars bars.csv] [--reference expected.csv] [--json]` runs the
+type check above, the declaration run and a run on bars (1,500 synthetic hourly bars by default, a small order engine
+for strategies), and prints the inputs, the outputs (values, first bar, range, signal counts), the trades, the errors
+with their line, warnings (`empty-plot`, `signal-everywhere`, `unused-input`...), the failed items of a spec (expected
+title, pane, inputs, outputs, signals; an unknown spec key is an error, JSON Schema in
+`skills/oakscript/spec.schema.json`), behaviour checks (`--checks checks.js`: `t.plot`, `t.signal`, `t.expect`,
+`t.everyBar`), runs on edge-case bars (`--scenarios`: short history, daily, 1-minute, flat prices, no volume, a gap)
+and the bars that differ from a reference (`--reference`, or `--export` for a chart export with the bars and the
+expected values). Exit code 0 clean, 2 warnings only, 1 errors or failed checks. `checkScript(source, options)` of
+`oakscriptjs/check` gives the same report from code (without the file lines, the time limit and the type check), and
+`assertCheck(report)` throws it in a test. Formats: `skills/oakscript/reference/check.md`. A condition used as a JavaScript boolean (`if (ta.crossover(a, b))`) is not an
 error for the checker nor at run time: an object is always true.
 
 Host side: call `executeScript(body, bars, inputs)` to run the script and
@@ -365,12 +390,12 @@ Beyond `plot`, the script API emits per-bar markers and colors. Each is a pure
 function of an already-computed Series.
 
 ```typescript
-import { plotshape, plotchar, bgcolor, barcolor, color, close, ta } from 'oakscriptjs/script';
+import { plotshape, plotchar, bgcolor, barcolor, color, close, ta, shape, location } from 'oakscriptjs/script';
 
 // Marker on each bar where the condition holds
 plotshape(ta.crossover(fast, slow), 'Cross', {
-  style: 'triangleup',        // shape.* style
-  location: 'belowbar',       // abovebar | belowbar | top | bottom | absolute
+  style: shape.triangleup,    // shape.* (the string 'triangleup' works too)
+  location: location.belowbar, // location.abovebar | belowbar | top | bottom | absolute
   color: color.green,
   text: 'B',
   tooltip: 'Bullish cross',   // extension over PineScript, for label-style ports
@@ -401,7 +426,7 @@ marker has its character in `char` (and the shape `circle`).
 ### Candles, bars, drawings and tables
 
 ```typescript
-import { plotcandle, plotbar, label, line, box, table, position, text, eachBar } from 'oakscriptjs/script';
+import { plotcandle, plotbar, label, line, box, table, position, text, eachBar, extend } from 'oakscriptjs/script';
 
 // plotcandle / plotbar: one candle / bar per bar where open, high, low and close are not na
 plotcandle(haOpen, haHigh, haLow, haClose, 'Heikin Ashi', { color: color.when(haClose.gt(haOpen), '#26A69A', '#EF5350') });
@@ -410,8 +435,8 @@ plotbar(open, high, low, close, 'OHLC', { color: '#787B86' });
 // drawings: the objects alive after the last bar are returned
 eachBar((c) => {
   if (c.i === c.n - 1) {
-    label.new(c.i, c.high, 'Last', 'bar_index', 'price', '#2962FF', 'label_down', '#FFFFFF');
-    line.new(c.i - 20, c.get(low, 20), c.i + 10, c.low, 'bar_index', 'right');
+    label.new(c.i, c.high, 'Last', { color: '#2962FF', style: label.style_label_down, textcolor: '#FFFFFF' });
+    line.new(c.i - 20, c.get(low, 20), c.i + 10, c.low, { extend: extend.right });
   }
 });
 

@@ -27,8 +27,8 @@ fill(fastPlot, slowPlot, {
 
 const crossUp = ta.crossover(fast, slow);
 const crossDown = ta.crossunder(fast, slow);
-plotshape(crossUp, "Cross up", { style: "triangleup", location: "belowbar", color: color.teal, size: "small" });
-plotshape(crossDown, "Cross down", { style: "triangledown", location: "abovebar", color: color.red, size: "small" });
+plotshape(crossUp, "Cross up", { style: shape.triangleup, location: location.belowbar, color: color.teal, size: size.small });
+plotshape(crossDown, "Cross down", { style: shape.triangledown, location: location.abovebar, color: color.red, size: size.small });
 
 alertcondition(crossUp, "Cross up", "Fast MA crossed above the slow MA");
 alertcondition(crossDown, "Cross down", "Fast MA crossed below the slow MA");

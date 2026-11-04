@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "oakscript check spec",
+  "description": "What the user asked for, checked by `oakscript check --spec`: every given entry is checked, an unknown key is an error.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "indicator",
+        "strategy"
+      ],
+      "description": "indicator() or strategy()"
+    },
+    "title": {
+      "type": "string",
+      "description": "the title of the declaration"
+    },
+    "overlay": {
+      "type": "boolean",
+      "description": "true: price pane, false: own pane"
+    },
+    "inputs": {
+      "type": "object",
+      "description": "inputs that must exist, by id or title",
+      "additionalProperties": {
+        "type": "object",
+        "description": "the expected input",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "int",
+              "float",
+              "bool",
+              "string",
+              "text_area",
+              "source",
+              "color",
+              "timeframe",
+              "session",
+              "time",
+              "symbol"
+            ],
+            "description": "input type"
+          },
+          "defval": {
+            "description": "default value"
+          },
+          "title": {
+            "type": "string",
+            "description": "title"
+          },
+          "min": {
+            "type": "number",
+            "description": "minval"
+          },
+          "max": {
+            "type": "number",
+            "description": "maxval"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "the choices of a string input"
+          }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "description": "outputs that must exist: a title, or { title, kind }",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "plot",
+                  "shape",
+                  "char",
+                  "arrow",
+                  "candle",
+                  "bar",
+                  "hline",
+                  "bgcolor",
+                  "barcolor",
+                  "alertcondition"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "plots": {
+      "type": "object",
+      "description": "value checks per plot, by id or title",
+      "additionalProperties": {
+        "type": "object",
+        "description": "the expected values",
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number",
+            "description": "every value is at least this"
+          },
+          "max": {
+            "type": "number",
+            "description": "every value is at most this"
+          },
+          "warmup": {
+            "type": "number",
+            "description": "the first value comes at this bar index or before"
+          }
+        }
+      }
+    },
+    "signals": {
+      "type": "object",
+      "description": "count checks per signal (shape, char, arrow, alertcondition, bgcolor, barcolor), by id or title",
+      "additionalProperties": {
+        "type": "object",
+        "description": "the expected count",
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number",
+            "description": "at least this many bars"
+          },
+          "max": {
+            "type": "number",
+            "description": "at most this many bars"
+          },
+          "minShare": {
+            "type": "number",
+            "description": "at least this share of the bars (0 to 1)"
+          },
+          "maxShare": {
+            "type": "number",
+            "description": "at most this share of the bars (0 to 1)"
+          }
+        }
+      }
+    },
+    "trades": {
+      "type": "object",
+      "description": "closed trades of a strategy",
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "at least"
+        },
+        "max": {
+          "type": "number",
+          "description": "at most"
+        }
+      }
+    },
+    "$schema": {
+      "type": "string",
+      "description": "the JSON Schema of the spec (oakscriptjs/skills/oakscript/spec.schema.json)"
+    },
+    "reference": {
+      "type": "string",
+      "description": "CSV of expected values per bar (a time column, one column per plot)"
+    },
+    "export": {
+      "type": "string",
+      "description": "chart export CSV: the bars (time, open, high, low, close, volume) and the expected plot values"
+    },
+    "tolerance": {
+      "type": "number",
+      "description": "relative tolerance of the reference values (default 1e-10)"
+    },
+    "checks": {
+      "type": "string",
+      "description": "JavaScript file of behaviour checks (the body of a function of `t`)"
+    },
+    "scenarios": {
+      "type": "boolean",
+      "description": "also run on the built-in edge-case bars"
+    }
+  }
+}

@@ -71,7 +71,7 @@ describe('script globals typings', () => {
       'plot(ta.smaa(close, len), "Typo");', //                                           6 unknown ta function
       'plotshape(ta.crossover(rsi, 50), "X", { style: "triangel" });', //                7 bad shape string
       'plot(ta.sma(close, len), "Colour", { colour: color.red });', //                   8 unknown option
-      'plot(ta.vwma(close, 20), "Vwma");', //                                            9 missing argument
+      'plot(ta.stoch(close, high, low), "Stoch");', //                                  9 missing argument
       'eachBar((c) => c.close > ta.sma(close, 5));', //                                  10 ta.* read as a number
       'const fine = close.sub(open);', //                                                11
       'plot(fine, "Fine", { color: color.when(fine.gt(0), color.green, color.red) });', // 12
@@ -86,6 +86,35 @@ describe('script globals typings', () => {
       'mistakes.js:9 TS2554',
       'mistakes.js:10 TS2365',
     ]);
+  });
+
+  it('accept the PineScript forms: constants, named arguments, Series arguments in a loop', () => {
+    const source = [
+      'indicator("Pine forms", { overlay: true, scale: scale.right, format: format.price });',
+      'const src = input.source(close, "Source");',
+      'const level = input.price(100, "Level");',
+      'plot(ta.vwma(src, 20), "VWMA", { offset: 1, display: display.all });',
+      'plotshape(ta.crossover(src, ta.sma(src, 10)), "Up", { style: shape.triangleup, location: location.belowbar, size: size.small });',
+      'eachBar((c) => {',
+      '  if (c.i !== c.n - 1) return;',
+      '  label.new(bar_index, high, "Last", { style: label.style_label_down, xloc: xloc.bar_index, yloc: yloc.price });',
+      '  line.new(c.i - 10, level, c.i, level, { extend: extend.right, style: line.style_dashed });',
+      '  box.new({ left: c.i - 5, top: c.high, right: c.i, bottom: c.low, text_font_family: font.family_monospace });',
+      '  const t = table.new(position.top_right, 1, 1);',
+      '  table.cell(t, 0, 0, "x", { text_size: size.small });',
+      '});',
+      'const isMonday = dayofweek(time.offset(0).toArray()[0]) === dayofweek.monday;',
+    ].join('\n');
+    expect(check({ 'pine-forms.js': source })).toEqual([]);
+  });
+
+  it('report typos in constants and named arguments', () => {
+    const source = [
+      'indicator("Typos");',
+      'plotshape(close.gt(open), "Up", { style: shape.triangel });', // 2 unknown constant
+      'eachBar((c) => { label.new(c.i, c.high, "A", { textcolour: color.red }); });', // 3 unknown named argument
+    ].join('\n');
+    expect(check({ 'typos.js': source })).toEqual(['typos.js:2 TS2339', 'typos.js:3 TS2769']);
   });
 
   it('report TypeScript syntax in a script', () => {

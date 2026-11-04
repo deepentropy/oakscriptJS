@@ -33,14 +33,14 @@ const signal = eachBar((c) => {
   return 0;
 });
 
-plotshape(signal.eq(1), "Long", { style: "labelup", location: "belowbar", color: color.teal, text: "L", textcolor: color.white });
-plotshape(signal.eq(-1), "Short", { style: "labeldown", location: "abovebar", color: color.red, text: "S", textcolor: color.white });
+plotshape(signal.eq(1), "Long", { style: shape.labelup, location: location.belowbar, color: color.teal, text: "L", textcolor: color.white });
+plotshape(signal.eq(-1), "Short", { style: shape.labeldown, location: location.abovebar, color: color.red, text: "S", textcolor: color.white });
 bgcolor(color.when(upTrend, color.new(color.teal, 92), color.new(color.red, 92)), { title: "Trend" });
 
 // One label on the last bar with the filter state.
 eachBar((c) => {
   if (c.i === c.n - 1) {
     const text = (c.get(upTrend) === 1 ? "Uptrend " : "Downtrend ") + filterTf;
-    label.new(c.i, c.high, text, "bar_index", "price", color.gray, "label_down", color.white);
+    label.new(c.i, c.high, text, { color: color.gray, style: label.style_label_down, textcolor: color.white });
   }
 });

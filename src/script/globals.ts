@@ -103,6 +103,21 @@ declare global {
   const nz: typeof S.nz;
   const STRATEGY_DEFAULTS: typeof S.STRATEGY_DEFAULTS;
   const math: typeof S.math;
+  const bar_index: typeof S.bar_index;
+  const last_bar_index: typeof S.last_bar_index;
+  const shape: typeof S.shape;
+  const location: typeof S.location;
+  const size: typeof S.size;
+  const xloc: typeof S.xloc;
+  const yloc: typeof S.yloc;
+  const extend: typeof S.extend;
+  const display: typeof S.display;
+  const format: typeof S.format;
+  const font: typeof S.font;
+  const scale: typeof S.scale;
+  const order: typeof S.order;
+  const currency: typeof S.currency;
+  const adjustment: typeof S.adjustment;
   const compare: typeof S.compare;
   const isInputActive: typeof S.isInputActive;
   /** A Series of the script (`close`, the result of `ta.*`...), for JSDoc types: `@type {Series}`. */

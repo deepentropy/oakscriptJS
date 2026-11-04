@@ -6,6 +6,9 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/cjs/index.d.ts",
+  "bin": {
+    "oakscript": "bin/oakscript.mjs"
+  },
   "exports": {
     ".": {
       "import": {
@@ -47,10 +50,21 @@
         "default": "./dist/cjs/script/globals.js"
       }
     },
+    "./check": {
+      "import": {
+        "types": "./dist/esm/check/index.d.ts",
+        "default": "./dist/esm/check/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/check/index.d.ts",
+        "default": "./dist/cjs/check/index.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "bin",
     "src",
     "skills",
     "README.md",
@@ -132,6 +146,9 @@
       ],
       "script/globals": [
         "./dist/cjs/script/globals.d.ts"
+      ],
+      "check": [
+        "./dist/cjs/check/index.d.ts"
       ]
     }
   },

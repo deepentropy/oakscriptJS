@@ -75,10 +75,11 @@ Note: `ta.bb` returns `[basis, upper, lower]` as in Pine.
 ## Shapes, characters, arrows
 
 - `plotshape(cond, title, { style, location, color, text, textcolor, size, offset, tooltip })`: a shape on
-  each bar where `cond` is not 0 / na. `style`: `"xcross"` (default), `"cross"`, `"triangleup"`,
-  `"triangledown"`, `"flag"`, `"circle"`, `"arrowup"`, `"arrowdown"`, `"labelup"`, `"labeldown"`, `"square"`,
-  `"diamond"`. `location`: `"abovebar"` (default), `"belowbar"`, `"top"`, `"bottom"`, `"absolute"` (at the
-  series value). `size`: `"auto"`, `"tiny"`, `"small"`, `"normal"`, `"large"`, `"huge"`.
+  each bar where `cond` is not 0 / na. `style`: `shape.xcross` (default), `shape.cross`, `shape.triangleup`,
+  `shape.triangledown`, `shape.flag`, `shape.circle`, `shape.arrowup`, `shape.arrowdown`, `shape.labelup`,
+  `shape.labeldown`, `shape.square`, `shape.diamond`. `location`: `location.abovebar` (default), `location.belowbar`,
+  `location.top`, `location.bottom`, `location.absolute` (at the series value). `size`: `size.auto`, `size.tiny`,
+  `size.small`, `size.normal`, `size.large`, `size.huge`.
 - `plotchar(cond, title, { char, location, color, size, offset })`: a character.
 - `plotarrow(series, title, { colorup, colordown, minheight, maxheight })`: an up arrow for a positive value,
   a down arrow for a negative one.
@@ -86,11 +87,11 @@ Note: `ta.bb` returns `[basis, upper, lower]` as in Pine.
 ```js
 indicator("Markers", { overlay: true });
 const ema = ta.ema(close, 20);
-plotshape(ta.crossover(close, ema), "Buy", { style: "labelup", location: "belowbar", color: color.green, text: "Buy", textcolor: color.white });
-plotshape(ta.crossunder(close, ema), "Sell", { style: "labeldown", location: "abovebar", color: color.red, text: "Sell", textcolor: color.white });
+plotshape(ta.crossover(close, ema), "Buy", { style: shape.labelup, location: location.belowbar, color: color.green, text: "Buy", textcolor: color.white });
+plotshape(ta.crossunder(close, ema), "Sell", { style: shape.labeldown, location: location.abovebar, color: color.red, text: "Sell", textcolor: color.white });
 // a pivot is known 5 bars later: offset -5 puts the mark on the pivot bar; "absolute" places it at the value
-plotshape(ta.pivothigh(5, 5), "Pivot high", { style: "diamond", location: "absolute", offset: -5, color: color.orange, size: "tiny" });
-plotchar(ta.pivotlow(5, 5), "Pivot low", { char: "^", location: "belowbar", offset: -5, color: color.teal });
+plotshape(ta.pivothigh(5, 5), "Pivot high", { style: shape.diamond, location: location.absolute, offset: -5, color: color.orange, size: size.tiny });
+plotchar(ta.pivotlow(5, 5), "Pivot low", { char: "^", location: location.belowbar, offset: -5, color: color.teal });
 plotarrow(ta.change(close, 3), "3-bar change", { colorup: color.teal, colordown: color.red });
 plot(ema, "EMA");
 ```
@@ -131,21 +132,26 @@ plotcandle(haOpen, seriesOf(highs), seriesOf(lows), haClose, "HA", {
 
 ## Drawings
 
-Drawings are created in a bar loop, with **positional** arguments in the Pine order and string constants. Skip
-an argument with `undefined`.
+Drawings are created in a bar loop, with the Pine arguments: the first ones by position, the others by name in an
+object after them (Pine's named arguments), e.g. `label.new(c.i, c.high, "A", { style: label.style_label_down })`.
+Every argument can be named (`line.new({ x1, y1, x2, y2, extend: extend.right })`); an unknown name throws with the
+closest names. In the loop, a Series argument is its value on the current bar: `label.new(bar_index, high, "A")` is
+`label.new(c.i, c.high, "A")`.
 
 | Call | Arguments |
 |---|---|
-| `label.new` | `x, y, text, xloc ("bar_index" / "bar_time"), yloc ("price" / "abovebar" / "belowbar"), color, style, textcolor, size, textalign, tooltip` |
-| `line.new` | `x1, y1, x2, y2, xloc, extend ("none" / "left" / "right" / "both"), color, style ("solid" / "dashed" / "dotted" / "arrow_left" / "arrow_right" / "arrow_both"), width` |
-| `box.new` | `left, top, right, bottom, border_color, border_width, border_style, extend, xloc, bgcolor, text, text_size, text_color` |
+| `label.new` | `x, y, text, xloc (xloc.bar_index / xloc.bar_time), yloc (yloc.price / yloc.abovebar / yloc.belowbar), color, style, textcolor, size, textalign, tooltip, text_font_family, force_overlay, text_formatting` |
+| `line.new` | `x1, y1, x2, y2, xloc, extend (extend.none / left / right / both), color, style (line.style_solid / dashed / dotted / arrow_left / arrow_right / arrow_both), width, force_overlay` |
+| `box.new` | `left, top, right, bottom, border_color, border_width, border_style, extend, xloc, bgcolor, text, text_size, text_color, text_halign, text_valign, text_wrap, text_font_family, force_overlay, text_formatting` |
 | `table.new` | `position, columns, rows, bgcolor, frame_color, frame_width, border_color, border_width` |
-| `table.cell` | `table, column, row, text, width, height, text_color, text_halign, text_valign, text_size, bgcolor, tooltip` |
+| `table.cell` | `table_id, column, row, text, width, height, text_color, text_halign, text_valign, text_size, bgcolor, tooltip, text_font_family, text_formatting` |
 | `polyline.new` | `points (chart.point.from_index(i, price)...), curved, closed, xloc, line_color, fill_color, line_style, line_width` |
 | `linefill.new` | `line1, line2, color` |
 
-Label styles: `"label_down"`, `"label_up"`, `"label_left"`, `"label_right"`, `"label_center"`, `"none"`, and the
-shape names. `x` is a bar index (`c.i`, or `c.i + 10` for a future bar) or, with `"bar_time"`, a UNIX time in ms.
+Label styles: `label.style_label_down`, `label.style_label_up`, `label.style_label_left`, `label.style_label_right`,
+`label.style_label_center`, `label.style_none`, and `label.style_<shape>`. `x` is a bar index (`c.i`, or `c.i + 10`
+for a future bar) or, with `xloc.bar_time`, a UNIX time in ms. The constants are the strings (`"label_down"`), which
+also work.
 Positions of tables: `position.top_right`, `position.bottom_left`...
 
 ```js
@@ -156,11 +162,11 @@ const lo = ta.lowest(50);
 eachBar((c) => {
   const p = c.get(ph);
   if (!Number.isNaN(p)) {
-    label.new(c.i - 5, p, str.tostring(p, "#.##"), "bar_index", "price", color.red, "label_down", color.white, "small");
+    label.new(c.i - 5, p, str.tostring(p, "#.##"), { color: color.red, style: label.style_label_down, textcolor: color.white, size: size.small });
   }
   if (c.i === c.n - 1) {
-    line.new(c.i - 49, c.get(hi), c.i + 10, c.get(hi), "bar_index", "none", color.green, "dashed", 2);
-    box.new(c.i - 49, c.get(hi), c.i, c.get(lo), color.gray, 1, "dotted", "none", "bar_index", color.new(color.gray, 90), "50-bar range");
+    line.new(c.i - 49, c.get(hi), c.i + 10, c.get(hi), { color: color.green, style: line.style_dashed, width: 2 });
+    box.new(c.i - 49, c.get(hi), c.i, c.get(lo), { border_color: color.gray, border_style: line.style_dotted, bgcolor: color.new(color.gray, 90), text: "50-bar range" });
     const t = table.new(position.bottom_right, 1, 1, color.new(color.black, 30));
     table.cell(t, 0, 0, "Range " + str.tostring(c.get(hi) - c.get(lo), "#.##"), 0, 0, color.white);
   }
