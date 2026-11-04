@@ -12,7 +12,9 @@ The rest of this file is for working on the library itself.
 ## Layout
 
 - `src/script/index.ts`: the script API (`executeScript`, `indicator`, `strategy`, `input`, `plot`..., `eachBar`,
-  `request.security`, the context-bound `ta`).
+  `request.security`, the context-bound `ta`). `src/script/globals.ts`: the types of the script globals
+  (`oakscriptjs/script/globals`, for type-checking scripts); a new value export of the script API goes there too
+  (`tests/skills/typecheck.test.ts` checks it).
 - `src/runtime/series.ts`: `Series` and `BarData`. `src/ta-series.ts`: Series wrappers of `src/ta/index.ts`
   (array functions, `taCore`).
 - `src/<namespace>/`: `math`, `array`, `matrix`, `map`, `str`, `color`, `time`, `timeframe`, `line`, `label`,

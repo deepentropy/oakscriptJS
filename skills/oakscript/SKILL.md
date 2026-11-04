@@ -42,19 +42,22 @@ plotshape(ta.crossover(close, sma), "Cross", { style: "triangleup", location: "b
    `strategy.eachBar((c) => ...)` holds the orders.
 5. **Outputs**: `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `bgcolor`, `barcolor`,
    `plotcandle`, drawings (`label.new`, `line.new`, `box.new`, `table.new`), `alertcondition`, `alert`.
-6. **Run it and check the values**: compile errors, runtime errors, then the plot values on the last bars
+6. **Type-check it** when you can run a command: `npx tsc -p .` with the `tsconfig.json` of
+   [Type-checking](#type-checking) reports operators on Series, misspelt functions and options, missing arguments
+   and bad style strings, with their line, before the script runs.
+7. **Run it and check the values**: compile errors, runtime errors, then the plot values on the last bars
    (an empty plot means NaN everywhere). See [errors](reference/errors.md).
-7. Start from the closest [example](#examples) rather than from scratch.
+8. Start from the closest [example](#examples) rather than from scratch.
 
 ## Rules
 
-1. **No operators on Series.** JavaScript has no operator overloading: `close - open` is `NaN`, and
-   `if (ta.crossover(a, b))` is always true (an object). Write `close.sub(open)`, `a.gt(b)`, `cond.iff(x, y)`,
+1. **No operators on Series.** JavaScript has no operator overloading: `close - open`, `rsi > 50` and
+   `` `${rsi}` `` throw a TypeError, and `if (ta.crossover(a, b))` is always true (an object, no error). Write `close.sub(open)`, `a.gt(b)`, `cond.iff(x, y)`,
    `x.offset(1)` (Pine `x[1]`), `a.and(b)`, `a.not()`. Conditions are Series of 1 / 0.
 2. **Plain numbers inside the bar loops.** In `eachBar` / `strategy.eachBar`, `c.close`, `c.get(series)`,
    `c.get(series, 1)` are numbers: JS operators, `if`, `for` work. A condition reads `c.get(cond) === 1`.
-3. **Compute `ta.*` outside the loops.** A `ta.*` call inside a bar callback returns a Series (not a number) and
-   has no per-bar history: compute the Series before the loop and read it with `c.get()`.
+3. **Compute `ta.*` outside the loops.** A `ta.*` call inside a bar callback throws: compute the Series before
+   the loop and read it with `c.get()`.
 4. **Pine constants are strings**: `shape.triangleup` is `"triangleup"`, `location.belowbar` `"belowbar"`,
    `size.small` `"small"`, `label.style_label_down` `"label_down"`, `xloc.bar_index` `"bar_index"`,
    `extend.right` `"right"`, `line.style_dashed` `"dashed"`. These namespaces do exist: `color.*`,
@@ -95,11 +98,12 @@ Full table, the deviations and the unsupported parts: [reference/pine-difference
 
 ## Common mistakes
 
-- `close - open`, `ma > 50`, `if (series)` at the top level: use Series methods (rule 1).
-- `ta.sma(...)` inside `eachBar`: compute it before the loop (rule 3).
+- `if (series)`, `series ? a : b` at the top level: always true, with no error; use Series methods (rule 1).
+- `close - open`, `ma > 50`: a TypeError; use Series methods (rule 1).
+- `ta.sma(...)` inside `eachBar`: an error; compute it before the loop (rule 3).
 - `ta.vwma(close, 20)` throws: pass the volume, `ta.vwma(close, 20, volume)`. `ta.stoch(close, high, low, 14)`
   takes all four arguments, as in Pine.
-- A per-bar colour from a JS ternary on a Series (`fast > slow ? green : red`): use `color.when()`.
+- A per-bar colour from a JS ternary on a Series (`cond ? green : red`): one colour; use `color.when()`.
 - `strategy.position_size` at the top level: read it inside `strategy.eachBar()`.
 - Two `indicator()` calls, or `indicator()` and `strategy()` in one script: one declaration only.
 - Pine named arguments in drawings (`label.new(x, y, text = "A", style = ...)`): positional, with strings.
@@ -108,9 +112,10 @@ Full table, the deviations and the unsupported parts: [reference/pine-difference
 
 - **Syntax errors** come with the line and column of your source (the app editor maps them to your lines).
 - **Runtime errors** stop the run: the message names the call and the fix, e.g. `strategy.entry() must be
-  called inside strategy.eachBar().` A host that runs a declaration pass first (zero bars) reports declaration
+  called inside strategy.eachBar().`, `ta.smaa does not exist. Did you mean ta.sma?`, `JavaScript operators
+  (+ - * / ...) do not work on a Series: use its methods...` A host that runs a declaration pass first (zero bars) reports declaration
   errors when the script is saved.
-- **No error, wrong output**: an empty plot (NaN everywhere: `ta.*` inside a loop, a NaN input to the math),
+- **No error, wrong output**: an empty plot (NaN everywhere: a NaN input to the math, a division by zero),
   a branch taken on every bar (a Series used as a JS boolean). Check the plot values on the last bars.
 
 The messages and their fixes: [reference/errors.md](reference/errors.md).
@@ -141,6 +146,25 @@ Complete scripts, run by the package's CI on synthetic bars:
 - [reference/pine-differences.md](reference/pine-differences.md): Pine Script v6 to OakScript, what is not
   supported.
 - [reference/errors.md](reference/errors.md): compiler and runtime errors, silent mistakes.
+
+## Type-checking
+
+`oakscriptjs/script/globals` types the script globals. A `tsconfig.json` next to the scripts, then `npx tsc -p .`
+(one error per mistake, with its line; no output means no type error):
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true, "checkJs": true, "noEmit": true, "strict": true, "noImplicitAny": false,
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "moduleDetection": "force",
+    "lib": ["ES2022"], "types": ["oakscriptjs/script/globals"]
+  },
+  "include": ["*.js"]
+}
+```
+
+It needs `oakscriptjs` and `typescript` installed in the project. The checker does not see a Series used as a
+JavaScript boolean (`if (cond)`, `cond ? a : b` with a Series `cond`): check those by hand (rule 1).
 
 ## Running a script
 

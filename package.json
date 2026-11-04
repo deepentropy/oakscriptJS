@@ -37,6 +37,16 @@
         "default": "./dist/cjs/script/index.js"
       }
     },
+    "./script/globals": {
+      "import": {
+        "types": "./dist/esm/script/globals.d.ts",
+        "default": "./dist/esm/script/globals.js"
+      },
+      "require": {
+        "types": "./dist/cjs/script/globals.d.ts",
+        "default": "./dist/cjs/script/globals.js"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -119,6 +129,9 @@
       ],
       "script": [
         "./dist/cjs/script/index.d.ts"
+      ],
+      "script/globals": [
+        "./dist/cjs/script/globals.d.ts"
       ]
     }
   },

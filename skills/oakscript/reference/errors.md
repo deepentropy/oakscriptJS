@@ -1,7 +1,20 @@
 # Errors and how to read them
 
 A script fails in one of three ways: it does not compile, it stops with a runtime error, or it runs and gives a
-wrong output. Fix them in that order, then check the values.
+wrong output. Fix them in that order, then check the values. A type check (`npx tsc -p .`, see
+[Type-checking](../SKILL.md#type-checking)) finds most runtime errors of the table below before the script runs.
+
+## Type-check errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `TS2362` / `TS2363` `The left-hand (right-hand) side of an arithmetic operation must be of type...` | `close - open`, `rsi * 2` | Series methods: `close.sub(open)`, `rsi.mul(2)` |
+| `TS2365` `Operator '>' cannot be applied to types 'Series' and 'number'` | `rsi > 50`, `c.close > ta.sma(close, 5)` in a loop | `rsi.gt(50)`; in a loop `c.close > c.get(sma)` with `sma` computed before |
+| `TS2339` / `TS2551` `Property 'smaa' does not exist on type...` | a misspelt or Pine-only name | the name it suggests, [pine-differences.md](pine-differences.md) |
+| `TS2322` `Type '"triangel"' is not assignable to type 'ShapeStyle'` | a bad constant string | one of the strings it lists |
+| `TS2561` / `TS2353` `Object literal may only specify known properties` | a misspelt option (`colour`) | the option it suggests |
+| `TS2554` `Expected 3 arguments, but got 2` | a missing argument (`ta.vwma(close, 20)`) | pass it: `ta.vwma(close, 20, volume)` |
+| `TS8010` `Type annotations can only be used in TypeScript files` | TypeScript syntax | remove the types |
 
 ## Compile errors (syntax)
 
@@ -22,8 +35,12 @@ The run stops at the first error; the message names the call. The ones you will 
 
 | Message | Cause | Fix |
 |---|---|---|
-| `TypeError: series.toArray is not a function` | a number or NaN passed where a Series is expected: `plot(close - open)`, `plot(5)`, `ta.sma(a * 2, 10)` | Series methods: `close.sub(open)`, `a.mul(2)`; a constant level: `hline(5)` |
-| `TypeError: ta.xyz is not a function` / `xyz is not defined` | a name that does not exist (typo, Pine-only name such as `shape`, `location`, `size`, `xloc`, `bar_index`) | [pine-differences.md](pine-differences.md): strings for the constants, `c.i` for `bar_index` |
+| `TypeError: JavaScript operators (+ - * / % ** < > <= >= ==) do not work on a Series: use its methods...` | an operator on a Series: `close - open`, `rsi > 50`, `fast > slow ? a : b` | the method it lists: `close.sub(open)`, `rsi.gt(50)`, `fast.gt(slow).iff(a, b)`; a colour: `color.when(fast.gt(slow), a, b)` |
+| `TypeError: A Series is not a text...` | a Series in a text: `` `RSI ${rsi}` ``, `"RSI " + rsi` | in a loop: `str.tostring(c.get(rsi))` |
+| `ta.sma() was called inside eachBar(): a ta.* call computes the whole Series at once...` | a `ta.*` function in a bar callback | compute it before the loop, read it with `c.get(x)`; a Pine call in an `if` block: `callsite.*` |
+| `TypeError: ta.smaa does not exist. Did you mean ta.sma?` (also `math.`, `str.`, `color.`, `input.`, `request.`) | a misspelt or Pine-only member | a suggested name, [pine-differences.md](pine-differences.md) |
+| `TypeError: series.toArray is not a function` | a number or NaN passed where a Series is expected: `plot(5)`, `ta.sma(c.close, 10)` | a Series; a constant level: `hline(5)` |
+| `xyz is not defined` | a global that does not exist (Pine-only name such as `shape`, `location`, `size`, `xloc`, `bar_index`) | [pine-differences.md](pine-differences.md): strings for the constants, `c.i` for `bar_index` |
 | `TypeError: Cannot read properties of undefined (reading 'toArray')` | a missing Series argument, e.g. `ta.vwma(close, 20)` | pass it: `ta.vwma(close, 20, volume)` |
 | `Error on bar N: Invalid value of the 'length' argument (0.0) in the 'sma' function. It must be > 0.` | a length of 0, negative or NaN (often an input) | `minval: 1` on the input, or guard the value |
 | `Error on bar N: The 'sma' function references too many historical candles (6000), the limit is 5000.` | a window longer than 5000 bars | a shorter length |
@@ -49,9 +66,9 @@ The run stops at the first error; the message names the call. The ones you will 
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| a branch taken on every bar, or never | `if (ta.crossover(a, b))`, `cond ? x : y`, `a > b` with Series at the top level: an object is always true, an object comparison always false | `cond.iff(x, y)`, `a.gt(b)`, or `c.get(cond) === 1` in a loop |
-| one colour on every bar | `color: fast > slow ? color.green : color.red` | `color.when(fast.gt(slow), color.green, color.red)` |
-| an empty plot | NaN on every bar: a `ta.*` Series returned from a bar loop, a division by zero, a NaN input | compute `ta.*` before the loop, guard divisions (`range.gt(0).iff(x.div(range), 0)`) |
+| a branch taken on every bar | `if (ta.crossover(a, b))`, `cond ? x : y`, `!cond`, `cond && x` with a Series `cond`: an object is always true | `cond.iff(x, y)`, `cond.not()`, `cond.and(x)`, or `c.get(cond) === 1` in a loop |
+| one colour on every bar | `color: cond ? color.green : color.red` with a Series `cond` | `color.when(cond, color.green, color.red)` |
+| an empty plot | NaN on every bar: a division by zero, a NaN input | guard divisions (`range.gt(0).iff(x.div(range), 0)`) |
 | a plot that starts late | the warm-up of long lengths, or of a higher timeframe (20 daily bars on an hourly chart is 480 bars) | expected; shorter lengths or more bars |
 | values that look like the future (backtests too good) | `barmerge.lookahead_on` on a series that is not offset | lookahead off, or `.offset(1)` inside the expression |
 | a strategy without trades | conditions read as `c.get(cond)` on NaN-only Series, orders placed outside the conditions you expect, `pyramiding: 0` blocking a second entry in the same direction | plot the conditions (`plotshape`) and check them first |

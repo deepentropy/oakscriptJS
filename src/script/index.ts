@@ -689,7 +689,7 @@ function registerNumeric(type: 'int' | 'float', defval: number, title?: string, 
 }
 
 /** PineScript `input.*` — declares an input AND returns its current value. */
-export const input = {
+export const input = strictNamespace('input', {
   int(defval: number, title?: string, opts: NumericInputOptions = {}): number {
     return Math.round(registerNumeric('int', defval, title, opts));
   },
@@ -742,7 +742,7 @@ export const input = {
     const v = registerInput<unknown>({ type: 'time', defval, title, ...common(opts) }, 'input_time');
     return typeof v === 'number' ? v : defval;
   },
-};
+});
 
 // ── OHLCV builtins ───────────────────────────────────────────────────────────
 
@@ -788,9 +788,86 @@ function barsSeries(compute: (b: Bar[]) => Series): Series {
   });
 }
 
+// ── Guards for script mistakes ───────────────────────────────────────────────
+
+/** Edit distance of two names (for the "did you mean" of a namespace). */
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = row[0]!;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const up = row[j]!;
+      row[j] = Math.min(up + 1, row[j - 1]! + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = up;
+    }
+  }
+  return row[b.length]!;
+}
+
+/** Names a tool reads to probe an object (promise, JSON, test matchers, module interop): never an error. */
+const PROBED_NAMES = new Set(['then', 'toJSON', 'asymmetricMatch', 'nodeType', 'tagName', 'inspect', 'default']);
+
+/**
+ * A namespace whose unknown members throw instead of being `undefined`: `ta.smaa(close, 5)` fails with
+ * "ta.smaa does not exist. Did you mean ta.sma?" rather than "ta.smaa is not a function", and `color.purpel`
+ * fails where it is read rather than giving a plot with no colour.
+ */
+function strictNamespace<T extends object>(name: string, members: T): T {
+  return new Proxy(members, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'symbol' || prop in target || PROBED_NAMES.has(prop) || /^[_$@]/.test(prop)) {
+        return Reflect.get(target, prop, receiver);
+      }
+      const keys = Object.keys(target);
+      const lower = prop.toLowerCase();
+      const ranked = keys
+        .map((k) => ({ k, d: editDistance(lower, k.toLowerCase()) }))
+        .filter(({ k, d }) => {
+          const key = k.toLowerCase();
+          return d <= Math.max(1, Math.floor(prop.length / 3)) || key.includes(lower) || (key.length >= 3 && lower.includes(key));
+        })
+        .sort((x, y) => x.d - y.d)
+        .slice(0, 3)
+        .map(({ k }) => `${name}.${k}`);
+      throw new TypeError(
+        `${name}.${prop} does not exist.` + (ranked.length ? ` Did you mean ${ranked.join(', ')}?` : '') +
+          ' See docs/inventory.md for the supported functions.'
+      );
+    },
+  });
+}
+
+/**
+ * The ta.* functions compute a whole Series in one call. Called inside an eachBar() callback, a call runs again on
+ * every bar (slow) and returns a Series, not the value of the bar, and it has no per-bar history: the call throws
+ * with the fix.
+ */
+function outsideBarLoops<T extends Record<string, unknown>>(members: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(members)) {
+    if (typeof value !== 'function') {
+      out[key] = value;
+      continue;
+    }
+    const fn = value as (...args: unknown[]) => unknown;
+    out[key] = function (this: unknown, ...args: unknown[]) {
+      if (currentBar >= 0) {
+        throw new Error(
+          `ta.${key}() was called inside eachBar(): a ta.* call computes the whole Series at once. ` +
+            `Compute it before the loop (const x = ta.${key}(...)) and read the bar's value with c.get(x). ` +
+            'For a Pine ta.* call inside an if block or a for loop, use the callsite.* call sites.'
+        );
+      }
+      return fn.apply(this, args);
+    };
+  }
+  return out as T;
+}
+
 /** ta.* with the chart-implicit (bars-first) functions bound to the context,
  *  so scripts call them like PineScript: `ta.tr(true)`, `ta.atr(14)`. */
-export const ta = {
+export const ta = strictNamespace('ta', outsideBarLoops({
   ...taSeries,
   tr: (handleNa: boolean = false): Series => taSeries.tr(bars(), handleNa),
   atr: (length: number): Series => taSeries.atr(bars(), length),
@@ -860,7 +937,7 @@ export const ta = {
   iii: barsSeries(taSeries.iii),
   wad: barsSeries(taSeries.wad),
   wvad: barsSeries(taSeries.wvad),
-};
+}));
 
 /** PineScript `fixnan(source)`: each `na` value becomes the previous non-`na` value.
  *  Accepts a Series or a per-bar color array (`undefined` = `na`, as returned by `color.when`). */
@@ -903,11 +980,11 @@ function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<
 }
 
 /** color.* plus `when` — per-bar conditional colors for plot()/fill()/bgcolor()/barcolor(). */
-export const color = {
+export const color = strictNamespace('color', {
   ...colorCore,
   new: colorCore.new_color,
   when: colorWhen,
-};
+});
 
 // ── Drawing declarations ─────────────────────────────────────────────────────
 
@@ -2355,7 +2432,7 @@ export function inSession(time: number, session: string, timezone?: string): boo
 }
 
 /** PineScript `str.*`; `format_time` and the dates of `format` use the exchange time zone by default. */
-export const str = {
+export const str = strictNamespace('str', {
   ...strCore,
   // format.mintick uses the chart symbol's tick and price scale (syminfo.mintick, syminfo.pricescale)
   tostring: ((value: unknown, format?: string, mintick?: number, pricescale?: number) =>
@@ -2368,7 +2445,7 @@ export const str = {
   format(pattern: string, ...args: unknown[]): string {
     return formatMessage(pattern, args, exchangeTimezone);
   },
-};
+});
 
 // ── Session values (issue #100) ──────────────────────────────────────────────
 
@@ -2811,7 +2888,7 @@ function security_lower_tf<T extends SecurityValue>(
 }
 
 /** PineScript `request.*`: `security` (issue #101, other symbols #179, lower timeframes #181) and `security_lower_tf`. */
-export const request = { security, security_lower_tf };
+export const request = strictNamespace('request', { security, security_lower_tf });
 
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that
@@ -2984,13 +3061,13 @@ export type {
 const { saveRandom: _saveRandom, restoreRandom: _restoreRandom, ...mathScript } = mathCore;
 void _saveRandom;
 void _restoreRandom;
-export const math = {
+export const math = strictNamespace('math', {
   ...mathScript,
   round_to_mintick: ((number: number | Series, mintick?: number) => {
     const tick = mintick ?? syminfo.mintick;
     return number instanceof Series ? mathCore.round_to_mintick(number, tick) : mathCore.round_to_mintick(number, tick);
   }) as typeof mathCore.round_to_mintick,
-};
+});
 export * as compare from '../compare/index.js';
 export { isInputActive } from '../runtime/input-active.js';
 export type {

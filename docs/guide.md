@@ -326,7 +326,32 @@ Key points:
 - `alertcondition(cond, title, message)` is collected for the host's alert
   engine.
 - JavaScript has no operator overloading, so Series math is method-chained:
-  `ksi.gt(signal).iff(a, b)` instead of `ksi > signal ? a : b`.
+  `ksi.gt(signal).iff(a, b)` instead of `ksi > signal ? a : b`. A JavaScript operator on a Series
+  (`close - open`, `rsi > 50`, `` `${rsi}` ``) throws a TypeError that names the method to use.
+- A member that does not exist in `ta`, `math`, `str`, `color`, `input` or `request` throws with the closest
+  names: `ta.smaa` gives "ta.smaa does not exist. Did you mean ta.sma?".
+
+#### Type-checking a script
+
+`oakscriptjs/script/globals` declares the script globals with their types, so the TypeScript checker reports the
+mistakes of a script (plain JavaScript) before it runs, with their line: operators on a Series, a misspelt
+function or option, a wrong number of arguments, a bad shape or style string, TypeScript syntax. A `tsconfig.json`
+next to the scripts, then `npx tsc -p .`:
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true, "checkJs": true, "noEmit": true, "strict": true, "noImplicitAny": false,
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "moduleDetection": "force",
+    "lib": ["ES2022"], "types": ["oakscriptjs/script/globals"]
+  },
+  "include": ["*.js"]
+}
+```
+
+`lib` leaves out `DOM` (its `open`, `close` and `alert` are other globals); `moduleDetection: "force"` gives each
+script its own top-level names. A condition used as a JavaScript boolean (`if (ta.crossover(a, b))`) is not an
+error for the checker nor at run time: an object is always true.
 
 Host side: call `executeScript(body, bars, inputs)` to run the script and
 collect `{ metadata, inputConfig, plotConfig, hlineConfig, fillConfig,
@@ -468,8 +493,9 @@ The bar context `c` exposes `c.open/high/low/close/volume`, `c.i` (bar_index),
 `c.prev(offset)` for this block's own previous output. Accumulate a side array in
 the closure and wrap it with `seriesOf(values)` for a second output.
 
-- Compute the `ta.*` Series before `eachBar()` and read them with `c.get()`. A `ta.*` call inside the callback
-  does not keep a per-bar history (see callsite below for the stateful versions).
+- Compute the `ta.*` Series before `eachBar()` and read them with `c.get()`. A `ta.*` function called inside the
+  callback throws (it would compute the whole Series on every bar, with no per-bar history); see callsite below for
+  the stateful versions. The `ta.*` variables (`ta.obv`, `ta.accdist`...) are Series: read them with `c.get()`.
 - `c.get(src, k)` needs `k >= 0`: a negative offset would read a future bar, so it throws.
 - History limit, as PineScript (runtime error RE10008): a script series keeps at most 5000 bars of history.
   `c.get(x, k)` or `x.offset(k)` with `k > 5000` throws. The history buffer of a script series grows as PineScript

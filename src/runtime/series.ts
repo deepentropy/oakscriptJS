@@ -654,6 +654,25 @@ export class Series {
    * Convert series to time-value pairs for charting
    * @returns Array of { time, value } objects
    */
+  /**
+   * A Series holds the values of all the bars, so JavaScript operators cannot use it: without this guard
+   * `close - open` is NaN, `close > open` false and `` `${rsi}` `` "[object Object]", with no error. The
+   * conversion throws instead, with the Series method or bar-loop read to use.
+   */
+  [Symbol.toPrimitive](hint: 'number' | 'string' | 'default'): never {
+    if (hint === 'string') {
+      throw new TypeError(
+        'A Series is not a text: read the value of one bar inside eachBar(), e.g. str.tostring(c.get(rsi)), ' +
+          'or pass the Series itself to plot() / plotshape().'
+      );
+    }
+    throw new TypeError(
+      'JavaScript operators (+ - * / % ** < > <= >= ==) do not work on a Series: use its methods, ' +
+        'a.add(b) a.sub(b) a.mul(b) a.div(b) a.mod(b) a.pow(b) a.neg(), a.gt(b) a.gte(b) a.lt(b) a.lte(b) a.eq(b) a.neq(b), ' +
+        'a.and(b) a.or(b) a.not(), cond.iff(x, y), a.offset(1) for a[1]; or read numbers inside eachBar() with c.get(a).'
+    );
+  }
+
   toTimeValuePairs(): Array<{ time: any; value: number }> {
     const values = this.toArray();
     const bars = this.dataSource.bars;
