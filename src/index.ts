@@ -225,7 +225,7 @@ export type { LightweightSeriesDefinitions } from './runtime/adapters/Lightweigh
 export { SimpleInputAdapter } from './runtime/adapters/SimpleInputAdapter.js';
 
 // Version
-export const VERSION = '0.15.0';
+export const VERSION = '0.15.1';
 
 /**
  * Library information

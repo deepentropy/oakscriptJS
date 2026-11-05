@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 05/11/2026
+
+### Fixed
+
+- Window sums are the correctly rounded sum of the window values, as PineScript computes them now: `math.sum`, `ta.sma`, `ta.stdev`, `ta.variance`, `ta.mfi`, `ta.cmo`, `ta.cog`, `ta.dev`, `ta.cci`, `ta.correlation`, the `ta.ema` / `ta.rma` seed and `callsite.sum` / `sma` / `stdev`. The compensated running sum measured in October (#114) differed from the reference in the last bits on most bars (reference runs of 05/11/2026 on BTCUSD and AAPL daily full histories: 0 differing bars now). Exact comparisons and crossings at an SMA level no longer flip (#188).
+- Drawing limit: an object a `var` variable gets or releases on the bar where `max_*_count` cuts is deleted only when the other objects are not enough; before, it was deleted first on that bar (6 `var` labels lost to 494 plain ones). Released on an earlier bar, it goes like any other (#193).
+
 ## [0.15.0] - 05/11/2026
 
 ### Added
