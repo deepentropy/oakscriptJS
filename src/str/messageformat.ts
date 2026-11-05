@@ -72,24 +72,39 @@ function formatArgument(
   }
 }
 
-/** Formats `pattern` with `args` like PineScript `str.format`; dates use `timezone` (read only when a date is formatted). */
-export function formatMessage(pattern: string, args: unknown[], timezone: string | (() => string)): string {
-  let out = '';
+/** A `{index[,type[,style]]}` element of a pattern; `inner` is the text between the braces. */
+interface Placeholder {
+  inner: string;
+  index: number;
+  type: string | undefined;
+  style: string | undefined;
+}
+
+/** Parsed patterns (literal text and placeholders): a script formats the same pattern on every bar. */
+const templates = new Map<string, Array<string | Placeholder>>();
+/** Cached patterns before the cache restarts. */
+const MAX_TEMPLATES = 1000;
+
+function parseTemplate(pattern: string): Array<string | Placeholder> {
+  const cached = templates.get(pattern);
+  if (cached) return cached;
+  const parts: Array<string | Placeholder> = [];
+  let text = '';
   for (let i = 0; i < pattern.length; ) {
     const ch = pattern[i]!;
     if (ch === "'") {
       if (pattern[i + 1] === "'") {
-        out += "'";
+        text += "'";
         i += 2;
         continue;
       }
       const end = pattern.indexOf("'", i + 1);
-      out += pattern.slice(i + 1, end === -1 ? undefined : end);
+      text += pattern.slice(i + 1, end === -1 ? undefined : end);
       i = end === -1 ? pattern.length : end + 1;
       continue;
     }
     if (ch !== '{') {
-      out += ch;
+      text += ch;
       i++;
       continue;
     }
@@ -105,10 +120,26 @@ export function formatMessage(pattern: string, args: unknown[], timezone: string
     }
     const inner = pattern.slice(i + 1, j - 1);
     const [index = '', type, ...rest] = inner.split(',');
-    const style = rest.length ? rest.join(',') : undefined;
-    const n = Number(index.trim());
-    out += n < args.length ? formatArgument(args[n], type, style, timezone) : `{${inner}}`;
+    if (text) parts.push(text);
+    text = '';
+    parts.push({ inner, index: Number(index.trim()), type, style: rest.length ? rest.join(',') : undefined });
     i = j;
+  }
+  if (text) parts.push(text);
+  if (templates.size >= MAX_TEMPLATES) templates.clear();
+  templates.set(pattern, parts);
+  return parts;
+}
+
+/** Formats `pattern` with `args` like PineScript `str.format`; dates use `timezone` (read only when a date is formatted). */
+export function formatMessage(pattern: string, args: unknown[], timezone: string | (() => string)): string {
+  let out = '';
+  for (const part of parseTemplate(pattern)) {
+    if (typeof part === 'string') out += part;
+    else {
+      const n = part.index;
+      out += n < args.length ? formatArgument(args[n], part.type, part.style, timezone) : `{${part.inner}}`;
+    }
   }
   return out;
 }

@@ -35,10 +35,26 @@ const view = new DataView(new ArrayBuffer(8));
 const int32 = (v: bigint): bigint => BigInt.asIntN(32, v);
 const int64 = (v: bigint): bigint => BigInt.asIntN(64, v);
 
+/** 5^k, made once (k up to 1074, the binary exponents of the doubles). */
+const powersOf5: bigint[] = [1n];
+export function pow5(k: number): bigint {
+  while (powersOf5.length <= k) powersOf5.push(powersOf5[powersOf5.length - 1]! * 5n);
+  return powersOf5[k]!;
+}
+
+/** `s` without its trailing '0' characters. */
+export function trimZeros(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 48) end--;
+  return s.slice(0, end);
+}
+
+/** Trailing zero bits of a significand (not 0, below 2^53: exact as a double). */
 function trailingZeros(v: bigint): number {
+  let x = Number(v);
   let n = 0;
-  while ((v & 1n) === 0n) {
-    v >>= 1n;
+  while (x % 2 === 0) {
+    x /= 2;
     n++;
   }
   return n;
@@ -96,7 +112,7 @@ export function convertDouble(x: number): ConvertedDigits {
       if (residue >= pow10 >> 1n) lvalue++;
     }
     const s = lvalue.toString();
-    return { digits: s.replace(/0+$/, ''), decExponent: insignificant + s.length, roundedUp: false, exact: false };
+    return { digits: trimZeros(s), decExponent: insignificant + s.length, roundedUp: false, exact: false };
   }
 
   let decExp = estimateDecExp(fractBits, binExp);
@@ -134,9 +150,9 @@ export function convertDouble(x: number): ConvertedDigits {
   if (Bbits < 64 && tenSbits < 64) {
     // int or long arithmetic, with its overflows
     const wrap = Bbits < 32 && tenSbits < 32 ? int32 : int64;
-    let b = wrap((fractBits * 5n ** BigInt(B5)) << BigInt(B2));
-    const s = wrap(5n ** BigInt(S5) << BigInt(S2));
-    let m = wrap(5n ** BigInt(M5) << BigInt(M2));
+    let b = wrap((fractBits * pow5(B5)) << BigInt(B2));
+    const s = wrap(pow5(S5) << BigInt(S2));
+    let m = wrap(pow5(M5) << BigInt(M2));
     const tens = wrap(s * 10n);
     let q = Number(b / s);
     b = wrap(10n * (b % s));
@@ -162,9 +178,9 @@ export function convertDouble(x: number): ConvertedDigits {
     lowDigitDifference = wrap((b << 1n) - tens);
     exact = b === 0n;
   } else {
-    let b = (fractBits * 5n ** BigInt(B5)) << BigInt(B2);
-    const s = 5n ** BigInt(S5) << BigInt(S2);
-    let m = 5n ** BigInt(M5 + 1) << BigInt(M2 + 1);
+    let b = (fractBits * pow5(B5)) << BigInt(B2);
+    const s = pow5(S5) << BigInt(S2);
+    let m = pow5(M5 + 1) << BigInt(M2 + 1);
     const tens = s * 10n;
     let q = Number(b / s);
     b = (b % s) * 10n;
@@ -204,7 +220,7 @@ export function convertDouble(x: number): ConvertedDigits {
       if (digits[digits.length - 1]! % 2 !== 0) roundup();
     } else if (lowDigitDifference > 0n) roundup();
   }
-  const text = digits.join('').replace(/0+$/, '');
+  const text = trimZeros(digits.join(''));
   return { digits: text || '0', decExponent, roundedUp, exact };
 }
 
@@ -263,6 +279,6 @@ export function javaFixedDigits(x: number, maxFrac: number): { digits: string; i
     count = keep;
     while (count > 1 && digits[count - 1] === 0) count--;
   }
-  const text = digits.slice(0, count).join('').replace(/0+$/, '');
+  const text = trimZeros(digits.slice(0, count).join(''));
   return { digits: text, intLen: text ? decimalAt : 0 };
 }

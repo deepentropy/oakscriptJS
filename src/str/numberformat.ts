@@ -22,7 +22,7 @@
  *   0.1 with 20 '#' decimals gives "0.1" in both rounding modes
  */
 
-import { javaFixedDigits } from './floatingdecimal.js';
+import { javaFixedDigits, pow5, trimZeros } from './floatingdecimal.js';
 
 export type Rounding = 'halfUpShortest' | 'halfUpExact' | 'halfEvenExact' | 'halfEvenConverted';
 
@@ -134,30 +134,26 @@ function shortestDigits(x: number): Digits {
   return { digits, intLen: digits ? intLen : 0 };
 }
 
+const bitsView = new DataView(new ArrayBuffer(8));
+
 /** Exact decimal expansion of the double |x|. */
 function exactDigits(x: number): Digits {
   const abs = Math.abs(x);
   if (abs === 0) return { digits: '', intLen: 0 };
-  const view = new DataView(new ArrayBuffer(8));
-  view.setFloat64(0, abs);
-  const bits = view.getBigUint64(0);
+  // an integer below 2^53 prints exactly
+  if (Number.isSafeInteger(abs)) {
+    const str = String(abs);
+    return { digits: trimZeros(str), intLen: str.length };
+  }
+  bitsView.setFloat64(0, abs);
+  const bits = bitsView.getBigUint64(0);
   const expBits = Number((bits >> 52n) & 0x7ffn);
   let mant = bits & 0xfffffffffffffn;
   const e2 = expBits === 0 ? -1074 : expBits - 1075;
   if (expBits !== 0) mant |= 1n << 52n;
-  let str: string;
-  let fracDigits: number;
-  if (e2 >= 0) {
-    str = (mant << BigInt(e2)).toString();
-    fracDigits = 0;
-  } else {
-    str = (mant * 5n ** BigInt(-e2)).toString();
-    fracDigits = -e2;
-  }
-  const intLen = str.length - fracDigits;
-  const lead = str.length - str.replace(/^0+/, '').length;
-  const digits = str.slice(lead).replace(/0+$/, '');
-  return { digits, intLen: intLen - lead };
+  // the digits of mant × 2^e2 (mant × 5^-e2 / 10^-e2 when e2 < 0); mant is not 0, so no leading zero
+  const str = (e2 >= 0 ? mant << BigInt(e2) : mant * pow5(-e2)).toString();
+  return { digits: trimZeros(str), intLen: str.length - Math.max(0, -e2) };
 }
 
 /** Rounds to `frac` digits after the point. */
