@@ -1871,6 +1871,9 @@ type PivotLength = simple_int | ArrayLike<number>;
  */
 function pivot(source: Source, leftbars: PivotLength, rightbars: PivotLength, isHigh: boolean): series_float {
   const { values, bars, last } = keptValues(source);
+  if (typeof leftbars === 'number' && typeof rightbars === 'number') {
+    return pivotConstant(values, bars, last, Math.trunc(leftbars), Math.trunc(rightbars), isHigh);
+  }
   return Array.from(source, (_, i) => {
     // a series length: the lengths of the current bar
     const left = Math.trunc(typeof leftbars === 'number' ? leftbars : leftbars[i]!);
@@ -1883,6 +1886,44 @@ function pivot(source: Source, leftbars: PivotLength, rightbars: PivotLength, is
     }
     return bars[best] === i - right ? values[best]! : NaN;
   });
+}
+
+/**
+ * {@link pivot} with constant lengths: the window of kept values only moves forward, so the best of it is the front of
+ * a deque of candidates (positions of strictly decreasing values for a high, the newest of equal values), instead of a
+ * scan of the window on every bar.
+ */
+function pivotConstant(
+  values: readonly number[],
+  bars: readonly number[],
+  last: Int32Array,
+  left: number,
+  right: number,
+  isHigh: boolean
+): series_float {
+  const out: series_float = new Array<number>(last.length);
+  const deque = new Int32Array(values.length);
+  let head = 0;
+  let tail = 0;
+  let added = 0;
+  for (let i = 0; i < last.length; i++) {
+    const k = last[i]!;
+    for (; added <= k; added++) {
+      const v = values[added]!;
+      while (tail > head && (isHigh ? values[deque[tail - 1]!]! <= v : values[deque[tail - 1]!]! >= v)) tail--;
+      deque[tail++] = added;
+    }
+    if (!(i >= left + right) || k < 0) {
+      out[i] = NaN;
+      continue;
+    }
+    // as the scan: the window is the kept value of this bar and the `left + right` before it
+    const first = k - Math.max(0, left + right);
+    while (deque[head]! < first) head++;
+    const best = deque[head]!;
+    out[i] = bars[best] === i - right ? values[best]! : NaN;
+  }
+  return out;
 }
 
 /**

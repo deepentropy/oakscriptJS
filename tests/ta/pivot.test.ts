@@ -43,3 +43,15 @@ describe('ta.pivothigh / ta.pivotlow (PineScript values)', () => {
     expect(cut).toEqual(base.slice(0, 20));
   });
 });
+
+describe('ta.pivothigh / ta.pivotlow with constant lengths (#197)', () => {
+  it('equal the same lengths given per bar, with na values and equal values', () => {
+    const src = Array.from({ length: 400 }, (_, i) => (i % 13 === 0 ? NaN : (i * 37) % 17));
+    for (const [left, right] of [[0, 0], [1, 2], [3, 3], [10, 4], [2.7, 1.5], [-3, 1]] as const) {
+      const lefts = src.map(() => left);
+      const rights = src.map(() => right);
+      expect(taCore.pivothigh(src, left, right)).toEqual(taCore.pivothigh(src, lefts, rights));
+      expect(taCore.pivotlow(src, left, right)).toEqual(taCore.pivotlow(src, lefts, rights));
+    }
+  });
+});
