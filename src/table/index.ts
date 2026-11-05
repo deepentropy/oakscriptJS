@@ -173,7 +173,11 @@ export function merge_cells(
   if (end_column < start_column || end_row < start_row) {
     throw new RangeError('table.merge_cells(): the end cell is before the start cell.');
   }
-  (table_id.merges ??= []).push({ start_column, start_row, end_column, end_row });
+  // One merge per range, as PineScript: merging the same cells again (a script that merges on every bar) keeps one.
+  const merges = (table_id.merges ??= []);
+  if (!merges.some((m) => m.start_column === start_column && m.start_row === start_row && m.end_column === end_column && m.end_row === end_row)) {
+    merges.push({ start_column, start_row, end_column, end_row });
+  }
 }
 
 /**

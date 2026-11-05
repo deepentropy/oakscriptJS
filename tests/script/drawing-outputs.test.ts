@@ -312,6 +312,21 @@ describe('tables', () => {
     expect(t.merges).toBeUndefined();
   });
 
+  test('merging the same range on every bar keeps one merge (#190)', () => {
+    const run = executeScript(() => {
+      indicator('Merge');
+      const t = table.new(position.top_left, 3, 2);
+      eachBar(() => {
+        table.merge_cells(t, 0, 0, 1, 0);
+        table.merge_cells(t, 0, 1, 2, 1);
+      });
+    }, BARS);
+    expect(run.result.tables![0]!.merges).toEqual([
+      { startColumn: 0, startRow: 0, endColumn: 1, endRow: 0 },
+      { startColumn: 0, startRow: 1, endColumn: 2, endRow: 1 },
+    ]);
+  });
+
   test('a cell outside the table throws; a deleted table is not drawn and ignores calls', () => {
     expect(() =>
       executeScript(() => {
