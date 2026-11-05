@@ -12,7 +12,7 @@
  */
 import { RunningSum, isNa } from './running-sum.js';
 import { checkPositiveLength, checkSumLength, checkWindowLength } from './limits.js';
-import { eq } from '../compare/index.js';
+import { eq, ge, gt, le } from '../compare/index.js';
 
 export interface BarStep<A extends unknown[], R> {
   /** The result of the current bar from the state of the earlier bars (a later step of the same bar replaces it) */
@@ -673,6 +673,391 @@ export class StochStep implements BarStep<[source: number, high: number, low: nu
   }
 }
 
+// ── More composites ──────────────────────────────────────────────────────────
+
+/** `ta.hma(source, length)`: wma(2 * wma(source, length / 2) - wma(source, length), floor(sqrt(length))). */
+export class HmaStep implements BarStep<[value: number], number> {
+  private readonly half = new WmaStep();
+  private readonly full = new WmaStep();
+  private readonly outer = new WmaStep();
+  private readonly halfLength: number;
+  private readonly sqrtLength: number;
+
+  constructor(private readonly length: number) {
+    checkPositiveLength('hma', length, 0);
+    this.halfLength = Math.floor(length / 2);
+    this.sqrtLength = Math.floor(Math.sqrt(length));
+  }
+
+  step(value: number): number {
+    const diff = 2 * this.half.step(value, this.halfLength) - this.full.step(value, this.length);
+    return this.outer.step(diff, this.sqrtLength);
+  }
+
+  commit(): void {
+    this.half.commit();
+    this.full.commit();
+    this.outer.commit();
+  }
+}
+
+/** `ta.dev(source, length)`: the mean of |source - sma| over the last `length` bars (na until bar length - 1). */
+export class DevStep extends HistoryStep<[value: number], number> {
+  private readonly mean = new SmaStep();
+  private readonly len: number;
+
+  constructor(length: number) {
+    super();
+    checkPositiveLength('dev', length, 0);
+    this.len = Math.floor(length);
+  }
+
+  step(value: number): number {
+    this.keep(value);
+    const mean = this.mean.step(value, this.len);
+    if (this.history.length < this.len - 1 || Number.isNaN(mean)) return NaN;
+    let sum = 0;
+    for (let k = 0; k < this.len; k++) sum += Math.abs((k === 0 ? value : this.back(k)) - mean);
+    return sum / this.len;
+  }
+
+  override commit(): void {
+    super.commit();
+    this.mean.commit();
+  }
+}
+
+/** `ta.cci(source, length)`: (source - sma) / (0.015 * dev); a zero dev keeps the previous value (0 at the start). */
+export class CciStep implements BarStep<[value: number], number> {
+  private readonly mean = new SmaStep();
+  private readonly dev: DevStep;
+  private last = 0;
+  private next = 0;
+  private stepped = false;
+
+  constructor(private readonly length: number) {
+    checkPositiveLength('cci', length, 0);
+    this.dev = new DevStep(length);
+  }
+
+  step(value: number): number {
+    this.stepped = true;
+    this.next = this.last;
+    const mean = this.mean.step(value, this.length);
+    const d = this.dev.step(value);
+    if (Number.isNaN(mean) || Number.isNaN(d)) return NaN;
+    if (!eq(d, 0)) this.next = (value - mean) / (0.015 * d);
+    return this.next;
+  }
+
+  commit(): void {
+    if (this.stepped) this.last = this.next;
+    this.stepped = false;
+    this.mean.commit();
+    this.dev.commit();
+  }
+}
+
+/** `ta.mfi(source, length)`: the window sums of the money flow of the up and down bars. */
+export class MfiStep extends HistoryStep<[value: number, volume: number], number> {
+  private readonly upper = new SumStep();
+  private readonly lower = new SumStep();
+
+  constructor(private readonly length: number) {
+    super();
+    checkPositiveLength('mfi', length, 0);
+  }
+
+  step(value: number, volume: number): number {
+    this.keep(value);
+    const change = this.history.length === 0 ? NaN : value - this.back(1);
+    const flow = volume * value;
+    const zero = (x: number): number => (Math.abs(x) <= 1e-10 ? 0 : x);
+    const u = zero(this.upper.step(le(change, 0) ? 0 : flow, this.length));
+    const l = zero(this.lower.step(ge(change, 0) ? 0 : flow, this.length));
+    if (Number.isNaN(u) || Number.isNaN(l)) return NaN;
+    if (l === 0) return 100;
+    const ratio = 1 + u / l;
+    return ratio === 0 ? NaN : 100 - 100 / ratio;
+  }
+
+  override commit(): void {
+    super.commit();
+    this.upper.commit();
+    this.lower.commit();
+  }
+}
+
+/** `ta.dmi(diLength, adxSmoothing)`: [+DI, -DI, ADX]; a DI that cannot be computed keeps the previous one. */
+export class DmiStep implements BarStep<[high: number, low: number, close: number], [number, number, number]> {
+  private readonly tr = new TrStep(false);
+  private readonly trur: RmaStep;
+  private readonly plus: RmaStep;
+  private readonly minus: RmaStep;
+  private readonly adx: RmaStep;
+  private prevHigh = NaN;
+  private prevLow = NaN;
+  private bars = 0;
+  private lastPlus = NaN;
+  private lastMinus = NaN;
+  private next: [number, number, number, number] = [NaN, NaN, NaN, NaN];
+  private stepped = false;
+
+  constructor(diLength: number, adxSmoothing: number) {
+    this.trur = new RmaStep(diLength);
+    this.plus = new RmaStep(diLength);
+    this.minus = new RmaStep(diLength);
+    this.adx = new RmaStep(adxSmoothing);
+  }
+
+  step(high: number, low: number, close: number): [number, number, number] {
+    this.stepped = true;
+    const up = this.bars === 0 ? NaN : high - this.prevHigh;
+    const down = this.bars === 0 ? NaN : this.prevLow - low;
+    const plusDM = Number.isNaN(up) ? NaN : gt(up, down) && gt(up, 0) ? up : 0;
+    const minusDM = Number.isNaN(down) ? NaN : gt(down, up) && gt(down, 0) ? down : 0;
+    const t = this.trur.step(this.tr.step(high, low, close));
+    const directional = (v: number, last: number): number => {
+      const value = t === 0 ? NaN : (100 * v) / t;
+      return Number.isNaN(value) ? last : value;
+    };
+    const plus = directional(this.plus.step(plusDM), this.lastPlus);
+    const minus = directional(this.minus.step(minusDM), this.lastMinus);
+    const sum = plus + minus;
+    const dx = Math.abs(plus - minus) / (eq(sum, 0) ? 1 : sum);
+    const adx = 100 * this.adx.step(dx);
+    this.next = [plus, minus, high, low];
+    return [plus, minus, adx];
+  }
+
+  commit(): void {
+    if (!this.stepped) return;
+    this.stepped = false;
+    [this.lastPlus, this.lastMinus, this.prevHigh, this.prevLow] = this.next;
+    this.bars++;
+    this.tr.commit();
+    this.trur.commit();
+    this.plus.commit();
+    this.minus.commit();
+    this.adx.commit();
+  }
+}
+
+/** `ta.linreg(source, length, offset)`: least squares line of the last `length` bars (na when one of them is NaN). */
+export class LinregStep extends HistoryStep<[value: number], number> {
+  private readonly len: number;
+
+  constructor(length: number, private readonly offset = 0) {
+    super();
+    checkPositiveLength('linreg', length, 0);
+    this.len = Math.floor(length);
+  }
+
+  step(value: number): number {
+    this.keep(value);
+    const len = this.len;
+    if (this.history.length < len - 1) return NaN;
+    const at = (j: number): number => (j === len - 1 ? value : this.back(len - 1 - j));
+    for (let j = 0; j < len; j++) if (isNaN(at(j))) return NaN;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumX2 = 0;
+    for (let j = 0; j < len; j++) {
+      const x = j + 1;
+      const y = at(j);
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    }
+    const slope = (len * sumXY - sumX * sumY) / (len * sumX2 - sumX * sumX);
+    const intercept = sumY / len - (slope * sumX) / len + slope;
+    return intercept + slope * (len - 1 - this.offset);
+  }
+}
+
+/** `ta.percentrank(source, length)`: the percentage of the `length` bars before that are less than or equal to the bar. */
+export class PercentrankStep extends HistoryStep<[value: number], number> {
+  constructor(private readonly length: number) {
+    super();
+    checkPositiveLength('percentrank', length, 0);
+  }
+
+  step(value: number): number {
+    this.keep(value);
+    if (this.history.length < this.length) return NaN;
+    let count = 0;
+    for (let j = 1; j <= this.length; j++) if (le(this.back(j), value)) count++;
+    return (count * 100) / this.length;
+  }
+}
+
+/** `ta.median(source, length)`: the median of the last `length` non-na values (sorted as ta.median keeps them). */
+export class MedianStep implements BarStep<[value: number], number> {
+  private sorted: number[] = [];
+  private readonly kept: number[] = [];
+  private nextSorted: number[] | null = null;
+  private nextValue: number | null = null;
+  private stepped = false;
+  private readonly len: number;
+
+  constructor(length: number) {
+    checkPositiveLength('median', length, 0);
+    this.len = Math.floor(length);
+  }
+
+  private static bound(sorted: readonly number[], v: number, after: boolean): number {
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (after ? sorted[m]! <= v : sorted[m]! < v) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  }
+
+  step(value: number): number {
+    this.stepped = true;
+    const len = this.len;
+    let sorted = this.sorted;
+    let count = this.kept.length;
+    this.nextValue = null;
+    this.nextSorted = null;
+    if (Number.isFinite(value)) {
+      sorted = sorted.slice();
+      count++;
+      sorted.splice(MedianStep.bound(sorted, value, false), 0, value);
+      // the value that leaves the window: kept[count - 1 - len] in the order of the kept values (this one is last)
+      if (count > len) {
+        const k = count - 1 - len;
+        const leaving = k === this.kept.length ? value : this.kept[k]!;
+        sorted.splice(MedianStep.bound(sorted, leaving, true) - 1, 1);
+      }
+      this.nextValue = value;
+      this.nextSorted = sorted;
+    }
+    if (!(len >= 1) || count < len) return NaN;
+    const mid = Math.floor(len / 2);
+    return len % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
+  }
+
+  commit(): void {
+    if (!this.stepped) return;
+    this.stepped = false;
+    if (this.nextValue !== null) {
+      this.kept.push(this.nextValue);
+      this.sorted = this.nextSorted!;
+    }
+  }
+}
+
+/** `ta.correlation(source1, source2, length)`: covariance over the square root of the two variances. */
+export class CorrelationStep implements BarStep<[a: number, b: number], number> {
+  private readonly meanXY = new SmaStep();
+  private readonly meanX = new SmaStep();
+  private readonly meanY = new SmaStep();
+  private readonly varX = new VarianceStep();
+  private readonly varY = new VarianceStep();
+
+  constructor(private readonly length: number) {
+    checkPositiveLength('correlation', length, 0);
+  }
+
+  step(a: number, b: number): number {
+    const product = a === null || a === undefined || b === null || b === undefined ? NaN : a * b;
+    const mxy = this.meanXY.step(product, this.length);
+    const cov = mxy - this.meanX.step(a, this.length) * this.meanY.step(b, this.length);
+    const vx = this.varX.step(a, this.length);
+    const vy = this.varY.step(b, this.length);
+    if (Number.isNaN(cov)) return NaN;
+    if (Math.abs(cov) <= 1e-10) return 0;
+    const denominator = Math.sqrt(vx * vy);
+    return denominator === 0 ? NaN : cov / denominator;
+  }
+
+  commit(): void {
+    this.meanXY.commit();
+    this.meanX.commit();
+    this.meanY.commit();
+    this.varX.commit();
+    this.varY.commit();
+  }
+}
+
+/** `ta.wpr(length)`: 100 * (close - highest(high)) / (highest(high) - lowest(low)); na on a zero range. */
+export class WprStep implements BarStep<[high: number, low: number, close: number], number> {
+  private readonly highest = new HighestStep();
+  private readonly lowest = new LowestStep();
+
+  constructor(private readonly length = 14) {
+    checkPositiveLength('wpr', length, 0);
+  }
+
+  step(high: number, low: number, close: number): number {
+    const hmax = this.highest.step(high, this.length);
+    const range = hmax - this.lowest.step(low, this.length);
+    return range === 0 ? NaN : (100 * (close - hmax)) / range;
+  }
+
+  commit(): void {
+    this.highest.commit();
+    this.lowest.commit();
+  }
+}
+
+/** `ta.supertrend(factor, atrPeriod)`: [supertrend, direction] (bands from hl2 and the atr, as ta.supertrend). */
+export class SupertrendStep implements BarStep<[high: number, low: number, close: number], [number, number]> {
+  private readonly atr: AtrStep;
+  private lastLower = NaN;
+  private lastUpper = NaN;
+  private prevSuperTrend = NaN;
+  private prevAtr = NaN;
+  private prevHigh = NaN;
+  private prevLow = NaN;
+  private bars = 0;
+  private next: [number, number, number, number, number, number] = [NaN, NaN, NaN, NaN, NaN, NaN];
+  private stepped = false;
+
+  constructor(private readonly factor: number, atrPeriod: number, private readonly wicks = false) {
+    this.atr = new AtrStep(atrPeriod);
+  }
+
+  step(high: number, low: number, close: number): [number, number] {
+    this.stepped = true;
+    const nz = (v: number): number => (isNaN(v) ? 0 : v);
+    const source = (high + low) / 2;
+    const atr = this.atr.step(high, low, close);
+    const atrValue = atr * this.factor;
+    let upperBand = source + atrValue;
+    let lowerBand = source - atrValue;
+    const prevLowerBand = nz(this.lastLower);
+    const prevUpperBand = nz(this.lastUpper);
+    const highPrice = this.wicks ? high : close;
+    const lowPrice = this.wicks ? low : close;
+    const prevLowPrice = this.bars > 0 ? this.prevLow : NaN;
+    const prevHighPrice = this.bars > 0 ? this.prevHigh : NaN;
+    lowerBand = lowerBand > prevLowerBand || prevLowPrice < prevLowerBand ? lowerBand : prevLowerBand;
+    upperBand = upperBand < prevUpperBand || prevHighPrice > prevUpperBand ? upperBand : prevUpperBand;
+    let direction: number;
+    if (this.bars === 0 || isNaN(this.prevAtr)) direction = 1;
+    else if (this.prevSuperTrend === prevUpperBand) direction = highPrice > upperBand ? -1 : 1;
+    else direction = lowPrice < lowerBand ? 1 : -1;
+    const superTrend = direction === -1 ? lowerBand : upperBand;
+    this.next = [lowerBand, upperBand, superTrend, atr, highPrice, lowPrice];
+    return [superTrend, direction];
+  }
+
+  commit(): void {
+    if (!this.stepped) return;
+    this.stepped = false;
+    [this.lastLower, this.lastUpper, this.prevSuperTrend, this.prevAtr, this.prevHigh, this.prevLow] = this.next;
+    this.bars++;
+    this.atr.commit();
+  }
+}
+
 // ── Factories (PineScript names) ─────────────────────────────────────────────
 
 /**
@@ -735,4 +1120,26 @@ export const taStep = {
   vwma: (length: number): VwmaStep => new VwmaStep(length),
   /** `ta.stoch(source, high, low, length)`: step(source, high, low) */
   stoch: (length: number): StochStep => new StochStep(length),
+  /** `ta.hma(source, length)`: step(value) */
+  hma: (length: number): HmaStep => new HmaStep(length),
+  /** `ta.dev(source, length)`: step(value) */
+  dev: (length: number): DevStep => new DevStep(length),
+  /** `ta.cci(source, length)`: step(value) */
+  cci: (length: number): CciStep => new CciStep(length),
+  /** `ta.mfi(source, length)`: step(value, volume) */
+  mfi: (length: number): MfiStep => new MfiStep(length),
+  /** `ta.dmi(diLength, adxSmoothing)`: step(high, low, close) gives [plus, minus, adx] */
+  dmi: (diLength: number, adxSmoothing: number): DmiStep => new DmiStep(diLength, adxSmoothing),
+  /** `ta.linreg(source, length, offset)`: step(value), called on every bar (in an if block: callsite.linreg) */
+  linreg: (length: number, offset = 0): LinregStep => new LinregStep(length, offset),
+  /** `ta.percentrank(source, length)`: step(value) */
+  percentrank: (length: number): PercentrankStep => new PercentrankStep(length),
+  /** `ta.median(source, length)`: step(value) */
+  median: (length: number): MedianStep => new MedianStep(length),
+  /** `ta.correlation(source1, source2, length)`: step(a, b) */
+  correlation: (length: number): CorrelationStep => new CorrelationStep(length),
+  /** `ta.wpr(length)`: step(high, low, close) */
+  wpr: (length = 14): WprStep => new WprStep(length),
+  /** `ta.supertrend(factor, atrPeriod)`: step(high, low, close) gives [supertrend, direction] */
+  supertrend: (factor: number, atrPeriod: number): SupertrendStep => new SupertrendStep(factor, atrPeriod),
 };

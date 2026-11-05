@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `request.security`, strategies, `varip`, `timenow`, `last_bar_index`, `c.n`, and for a callback that changes a
   variable outside it (`fullRunReason`); the first resumed updates are also checked against a full run. 13 plots on
   10,000 bars: 7.4 ms -> 0.4 ms per update (#196).
+- Incremental runs resume drawings (one `eachBar()` block draws: the registry and the state of its objects are put back
+  on the same objects; the body's drawings are the same objects on each run) and strategies whose engine implements
+  the new optional `StrategyEngine.save()` / `restore()`; `varDrawing()` of the script API keeps its value in a
+  `persist()` box. 11 more `taStep` machines: `hma`, `dev`, `cci`, `mfi`, `dmi`, `linreg`, `percentrank`, `median`,
+  `correlation`, `wpr`, `supertrend` (#196).
+- `oakscript check`: the report tells whether live updates are resumed (`liveUpdates`, with the reason of full runs)
+  (#196).
 - Script API: `persist(initial)`, PineScript `var` kept by the runtime (`.value`), put back by incremental runs (#196).
 
 ### Changed

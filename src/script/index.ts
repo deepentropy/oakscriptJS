@@ -96,13 +96,38 @@ import * as mathCore from '../math/index.js';
 import {
   createdDrawingKinds,
   resetDrawings,
+  restoreDrawingCheckpoint,
   restoreDrawingState,
+  saveDrawingCheckpoint,
   saveDrawingState,
   setDrawingBar,
   setDrawingLimits,
+  holdDrawing,
+  releaseDrawing,
   type DrawingKind,
+  type DrawingVariable,
 } from '../drawing/registry.js';
-export { holdDrawing, releaseDrawing, varDrawing, type DrawingVariable } from '../drawing/registry.js';
+export { holdDrawing, releaseDrawing, type DrawingVariable } from '../drawing/registry.js';
+
+/**
+ * A PineScript `var` variable of a drawing type (`var line l = na`): the object it refers to is not deleted by the
+ * maximum count; assigning another object (or `undefined` for `na`) releases the one before. Its value is a
+ * {@link persist} box: an incremental run puts it back with the drawings (#196). Declare it in the script body.
+ */
+export function varDrawing<T extends object>(initial?: T): DrawingVariable<T> {
+  const box = persist<T | undefined>(initial ? holdDrawing(initial) : undefined);
+  return {
+    get value() {
+      return box.value;
+    },
+    set value(next: T | undefined) {
+      const current = box.value;
+      if (next === current) return;
+      releaseDrawing(current);
+      box.value = next ? holdDrawing(next) : undefined;
+    },
+  };
+}
 import { drawingOutputs } from '../drawing/output.js';
 import * as timeframeCore from '../timeframe/index.js';
 import * as timeCore from '../time/index.js';
@@ -465,8 +490,8 @@ function runBody(
   try {
     body();
     if (missingSymbols.length) throw new MissingSymbolDataError(missingSymbols);
-    // drawings are not resumed yet (#196): their registry holds the objects of every bar
-    if (inc && createdDrawingKinds().length) incremental.nonIncremental('drawings');
+    // the outputs read the drawings: not a drawing of the script
+    if (inc) incremental.bodyDone();
     const c = ctx;
     return {
       metadata: {
@@ -691,21 +716,27 @@ export function createScriptRun(
   let reason: string | null = null;
   let verifyLeft = options.verify ?? 2;
 
-  const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun => ({
+  const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun => {
+    const next = incremental.emptyMemory(b.length);
+    // the block that draws stays the one of the previous run (the forming bar may not draw)
+    if (mode === 'resume' && memory) next.drawingBlock = memory.drawingBlock;
+    return {
     mode,
     from,
     bars: b,
     prev: mode === 'resume' ? memory : null,
-    next: incremental.emptyMemory(b.length),
+    next,
     seriesSlot: 0,
     taSlot: 0,
     blockSlot: 0,
     plotSlot: 0,
     boxSlot: 0,
+    drawSlot: 0,
     block: -1,
     boxes: [],
     blocked: null,
-  });
+    };
+  };
 
   const full = (b: Bar[], c: ChartContext): ScriptRunUpdate => {
     memory = null;
@@ -1367,6 +1398,22 @@ const steppedTa = {
       taSeries.macd(source, fastLength, slowLength, signalLength)),
   bb: (source: Series, length: number, mult: number): [Series, Series, Series] =>
     stepped('bb', () => taStep.bb(length, mult), [source], (v, i) => [at(v, 0, i)], 3, () => taSeries.bb(source, length, mult)),
+  hma: (source: Series, length: number): Series =>
+    stepped('hma', () => taStep.hma(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.hma(source, length)),
+  dev: (source: Series, length: number): Series =>
+    stepped('dev', () => taStep.dev(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.dev(source, length)),
+  cci: (source: Series, length: number): Series =>
+    stepped('cci', () => taStep.cci(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.cci(source, length)),
+  percentrank: (source: Series, length: number): Series =>
+    stepped('percentrank', () => taStep.percentrank(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.percentrank(source, length)),
+  median: (source: Series, length: number): Series =>
+    stepped('median', () => taStep.median(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.median(source, length)),
+  linreg: (source: Series, length: number, offset: number = 0): Series =>
+    stepped('linreg', () => taStep.linreg(length, offset), [source], (v, i) => [at(v, 0, i)], 1, () =>
+      taSeries.linreg(source, length, offset)),
+  correlation: (a: Series, b: Series, length: number): Series =>
+    stepped('correlation', () => taStep.correlation(length), [a, b], (v, i) => [at(v, 0, i), at(v, 1, i)], 1, () =>
+      taSeries.correlation(a, b, length)),
   stoch: (source: Series, highSource: Series, lowSource: Series, length: number): Series =>
     stepped('stoch', () => taStep.stoch(length), [source, highSource, lowSource], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1,
       () => taSeries.stoch(source, highSource, lowSource, length)),
@@ -1384,11 +1431,15 @@ export const ta = strictNamespace('ta', outsideBarLoops({
     stepped('atr', () => taStep.atr(length), [high, low, close], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1, () =>
       taSeries.atr(bars(), length)),
   sar: (start?: number, inc?: number, max?: number): Series => taSeries.sar(bars(), start, inc, max),
-  wpr: (length?: number): Series => taSeries.wpr(bars(), length),
+  wpr: (length: number = 14): Series =>
+    stepped('wpr', () => taStep.wpr(length), [high, low, close], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1, () =>
+      taSeries.wpr(bars(), length)),
   supertrend: (factor: number, atrLength: number): [Series, Series] =>
-    taSeries.supertrend(bars(), factor, atrLength),
+    stepped('supertrend', () => taStep.supertrend(factor, atrLength), [high, low, close],
+      (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 2, () => taSeries.supertrend(bars(), factor, atrLength)),
   dmi: (diLength: number, adxSmoothing: number): [Series, Series, Series] =>
-    taSeries.dmi(bars(), diLength, adxSmoothing),
+    stepped('dmi', () => taStep.dmi(diLength, adxSmoothing), [high, low, close],
+      (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 3, () => taSeries.dmi(bars(), diLength, adxSmoothing)),
   kc: (source: Series, length: number, mult: number, useTrueRange?: boolean): [Series, Series, Series] =>
     taSeries.kc(bars(), source, length, mult, useTrueRange),
   kcw: (source: Series, length?: number, mult?: number, useTrueRange?: boolean): Series =>
@@ -1442,7 +1493,9 @@ export const ta = strictNamespace('ta', outsideBarLoops({
     stepped('vwma', () => taStep.vwma(length), [source, vol ?? volume], (v, i) => [at(v, 0, i), at(v, 1, i)], 1, () =>
       taSeries.vwma(source, length, vol ?? volume)),
   /** `ta.mfi(source, length)` with the chart volume (PineScript takes 2 arguments). */
-  mfi: (source: Series, length: number): Series => taSeries.mfi(source, length, volume),
+  mfi: (source: Series, length: number): Series =>
+    stepped('mfi', () => taStep.mfi(length), [source, volume], (v, i) => [at(v, 0, i), at(v, 1, i)], 1, () =>
+      taSeries.mfi(source, length, volume)),
   /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
    *  The value appears `rightbars` bars after the pivot bar, as in PineScript. */
   pivothigh: (sourceOrLeft: Series | number, leftOrRight: number | Series, rightbars?: number | Series): Series =>
@@ -2328,6 +2381,21 @@ function outerWritesOf(fn: (...args: never[]) => unknown): string[] {
 }
 
 export function eachBar(fn: (c: BarContext) => number | boolean | void): Series {
+  return runBlock(fn);
+}
+
+/** State an eachBar() block keeps in its incremental checkpoint besides the script's (the strategy engine). */
+interface BlockExtra {
+  save(): unknown;
+  restore(state: unknown): void;
+}
+
+function runBlock(
+  fn: (c: BarContext) => number | boolean | void,
+  extra?: BlockExtra,
+  /** The script's own callback, when fn wraps it (strategy.eachBar) */
+  own: (c: BarContext) => number | boolean | void = fn
+): Series {
   collector(); // same lifecycle guard (and error message) as the declaration calls
   const b = bars();
   // An intrabar run ends on its bar: the chart's last bar stays the main run's.
@@ -2347,7 +2415,7 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
   if (run && slot < 0) incremental.nonIncremental('eachBar() inside eachBar()');
   if (run?.mode === 'record') {
     // a variable outside the callback that it changes is not put back by a resumed run: use persist()
-    const written = outerWritesOf(fn);
+    const written = outerWritesOf(own);
     if (written.length) incremental.nonIncremental(`eachBar() callback changes ${written.join(', ')} outside it (use persist())`);
   }
   let start = 0;
@@ -2361,6 +2429,9 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     out.length = b.length;
     for (let i = start; i < b.length; i++) out[i] = NaN;
     checkpoint = prev!.checkpoint;
+    // the block that draws puts the registry back to the last confirmed bar
+    if (run.prev!.drawingBlock === slot && checkpoint.drawings) restoreDrawingCheckpoint(checkpoint.drawings);
+    if (extra) extra.restore(checkpoint.extra);
     for (const [key, state] of checkpoint.buffers) buffers.set(key, { ...state });
     pendingError = checkpoint.pendingError ? { ...checkpoint.pendingError } : null;
     for (const [box, value] of checkpoint.boxes) {
@@ -2377,7 +2448,13 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
     });
     const kept = new Map<unknown, HistoryBuffer>();
     for (const [key, state] of buffers) kept.set(key, { ...state });
-    return { boxes, buffers: kept, pendingError: pendingError ? { ...pendingError } : null };
+    return {
+      boxes,
+      buffers: kept,
+      pendingError: pendingError ? { ...pendingError } : null,
+      drawings: saveDrawingCheckpoint(),
+      extra: extra?.save(),
+    };
   };
   // the last confirmed bar is before the first bar run (a new run of one bar): its state is the initial one
   if (run && b.length - 2 < start && !checkpoint) checkpoint = takeCheckpoint();
@@ -2530,7 +2607,6 @@ function riskRule(rule: StrategyRiskRule): void {
 /** PineScript `strategy()` declaration: script metadata and strategy properties. */
 function declareStrategy(title: string, options: StrategyOptions = {}): void {
   const c = collector();
-  incremental.nonIncremental('strategy');
   declare(c, 'strategy');
   c.title = title;
   c.shortTitle = options.shorttitle;
@@ -2598,7 +2674,14 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
     });
   }
   const recorder = scriptOptions.recorder;
-  return eachBar((c) => {
+  // an incremental run keeps the engine state at the last confirmed bar: the engine has to save and restore it
+  if (incremental.active) {
+    if (recorder) incremental.nonIncremental('a strategy with intrabar runs (recorder)');
+    if (!engine.save || !engine.restore) incremental.nonIncremental('a strategy engine without save() / restore()');
+  }
+  const extra: BlockExtra | undefined =
+    engine.save && engine.restore ? { save: () => engine.save!(), restore: (s) => engine.restore!(s) } : undefined;
+  return runBlock((c) => {
     engine.processBar(c.i);
     if (recorder) {
       recorder.varipStarts[c.i] = [...recorder.varip];
@@ -2612,7 +2695,7 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
       run.engine = engine;
       engine.processClose(c.i);
     }
-  });
+  }, extra, fn);
 }
 
 /** The engine of a main run that records its answers (see {@link StrategyRecorder}). */

@@ -20,6 +20,7 @@ import {
   compileScript,
   inferTimeframe,
   runScript,
+  incrementalReason,
   syntheticBars,
   timeframeSeconds,
   type ScriptRun,
@@ -232,6 +233,12 @@ export interface CheckReport {
   drawings: { labels: number; lines: number; boxes: number; tables: number; polylines: number; linefills: number };
   /** alert() calls of the script (all bars). */
   alertCalls: number;
+  /**
+   * Live updates on a chart that runs the script with createScriptRun (#196): resumed (the newest bars only) or full
+   * runs, with the reason (state outside persist(), drawings in two blocks, request.security...). Not a warning: the
+   * results are the same.
+   */
+  liveUpdates?: { resumed: boolean; reason: string | null };
   strategy?: { closedTrades: number; openTrade: boolean; netProfit: number; wins: number; first: TradeSummary[] };
   /** Spec items and behaviour checks. */
   spec?: { passed: number; failed: number; items: CheckItem[] };
@@ -625,6 +632,15 @@ export function checkScript(source: string, options: CheckOptions = {}): CheckRe
   report.alertCalls = (r as { alertCalls?: unknown[] }).alertCalls?.length ?? 0;
   if (main.engine) report.strategy = summarizeStrategy(main.engine);
   report.warnings = warningsOf(report, bars);
+  // a live chart (createScriptRun) calculates only the newest bars of a script whose state the runtime keeps (#196)
+  if (!main.engine) {
+    try {
+      const reason = wrap(() => incrementalReason(source, bars, inputs, runOptions));
+      report.liveUpdates = { resumed: reason === null, reason };
+    } catch {
+      // the main run already reports the errors of the script
+    }
+  }
 
   if (options.inputSweep !== false) {
     const base = fingerprint(run, main.engine);

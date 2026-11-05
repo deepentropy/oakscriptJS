@@ -206,9 +206,11 @@ export function outerWrites(src: string): string[] {
     let members = 0;
     let firstMember = '';
     let lastMember = '';
+    const memberList: string[] = [];
     while (j < t.length) {
       if ((t[j]!.text === '.' || t[j]!.text === '?.') && t[j + 1]?.kind === 'id') {
         lastMember = t[j + 1]!.text;
+        memberList.push(lastMember);
         if (members === 0) firstMember = lastMember;
         j += 2;
         members++;
@@ -222,15 +224,21 @@ export function outerWrites(src: string): string[] {
         j++;
         members++;
         lastMember = '[]';
+        memberList.push('[]');
       } else break;
     }
     const next = t[j];
-    // array.push(zones, x) (PineScript namespaces): the call changes its first argument
-    if (NAMESPACES.has(tok.text) && members === 1 && next?.text === '(' && !READS.has(lastMember)) {
-      const arg = t[j + 1];
-      if (arg?.kind === 'id' && !inside.has(arg.text) && !KEYWORDS.has(arg.text)) {
-        const box = t[j + 2]?.text === '.' && t[j + 3]?.text === 'value';
-        if (!box) found.add(arg.text);
+    // a call of a PineScript namespace (label.delete(l), array.push(zones, x); also through a module object of compiled
+    // code, script_1.label.delete(l)): not a change of the namespace; array / map / matrix functions change their first
+    // argument
+    const ns = members === 1 ? tok.text : members >= 2 ? memberList[members - 2]! : '';
+    if (next?.text === '(' && PINE_NAMESPACES.has(ns) && (members === 1 || members >= 2)) {
+      if (NAMESPACES.has(ns) && !READS.has(lastMember)) {
+        const arg = t[j + 1];
+        if (arg?.kind === 'id' && !inside.has(arg.text) && !KEYWORDS.has(arg.text)) {
+          const box = t[j + 2]?.text === '.' && t[j + 3]?.text === 'value';
+          if (!box) found.add(arg.text);
+        }
       }
       continue;
     }
@@ -246,6 +254,13 @@ export function outerWrites(src: string): string[] {
   }
   return [...found];
 }
+
+/** Namespaces of the PineScript API (their functions do not change the namespace object) */
+const PINE_NAMESPACES = new Set([
+  'array', 'matrix', 'map', 'label', 'line', 'box', 'table', 'polyline', 'linefill', 'chart', 'str', 'math', 'ta', 'color',
+  'request', 'strategy', 'input', 'timeframe', 'syminfo', 'barstate', 'session', 'callsite', 'taCore', 'taStep',
+  'compare', 'plot', 'time', 'text', 'ticker', 'runtime', 'log', 'alert', 'chartPoint',
+]);
 
 /** PineScript namespaces whose functions change their first argument */
 const NAMESPACES = new Set(['array', 'matrix', 'map']);

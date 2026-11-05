@@ -12,6 +12,7 @@ import {
   runScript,
   syntheticBars,
   timeframeSeconds,
+  formatReport,
   type CheckReport,
 } from '../../src/check';
 
@@ -252,5 +253,16 @@ describe('harness', () => {
     const r = checkScript('indicator("H");\nplot(request.security("", "W", () => close), "W close");', { bars: syntheticBars(200, 86400) });
     expect(r.errors).toEqual([]);
     expect(r.plots[0]!.values).toBeGreaterThan(190);
+  });
+});
+
+describe('checkScript: live updates (#196)', () => {
+  it('a script with its state in persist() is resumed; one with a let outside its callback runs in full', () => {
+    const resumed = checkScript('indicator("P");\nconst n = persist(0);\nplot(eachBar((c) => (c.close > c.open ? ++n.value : n.value)), "N");');
+    expect(resumed.liveUpdates).toEqual({ resumed: true, reason: null });
+    const full = checkScript('indicator("L");\nlet n = 0;\nplot(eachBar((c) => (c.close > c.open ? ++n : n)), "N");');
+    expect(full.liveUpdates).toEqual({ resumed: false, reason: 'eachBar() callback changes n outside it (use persist())' });
+    expect(full.warnings.length).toBe(0);
+    expect(formatReport(full)).toContain('live updates: full runs');
   });
 });

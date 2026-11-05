@@ -21,6 +21,7 @@
 import { Series, setSeriesRunHooks, type SeriesRunHooks } from '../runtime/series.js';
 import type { Bar } from '../types/index.js';
 import type { BarStep } from '../ta/step.js';
+import { isDrawingObject, setDrawingRunHooks, type DrawingCheckpoint, type DrawingKind, type DrawingRunHooks } from '../drawing/registry.js';
 
 /** A resumed run met a feature it does not resume: the update is calculated by a full run. */
 export class ResumeAborted extends Error {
@@ -43,6 +44,10 @@ export interface BlockCheckpoint {
   /** History buffers by source key (Series slot, or the Series of the chart) */
   buffers: Map<unknown, BufferState>;
   pendingError: { bar: number; barsBack: number } | null;
+  /** The drawing registry and its objects (the block that draws puts it back) */
+  drawings: DrawingCheckpoint | null;
+  /** State the block keeps besides the script's (the strategy engine of strategy.eachBar()) */
+  extra?: unknown;
 }
 
 export interface BlockMemory {
@@ -78,10 +83,14 @@ export interface RunMemory {
   plots: Array<PlotMemory | undefined>;
   /** Block slot that owns each persist() box */
   boxOwner: Array<number | undefined>;
+  /** Drawing objects created in the script body (outside the callbacks), by creation order */
+  bodyDrawings: Array<{ kind: DrawingKind; obj: object } | undefined>;
+  /** The eachBar() block that uses the drawings (one per script), undefined when none */
+  drawingBlock: number | undefined;
 }
 
 export function emptyMemory(n: number): RunMemory {
-  return { n, series: [], kept: new WeakMap(), ta: [], blocks: [], plots: [], boxOwner: [] };
+  return { n, series: [], kept: new WeakMap(), ta: [], blocks: [], plots: [], boxOwner: [], bodyDrawings: [], drawingBlock: undefined };
 }
 
 export interface ActiveRun {
@@ -96,6 +105,7 @@ export interface ActiveRun {
   blockSlot: number;
   plotSlot: number;
   boxSlot: number;
+  drawSlot: number;
   /** The eachBar() block running (its slot), -1 outside */
   block: number;
   /** Getters and setters of the persist() boxes of this run, by slot */
@@ -137,11 +147,44 @@ const hooks: SeriesRunHooks = {
   },
 };
 
+/**
+ * Drawings in an incremental run: one eachBar() block uses them (its checkpoint holds the registry and the state of
+ * the objects); the objects created in the script body before the blocks are the same objects on each run (matched by
+ * creation order), set again to their new state. Drawings used by two blocks, or in the body after a block, are not
+ * resumed.
+ */
+const drawingHooks: DrawingRunHooks = {
+  access() {
+    const run = active;
+    if (!run) return;
+    if (run.block < 0) {
+      if (run.blockSlot > 0) nonIncremental('drawings in the script body after an eachBar() block');
+      return;
+    }
+    if (run.next.drawingBlock === undefined) run.next.drawingBlock = run.block;
+    else if (run.next.drawingBlock !== run.block) nonIncremental('drawings in two eachBar() blocks');
+  },
+  reuse(kind, obj) {
+    const run = active;
+    if (!run || run.block >= 0) return null;
+    const slot = run.drawSlot++;
+    if (run.mode === 'record') {
+      run.next.bodyDrawings[slot] = { kind, obj };
+      return null;
+    }
+    const old = run.prev?.bodyDrawings[slot];
+    if (!old || old.kind !== kind) nonIncremental('a new drawing in the script body');
+    run.next.bodyDrawings[slot] = old;
+    return old!.obj;
+  },
+};
+
 /** Starts an incremental run (the script body runs next); returns the run to give to {@link endRun}. */
 export function beginRun(run: ActiveRun): ActiveRun | null {
   const outer = active;
   active = run;
   setSeriesRunHooks(hooks);
+  setDrawingRunHooks(drawingHooks);
   return outer;
 }
 
@@ -149,6 +192,12 @@ export function beginRun(run: ActiveRun): ActiveRun | null {
 export function endRun(outer: ActiveRun | null): void {
   active = outer;
   setSeriesRunHooks(outer ? hooks : null);
+  setDrawingRunHooks(outer ? drawingHooks : null);
+}
+
+/** The script body has run: the run builds its outputs (they read the drawings without being part of the script). */
+export function bodyDone(): void {
+  setDrawingRunHooks(null);
 }
 
 /** No incremental run inside (a nested executeScript, e.g. other symbols): the outer one is put back by endRun(). */
@@ -156,6 +205,7 @@ export function suspendRun(): ActiveRun | null {
   const outer = active;
   active = null;
   setSeriesRunHooks(null);
+  setDrawingRunHooks(null);
   return outer;
 }
 
@@ -165,6 +215,8 @@ export function suspendRun(): ActiveRun | null {
  * a drawing) is kept as it is and marks the run as not resumable.
  */
 export function copyValue(value: unknown): unknown {
+  // a drawing object is shared: the checkpoint of the registry puts its state back
+  if (isDrawingObject(value)) return value;
   if (value === null || typeof value !== 'object') {
     if (typeof value === 'function') nonIncremental('a function in persist()');
     return value;

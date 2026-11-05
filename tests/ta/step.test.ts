@@ -162,3 +162,37 @@ describe('taStep (#196)', () => {
     same(gotUpper, taCore.bb(final, 20, 2)[1]);
   });
 });
+
+describe('more ta one bar at a time (#196)', () => {
+  for (const [name, x] of sources) {
+    for (const len of [2, 3, 7, 14, 50]) {
+      it(`${name}, length ${len}: hma, dev, cci, linreg, percentrank, median, correlation, mfi`, () => {
+        const one = (i: number): [number] => [x[i]!];
+        const wrong1 = (i: number): [number] => [shift(x, i)];
+        same(drive(new step.HmaStep(len), one, wrong1), taCore.hma(x, len));
+        same(drive(new step.DevStep(len), one, wrong1), taCore.dev(x, len));
+        same(drive(new step.CciStep(len), one, wrong1), taCore.cci(x, len));
+        same(drive(new step.LinregStep(len, 0), one, wrong1), taCore.linreg(x, len, 0));
+        same(drive(new step.LinregStep(len, 2), one, wrong1), taCore.linreg(x, len, 2));
+        same(drive(new step.PercentrankStep(len), one, wrong1), taCore.percentrank(x, len));
+        same(drive(new step.MedianStep(len), one, wrong1), taCore.median(x, len));
+        same(drive(new step.CorrelationStep(len), (i) => [x[i]!, other[i]!], (i) => [other[i]!, shift(x, i)]), taCore.correlation(x, other, len));
+        same(drive(new step.MfiStep(len), (i) => [x[i]!, volume[i]!], (i) => [shift(x, i), 5]), taCore.mfi(x, len, volume));
+      });
+    }
+  }
+
+  for (const len of [2, 7, 14, 30]) {
+    it(`bars, length ${len}: dmi, wpr, supertrend`, () => {
+      const hlc = (i: number): [number, number, number] => [high[i]!, low[i]!, closeNa[i]!];
+      const wrongHlc = (i: number): [number, number, number] => [low[i]!, high[i]! * 2, clean[(i + 3) % N]!];
+      const dmi = drive(new step.DmiStep(len, Math.max(1, len - 1)), hlc, wrongHlc);
+      const refDmi = taCore.dmi(len, Math.max(1, len - 1), high, low, closeNa);
+      for (let k = 0; k < 3; k++) same(dmi.map((m) => m[k]), refDmi[k]!);
+      same(drive(new step.WprStep(len), hlc, wrongHlc), taCore.wpr(high, low, closeNa, len));
+      const st = drive(new step.SupertrendStep(3, len), hlc, wrongHlc);
+      const refSt = taCore.supertrend(3, len, high, low, closeNa);
+      for (let k = 0; k < 2; k++) same(st.map((m) => m[k]), refSt[k]!);
+    });
+  }
+});

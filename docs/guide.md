@@ -574,13 +574,23 @@ keep their earlier values, the `ta.*` calls with a `taStep` machine step the new
 from that bar with their `persist()` boxes and history buffers put back. The result equals a full run on the same
 bars, bit for bit. Any other change (history loaded or adjusted, other chart fields) runs the script in full.
 
+Drawings are resumed when one `eachBar()` block uses them: its checkpoint holds the registry and the state of each
+object (fields, deletion, `var` holds), put back on the same objects, so a `persist()` box or a `varDrawing()` that
+holds a drawing stays valid. The drawings the script body creates before the blocks (a dashboard `table.new`) are the
+same objects on each run. A strategy is resumed when its order engine implements `save()` / `restore()`
+(`StrategyEngine`): the next run's engine gets the state of the last confirmed bar.
+
 Calculated in full (same results, more time): a script whose `eachBar()` callback changes a variable declared outside
 it (read from the callback's source: `x = ...`, `x++`, `x.push(...)`, `array.push(x, ...)`; a `persist` box's
-`.value` is allowed), reads a `persist` box outside a callback or from two callbacks, draws (labels, lines, boxes,
-tables...), uses `request.security`, a strategy, `varip`, `timenow`, `last_bar_index`, `c.n` or
-`barstate.islastconfirmedhistory`. `run.fullRunReason` names the first one met. A change made by a function the callback
-calls is not read from the source: the first resumed updates (`verify`, default 2) are also calculated in full and
-compared, and a difference makes the next updates full runs.
+`.value` is allowed), reads a `persist` box outside a callback or from two callbacks, uses drawings in two blocks or in
+the body after a block, uses `request.security`, a strategy engine without `save()` / `restore()`, `varip`,
+`timenow`, `last_bar_index`, `c.n` or `barstate.islastconfirmedhistory` (these four depend on the bar count or the
+clock). `run.fullRunReason` names the first one met; `oakscript check` prints it (`liveUpdates` of the report). A
+change made by a function the callback calls is not read from the source: the first resumed updates (`verify`,
+default 2) are also calculated in full and compared, and a difference makes the next updates full runs.
+
+The `ta.*` calls with a `taStep` machine step only the newest bars; the others (`pivothigh`, `highestbars`, `sar`,
+`vwap`...) are correct in a resumed update but calculated on the whole history.
 
 On 10,000 daily bars, a script with 13 plots (`sma`, `ema`, `rsi`, `macd`, `bb`, `atr`, `stoch`, an `eachBar` with
 `persist`): a full run 7.4 ms, a resumed update 0.4 ms.
@@ -774,7 +784,8 @@ onBarClose(() => {
 
 Available: `sum`, `sma`, `variance`, `stdev`, `wma`, `highest`, `lowest` (step with `(value, length)`, a series
 length allowed), `ema`, `rma`, `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`,
-`cross`, `tr`, `atr`, `obv`, `macd`, `bb`, `vwma`, `stoch`.
+`cross`, `tr`, `atr`, `obv`, `macd`, `bb`, `vwma`, `stoch`, `hma`, `dev`, `cci`, `mfi`, `dmi`, `linreg` (called on every
+bar), `percentrank`, `median`, `correlation`, `wpr`, `supertrend`.
 
 ### Strategies (strategy declaration and strategy.* API)
 

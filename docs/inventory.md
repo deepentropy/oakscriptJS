@@ -661,11 +661,11 @@ The script entry provides the PineScript-style authoring surface. These are not
 |----------|--------|-------|
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
 | `persist(initial)` | Implemented | PineScript `var` kept by the runtime (`.value`), put back by incremental runs (#196) |
-| `createScriptRun(body, inputs, chart, options)` | Implemented | host side: `update(bars)` calculates the newest bars only on a live update (same results as a full run, #196); full runs for drawings, `request.security`, strategies, `varip`, `timenow`, `last_bar_index`, state outside `persist()` (`fullRunReason`) |
+| `createScriptRun(body, inputs, chart, options)` | Implemented | host side: `update(bars)` calculates the newest bars only on a live update (same results as a full run, #196); drawings of one `eachBar` block and strategies whose engine has `save()` / `restore()` resumed; full runs for `request.security`, `varip`, `timenow`, `last_bar_index`, state outside `persist()` (`fullRunReason`) |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
 | `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
 | `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `crossoverByBar` / `crossunderByBar` (several calls on one bar, as in a `for` loop), `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar), `sum`, `sma`, `stdev` (calls in a loop, one or several lengths) |
-| `taStep.*` | Implemented | `ta.*` one bar at a time, `step` / `commit` (live updates of the forming bar, #196): `sum`, `sma`, `variance`, `stdev`, `ema`, `rma`, `wma`, `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`, `cross`, `tr`, `atr`, `obv`, `highest`, `lowest`, `macd`, `bb`, `vwma`, `stoch`; the same doubles as `taCore` |
+| `taStep.*` | Implemented | `ta.*` one bar at a time, `step` / `commit` (live updates of the forming bar, #196): `sum`, `sma`, `variance`, `stdev`, `ema`, `rma`, `wma`, `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`, `cross`, `tr`, `atr`, `obv`, `highest`, `lowest`, `macd`, `bb`, `vwma`, `stoch`, `hma`, `dev`, `cci`, `mfi`, `dmi`, `linreg`, `percentrank`, `median`, `correlation`, `wpr`, `supertrend`; the same doubles as `taCore` |
 
 ### Run result (`IndicatorResult`)
 

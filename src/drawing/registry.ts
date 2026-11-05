@@ -171,15 +171,42 @@ export class Stamped {
   }
 }
 
-/** The deleted objects. */
+/** The deleted objects (an incremental run can bring one back when it puts the registry back, #196). */
 class Deleted extends Stamped {
   #deleted = true;
   static mark(obj: object): void {
-    if (!Deleted.has(obj)) new Deleted(obj);
+    if (#deleted in obj) (obj as Deleted).#deleted = true;
+    else new Deleted(obj);
+  }
+  static unmark(obj: object): void {
+    if (#deleted in obj) (obj as Deleted).#deleted = false;
   }
   static has(obj: object): boolean {
-    return #deleted in obj;
+    return #deleted in obj && (obj as Deleted).#deleted;
   }
+}
+
+/** The objects the registry recorded (drawing objects, kept as references by the copies of an incremental run). */
+const registered = new WeakSet<object>();
+
+/** True for a drawing object of the registry (a line, a label, a box, a polyline, a linefill or a table). */
+export function isDrawingObject(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && registered.has(value);
+}
+
+/** Hooks of an incremental script run (#196, set by the script runtime during a run only). @internal */
+export interface DrawingRunHooks {
+  /** A drawing function read or changed the registry or an object */
+  access(): void;
+  /** A creation: the object of the previous run to use instead of `obj` (its fields are set to those of `obj`) */
+  reuse(kind: DrawingKind, obj: object): object | null;
+}
+
+let runHooks: DrawingRunHooks | null = null;
+
+/** @internal */
+export function setDrawingRunHooks(hooks: DrawingRunHooks | null): void {
+  runHooks = hooks;
 }
 
 /** The `var` records of a run: a reset starts new ones, a nested run saves and puts back those of its run. */
@@ -499,6 +526,18 @@ export function createdDrawingKinds(): DrawingKind[] {
 
 /** Records a new object and deletes the oldest objects of its kind when the count is too high. */
 export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): DrawingTypes[K] {
+  if (runHooks) {
+    runHooks.access();
+    const old = runHooks.reuse(kind, obj);
+    if (old && old !== obj) {
+      // the same object as in the previous run, with the fields of the new one
+      for (const key of Object.keys(old)) if (!(key in obj)) delete (old as Record<string, unknown>)[key];
+      Object.assign(old, obj);
+      Deleted.unmark(old);
+      obj = old as DrawingTypes[K];
+    }
+  }
+  registered.add(obj);
   const list = live[kind];
   created.add(kind);
   if (lastBar && isCounted(kind)) return registerLast(lastBar, kind, obj);
@@ -549,6 +588,7 @@ function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: Drawing
 
 /** Deletes an object (no effect when it is already deleted). */
 export function remove<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): void {
+  runHooks?.access();
   const list = live[kind];
   // from the end: an object is in the list once, and scripts mostly delete their newest objects
   const index = list.lastIndexOf(obj);
@@ -563,11 +603,14 @@ export function remove<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): vo
 
 /** True when the object was deleted (by `delete` or by the maximum count). */
 export function isDeleted(obj: unknown): boolean {
+  // the setters and getters of the drawing objects start here
+  runHooks?.access();
   return typeof obj === 'object' && obj !== null && Deleted.has(obj);
 }
 
 /** The live objects of a kind, in creation order (a new array). */
 export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
+  runHooks?.access();
   return live[kind].toArray() as Array<DrawingTypes[K]>;
 }
 
@@ -625,6 +668,75 @@ export function saveDrawingState(): DrawingState {
     lastBar,
     limits: { ...limits },
   };
+}
+
+/**
+ * The registry and the state of its objects at the end of a bar, for an incremental run (#196): the live objects, the
+ * fields of each one (arrays, maps and plain objects copied; other drawing objects kept as references), their `var`
+ * records, and the counters. {@link restoreDrawingCheckpoint} puts it back on the same objects.
+ */
+export interface DrawingCheckpoint {
+  state: DrawingState;
+  fields: Map<object, Record<string, unknown>>;
+  records: Map<object, { count: number; heldAt: number | undefined; releasedAt: number | undefined } | null>;
+}
+
+/** A copy of a field value of a drawing object: plain data copied, drawing objects (and other instances) shared. */
+function copyField(v: unknown): unknown {
+  if (v === null || typeof v !== 'object' || registered.has(v)) return v;
+  if (Array.isArray(v)) return v.map(copyField);
+  if (v instanceof Map) return new Map([...v].map(([k, x]) => [k, copyField(x)]));
+  if (v instanceof Set) return new Set([...v].map(copyField));
+  const proto = Object.getPrototypeOf(v);
+  if (proto !== Object.prototype && proto !== null) return v;
+  const out: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v)) out[k] = copyField(x);
+  return out;
+}
+
+function copyFields(obj: object): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) out[k] = copyField(v);
+  return out;
+}
+
+/** @internal */
+export function saveDrawingCheckpoint(): DrawingCheckpoint {
+  const state = saveDrawingState();
+  const fields = new Map<object, Record<string, unknown>>();
+  const records: DrawingCheckpoint['records'] = new Map();
+  for (const kind of Object.keys(state.live) as DrawingKind[]) {
+    for (const obj of state.live[kind] as object[]) {
+      fields.set(obj, copyFields(obj));
+      const r = Held.get(obj);
+      records.set(obj, r ? { count: r.count, heldAt: r.heldAt, releasedAt: r.releasedAt } : null);
+    }
+  }
+  return { state, fields, records };
+}
+
+/** @internal Puts back a {@link saveDrawingCheckpoint}; it can be put back again later. */
+export function restoreDrawingCheckpoint(cp: DrawingCheckpoint): void {
+  restoreDrawingState(cp.state);
+  pending = { ...cp.state.pending };
+  for (const [obj, saved] of cp.fields) {
+    for (const key of Object.keys(obj)) if (!(key in saved)) delete (obj as Record<string, unknown>)[key];
+    Object.assign(obj, copyFields(saved));
+    Deleted.unmark(obj);
+  }
+  for (const [obj, saved] of cp.records) {
+    const r = Held.get(obj);
+    if (saved) {
+      const record = r ?? Held.create(obj);
+      record.count = saved.count;
+      record.heldAt = saved.heldAt;
+      record.releasedAt = saved.releasedAt;
+    } else if (r) {
+      r.count = 0;
+      r.heldAt = undefined;
+      r.releasedAt = undefined;
+    }
+  }
 }
 
 /** Puts back the registry saved by {@link saveDrawingState} after the nested run. */

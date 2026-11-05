@@ -14,6 +14,11 @@ npx oakscript check my-port.js --export chart-export.csv  # + bars and expected 
 Exit code: `0` clean, `2` warnings only, `1` an error or a failed spec / reference check. Run it after each change
 until it gives `0` (or `2` with warnings you have read and explained).
 
+The line `live updates:` says whether a live chart calculates only the newest bars of the script (`resumed`) or the
+whole history on every update (`full runs`, with the reason: a `let` changed in an `eachBar` callback, drawings in two
+blocks, `request.security`...). It is not a warning (the results are the same); for a script meant for live charts,
+keep the state in `persist()` boxes (see script-structure.md).
+
 ## Workflow
 
 1. Write the spec from the user's request **before** the script (below): title, pane, inputs with their defaults,

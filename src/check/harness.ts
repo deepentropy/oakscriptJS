@@ -9,6 +9,7 @@
 import * as lib from '../index.js';
 import * as api from '../script/index.js';
 import {
+  createScriptRun,
   executeScript,
   type ChartContext,
   type ScriptRunResult,
@@ -177,6 +178,17 @@ export function testChart(bars: Bar[], options: TestChartOptions = {}): ChartCon
  * next bar open; `strategy.exit` stop / limit levels are checked inside each bar (stop first when both are hit).
  * Entry limit / stop prices, pyramiding and process_orders_on_close are not simulated.
  */
+/** A saved state of {@link TestEngine} */
+interface TestEngineState {
+  closed: StrategyTrade[];
+  open: StrategyTrade | null;
+  pendingEntry: { id: string; direction: StrategyDirection; qty?: number } | null;
+  pendingClose: boolean;
+  exits: Map<string, StrategyExitOptions>;
+  net: number;
+  bar: number;
+}
+
 export class TestEngine implements StrategyEngine {
   readonly closed: StrategyTrade[] = [];
   private open: StrategyTrade | null = null;
@@ -187,6 +199,31 @@ export class TestEngine implements StrategyEngine {
   private bar = 0;
 
   constructor(readonly setup: StrategySetup) {}
+
+  /** The engine state at the end of a bar, for incremental runs (#196) */
+  save(): TestEngineState {
+    return {
+      closed: this.closed.map((t) => ({ ...t })),
+      open: this.open ? { ...this.open } : null,
+      pendingEntry: this.pendingEntry ? { ...this.pendingEntry } : null,
+      pendingClose: this.pendingClose,
+      exits: new Map([...this.exits].map(([k, v]) => [k, { ...v }])),
+      net: this.net,
+      bar: this.bar,
+    };
+  }
+
+  restore(state: unknown): void {
+    const s = state as TestEngineState;
+    this.closed.length = 0;
+    for (const t of s.closed) this.closed.push({ ...t });
+    this.open = s.open ? { ...s.open } : null;
+    this.pendingEntry = s.pendingEntry ? { ...s.pendingEntry } : null;
+    this.pendingClose = s.pendingClose;
+    this.exits = new Map([...s.exits].map(([k, v]) => [k, { ...v }]));
+    this.net = s.net;
+    this.bar = s.bar;
+  }
 
   private get bars(): readonly Bar[] {
     return this.setup.bars;
@@ -369,4 +406,24 @@ export function runScript(
     strategyEngine: (setup) => (engine = new TestEngine(setup)),
   });
   return { run, engine };
+}
+
+/**
+ * Why a live chart would calculate the script in full on every update (#196), or null when its updates are resumed:
+ * the script runs as on a live chart, on the bars but the last one, then once more with the last bar (a resumed update,
+ * compared with a full run).
+ */
+export function incrementalReason(
+  source: string,
+  bars: Bar[],
+  inputs: Record<string, unknown> = {},
+  options: RunScriptOptions = {}
+): string | null {
+  if (bars.length < 2) return null;
+  const body = (options.compile ?? compileScript)(source);
+  const chart = testChart(bars, options);
+  const run = createScriptRun(body, inputs, chart, { strategyEngine: (setup) => new TestEngine(setup), verify: 1 });
+  run.update(bars.slice(0, -1), chart);
+  run.update(bars, chart);
+  return run.fullRunReason;
 }

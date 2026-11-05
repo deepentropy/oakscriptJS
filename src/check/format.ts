@@ -62,6 +62,13 @@ export function formatReport(r: CheckReport & { file?: string; typesSkipped?: st
     out.push('warnings:');
     for (const w of r.warnings) out.push(`  [${w.code}] ${w.message}`);
   }
+  if (r.liveUpdates) {
+    out.push(
+      r.liveUpdates.resumed
+        ? 'live updates: resumed (the newest bars only)'
+        : `live updates: full runs (same results, more time): ${r.liveUpdates.reason}`
+    );
+  }
   if (r.spec) {
     out.push(`spec and checks: ${r.spec.passed} passed, ${r.spec.failed} failed`);
     for (const i of r.spec.items.filter((x) => !x.ok)) {

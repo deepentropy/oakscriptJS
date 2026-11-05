@@ -282,4 +282,12 @@ export interface StrategyEngine {
   risk?(rule: StrategyRiskRule): void;
   /** `strategy.default_entry_qty(fill_price)`; optional. */
   defaultEntryQty?(fillPrice: number): number;
+  /**
+   * The engine state at the end of a bar (orders, positions, trades, equity), for an incremental script run
+   * (createScriptRun, #196); optional. With {@link restore}, a live update of a strategy calculates the newest bars
+   * only: the engine of the next run gets the state of the last confirmed bar. Without them, every update is a full run.
+   */
+  save?(): unknown;
+  /** Puts back a state given by {@link save} (on a new engine of the same script and bars). */
+  restore?(state: unknown): void;
 }
