@@ -71,13 +71,87 @@ const SLACK = 5;
 
 export type DrawingLimits = Partial<Record<Exclude<DrawingKind, 'linefill' | 'table'>, number>>;
 
-const live: { [K in DrawingKind]: Array<DrawingTypes[K]> } = {
-  line: [],
-  label: [],
-  box: [],
-  polyline: [],
-  linefill: [],
-  table: [],
+/**
+ * The live objects of a kind, in creation order. The maximum count deletes the oldest ones: they leave by moving the
+ * head, and the array drops its dead front once it is as long as the live part, so a creation at the maximum costs
+ * O(1) amortised instead of a move of the whole list on every cut.
+ */
+class LiveList<T> {
+  private items: T[] = [];
+  private head = 0;
+
+  get length(): number {
+    return this.items.length - this.head;
+  }
+
+  /** The `k`-th live object (0: the oldest) */
+  at(k: number): T {
+    return this.items[this.head + k]!;
+  }
+
+  push(obj: T): void {
+    this.items.push(obj);
+  }
+
+  /** Position of `obj` among the live objects, -1 when it is not one */
+  lastIndexOf(obj: T): number {
+    const index = this.items.lastIndexOf(obj);
+    return index >= this.head ? index - this.head : -1;
+  }
+
+  removeAt(k: number): void {
+    if (k === 0) this.dropFront(1);
+    else this.items.splice(this.head + k, 1);
+  }
+
+  /** Removes the live objects at positions `gone` (increasing); the others keep their order */
+  removeAll(gone: readonly number[]): void {
+    if (gone.length === 0) return;
+    if (gone[0] === 0 && gone[gone.length - 1] === gone.length - 1) {
+      this.dropFront(gone.length);
+      return;
+    }
+    const items = this.items;
+    let to = this.head + gone[0]!;
+    for (let from = to, g = 0; from < items.length; from++) {
+      if (from - this.head === gone[g]) g++;
+      else items[to++] = items[from]!;
+    }
+    items.length = to;
+  }
+
+  /** Removes the `n` oldest objects and returns them */
+  takeFront(n: number): T[] {
+    const out = this.items.slice(this.head, this.head + n);
+    this.dropFront(n);
+    return out;
+  }
+
+  private dropFront(n: number): void {
+    this.head += n;
+    if (this.head >= this.length) {
+      this.items = this.items.slice(this.head);
+      this.head = 0;
+    }
+  }
+
+  toArray(): T[] {
+    return this.items.slice(this.head);
+  }
+
+  replace(objs: readonly T[]): void {
+    this.items = [...objs];
+    this.head = 0;
+  }
+}
+
+const live: { [K in DrawingKind]: LiveList<DrawingTypes[K]> } = {
+  line: new LiveList(),
+  label: new LiveList(),
+  box: new LiveList(),
+  polyline: new LiveList(),
+  linefill: new LiveList(),
+  table: new LiveList(),
 };
 let limits: Required<DrawingLimits> = {
   line: DEFAULT_MAX_COUNT,
@@ -112,6 +186,9 @@ class Deleted extends Stamped {
 interface Holds {
   /** The records of the objects whose private record belongs to another run */
   readonly others: WeakMap<object, HoldRecord>;
+  /** Records made in the run. None: no object has one, nothing to look up for each object the maximum count may
+   *  delete */
+  records: number;
 }
 
 /** What the `var` variables of a run did with an object. */
@@ -125,7 +202,7 @@ interface HoldRecord {
   /** Bar on which the last `var` variable released the object (linefill rule) */
   releasedAt: number | undefined;
 }
-let holds: Holds = { others: new WeakMap() };
+let holds: Holds = { others: new WeakMap(), records: 0 };
 
 /**
  * The record of the first run that holds an object, on the object itself (a study holding a new object on every bar
@@ -139,12 +216,14 @@ class Held extends Stamped {
   }
   /** The record of `obj` in the current run, if any. */
   static get(obj: object): HoldRecord | undefined {
+    if (holds.records === 0) return undefined;
     const own = #record in obj ? (obj as Held).#record : undefined;
     return own?.run === holds ? own : holds.others.get(obj);
   }
   /** A new record of `obj` in the current run (it has none). */
   static create(obj: object): HoldRecord {
     const record: HoldRecord = { run: holds, count: 0, heldAt: undefined, releasedAt: undefined };
+    holds.records++;
     if (#record in obj) holds.others.set(obj, record);
     else new Held(obj, record);
     return record;
@@ -286,7 +365,7 @@ export function setDrawingBar(barIndex: number | null, last: boolean = false, la
     const start = (kind: AllowanceKind): number => (pending[kind] >= PENDING_RESET[kind] ? 0 : pending[kind]);
     lastBar = {
       bar: barIndex,
-      old: new Set<object>([...live.line, ...live.label, ...live.box, ...live.polyline]),
+      old: new Set<object>([...live.line.toArray(), ...live.label.toArray(), ...live.box.toArray(), ...live.polyline.toArray()]),
       allowance: { line: start('line'), label: start('label'), box: start('box') },
       carried: pending.polyline,
       polyline: false,
@@ -379,7 +458,7 @@ function allowance(kind: DrawingKind): number {
  */
 function cutOldest<K extends DrawingKind>(
   kind: K,
-  list: Array<DrawingTypes[K]>,
+  list: LiveList<DrawingTypes[K]>,
   obj: DrawingTypes[K],
   only?: (old: object) => boolean
 ): Array<DrawingTypes[K]> {
@@ -387,35 +466,26 @@ function cutOldest<K extends DrawingKind>(
   const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)] + allowance(kind);
   if (list.length <= max + SLACK) return [];
   let excess = list.length - max;
-  const candidate = (old: DrawingTypes[K]): boolean =>
-    old !== obj && (!only || only(old)) && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old));
+  const fill = kind === 'linefill';
   // positions of the objects to delete. The oldest first; the objects a `var` variable got (or released) on this bar
   // only when the others are not enough (the two passes pick different objects)
   const gone: number[] = [];
-  for (const weak of kind === 'linefill' ? [false] : [false, true]) {
+  for (let pass = 0; pass < (fill ? 1 : 2); pass++) {
     const before = gone.length;
     for (let k = 0; k < list.length && excess > 0; k++) {
-      const old = list[k]!;
-      if (candidate(old) && (kind === 'linefill' || heldOnThisBar(old) === weak)) {
-        excess--;
-        gone.push(k);
-      }
+      const old = list.at(k);
+      if (old === obj || (only && !only(old))) continue;
+      if (fill ? fillProtected(old) : heldBefore(old) || heldOnThisBar(old) !== (pass === 1)) continue;
+      excess--;
+      gone.push(k);
     }
     if (before > 0 && gone.length > before) gone.sort((a, b) => a - b);
   }
-  const cut = gone.map((k) => list[k]!);
-  // the others keep their order; usually the cut is the oldest run of objects, removed at once
-  if (gone.length > 0 && gone[gone.length - 1]! - gone[0]! === gone.length - 1) list.splice(gone[0]!, gone.length);
-  else if (gone.length > 0) {
-    let to = gone[0]!;
-    for (let from = to, g = 0; from < list.length; from++) {
-      if (from === gone[g]) g++;
-      else list[to++] = list[from]!;
-    }
-    list.length = to;
-  }
+  const cut = gone.map((k) => list.at(k));
+  // the others keep their order; usually the cut is the oldest run of objects, which leaves by moving the head
+  list.removeAll(gone);
   // linefills: still above the maximum + 5, the oldest go, the held ones too
-  if (kind === 'linefill' && list.length > max + SLACK) cut.push(...list.splice(0, list.length - max));
+  if (fill && list.length > max + SLACK) cut.push(...list.takeFront(list.length - max));
   return cut;
 }
 
@@ -454,7 +524,12 @@ function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: Drawing
   const list = live[kind];
   list.push(obj);
   const isOld = (old: object): boolean => bar.old.has(old);
-  if (list.some((old) => old !== obj && isOld(old) && !heldBefore(old) && !heldOnThisBar(old))) {
+  let oldCandidate = false;
+  for (let k = 0; k < list.length && !oldCandidate; k++) {
+    const old = list.at(k);
+    oldCandidate = old !== obj && isOld(old) && !heldBefore(old) && !heldOnThisBar(old);
+  }
+  if (oldCandidate) {
     // the objects of the bars before only; a line takes its linefills with it
     const cut = cutOldest(kind, list, obj, isOld);
     if (kind === 'polyline') {
@@ -478,7 +553,7 @@ export function remove<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): vo
   // from the end: an object is in the list once, and scripts mostly delete their newest objects
   const index = list.lastIndexOf(obj);
   if (index !== -1) {
-    list.splice(index, 1);
+    list.removeAt(index);
     if (kind === 'linefill') untrackFill(obj as Linefill);
     if (isCounted(kind)) pending[kind]++;
     if (kind === 'polyline' && lastBar?.old.has(obj)) lastBar.oldPolylinesGone++;
@@ -493,15 +568,15 @@ export function isDeleted(obj: unknown): boolean {
 
 /** The live objects of a kind, in creation order (a new array). */
 export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
-  return [...live[kind]] as Array<DrawingTypes[K]>;
+  return live[kind].toArray() as Array<DrawingTypes[K]>;
 }
 
 /** Forgets all objects (without deleting them) and sets the maximum counts (default 50). */
 export function resetDrawings(newLimits: DrawingLimits = {}): void {
-  for (const kind of Object.keys(live) as DrawingKind[]) live[kind].length = 0;
+  for (const kind of Object.keys(live) as DrawingKind[]) live[kind].replace([]);
   fillsOfLine = new Map();
   created.clear();
-  holds = { others: new WeakMap() };
+  holds = { others: new WeakMap(), records: 0 };
   pending = { line: 0, label: 0, box: 0, polyline: 0 };
   currentBar = null;
   lastBarIndex = null;
@@ -535,12 +610,12 @@ export interface DrawingState {
 export function saveDrawingState(): DrawingState {
   return {
     live: {
-      line: [...live.line],
-      label: [...live.label],
-      box: [...live.box],
-      polyline: [...live.polyline],
-      linefill: [...live.linefill],
-      table: [...live.table],
+      line: live.line.toArray(),
+      label: live.label.toArray(),
+      box: live.box.toArray(),
+      polyline: live.polyline.toArray(),
+      linefill: live.linefill.toArray(),
+      table: live.table.toArray(),
     },
     created: [...created],
     holds,
@@ -554,13 +629,9 @@ export function saveDrawingState(): DrawingState {
 
 /** Puts back the registry saved by {@link saveDrawingState} after the nested run. */
 export function restoreDrawingState(s: DrawingState): void {
-  for (const kind of Object.keys(live) as DrawingKind[]) {
-    const list = live[kind] as object[];
-    list.length = 0;
-    list.push(...(s.live[kind] as object[]));
-  }
+  for (const kind of Object.keys(live) as DrawingKind[]) (live[kind] as LiveList<object>).replace(s.live[kind]);
   fillsOfLine = new Map();
-  for (const fill of live.linefill) trackFill(fill);
+  for (const fill of s.live.linefill) trackFill(fill);
   created.clear();
   for (const kind of s.created) created.add(kind);
   holds = s.holds;
