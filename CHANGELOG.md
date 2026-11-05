@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.4] - 05/11/2026
+
 ### Added
 
 - Script API: `na(x)` and `nz(x, replacement)` take a Series as in PineScript (`na` gives a Series of 1 / 0, 1 where
