@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.3] - 05/11/2026
+
+### Changed
+
+- Session calendar with the same outputs (#198): days counted without `Date`, the last located time kept, the calendars of `time(tf, session, timezone)` arguments shared across timeframes, time zone fields by arithmetic. Sessions on chart on 10,000 daily bars: 276 ms -> 99 ms (first run), 183 ms -> 21 ms (repeat).
+- Drawing registry at the `max_*_count` limit (#199): the oldest objects leave by moving the head of the live list (O(1) amortised), no hold lookups when no `var` holds an object. 610k boxes at a limit of 500: 250 ms -> 85 ms.
+
 ## [0.15.2] - 05/11/2026
 
 ### Changed
