@@ -24,10 +24,9 @@ import { checkPositiveLength, checkSumLength, checkWindowLength } from './limits
  * - `na` values (also +/-Infinity) in the source series are ignored: the mean of the last `length` non-`na`
  *   values, and a bar with an `na` source keeps the previous result (as in PineScript)
  * - Returns NaN until `length` non-`na` values are available
- * - The sum is a compensated running sum, as in PineScript, so the result can differ from the exact window mean in
- *   the last bits (bit for bit with PineScript)
- * - With a series length, the running sum is moved to the new length when the length changes, as PineScript does
- *   (see {@link math.sum}); a bar with an `na` source gives the mean of the last `length` earlier values
+ * - The correctly rounded window sum divided by the length, bit for bit with PineScript (#188)
+ * - With a series length, the window is the last `length` values of each bar (see {@link math.sum}); a bar with an
+ *   `na` source gives the mean of the last `length` earlier values
  *
  * @example
  * ```typescript
@@ -86,7 +85,7 @@ export function ema(source: Source, length: simple_int): series_float {
   }
 
   const emaInitialized = firstValidIndex >= 0;
-  // The seed is ta.sma on that bar: the running sum of math.sum (PineScript bits), not a plain loop sum
+  // The seed is ta.sma on that bar: the window sum of math.sum (PineScript bits), not a plain loop sum
   let emaValue = emaInitialized ? runningSum(source.slice(0, firstValidIndex + 1), len)[firstValidIndex]! / len : NaN;
 
   for (let i = 0; i < source.length; i++) {
@@ -282,7 +281,7 @@ export function bb(
  * As in PineScript: `na` values (also +/-Infinity) are skipped, the window holds the last
  * `length` non-na values, and a bar whose own value is `na` keeps the previous result.
  * The result is the square root of {@link variance} (0 when the variance is not positive), computed from
- * compensated running sums of the values and of their squares, bit for bit as PineScript.
+ * the correctly rounded window sums of the values and of their squares, bit for bit as PineScript (#188).
  */
 export function stdev(
   source: Source,
@@ -769,7 +768,7 @@ export function supertrend(
  * - Moving average used in RSI calculation
  * - Alpha = 1 / length (different from EMA which uses alpha = 2 / (length + 1))
  * - First value is initialized with SMA, then uses exponential smoothing. As in PineScript, the seed is the
- *   `ta.sma` value (its compensated running sum), so it can differ from the exact mean in the last bits
+ *   `ta.sma` value (the correctly rounded window sum divided by the length)
  * - Formula: `RMA = (source + (length - 1) * RMA[1]) / length`, evaluated in this order as in PineScript
  *   (equal to `alpha * source + (1 - alpha) * RMA[1]`, but bit for bit)
  * - `na` values (also +/-Infinity) in the source series are ignored
@@ -803,7 +802,7 @@ export function rma(source: Source, length: simple_int): series_float {
   }
 
   const rmaInitialized = firstValidIndex >= 0;
-  // The seed is ta.sma on that bar: the running sum of math.sum (PineScript bits), not a plain loop sum
+  // The seed is ta.sma on that bar: the window sum of math.sum (PineScript bits), not a plain loop sum
   let rmaValue = rmaInitialized ? runningSum(source.slice(0, firstValidIndex + 1), len)[firstValidIndex]! / len : NaN;
 
   for (let i = 0; i < source.length; i++) {
@@ -1170,8 +1169,7 @@ export function mom(source: Source, length: simple_int): series_float {
  * - Measures average absolute distance from the mean
  * - Less sensitive to outliers than standard deviation
  * - PineScript rule (bit for bit): `sum(abs(source[i] - mean)) / length` for `i = 0 .. length - 1`, added newest
- *   first, with `mean = ta.sma(source, length)` (its compensated running sum, so a flat window can give a tiny
- *   non-zero deviation)
+ *   first, with `mean = ta.sma(source, length)`
  * - The loop reads the last `length` bars: an `na` among them gives `na`
  *
  * @example
@@ -1208,7 +1206,7 @@ export function dev(source: Source, length: simple_int): series_float {
  * - `na` values in the source series are ignored
  * - The function calculates on the `length` quantity of non-`na` values
  * - Relationship: `stdev = sqrt(variance)`
- * - Computed as PineScript, bit for bit, from compensated running sums of the values and of their squares:
+ * - Computed as PineScript, bit for bit, from the correctly rounded window sums of the values and of their squares:
  *   biased `sumSq / length - mean * mean`, unbiased `sumSq / (length - 1) - mean * sum / (length - 1)`
  *
  * @example
@@ -1467,7 +1465,7 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  * - 0 = no correlation
  * - Measures linear relationship between two series
  * - As PineScript: `cov = sma(x * y) - sma(x) * sma(y)`, `r = cov / sqrt(variance(x) * variance(y))` with the
- *   compensated running sums of `ta.sma` / `ta.variance` (each skips its own `na` values); `|cov| <= 1e-10` gives 0, a
+ *   the correctly rounded window sums of `ta.sma` / `ta.variance` (each skips its own `na` values); `|cov| <= 1e-10` gives 0, a
  *   zero variance gives `na`
  *
  * @example
@@ -1478,7 +1476,7 @@ export function linreg(source: Source, length: simple_int, offset: simple_int = 
  */
 export function correlation(source1: Source, source2: Source, length: simple_int): series_float {
   checkPositiveLength('correlation', length, 0);
-  // PineScript: from compensated running sums, cov = sma(x * y) - sma(x) * sma(y), r = cov / sqrt(var(x) * var(y))
+  // PineScript: from the correctly rounded window sums, cov = sma(x * y) - sma(x) * sma(y), r = cov / sqrt(var(x) * var(y))
   // (biased variances); each running sum skips its own na values
   const product = Array.from({ length: source1.length }, (_, i) => {
     const v1 = source1[i];
@@ -1689,7 +1687,7 @@ export function mfi(source: Source, length: simple_int, volume?: Source): series
     upperFlow.push(le(change, 0) ? 0 : flow);
     lowerFlow.push(ge(change, 0) ? 0 : flow);
   }
-  // math.sum: the compensated running sum of the last `length` non-na values (as PineScript, bit for bit)
+  // math.sum: the correctly rounded sum of the last `length` non-na values (as PineScript, bit for bit)
   const upper = runningSum(upperFlow, length);
   const lower = runningSum(lowerFlow, length);
 
@@ -2612,7 +2610,7 @@ export function min(source: Source): series_float {
  * @remarks
  * PineScript rule (bit for bit): `-num / math.sum(source, length)`, with `num` the sum of `source[i] * (i + 1)`
  * for `i = 0 .. length - 1`, added newest first.
- * - The denominator is the compensated running sum of `math.sum` (the last `length` non-`na` values)
+ * - The denominator is the correctly rounded window sum of `math.sum` (the last `length` non-`na` values)
  * - The numerator reads the last `length` bars, so an `na` among them gives `na`
  * - A zero denominator gives `na` (PineScript division by zero)
  *

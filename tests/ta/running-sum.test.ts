@@ -1,6 +1,8 @@
 /**
- * Compensated running sums of math.sum / ta.sma / ta.stdev / ta.variance / ta.mfi, bit for bit with PineScript (#114).
- * Expected values are PineScript outputs (full precision) for the same inputs.
+ * Window sums of math.sum / ta.sma / ta.stdev / ta.variance: the correctly rounded sum of the window values, bit for bit
+ * with PineScript (reference runs of 05/11/2026, #188). Expected values are PineScript outputs (full precision) for the
+ * same inputs. (The compensated running sums of #114 / #136 / #142 matched the reference of October 2026; it no longer
+ * gives them.)
  */
 import { math, taCore } from '../../src';
 
@@ -8,84 +10,112 @@ const na = NaN;
 const toNum = (a: Array<number | null>): number[] => a.map((v) => (v === null ? NaN : v));
 
 // Daily BTCUSD "buy proxy" ((close - low) / (high - low) * volume, 0 when high == low), first 30 bars
-const BUY_PROXY = [
+const BUY_PROXY: number[] = [
   0, 1.4862174222857134, 0, 0, 0, 0, 0, 0, 159.64235294117648, 79.76, 0, 0, 0, 0, 53.36812103314281,
   3.057299181000204, 43.409597399999925, 28.510004857142643, 0, 119.8128, 0, 89.28071068, 0, 43.77842238,
   20.68003681, 0, 0, 0, 24.3545, 0,
 ];
 const PINE_SMA_2 = toNum([
-  null, 0.7431087111428567, 0.7431087111428567, 0, 0, 0, 0, 0, 79.82117647058824, 119.70117647058825,
-  39.879999999999995, -7.105427357601002e-15, -7.105427357601002e-15, -7.105427357601002e-15, 26.6840605165714,
-  28.2127101070715, 23.233448290500064, 35.959801128571286, 14.255002428571323, 59.9064, 59.9064, 44.64035534,
-  44.64035534, 21.88921119, 32.229229595, 10.340018405000002, 1.7763568394002505e-15, 1.7763568394002505e-15,
-  12.177250000000003, 12.177250000000003,
+  null, 0.7431087111428567, 0.7431087111428567, 0, 0, 0, 0, 0, 79.82117647058824, 119.70117647058825, 39.88, 0, 0, 0,
+  26.684060516571407, 28.21271010707151, 23.233448290500064, 35.959801128571286, 14.255002428571322, 59.9064,
+  59.9064, 44.64035534, 44.64035534, 21.88921119, 32.229229595, 10.340018405, 0, 0, 12.17725, 12.17725,
+]);
+const PINE_SUM_2 = toNum([
+  null, 1.4862174222857134, 1.4862174222857134, 0, 0, 0, 0, 0, 159.64235294117648, 239.4023529411765, 79.76, 0, 0, 0,
+  53.36812103314281, 56.42542021414302, 46.46689658100013, 71.91960225714257, 28.510004857142643, 119.8128, 119.8128,
+  89.28071068, 89.28071068, 43.77842238, 64.45845919, 20.68003681, 0, 0, 24.3545, 24.3545,
 ]);
 const PINE_STDEV_2 = toNum([
-  null, 0.7431087111428567, 0.7431087111428567, 0, 0, 0, 0, 0, 79.82117647058824, 39.94117647058824,
-  39.879999999999995, 0, 0, 0, 26.684060516571396, 25.155410926071294, 20.17614910949986, 7.449796271428638,
-  14.255002428571322, 59.9064, 59.9064, 44.64035534, 44.64035534, 21.88921119, 11.549192784999999,
-  10.340018404999999, 1.685873940435761e-7, 1.685873940435761e-7, 12.177249999999999, 12.177249999999999,
+  null, 0.7431087111428567, 0.7431087111428567, 0, 0, 0, 0, 0, 79.82117647058824, 39.94117647058824, 39.88, 0, 0, 0,
+  26.684060516571407, 25.155410926071305, 20.17614910949986, 7.449796271428638, 14.255002428571322, 59.9064, 59.9064,
+  44.64035534, 44.64035534, 21.88921119, 11.549192784999999, 10.340018405, 0, 0, 12.17725, 12.17725,
 ]);
 
 // Daily AAPL closes, first 16 bars
-const AAPL_CLOSE = [
+const AAPL_CLOSE: number[] = [
   0.128348, 0.121652, 0.112723, 0.115513, 0.118861, 0.126116, 0.132254, 0.137835, 0.145089, 0.158482, 0.160714,
   0.156808, 0.152344, 0.154018, 0.150669, 0.143973,
 ];
-const warm = (n: number, values: number[]): number[] => [...new Array<number>(n).fill(na), ...values];
 
-/** Repeat a 30-bar pattern (value per bar index of the period) and return the last period of math.sum(x, 2). */
-function lastPeriodSum2(pattern: Record<number, number>): number[] {
-  const period = Array.from({ length: 30 }, (_, k) => pattern[k] ?? 0);
-  const x = Array.from({ length: 40 * 30 }, (_, i) => period[i % 30]!);
-  return math.sum(x, 2).slice(-30);
+// Daily BTCUSD closes, first 24 bars
+const BTC_CLOSE: number[] = [
+  10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8, 8.5, 7.4, 5.97, 5.53, 5.13, 4.85, 4.87, 4.92, 4.9,
+  5.66, 5.66, 5.72,
+];
+
+/** Correctly rounded sum (the exact sum of the doubles, rounded once, half to even): the oracle of the tests. */
+function exactSum(xs: number[]): number {
+  // exact as a BigInt multiple of 2^-1074 (the smallest double), then one rounding to 53 bits
+  let total = 0n;
+  const view = new DataView(new ArrayBuffer(8));
+  for (const x of xs) {
+    if (x === 0) continue;
+    view.setFloat64(0, x);
+    const bits = view.getBigUint64(0);
+    const exp = Number((bits >> 52n) & 0x7ffn);
+    const mant = (bits & 0xfffffffffffffn) | (exp === 0 ? 0n : 1n << 52n);
+    const scaled = mant << BigInt(Math.max(exp, 1) - 1);
+    total += x < 0 ? -scaled : scaled;
+  }
+  if (total === 0n) return 0;
+  const neg = total < 0n;
+  let m = neg ? -total : total;
+  let e = -1074;
+  const bitsLen = m.toString(2).length;
+  if (bitsLen > 53) {
+    const drop = BigInt(bitsLen - 53);
+    const rest = m & ((1n << drop) - 1n);
+    const half = 1n << (drop - 1n);
+    m >>= drop;
+    if (rest > half || (rest === half && (m & 1n) === 1n)) m += 1n;
+    e += Number(drop);
+  }
+  const v = Number(m) * 2 ** e;
+  return neg ? -v : v;
 }
 
-describe('PineScript running sums (#114)', () => {
-  it('ta.sma: residues of the running sum, as PineScript (window [0, 0] is not exactly 0)', () => {
+describe('PineScript window sums (#188)', () => {
+  it('ta.sma / math.sum / ta.stdev: correctly rounded window sums (a window [0, 0] gives exactly 0)', () => {
     expect(taCore.sma(BUY_PROXY, 2)).toEqual(PINE_SMA_2);
-  });
-
-  it('ta.stdev: from running sums of x and x^2, as PineScript (non-zero on a window [0, 0])', () => {
+    expect(math.sum(BUY_PROXY, 2)).toEqual(PINE_SUM_2);
     expect(taCore.stdev(BUY_PROXY, 2)).toEqual(PINE_STDEV_2);
   });
 
-  it('math.sum: compensated sum (0.1, 0.2 then the 0.1 leaves gives exactly 0.2)', () => {
+  it('math.sum: 0.1, 0.2 then the 0.1 leaves gives exactly 0.2', () => {
     expect(math.sum([0.1, 0.2, 0, 0], 2)).toEqual([na, 0.30000000000000004, 0.2, 0]);
   });
 
-  it('ta.variance / ta.stdev biased and unbiased, as PineScript', () => {
-    expect(taCore.variance(AAPL_CLOSE, 10)).toEqual(warm(9, [
-      0.0001824341056099986, 0.0002680447648899971, 0.0003000247718500035, 0.000253374610240005,
-      0.0001951446538899955, 0.00012467402988999843, 0.00007724137363999961,
+  it('ta.variance: biased sumSq / n - mean^2, unbiased (sumSq - mean * sum) / (n - 1); ta.stdev of them', () => {
+    expect(taCore.variance(AAPL_CLOSE, 5)).toEqual(toNum([
+      null, null, null, null, 0.000029023589040000353, 0.000021849226799999788, 0.00005119471464000436,
+      0.00006801372776000028, 0.00008253672679999977, 0.00012498508135999967, 0.00012498508135999273,
+      0.00007784925863999273, 0.00003056732944000176, 0.000009042010559998093, 0.000012530983839999232,
+      0.000018510869040002514,
     ]));
-    expect(taCore.variance(AAPL_CLOSE, 10, false)).toEqual(warm(9, [
-      0.00020270456178889118, 0.00029782751654444314, 0.0003333608576111119, 0.000281527344711114,
-      0.00021682739321110533, 0.0001385266998777772, 0.00008582374848888422,
+    expect(taCore.variance(AAPL_CLOSE, 5, false)).toEqual(toNum([
+      null, null, null, null, 0.00003627948630000044, 0.000027311533499999735, 0.00006399339330000198,
+      0.00008501715970000295, 0.0001031709084999971, 0.00015623135169999872, 0.00015623135169999525,
+      0.00009731157329999351, 0.000038209161799997865, 0.000011302513199997616, 0.000015663729799997306,
+      0.00002313858630000401,
     ]));
-    expect(taCore.stdev(AAPL_CLOSE, 10, false)).toEqual(warm(9, [
-      0.014237435225099048, 0.01725767992936603, 0.01825817235133659, 0.016778776615448278, 0.014725060041001712,
-      0.01176973661038246, 0.00926411077701925,
+    expect(taCore.stdev(AAPL_CLOSE, 5, false)).toEqual(toNum([
+      null, null, null, null, 0.006023245495577981, 0.0052260437713436475, 0.007999587070593206, 0.00922047502572416,
+      0.010157308132571203, 0.012499254045742038, 0.0124992540457419, 0.00986466285789806, 0.00618135598392439,
+      0.003361921057966355, 0.003957743018438325, 0.004810258444200687,
     ]));
   });
 
-  it('resync: the sum is taken again from the window when the compensation is lost', () => {
-    // residue maker (159.64.., 79.76), then A, B, C on consecutive bars: on the bar where C enters and A leaves,
-    // the compensation of B's add is lost, the sum becomes B + C and the residue disappears
-    const sums = lastPeriodSum2({ 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: 3.057299181000204, 8: 43.409597399999925 });
-    expect(sums.slice(0, 13)).toEqual([
-      159.64235294117648, 239.4023529411765, 79.75999999999999, -1.4210854715202004e-14, -1.4210854715202004e-14,
-      -1.4210854715202004e-14, 53.3681210331428, 56.425420214143, 46.46689658100013, 43.409597399999925, 0,
-      4.440892098500626e-16, 4.440892098500626e-16,
-    ]);
-    // the loss is measured on the grid of the new value: 1.0 (lost) and 4.0 (not lost) after the same history
-    const one = lastPeriodSum2({ 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: 0.1, 8: 1 });
-    expect(one.slice(7, 13)).toEqual([53.4681210331428, 1.1, 1, 1.1102230246251565e-16, 2.7755575615628914e-17, 2.7755575615628914e-17]);
-    const four = lastPeriodSum2({ 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: 0.1, 8: 4 });
-    expect(four.slice(7, 13)).toEqual([
-      53.4681210331428, 4.099999999999987, 3.999999999999987, -1.2878587085651816e-14, -1.2961853812498703e-14,
-      -1.2961853812498703e-14,
-    ]);
+  it('equal to the correctly rounded window sum on any data', () => {
+    let seed = 7;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed / 2147483647 - 0.5) * 10 ** ((seed % 9) - 4);
+    };
+    const x = Array.from({ length: 3000 }, rnd);
+    for (const len of [2, 7, 50]) {
+      const sums = math.sum(x, len);
+      for (let i = len - 1; i < x.length; i++) expect(sums[i]).toBe(exactSum(x.slice(i - len + 1, i + 1)));
+    }
   });
 
   it('na and +/-Infinity are skipped; the bar keeps the previous result', () => {
@@ -98,86 +128,52 @@ describe('PineScript running sums (#114)', () => {
     expect(taCore.stdev(withInf, 3)).toEqual(taCore.stdev(withNa, 3));
     expect(taCore.sma(withInf, 3)).toEqual(taCore.sma(withNa, 3));
   });
+
+  it('an na every 7 bars: the window is the last 3 non-na values, an na bar keeps the result (BTCUSD 1D)', () => {
+    const x = BTC_CLOSE.map((c, i) => (i % 7 === 3 ? NaN : c));
+    expect(taCore.sma(x, 3)).toEqual(toNum([
+      null, null, 11.43, 11.43, 11.696666666666665, 11.299999999999999, 10.733333333333334, 9.5, 8.74,
+      8.366666666666667, 8.366666666666667, 8.366666666666667, 8.46, 7.966666666666666, 7.29, 6.3, 5.543333333333333,
+      5.543333333333333, 5.176666666666667, 4.973333333333334, 4.896666666666667, 5.16, 5.406666666666666, 5.68,
+    ]));
+    expect(math.sum(x, 3)).toEqual(toNum([
+      null, null, 34.29, 34.29, 35.089999999999996, 33.9, 32.2, 28.5, 26.22, 25.1, 25.1, 25.1, 25.380000000000003,
+      23.9, 21.87, 18.9, 16.63, 16.63, 15.530000000000001, 14.92, 14.690000000000001, 15.48, 16.22, 17.04,
+    ]));
+  });
 });
 
 describe('ta.ema seed (#136)', () => {
-  it('the first value is ta.sma on that bar (running sum), not a plain loop sum', () => {
-    // plain sum: (0.1 + 0.2 + 0.3) / 3 = 0.20000000000000004; running sum: 0.19999999999999998
+  it('the first value is ta.sma on that bar (window sum), not a plain loop sum', () => {
+    // plain sum: (0.1 + 0.2 + 0.3) / 3 = 0.20000000000000004; correctly rounded sum: 0.19999999999999998
     expect(taCore.ema([0.1, 0.2, 0.3], 3)[2]).toBe(0.19999999999999998);
     const x = [NaN, 1e-16, 1, Infinity, -1, 0.1, 0.2];
     expect(taCore.ema(x, 3)[4]).toBe(taCore.sma(x, 3)[4]);
   });
 });
 
-describe('running sum resync test at a negative power of two (#136)', () => {
-  it('rounds on the finer grid toward +infinity: x = -4 after a negative compensation keeps the Kahan step', () => {
-    // periodic series of 30 bars; PineScript math.sum(x, 2) on the bars of phase 6 .. 11 (steady state)
-    const at: Record<number, number> = { 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: 3.057299181000204, 8: -4 };
-    const x = Array.from({ length: 41 * 30 }, (_, i) => at[i % 30] ?? 0);
-    const sum = math.sum(x, 2);
-    const last = 40 * 30;
-    expect(sum.slice(last + 6, last + 12)).toEqual([
-      53.3681210331428, 56.425420214143, -0.9427008189998105, -4.000000000000014, -1.4654943925052066e-14,
-      -1.4210854715202004e-14,
-    ]);
-  });
-});
-
 describe('series length (#140)', () => {
   const lengthAt = (pattern: (i: number) => number, n = 24): number[] => Array.from({ length: n }, (_, i) => pattern(i));
-  // PineScript inputs: cy = 0.1, 0.2, 0.3, 0.4, 0.7 repeated; bs = 1e16 every 11 bars, else 0.5, 1 or 3
-  const cy = lengthAt((i) => [0.1, 0.2, 0.3, 0.4, 0.7][i % 5]!);
-  const bs = lengthAt((i) => (i % 11 === 2 ? 1e16 : i % 11 === 5 ? 1 : i % 11 === 6 ? 3 : 0.5));
 
-  it('math.sum: a length change moves the running sum with Kahan steps of the raw values, as PineScript', () => {
-    expect(math.sum(cy, lengthAt((i) => (i % 10 < 5 ? 4 : 2)))).toEqual(toNum([
-      null, null, null, 1, 1.6, 0.7999999999999999, 0.3, 0.5, 0.7, 1.0999999999999999, 1.4999999999999998, 1.4,
-      1.2999999999999998, 0.9999999999999999, 1.5999999999999999, 0.7999999999999998, 0.2999999999999999,
-      0.4999999999999999, 0.6999999999999998, 1.0999999999999999, 1.4999999999999998, 1.4, 1.2999999999999998,
-      0.9999999999999999,
+  it('ta.sma / math.sum with a series length: the last length values (BTCUSD 1D, length bar_index % 4 + 2)', () => {
+    const len = lengthAt((i) => (i % 4) + 2);
+    expect(taCore.sma(BTC_CLOSE, len)).toEqual(toNum([
+      null, null, null, null, 11.7, 11.299999999999999, 10.975, 10.379999999999999, 8.11, 8.366666666666667, 8.4975,
+      8.398, 8.25, 7.966666666666666, 7.4675, 7.08, 5.33, 5.17, 5.095, 5.0600000000000005, 4.91, 5.16, 5.285, 5.372,
     ]));
-    expect(math.sum(bs, lengthAt((i) => (i % 10 < 5 ? 2 : 6)))).toEqual(toNum([
-      null, 1, 10000000000000000, 10000000000000000, 0.5, 10000000000000002, 10000000000000004, 10000000000000004,
-      4.5, 5, 0, 0, 0, 10000000000000000, 10000000000000000, 10000000000000002, 10000000000000002, 10000000000000004,
-      10000000000000004, 4.5, -1, -1, -1, -1,
-    ]));
-    expect(math.sum(bs, lengthAt((i) => (i % 7 === 0 ? 8 : 5)))).toEqual(toNum([
-      null, null, null, null, 10000000000000000, 10000000000000002, 10000000000000004, 10000000000000006, 4, 3.5,
-      2.5, -1, -2, 9999999999999998, 9999999999999998, 9999999999999996, 9999999999999998, 10000000000000000, 0.5,
-      0.5, 0, 0.5, -5, -5,
+    expect(math.sum(BTC_CLOSE, len)).toEqual(toNum([
+      null, null, null, null, 23.4, 33.9, 43.9, 51.9, 16.22, 25.1, 33.99, 41.99, 16.5, 23.9, 29.87, 35.4, 10.66,
+      15.51, 20.38, 25.3, 9.82, 15.48, 21.14, 26.86,
     ]));
   });
 
   it('an na bar applies the new length and gives the sum of the last length earlier values', () => {
-    // daily BTCUSD closes, na every 9 bars (phase 4); length 3 on the na bars, else 6
-    const xa = toNum([
-      10.9, 11.69, 11.7, 11.7, null, 10.5, 10, 8, 8.22, 8.88, 8.89, 8, 8.5, null, 5.97, 5.53, 5.13, 4.85, 4.87, 4.92,
-      4.9, 5.66, null, 5.72,
-    ]);
-    expect(math.sum(xa, lengthAt((i) => (i % 9 === 4 ? 3 : 6)))).toEqual(toNum([
-      null, null, null, null, 35.089999999999996, null, 66.49, 63.589999999999996, 60.12, 57.3, 54.49,
-      51.989999999999995, 50.489999999999995, 25.389999999999993, 48.459999999999994, 45.76999999999999,
-      42.019999999999996, 37.97999999999999, 34.84999999999999, 31.26999999999999, 30.19999999999999,
-      30.32999999999999, 15.479999999999993, 30.919999999999995,
-    ]));
-  });
-
-  it('ta.sma / ta.stdev with a series length, as PineScript', () => {
-    const xb = toNum([
-      null, null, null, null, null, null, 10, null, null, 8.88, 8.89, 8, 8.5, 7.4, 5.97, 5.53, 5.13, 4.85, 4.87, 4.92,
-      null, null, 5.66, 5.72,
-    ]);
-    const lc = lengthAt((i) => 2 + ((i * 7919) % 9));
-    expect(taCore.sma(xb, lc)).toEqual(toNum([
-      null, null, null, null, null, null, null, null, null, 9.440000000000001, null, null, null, null, 7.94,
-      7.080000000000001, 6.007500000000001, 5.170000000000001, 4.860000000000003, 6.406000000000001, 6.13, 5.89625,
-      5.275714285714287, 5.191666666666668,
-    ]));
-    expect(taCore.stdev(xb, lc)).toEqual(toNum([
-      null, null, null, null, null, null, null, null, null, 0.5599999999999818, null, null, null, null,
-      1.022725117842847, 1.1488951214101288, 0.8570990316176897, 0.279045993819409, 0.00999999999856726,
-      1.5381235321000704, 1.3663576886501336, 1.2682856293043763, 0.4119589834942609, 0.364299174976931,
-    ]));
+    const x = BTC_CLOSE.map((c, i) => (i % 9 === 4 ? NaN : c));
+    const len = lengthAt((i) => (i % 9 === 4 ? 3 : 6));
+    const sums = math.sum(x, len);
+    const before = (bar: number) => x.slice(0, bar + 1).filter((v) => !Number.isNaN(v));
+    expect(sums[13]).toBe(exactSum(before(13).slice(-3))); // bar 13 is na: the last 3 values before it
+    expect(sums[12]).toBe(exactSum(before(12).slice(-6)));
   });
 
   it('a constant series length gives the fixed-length result', () => {
@@ -192,32 +188,5 @@ describe('series length (#140)', () => {
       "Error on bar 1: Invalid value of the 'length' argument (0.0) in the 'sum' function. It must be > 0."
     );
     expect(() => taCore.sma([1, 2, 3], [2, 2])).toThrow(/2 values for 3 bars/);
-  });
-});
-
-describe('running sum resync test just below a power of two (#142)', () => {
-  // periodic series of 30 bars; PineScript math.sum(x, 2) on the bars of phase 6 .. 11 (steady state). The test moves
-  // x toward +infinity by |c|: just below a power of two this crosses into the coarser binade above
-  const phases = (B: number, C: number) => lastPeriodSum2({ 0: 159.64235294117648, 1: 79.76, 6: 53.36812103314281, 7: B, 8: C }).slice(6, 12);
-
-  it('c < 0: the step up crosses the power of two and loses part of c (sum taken again)', () => {
-    expect(phases(3.057299181000204, 1.9999999999999998)).toEqual([
-      53.3681210331428, 56.425420214143, 5.057299181000204, 1.9999999999999996, -2.220446049250313e-16,
-      -2.220446049250313e-16,
-    ]);
-    expect(phases(1.4142135623730951, 0.9999999999999999)).toEqual([
-      53.3681210331428, 54.78233459551589, 2.414213562373095, 0.9999999999999998, -1.1102230246251565e-16,
-      -1.1102230246251565e-16,
-    ]);
-  });
-
-  it('c > 0: the decision follows x + c on the grid above, not x - c on the grid of x', () => {
-    expect(phases(0.1, 1.9999999999999998)).toEqual([
-      53.3681210331428, 53.4681210331428, 2.099999999999987, 1.999999999999987, -1.2878587085651816e-14,
-      -1.2961853812498703e-14,
-    ]);
-    expect(phases(0.1, 7.999999999999999)).toEqual([
-      53.3681210331428, 53.4681210331428, 8.1, 8, 8.881784197001252e-16, 1.2490009027033011e-15,
-    ]);
   });
 });

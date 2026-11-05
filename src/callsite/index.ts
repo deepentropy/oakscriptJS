@@ -452,9 +452,9 @@ function loopSumSite(
  * - every call on a bar starts from the state of the earlier bars, so it gives the sum of its value and the last
  *   `length - 1` kept values; the last call of the bar is the one kept for the later bars
  * - the length can change from one call to the next (also on the same bar): each call first moves the kept sum to
- *   its own length as `math.sum` with a series length does (Kahan steps of the raw values)
+ *   its own length, as `math.sum` with a series length
  * - a bar without a call is not in the history (as a call in an `if` block)
- * - the sum is the same compensated running sum as `math.sum` (bit for bit)
+ * - the sum is the correctly rounded window sum, as `math.sum` (bit for bit, #188)
  *
  * An na value is skipped as in `math.sum` (it returns the sum of the last `length` earlier values); when it is the
  * last call of a bar, the bar is not in the history (not measured).
@@ -498,7 +498,7 @@ export function sma(): (barIndex: number, value: number, length: number) => numb
 
 /**
  * One `ta.stdev(source, length, biased)` call site inside a `for` / `while` loop, called with
- * `(barIndex, value, length, biased?)` on each call: the running sums of the values and of their squares follow the
+ * `(barIndex, value, length, biased?)` on each call: the window sums of the values and of their squares follow the
  * rules of {@link sum}; the result is computed from them as `ta.stdev` (bit for bit).
  *
  * @example

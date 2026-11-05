@@ -467,13 +467,9 @@ function avgOf(nums: number[]): number {
  * - Calculates the sum of the last `length` non-`na` values at each point; an `na` value (also +/-Infinity) is
  *   skipped and the bar keeps the previous result (as in PineScript)
  * - Returns NaN until `length` non-`na` values are available
- * - A compensated running sum, as in PineScript, so the result can differ from the exact window sum in the last
- *   bits (bit for bit with PineScript)
+ * - The correctly rounded sum of the window values (the exact sum, rounded once), as PineScript (#188)
  * - When passed a Series, returns a Series; when passed an array, returns an array
- * - With a series length, PineScript moves the running sum to the new length when the length changes, with Kahan
- *   steps of the raw values: a smaller length removes the values that leave the window (oldest first); a larger
- *   length adds back the values from the one before the old window down to the one `length` values back (newest
- *   first), then the usual step removes the stored value of the one `length` values back. A bar with an `na` value
+ * - With a series length, the window is the last `length` values of each bar. A bar with an `na` value
  *   gives the sum of the last `length` earlier values
  *
  * @example
@@ -492,7 +488,7 @@ export function sum(
   const sourceArray = source instanceof Series ? source.toArray() : source;
   if (typeof length === 'number') checkSumLength('math.sum', length, 0);
   // PineScript: the sum of the last `length` non-na values (also +/-Infinity skipped); an na bar keeps the previous
-  // result. A compensated running sum, bit for bit as PineScript.
+  // result. The correctly rounded window sum, bit for bit as PineScript (#188).
   const result: series_float =
     typeof length === 'number'
       ? runningSum(sourceArray, length)

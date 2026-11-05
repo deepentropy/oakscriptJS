@@ -81,13 +81,13 @@ describe('one-pass window functions match the window scan bit for bit', () => {
     expect(bits(taCore.lowest([0, -0, 0], 3))).toEqual(['NaN', 'NaN', '-0']);
   });
 
-  it('correlation: PineScript running sums, |cov| <= 1e-10 gives 0, a zero variance gives na (#148)', () => {
-    // PineScript ta.correlation(close, bar_index, 5), daily BTCUSD, first 12 bars
+  it('correlation: PineScript window sums, |cov| <= 1e-10 gives 0, a zero variance gives na (#148, #188)', () => {
+    // PineScript ta.correlation(close, bar_index, 5), daily BTCUSD, first 12 bars (05/11/2026)
     const close = [10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8];
     const index = close.map((_, i) => i);
     expect(taCore.correlation(close, index, 5)).toEqual([
-      NaN, NaN, NaN, NaN, 0.7137040886636794, -0.7026551693464506, -0.8939203854869304, -0.9432204431993946,
-      -0.9551599687176915, -0.724514214163929, -0.2717834693207106, 0.2335643468140462,
+      NaN, NaN, NaN, NaN, 0.7137040886636873, -0.7026551693464506, -0.8939203854869304, -0.9432204431993946,
+      -0.9551599687176915, -0.7245142141639396, -0.2717834693207106, 0.2335643468140462,
     ]);
     // a constant against close: covariance 0 -> 0 (PineScript)
     expect(taCore.correlation(close.map(() => 3), close, 5).slice(4)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);

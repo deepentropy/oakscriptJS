@@ -654,8 +654,8 @@ const lows = closes.map((_, i) => lowPrice(i > 0 ? closes[i - 1]! : NaN, lookbac
 ```
 
 `ta.sma`, `ta.stdev`, `ta.variance` and `math.sum` take a series length directly, with no call site: pass one length
-per bar (an array or a Series), as PineScript's series int length. The running sum moves to the new length as
-PineScript does, bit for bit:
+per bar (an array or a Series), as PineScript's series int length. Each bar sums its last `length` values (the
+correctly rounded window sum, bit for bit as PineScript):
 
 ```typescript
 // Pine: avg = ta.sma(close, lookback)   // lookback changes per bar

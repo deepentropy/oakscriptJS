@@ -1,145 +1,128 @@
 /**
- * Running window sum with the floating-point behaviour of PineScript `math.sum` / `ta.sma` / `ta.stdev` /
- * `ta.variance` (bit for bit).
+ * Window sums of PineScript `math.sum` / `ta.sma` / `ta.stdev` / `ta.variance` / `ta.mfi` (bit for bit).
  *
- * PineScript does not sum the window again on each bar. It keeps a compensated (Kahan) running sum:
- * - each bar first removes, with a Kahan step, the compensated value that was added for the value that leaves the
- *   window, then adds the new value with a Kahan step and keeps its compensated value;
- * - when the compensation of the previous step would be lost when applied to the new value, the sum is computed
- *   again from the window values (newest first) and the compensation is reset. The test moves the new value toward
- *   +infinity by the size of the compensation, in floating point (#136, #142).
+ * PineScript gives the correctly rounded sum of the window values (the exact sum of the doubles, rounded once), on
+ * every bar: `ta.sma` is that sum divided by the length (measured on the reference 05/11/2026, #188: built-in and
+ * expression sources, with or without a `ta.stdev` of the same source, constant and series lengths, na values; 0
+ * differing bars of 16,550 on BTCUSD 1D and 34,665 on AAPL 1D). The running sum of earlier versions (Kahan steps,
+ * #114) gave a small residue on a window of zeros; the reference no longer does.
  *
- * So the result can differ from the exact window sum in the last bits (e.g. a small residue on a window of zeros),
- * as in PineScript.
+ * The exact sum is kept as non-overlapping partials (Shewchuk's algorithm, as Python `math.fsum`): adding a value and
+ * removing the one that leaves the window (adding its negation) are exact, so a bar costs the values that enter and
+ * leave, not the whole window.
  *
  * @internal
  */
 import { checkSumLength } from './limits.js';
-
-/**
- * Whether the compensation `c` is (partly) lost when it is applied to `x`: `x + |c|` in floating point moves `x` by
- * less than `|c|`. Moving toward +infinity uses the grid above `x` (the coarser binade just below a power of two, the
- * finer binade for a negative power of two), as PineScript (measured bit for bit, #142).
- */
-function compensationLost(x: number, c: number): boolean {
-  if (c === 0 || x === 0) return false;
-  const size = Math.abs(c);
-  return Math.abs(x + size - x) < size;
-}
 
 /** A value PineScript treats as na in window functions (also +/-Infinity). */
 export function isNa(v: number | null | undefined): boolean {
   return v === undefined || v === null || !Number.isFinite(v);
 }
 
+/** Adds `x` to the partials `p` (non-overlapping, increasing magnitude), exactly. */
+function addExact(p: number[], x: number): void {
+  let i = 0;
+  for (let j = 0; j < p.length; j++) {
+    let y = p[j]!;
+    if (Math.abs(x) < Math.abs(y)) [x, y] = [y, x];
+    const hi = x + y;
+    const lo = y - (hi - x);
+    if (lo !== 0) p[i++] = lo;
+    x = hi;
+  }
+  p.length = i;
+  p.push(x);
+}
+
+/** The partials' exact sum rounded once to a double (round half to even), as Python `math.fsum`. */
+function roundExact(p: readonly number[]): number {
+  let n = p.length;
+  if (n === 0) return 0;
+  let hi = p[--n]!;
+  while (n > 0) {
+    const x = hi;
+    const y = p[--n]!;
+    hi = x + y;
+    const lo = y - (hi - x);
+    if (lo !== 0) {
+      // half-way case: the rest has the same sign, so round away from the tie
+      if (n > 0 && ((lo < 0 && p[n - 1]! < 0) || (lo > 0 && p[n - 1]! > 0))) {
+        const y2 = lo * 2;
+        const x2 = hi + y2;
+        if (y2 === x2 - hi) hi = x2;
+      }
+      break;
+    }
+  }
+  return hi;
+}
+
 /**
- * Running sum state, one value at a time. {@link step} computes the sum with a new value from the kept state without
+ * Window sum state, one value at a time. {@link step} computes the sum with a new value from the kept state without
  * changing it; {@link commit} keeps the last step. So several candidate values can be tried on one bar and only the
  * last one kept (a ta.* call in a loop).
  *
- * The length can change from one step to the next (a series length). PineScript then first moves the kept sum to the
- * new length with Kahan steps of the raw values (not the stored compensated values): a smaller length removes the
- * values that leave the window, oldest first; a larger length adds back the values from the one before the old window
- * down to the one `length` values back, newest first (one more than the window needs). Then the usual step runs with
- * the new length: it removes the stored value of the one `length` values back and adds the new value.
+ * The length can change from one step to the next (a series length): the window is then the last `length` values,
+ * the values that leave or come back are removed or added exactly.
  */
 export class RunningSum {
   private readonly values: number[] = [];
-  private readonly stored: number[] = [];
-  private keptLength = NaN;
-  private s = 0;
-  private c = 0;
-  private stepLength = NaN;
+  /** Exact sum of the kept window (the last `keptLength` values). */
+  private partials: number[] = [];
+  private keptLength = 0;
+  private stepLength = 0;
   private stepX = NaN;
-  private stepY = NaN;
-  private stepS = 0;
-  private stepC = 0;
+  private stepPartials: number[] = [];
 
-  /** Kahan steps that move the kept sum from the kept length to `len`; the result goes to stepS / stepC. */
-  private resize(len: number): void {
+  /** The partials of the last `len` values (kept state, nothing added). */
+  private resized(len: number): number[] {
     const values = this.values;
     const n = values.length;
-    const kept = this.keptLength;
-    let s = this.s;
-    let c = this.c;
-    const add = (v: number) => {
-      const y = v - c;
-      const t = s + y;
-      c = (t - s) - y;
-      s = t;
-    };
-    if (len < kept) {
-      for (let k = Math.max(0, n - kept); k <= n - len - 1; k++) add(-values[k]!);
-    } else if (len > kept) {
-      for (let k = n - kept - 1; k >= Math.max(0, n - len); k--) add(values[k]!);
-    }
-    this.stepS = s;
-    this.stepC = c;
+    const p = this.partials.slice();
+    const kept = Math.min(this.keptLength, n);
+    const want = Math.min(len, n);
+    if (want < kept) for (let k = n - kept; k < n - want; k++) addExact(p, -values[k]!);
+    else for (let k = n - kept - 1; k >= n - want; k--) addExact(p, values[k]!);
+    return p;
   }
 
   /**
-   * The running sum of the last `length` values with the (not na) value `x` added, from the kept state; the state is
+   * The sum of the last `length` values with the (not na) value `x` added, from the kept state; the state is
    * unchanged until {@link commit}.
    *
    * @returns The sum, or NaN while fewer than `length` values exist (with `x`)
    */
   step(x: number, length: number): number {
-    const len = length;
-    const values = this.values;
-    this.resize(len);
-    let s = this.stepS;
-    let c = this.stepC;
-    const c0 = c;
-    const n = values.length;
-    if (n >= len) {
-      const y = -this.stored[n - len]! - c;
-      const t = s + y;
-      c = (t - s) - y;
-      s = t;
-    }
-    if (compensationLost(x, c0)) {
-      let fresh = x;
-      for (let k = n - 1; k >= Math.max(0, n + 1 - len); k--) fresh += values[k]!;
-      s = fresh;
-      c = 0;
-      this.stepY = x;
-    } else {
-      const y = x - c;
-      const t = s + y;
-      c = (t - s) - y;
-      s = t;
-      this.stepY = y;
-    }
-    this.stepLength = len;
+    const n = this.values.length;
+    const p = this.resized(length - 1);
+    addExact(p, x);
+    this.stepPartials = p;
+    this.stepLength = Math.min(length, n + 1);
     this.stepX = x;
-    this.stepS = s;
-    this.stepC = c;
-    return n + 1 >= len ? s : NaN;
+    return n + 1 >= length ? roundExact(p) : NaN;
   }
 
   /**
-   * The running sum of the last `length` values on a bar with an na value (no value added), from the kept state; the
-   * state is unchanged until {@link commit}. With an unchanged length, it is the previous result.
+   * The sum of the last `length` values on a bar with an na value (no value added), from the kept state; the state is
+   * unchanged until {@link commit}. With an unchanged length, it is the previous result.
    *
    * @returns The sum, or NaN while fewer than `length` values exist
    */
   stepNa(length: number): number {
-    this.resize(length);
-    this.stepLength = length;
-    this.stepX = NaN;
     const n = this.values.length;
-    return n > 0 && n >= length ? this.stepS : NaN;
+    const p = this.resized(length);
+    this.stepPartials = p;
+    this.stepLength = Math.min(length, n);
+    this.stepX = NaN;
+    return n > 0 && n >= length ? roundExact(p) : NaN;
   }
 
   /** Keeps the state of the last {@link step} or {@link stepNa}. */
   commit(): void {
-    if (!Number.isNaN(this.stepX)) {
-      this.values.push(this.stepX);
-      this.stored.push(this.stepY);
-    }
+    if (!Number.isNaN(this.stepX)) this.values.push(this.stepX);
     this.keptLength = this.stepLength;
-    this.s = this.stepS;
-    this.c = this.stepC;
+    this.partials = this.stepPartials;
   }
 }
 
@@ -157,7 +140,7 @@ function sumWindows(source: ArrayLike<number | null | undefined>, lengthAt: (i: 
 }
 
 /**
- * The sum of the last `length` non-na values on each bar, as PineScript computes it.
+ * The sum of the last `length` non-na values on each bar, correctly rounded, as PineScript.
  *
  * @param source - Values (na: NaN, null, undefined or +/-Infinity, skipped)
  * @param length - Number of non-na values in the window
@@ -198,7 +181,7 @@ export function runningSumSeries(
   return sumWindows(source, (i) => lens[i]!);
 }
 
-/** Variance from the running sums of the values and of their squares; rules in {@link runningVariance}. */
+/** Variance from the window sums of the values and of their squares; rules in {@link runningVariance}. */
 function varianceFromSums(
   source: ArrayLike<number | null | undefined>,
   sumOf: (src: ArrayLike<number | null | undefined>) => number[],
@@ -220,7 +203,7 @@ function varianceFromSums(
 }
 
 /**
- * Window variance from the running sums of the values and of their squares, as PineScript computes it:
+ * Window variance from the window sums of the values and of their squares, as PineScript computes it (#188):
  * biased `sumSq / n - mean * mean`, unbiased `sumSq / (n - 1) - mean * sum / (n - 1)`, with `mean = sum / n`.
  */
 export function runningVariance(

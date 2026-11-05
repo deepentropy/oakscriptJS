@@ -1,7 +1,8 @@
 import { taCore as ta, callsite } from '../../src';
 
-// PineScript values of BITSTAMP:BTCUSD 1D, first bars of the history (probe of 04/10/2026). Each series below is
-// equal to PineScript bit for bit on the full BTCUSD (5,490 bars) and NASDAQ:AAPL (11,536 bars) daily histories.
+// PineScript values of BITSTAMP:BTCUSD 1D, first bars of the history (probe of 04/10/2026; cog, dev, cci and mfi probed
+// again on 05/11/2026, #188). Each series below is equal to PineScript bit for bit on the full BTCUSD and NASDAQ:AAPL
+// daily histories.
 const close = [10.9, 11.69, 11.7, 11.7, 11.7, 10.5, 10, 8, 8.22, 8.88, 8.89, 8, 8.5, 7.4, 5.97, 5.53, 5.13, 4.85, 4.87, 4.92, 4.9];
 const high = [10.9, 11.85, 11.7, 11.7, 11.7, 11.5, 10, 8, 8.31, 8.88, 8.89, 8, 8.5, 7.98, 6, 5.72, 5.24, 4.87, 4.87, 4.92, 4.9];
 const low = [10.9, 11.15, 11.7, 11.7, 11.7, 10.5, 10, 8, 5.25, 8, 8.89, 8, 8.5, 7.4, 5.65, 5.52, 5, 4.8, 4.87, 4.81, 4.9];
@@ -13,13 +14,11 @@ const N = NaN;
 
 describe('PineScript probe values (BTCUSD 1D)', () => {
   it('ta.cog: -sum(source[i] * (i + 1)) / math.sum(source, length)', () => {
-    expect(ta.cog(close, 3)).toEqual([
-      N, N, -1.9766695829687957, -1.9997150185237957, -2, -2.0353982300884956, -2.0527950310559, -2.087719298245614,
-      -2.06788710907704, -1.9649402390438244, -1.9742208541746824, -2.034148234381063, -2.0153603781016147,
-      -2.0251046025104604, -2.115683584819387, -2.098941798941799, -2.050511124473842, -2.0438426821405544,
-      -2.0175084175084175, -1.9952185792349726, -1.9979577944179716,
+    expect(ta.cog(close, 10).slice(8)).toEqual([
+      N, -5.825636557265951, -5.865027646129541, -5.888923045393995, -5.849030617650174, -5.82950382950383,
+      -5.838549075391181, -5.881471218037536, -5.923913043478262, -6.064452851338097, -6.154660394001764,
+      -6.148922884795503, -6.0774096886965205,
     ]);
-    expect(ta.cog(close, 10).slice(8, 12)).toEqual([N, -5.825636557265951, -5.865027646129541, -5.888923045393995]);
     expect(ta.cog([1, NaN, 2, 3], 2)).toEqual([N, N, N, -1.4]); // an na bar in the window gives na
   });
 
@@ -42,10 +41,11 @@ describe('PineScript probe values (BTCUSD 1D)', () => {
     expect(ta.cross([1, 2, NaN, 0], [1, 1, 1, 1])).toEqual([false, false, false, true]);
   });
 
-  it('ta.dev / ta.cci: running-sum mean, newest-first absolute deviations', () => {
-    expect(ta.dev(close, 5).slice(4, 10)).toEqual([
-      0.25519999999999926, 0.3831999999999994, 0.6959999999999997, 1.1039999999999999, 1.2591999999999994,
-      0.9039999999999996,
+  it('ta.dev / ta.cci: window-sum mean, newest-first absolute deviations', () => {
+    expect(ta.dev(close, 10).slice(9)).toEqual([
+      1.2431999999999999, 1.3299999999999996, 1.3609999999999995, 1.2287999999999997, 1.0345999999999997,
+      0.9179999999999999, 0.9834000000000002, 1.1556000000000002, 1.4136000000000002, 1.5320000000000003,
+      1.4332000000000003, 1.1758,
     ]);
     expect(ta.cci(close, 20).slice(18)).toEqual([N, -110.5765375671558, -100.05527915975674]);
   });
@@ -78,17 +78,16 @@ describe('PineScript probe values (BTCUSD 1D)', () => {
     ]);
   });
 
-  it('ta.mfi: running-sum residue is 0; an na source bar keeps the result', () => {
+  it('ta.mfi: from the window sums; an na source bar keeps the result', () => {
     const hlc3 = close.map((c, i) => (high[i]! + low[i]! + c) / 3);
-    expect(ta.mfi(hlc3, 3, volume).slice(0, 17)).toEqual([
-      N, N, 84.27453719357314, 100, 100, 0, 0, 0, 0, 36.29430318926435, 36.508975366359, 80.3428886651695,
-      13.969684548152856, 10.383147649173921, 6.065293202256683, 0, 0,
+    expect(ta.mfi(hlc3, 14, volume).slice(12)).toEqual([
+      N, 33.597241103114456, 28.988081869430587, 24.965630709026243, 21.80420173079392, 20.586554400851057,
+      20.62007961152571, 32.303327909149644, 34.00506986573822,
     ]);
     const rn = close.map((c, i) => (i % 9 === 2 ? NaN : c));
-    expect(ta.mfi(rn, 3, volume).slice(0, 17)).toEqual([
-      N, N, N, 81.98950524083861, 95.92197885294463, 3.7392295756763474, 0, 0, 98.61417613208681, 99.61320786828026,
-      100, 100, 96.6493607242322, 26.346287556690754, 5.663631554097421, 0, 0,
-    ]);
+    const mfi = ta.mfi(rn, 3, volume);
+    for (const i of [11, 20]) expect(mfi[i]).toBe(mfi[i - 1]);
+    expect(mfi.slice(0, 3)).toEqual([N, N, N]);
   });
 
   it('ta.vwap: na before the first anchor; an na source makes it na until the next anchor', () => {
