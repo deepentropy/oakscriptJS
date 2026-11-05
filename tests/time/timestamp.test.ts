@@ -1,5 +1,5 @@
 import { time } from '../../src';
-import { zoneOffset } from '../../src/time/timezone';
+import { zoneOffset, zonedFields } from '../../src/time/timezone';
 
 describe('time.timestamp', () => {
   // Expected values: PineScript results
@@ -130,6 +130,38 @@ describe('time zone offsets around the clock changes (#197)', () => {
       for (let t = Date.UTC(2024, 8, 25); t < Date.UTC(2024, 10, 10); t += 15 * 60_000) times.push(t);
       for (let t = Date.UTC(1970, 0, 1, 13); t < Date.UTC(2030, 0, 1); t += 86_400_000) times.push(t);
       expect(times.filter((t) => zoneOffset(t, zone) !== intlOffset(format, t))).toEqual([]);
+    }
+  });
+});
+
+describe('time zone fields and day starts without Date objects (#198)', () => {
+  it('zonedFields gives the fields Date reads from the wall clock, odd times included', () => {
+    const times: number[] = [NaN, 0, -0.5, 0.5, -1, 8.64e15, -8.64e15, 8.64e15 + 1, -62198755200000, -62135596800001];
+    for (let k = 0; k < 2000; k++) times.push(Math.floor(Math.sin(k) * 4e12) + (k % 7) * 0.25, Math.sin(k * 3) * 8.6e15);
+    for (const zone of ['UTC', 'UTC+05:30', 'America/New_York', 'Australia/Lord_Howe']) {
+      // Intl has no offset for the times at the ends of the Date range: a time zone name reads them as errors
+      const kept = zone.startsWith('UTC') ? times : times.filter((t) => Math.abs(t) <= 8.64e15 - 2 * 86_400_000);
+      const expected = kept.map((t) => {
+        const d = new Date(t + zoneOffset(t, zone));
+        return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour: d.getUTCHours(), minute: d.getUTCMinutes(), second: d.getUTCSeconds(), dayOfWeek: d.getUTCDay() + 1 };
+      });
+      expect(kept.map((t) => zonedFields(t, zone))).toEqual(expected);
+    }
+  });
+
+  it('the start of every day around the closest offset changes (167 hours apart) has the Intl offset', () => {
+    for (const zone of ['America/Boa_Vista', 'America/Noronha', 'Asia/Gaza']) {
+      const format = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+      });
+      const intl = (t: number): number => {
+        const f = Object.fromEntries(format.formatToParts(t).map((p) => [p.type, Number(p.value)]));
+        return Date.UTC(f.year!, f.month! - 1, f.day!, f.hour!, f.minute!, f.second!) - t;
+      };
+      const days: number[] = [];
+      for (let t = Date.UTC(1999, 8, 1); t < Date.UTC(2001, 2, 1); t += 86_400_000) days.push(t);
+      for (let t = Date.UTC(2040, 9, 1); t < Date.UTC(2040, 10, 30); t += 86_400_000) days.push(t);
+      expect(days.filter((t) => zoneOffset(t, zone) !== intl(t))).toEqual([]);
     }
   });
 });

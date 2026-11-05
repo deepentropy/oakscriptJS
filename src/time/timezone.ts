@@ -91,14 +91,36 @@ function resolveZone(timezone: string): Zone {
   return zone;
 }
 
-/** Offset of the zone at the start of UTC day `day`, cached. */
-function dayStartOffset(zone: Zone & { kind: 'iana' }, day: number): number {
+/** Days whose starts are read together (see `dayStartOffset`) */
+const DAYS_PER_BLOCK = 3;
+/** Last day whose block and the next one are inside the `Date` range (8.64e15 ms on each side of 1970) */
+const LAST_BLOCK_DAY = 100_000_000 - DAYS_PER_BLOCK;
+
+/** Offset of the zone at the start of UTC day `day`, from `Intl`, cached. */
+function formattedDayStart(zone: Zone & { kind: 'iana' }, day: number): number {
   let offset = zone.dayStarts.get(day);
   if (offset === undefined) {
     offset = formattedOffset(zone.format, day * MS_PER_DAY);
-    if (zone.dayStarts.size >= MAX_CACHED_DAYS) zone.dayStarts.clear();
     zone.dayStarts.set(day, offset);
   }
+  return offset;
+}
+
+/**
+ * Offset of the zone at the start of UTC day `day`, cached. The days are read by blocks of three: two offset changes
+ * are always more than three days apart (167 hours at least, see `offsetAt`), so when the starts of a block and of
+ * the next one have the same offset, no change happens in between and the days of the block have it: one `Intl`
+ * call for three days instead of one per day.
+ */
+function dayStartOffset(zone: Zone & { kind: 'iana' }, day: number): number {
+  const cached = zone.dayStarts.get(day);
+  if (cached !== undefined) return cached;
+  if (zone.dayStarts.size >= MAX_CACHED_DAYS) zone.dayStarts.clear();
+  if (!(Math.abs(day) <= LAST_BLOCK_DAY)) return formattedDayStart(zone, day);
+  const first = Math.floor(day / DAYS_PER_BLOCK) * DAYS_PER_BLOCK;
+  const offset = formattedDayStart(zone, first);
+  if (offset !== formattedDayStart(zone, first + DAYS_PER_BLOCK)) return formattedDayStart(zone, day);
+  for (let d = first + 1; d < first + DAYS_PER_BLOCK; d++) zone.dayStarts.set(d, offset);
   return offset;
 }
 
@@ -157,17 +179,48 @@ export function zoneOffset(time: number, timezone: string): number {
   return offsetAt(resolveZone(timezone), time);
 }
 
-/** Splits a UNIX time (ms) into calendar fields in `timezone`. */
+/** Last valid `Date` time on each side of 01/01/1970 (ms) */
+const MAX_DATE_MS = 8.64e15;
+
+/**
+ * Year, month (1-12) and day of the month of a day count since 01/01/1970, in the proleptic Gregorian calendar as
+ * `Date` reads it, by integer arithmetic (years counted from March, the leap day last).
+ */
+export function civilFromDays(days: number): { year: number; month: number; day: number } {
+  const z = days + 719_468;
+  const era = Math.floor(z / 146_097);
+  const dayOfEra = z - era * 146_097;
+  const yearOfEra = Math.floor(
+    (dayOfEra - Math.floor(dayOfEra / 1460) + Math.floor(dayOfEra / 36_524) - Math.floor(dayOfEra / 146_096)) / 365
+  );
+  const dayOfYear = dayOfEra - (yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+  const mp = Math.floor((5 * dayOfYear + 2) / 153);
+  const month = mp < 10 ? mp + 3 : mp - 9;
+  return { year: yearOfEra + era * 400 + (month <= 2 ? 1 : 0), month, day: dayOfYear - Math.floor((153 * mp + 2) / 5) + 1 };
+}
+
+/**
+ * Splits a UNIX time (ms) into calendar fields in `timezone`: the fields `Date` gives for the wall clock (whole ms,
+ * NaN outside its range), computed without one as every bar reads them.
+ */
 export function zonedFields(time: number, timezone: string): ZonedFields {
-  const local = new Date(time + offsetAt(resolveZone(timezone), time));
+  const wall = time + offsetAt(resolveZone(timezone), time);
+  if (!(Math.abs(wall) <= MAX_DATE_MS)) {
+    return { year: NaN, month: NaN, day: NaN, hour: NaN, minute: NaN, second: NaN, dayOfWeek: NaN };
+  }
+  const ms = Math.trunc(wall);
+  const days = Math.floor(ms / MS_PER_DAY);
+  const inDay = ms - days * MS_PER_DAY;
+  const { year, month, day } = civilFromDays(days);
   return {
-    year: local.getUTCFullYear(),
-    month: local.getUTCMonth() + 1,
-    day: local.getUTCDate(),
-    hour: local.getUTCHours(),
-    minute: local.getUTCMinutes(),
-    second: local.getUTCSeconds(),
-    dayOfWeek: local.getUTCDay() + 1,
+    year,
+    month,
+    day,
+    hour: Math.floor(inDay / MS_PER_HOUR),
+    minute: Math.floor(inDay / 60_000) % 60,
+    second: Math.floor(inDay / MS_PER_SECOND) % 60,
+    // 01/01/1970 is a Thursday (5)
+    dayOfWeek: ((((days + 4) % 7) + 7) % 7) + 1,
   };
 }
 
@@ -185,6 +238,9 @@ export function zonedFields(time: number, timezone: string): ZonedFields {
  */
 export function civilToUnix(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number {
   const gregorian = Date.UTC(year, month - 1, day, hour, minute, second);
+  // a month of a year after 1582 (and before the end of the Date range) is Gregorian whatever the day: no need to
+  // normalize the date
+  if (year >= 1583 && year < 275_760 && month >= 1 && month < 13) return gregorian;
   // normalized year / month / day of the Gregorian reading decides the calendar
   const d = new Date(Date.UTC(year, month - 1, 1));
   const y = d.getUTCFullYear();
@@ -222,8 +278,13 @@ export function zonedToUnix(
   // one day before and one day after are the two candidates.
   const before = offsetAt(zone, local - MS_PER_DAY);
   const after = offsetAt(zone, local + MS_PER_DAY);
-  const candidates = [local - before, local - after].filter((t) => local - offsetAt(zone, t) === t);
+  // the same offset on both sides: no change near `local`, the wall time is read with it
+  if (before === after) return local - before;
+  const withBefore = local - before;
+  const withAfter = local - after;
+  const beforeFits = local - offsetAt(zone, withBefore) === withBefore;
+  const afterFits = local - offsetAt(zone, withAfter) === withAfter;
   // a wall time that occurs twice: the later instant, or the earlier one with `earlier`
-  if (candidates.length) return earlier ? Math.min(...candidates) : Math.max(...candidates);
-  return local - before;
+  if (beforeFits && afterFits) return earlier ? Math.min(withBefore, withAfter) : Math.max(withBefore, withAfter);
+  return afterFits ? withAfter : withBefore;
 }
