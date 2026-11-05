@@ -195,7 +195,7 @@ export function getSource(
       case 'hl2': return ohlc.high.map((h, i) => (h + ohlc.low[i]!) / 2);
       case 'hlc3': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]!) / 3);
       case 'ohlc4': return ohlc.open.map((o, i) => (o + ohlc.high[i]! + ohlc.low[i]! + ohlc.close[i]!) / 4);
-      case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + ohlc.close[i]! + ohlc.close[i]!) / 4);
+      case 'hlcc4': return ohlc.high.map((h, i) => (h + ohlc.low[i]! + 2 * ohlc.close[i]!) / 4);
       case 'volume': return ohlc.volume ?? ohlc.close.map(() => NaN);
     }
     const ext = externalSource(source);
@@ -211,7 +211,7 @@ export function getSource(
       case 'hl2': return bars.map(b => (b.high + b.low) / 2);
       case 'hlc3': return bars.map(b => (b.high + b.low + b.close) / 3);
       case 'ohlc4': return bars.map(b => (b.open + b.high + b.low + b.close) / 4);
-      case 'hlcc4': return bars.map(b => (b.high + b.low + b.close + b.close) / 4);
+      case 'hlcc4': return bars.map(b => (b.high + b.low + 2 * b.close) / 4);
       case 'volume': return bars.map(b => b.volume ?? NaN);
     }
     // Another source (study on study), else close.
@@ -254,7 +254,7 @@ export function getSourceSeries(
     case 'hl2': return high.add(low).div(2);
     case 'hlc3': return high.add(low).add(close).div(3);
     case 'ohlc4': return open.add(high).add(low).add(close).div(4);
-    case 'hlcc4': return high.add(low).add(close).add(close).div(4);
+    case 'hlcc4': return high.add(low).add(close.mul(2)).div(4);
     case 'volume': return Series.fromBars(bars, 'volume');
     default: {
       // Another source (study on study), else close.

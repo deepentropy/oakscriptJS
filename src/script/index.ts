@@ -839,7 +839,7 @@ export const volume = Series.fromBars(ctxBars, 'volume');
 export const hl2 = new Series(ctxBars, (b) => (b.high + b.low) / 2);
 export const hlc3 = new Series(ctxBars, (b) => (b.high + b.low + b.close) / 3);
 export const ohlc4 = new Series(ctxBars, (b) => (b.open + b.high + b.low + b.close) / 4);
-export const hlcc4 = new Series(ctxBars, (b) => (b.high + b.low + b.close + b.close) / 4);
+export const hlcc4 = new Series(ctxBars, (b) => (b.high + b.low + 2 * b.close) / 4);
 /** PineScript `bar_index`: the index of each bar (0 on the first). In a bar loop, `c.i` is the same number. */
 export const bar_index = new Series(ctxBars, (_b, i) => i);
 bar_index.fullHistory = true;
