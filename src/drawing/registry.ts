@@ -92,7 +92,8 @@ let held = new WeakMap<object, number>();
 let releasedAt = new WeakMap<object, number>();
 /** Bars during which a released linefill is still skipped by the maximum count. */
 const LINEFILL_RELEASE_BARS = 5000;
-/** Bar on which a `var` variable got an object: the maximum count skips it from the next bar on. */
+/** Bar on which a `var` variable got an object: on that bar the maximum count deletes it only when no other object can
+ *  go; from the next bar on, never. */
 let heldAt = new WeakMap<object, number>();
 /** Kinds with a maximum count of their own. */
 type CountedKind = 'line' | 'label' | 'box' | 'polyline';
@@ -129,6 +130,16 @@ function heldBefore(obj: object): boolean {
   if (!held.has(obj)) return false;
   const bar = heldAt.get(obj);
   return bar === undefined || currentBar === null || bar < currentBar;
+}
+
+/**
+ * Held by a `var` variable since the current bar, or released by its last variable on the current bar: the maximum
+ * count deletes such an object only when the objects it may delete are not enough (#193; 12 `var` lines made on the
+ * first bar with a maximum of 5 lose the first 6, #158).
+ */
+function heldOnThisBar(obj: object): boolean {
+  if (currentBar === null) return false;
+  return held.has(obj) ? heldAt.get(obj) === currentBar : releasedAt.get(obj) === currentBar;
 }
 
 /** Linefill rule: held, or released less than 5,000 bars ago. */
@@ -201,8 +212,8 @@ let lastBar: LastBar | null = null;
  * Tells the drawing functions which bar is being calculated (`bar_index`), so that a bar index more than 10,000
  * bars back throws as in PineScript; `null` turns the check off. `eachBar` of the script API calls it.
  *
- * The bar also dates the objects held by a `var` variable (protected from the next bar on). `last` says that it is
- * the last bar of the data, which has rules of its own for the maximum count. `lastIndex` is the bar index of the
+ * The bar also dates the objects held by a `var` variable (on that bar deleted only when no other object can go,
+ * never after). `last` says that it is the last bar of the data, which has rules of its own for the maximum count. `lastIndex` is the bar index of the
  * last bar of the data (PineScript `last_bar_index`): with it, a bar index more than 500 bars after it throws, also
  * on the bars before the last one (RE10020).
  */
@@ -287,15 +298,22 @@ function cutOldest<K extends DrawingKind>(
   if (kind === 'table') return []; // tables have no maximum count
   const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)] + allowance(kind);
   if (list.length <= max + SLACK) return [];
-  const kept: Array<DrawingTypes[K]> = [];
-  const cut: Array<DrawingTypes[K]> = [];
+  const gone = new Set<object>();
   let excess = list.length - max;
-  for (const old of list) {
-    if (excess > 0 && old !== obj && (!only || only(old)) && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old))) {
-      excess--;
-      cut.push(old);
-    } else kept.push(old);
+  const candidate = (old: DrawingTypes[K]): boolean =>
+    old !== obj && (!only || only(old)) && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old));
+  // the oldest first; the objects a `var` variable got (or released) on this bar only when the others are not enough
+  for (const weak of kind === 'linefill' ? [false] : [false, true]) {
+    for (const old of list) {
+      if (excess <= 0) break;
+      if (!gone.has(old) && candidate(old) && (kind === 'linefill' || heldOnThisBar(old) === weak)) {
+        excess--;
+        gone.add(old);
+      }
+    }
   }
+  const kept = list.filter((old) => !gone.has(old));
+  const cut = list.filter((old) => gone.has(old));
   // linefills: still above the maximum + 5, the oldest go, the held ones too
   if (kind === 'linefill' && kept.length > max + SLACK) cut.push(...kept.splice(0, kept.length - max));
   list.length = 0;
@@ -334,7 +352,7 @@ function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: Drawing
   const list = live[kind];
   list.push(obj);
   const isOld = (old: object): boolean => bar.old.has(old);
-  if (list.some((old) => old !== obj && isOld(old) && !heldBefore(old))) {
+  if (list.some((old) => old !== obj && isOld(old) && !heldBefore(old) && !heldOnThisBar(old))) {
     // the objects of the bars before only; a line takes its linefills with it
     const cut = cutOldest(kind, list, obj, isOld);
     if (kind === 'polyline') {

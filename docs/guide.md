@@ -476,6 +476,10 @@ eachBar((c) => {
 });
 ```
 
+On the bar where the variable gets the object (or lets it go), the object is
+deleted only when the objects that can go are not enough (#193); from the next
+bar on, never (a released object, from the next bar on, like any other).
+
 Only the variable protects: an object kept in an array or in a field is deleted
 like any other. `holdDrawing(obj)` / `releaseDrawing(obj)` do the same without a
 variable object.
