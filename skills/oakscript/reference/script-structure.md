@@ -154,6 +154,12 @@ plotshape(up.and(up.offset(1).not()), "Flip up", { style: shape.circle, location
 
 - A `let` before the loop is Pine `var`: it keeps its value from bar to bar. A `const` inside the callback is a
   plain per-bar variable.
+- `persist(initial)` (declare it at the top level, read and write `.value` in one `eachBar` callback) is Pine `var`
+  kept by the runtime: a host that runs the script with `createScriptRun` then calculates only the newest bar on each
+  live update. A script that changes a `let` or an array declared outside the callback (`dirs.push(...)`), or reads
+  a `persist` box outside the callback, is calculated in full on every update (same results, more time). For live
+  charts, keep the state in `persist` boxes and give each output its own `eachBar` (it can read the other ones with
+  `c.get()`).
 - Several outputs from one loop: push into arrays declared before the loop, then `seriesOf(array)`.
 - Plain `Math.*` is fine on numbers; Pine's `math.*` is available too (`math.max`, `math.round`...).
 - History: `c.get(x, k)` and `x.offset(k)` reach at most 5000 bars back (the built-in prices have no limit).

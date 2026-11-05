@@ -97,7 +97,7 @@ plotshape(ta.crossover(close, sma), "Cross", { style: shape.triangleup, location
 | `//@version=6` | nothing |
 | `a + b`, `a > b`, `c ? x : y` (series) | `a.add(b)`, `a.gt(b)`, `c.iff(x, y)` |
 | `close[1]` | `close.offset(1)`; in a loop `c.get(close, 1)` |
-| `var x = 0` / `x := ...` | `let x = 0` before `eachBar`, assigned in the callback |
+| `var x = 0` / `x := ...` | `const x = persist(0)` before `eachBar`, `x.value = ...` in the callback (or a `let x = 0` before `eachBar`; see reference/script-structure.md) |
 | `bar_index`, `last_bar_index` | the Series `bar_index`, `last_bar_index`; in a bar loop `c.i`, `c.n - 1` |
 | `plot(x, "T", color=c, linewidth=2)` | `plot(x, "T", { color: c, linewidth: 2 })` |
 | `[a, b, c] = ta.macd(...)` | `const [a, b, c] = ta.macd(...)` |

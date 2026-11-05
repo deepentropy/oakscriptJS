@@ -29,7 +29,9 @@ import type * as S from './index.js';
 
 declare global {
   const executeIntrabar: typeof S.executeIntrabar;
+  const createScriptRun: typeof S.createScriptRun;
   const varip: typeof S.varip;
+  const persist: typeof S.persist;
   const indicator: typeof S.indicator;
   const fixnan: typeof S.fixnan;
   const fill: typeof S.fill;

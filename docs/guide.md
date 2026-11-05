@@ -540,6 +540,50 @@ the closure and wrap it with `seriesOf(values)` for a second output.
 - JS comparison operators do not follow the PineScript rules: PineScript compares with a 1e-10 tolerance, and a
   comparison with `na` is false. Use `compare.eq/ne/lt/le/gt/ge(a, b)` from `oakscriptjs` for the PineScript
   result (e.g. `compare.gt(c.close, c.get(ma))`).
+- `persist(initial)` is a `var` kept by the runtime: declared in the script body, read and written with `.value` in
+  one `eachBar()` callback. In a plain run it is a plain variable; in an incremental run (below) the runtime puts it
+  back to its value at the last confirmed bar before the forming bar is calculated again.
+
+```typescript
+const dir = persist(0);                      // var dir = 0
+const trend = eachBar((c) => {
+  if (c.close > c.get(close, 1)) dir.value = 1;
+  else if (c.close < c.get(close, 1)) dir.value = -1;
+  return dir.value;
+});
+```
+
+### Incremental runs (createScriptRun)
+
+On a live chart the forming bar changes on every update. `createScriptRun(body, inputs, chart, options)` (host side,
+like `executeScript`) calculates the newest bars only (#196):
+
+```typescript
+import { createScriptRun } from 'oakscriptjs/script';
+
+const run = createScriptRun(body, inputs, chart);
+let result = run.update(bars);        // full run on the history
+// later: the same bars with a new price of the forming bar, or new bars after it
+result = run.update(nextBars);        // result.incremental, result.from (first bar calculated)
+```
+
+The first update is a full run. It keeps what the script created (its Series, `ta.*` calls, `eachBar()` blocks,
+`persist()` boxes and plots, matched by creation order) with their state at the end of the last confirmed bar. An
+update whose bars equal the previous ones up to its forming bar runs the body again from that bar only: the Series
+keep their earlier values, the `ta.*` calls with a `taStep` machine step the newest bars, the `eachBar()` callbacks run
+from that bar with their `persist()` boxes and history buffers put back. The result equals a full run on the same
+bars, bit for bit. Any other change (history loaded or adjusted, other chart fields) runs the script in full.
+
+Calculated in full (same results, more time): a script whose `eachBar()` callback changes a variable declared outside
+it (read from the callback's source: `x = ...`, `x++`, `x.push(...)`, `array.push(x, ...)`; a `persist` box's
+`.value` is allowed), reads a `persist` box outside a callback or from two callbacks, draws (labels, lines, boxes,
+tables...), uses `request.security`, a strategy, `varip`, `timenow`, `last_bar_index`, `c.n` or
+`barstate.islastconfirmedhistory`. `run.fullRunReason` names the first one met. A change made by a function the callback
+calls is not read from the source: the first resumed updates (`verify`, default 2) are also calculated in full and
+compared, and a difference makes the next updates full runs.
+
+On 10,000 daily bars, a script with 13 plots (`sma`, `ema`, `rsi`, `macd`, `bb`, `atr`, `stoch`, an `eachBar` with
+`persist`): a full run 7.4 ms, a resumed update 0.4 ms.
 
 ### Higher timeframes (request.security)
 

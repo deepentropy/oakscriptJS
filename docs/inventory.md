@@ -660,6 +660,8 @@ The script entry provides the PineScript-style authoring surface. These are not
 | Function | Status | Notes |
 |----------|--------|-------|
 | `eachBar(fn)` | Implemented | runs `fn(c)` once per bar; native JS operators, closure `var`-state, `c.get(src, k)` history, `c.prev(k)` self-reference, `c.i` bar_index |
+| `persist(initial)` | Implemented | PineScript `var` kept by the runtime (`.value`), put back by incremental runs (#196) |
+| `createScriptRun(body, inputs, chart, options)` | Implemented | host side: `update(bars)` calculates the newest bars only on a live update (same results as a full run, #196); full runs for drawings, `request.security`, strategies, `varip`, `timenow`, `last_bar_index`, state outside `persist()` (`fullRunReason`) |
 | `seriesOf(values)` | Implemented | wraps a side-output array as a Series |
 | `barstate.*` | Implemented | isfirst, islast, ishistory, isrealtime, isnew, isconfirmed, islastconfirmedhistory (1 / 0 Series); the last bar state comes from `ChartContext.lastBarConfirmed / realtime / lastBarNew` |
 | `callsite.*` | Implemented | per-call history of `ta.*` calls in `if` blocks and lazy `and` / `or` operands: `whenCalled`, `crossover`, `crossunder`, `crossoverByBar` / `crossunderByBar` (several calls on one bar, as in a `for` loop), `cross`, `barssince`, `lowest`, `highest` (also for a series length), `lowestByBar`, `highestByBar`, `linreg` (history kept by bar), `sum`, `sma`, `stdev` (calls in a loop, one or several lengths) |

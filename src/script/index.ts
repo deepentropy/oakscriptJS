@@ -75,6 +75,9 @@ import type {
 } from '../runtime/types.js';
 import { BarData, Series, MAX_BARS_BACK, historyError } from '../runtime/series.js';
 import * as taSeries from '../ta-series.js';
+import { taStep, type BarStep } from '../ta/step.js';
+import * as incremental from './incremental.js';
+import { outerWrites } from './closure-writes.js';
 import * as pineConstants from './constants.js';
 import { drawingNamespace, isPlainObject, namedArguments, unknownArgument } from './drawing-args.js';
 import * as colorCore from '../color/index.js';
@@ -432,8 +435,22 @@ export function executeScript(
   chart: ChartContext = {},
   options: ScriptOptions = {}
 ): ScriptRunResult {
+  return runBody(body, barsInput, inputs, chart, options, null);
+}
+
+/** executeScript(), as part of an incremental run (`inc`, see createScriptRun) or alone (null). */
+function runBody(
+  body: () => void,
+  barsInput: Bar[],
+  inputs: Record<string, unknown>,
+  chart: ChartContext,
+  options: ScriptOptions,
+  inc: incremental.ActiveRun | null
+): ScriptRunResult {
   // A run inside another one (an intrabar run of a strategy) puts the outer run back when it ends.
   const outer = ctx ? saveRunState() : null;
+  // A plain run inside an incremental one is not part of it.
+  const outerInc = inc ? incremental.beginRun(inc) : incremental.suspendRun();
   ctxBars.setAll(barsInput);
   chartCtx = { ...chart };
   runNow = chart.now ?? Date.now();
@@ -448,6 +465,8 @@ export function executeScript(
   try {
     body();
     if (missingSymbols.length) throw new MissingSymbolDataError(missingSymbols);
+    // drawings are not resumed yet (#196): their registry holds the objects of every bar
+    if (inc && createdDrawingKinds().length) incremental.nonIncremental('drawings');
     const c = ctx;
     return {
       metadata: {
@@ -491,6 +510,7 @@ export function executeScript(
   } finally {
     ctx = null;
     if (outer) restoreRunState(outer);
+    incremental.endRun(outerInc);
   }
 }
 
@@ -544,6 +564,208 @@ export function executeIntrabar(
   );
 }
 
+// ── Incremental runs (#196) ──────────────────────────────────────────────────
+
+/** The result of {@link ScriptRun.update}. */
+export interface ScriptRunUpdate extends ScriptRunResult {
+  /** First bar calculated: the forming bar of the previous update (a resumed run), or 0 (a full run) */
+  from: number;
+  /** The update was resumed from the state of the last confirmed bar */
+  incremental: boolean;
+}
+
+export interface ScriptRunOptions extends ScriptOptions {
+  /**
+   * Resumed updates also calculated in full and compared, the first ones of the run (default 2): a difference makes
+   * the next updates full runs (a script that keeps state outside persist() boxes)
+   */
+  verify?: number;
+}
+
+/** A script calculated again on each update of the chart bars (see {@link createScriptRun}). */
+export interface ScriptRun {
+  /**
+   * The script on `bars`: resumed from the forming bar of the previous update when the bars before it did not change
+   * (a live update of the forming bar, or new bars after it), else a full run.
+   */
+  update(bars: Bar[], chart?: ChartContext): ScriptRunUpdate;
+  /** Why the updates are full runs: a feature that is not resumed, or a verification difference (null: resumed) */
+  readonly fullRunReason: string | null;
+}
+
+/** Chart context fields that only change the last bar (barstate of the forming bar). */
+const LAST_BAR_FIELDS = new Set(['lastBarConfirmed', 'lastBarNew', 'realtime', 'now']);
+
+function sameChart(a: ChartContext, b: ChartContext): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (LAST_BAR_FIELDS.has(k)) continue;
+    if (!Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
+  }
+  return true;
+}
+
+/** The bar values an update compares with the next one. */
+interface BarsCopy {
+  n: number;
+  values: Float64Array;
+}
+
+/** `b` in `copy` from bar `from` on (the bars before are already there); a new copy when `copy` is null. */
+function copyBars(b: readonly Bar[], copy: BarsCopy | null = null, from = 0): BarsCopy {
+  let values = copy?.values ?? new Float64Array(Math.max(16, b.length) * 6);
+  if (values.length < b.length * 6) {
+    const grown = new Float64Array(b.length * 12);
+    grown.set(values.subarray(0, from * 6));
+    values = grown;
+  }
+  for (let i = from; i < b.length; i++) {
+    const x = b[i]!;
+    const o = i * 6;
+    values[o] = x.time as number;
+    values[o + 1] = x.open;
+    values[o + 2] = x.high;
+    values[o + 3] = x.low;
+    values[o + 4] = x.close;
+    values[o + 5] = x.volume ?? NaN;
+  }
+  return { n: b.length, values };
+}
+
+/** a and b are the same number (NaN equal to NaN, -0 not 0) */
+const sameNumber = (a: number, b: number): boolean => a === b ? a !== 0 || 1 / a === 1 / b : a !== a && b !== b;
+
+/** The first `count` bars of `b` have the values of `copy`. */
+function sameBars(copy: BarsCopy, b: readonly Bar[], count: number): boolean {
+  const v = copy.values;
+  for (let i = 0; i < count; i++) {
+    const x = b[i]!;
+    const o = i * 6;
+    if (
+      !sameNumber(v[o]!, x.time as number) || !sameNumber(v[o + 1]!, x.open) || !sameNumber(v[o + 2]!, x.high) ||
+      !sameNumber(v[o + 3]!, x.low) || !sameNumber(v[o + 4]!, x.close) || !sameNumber(v[o + 5]!, x.volume ?? NaN)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Two run results with the same values (numbers compared with Object.is: NaN equal, -0 not 0). */
+function sameResult(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  for (const k of ka) {
+    if (!sameResult((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
+  }
+  return true;
+}
+
+/**
+ * A script that calculates only the newest bars on a live update (#196). The first update is a full run; it keeps,
+ * for the next one, what the script created (its Series, ta.* calls, eachBar() blocks, persist() boxes and plots) with
+ * their state at the end of the last confirmed bar. An update whose bars are the same up to the forming bar of the
+ * previous update (a new price of the forming bar, or new bars after it) runs the script again from that bar only;
+ * the result is the same as a full run on the same bars. Other changes (history loaded, inputs, symbol, timeframe or
+ * other chart fields) run it in full.
+ *
+ * The state the script keeps from one bar to the next has to be in `persist()` boxes (not in `let` variables outside the
+ * eachBar() callbacks, which a resumed run cannot put back). The first resumed updates are also calculated in full and
+ * compared (`verify`): a difference makes the next updates full runs. Not resumed yet, so calculated in full: drawings,
+ * request.security, strategies, varip, timenow, last_bar_index, BarContext.n, barstate.islastconfirmedhistory
+ * (`fullRunReason` names the first one met).
+ */
+export function createScriptRun(
+  body: () => void,
+  inputs: Record<string, unknown> = {},
+  chart: ChartContext = {},
+  options: ScriptRunOptions = {}
+): ScriptRun {
+  let memory: incremental.RunMemory | null = null;
+  let previous: BarsCopy | null = null;
+  let previousChart: ChartContext = chart;
+  let reason: string | null = null;
+  let verifyLeft = options.verify ?? 2;
+
+  const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun => ({
+    mode,
+    from,
+    bars: b,
+    prev: mode === 'resume' ? memory : null,
+    next: incremental.emptyMemory(b.length),
+    seriesSlot: 0,
+    taSlot: 0,
+    blockSlot: 0,
+    plotSlot: 0,
+    boxSlot: 0,
+    block: -1,
+    boxes: [],
+    blocked: null,
+  });
+
+  const full = (b: Bar[], c: ChartContext): ScriptRunUpdate => {
+    memory = null;
+    if (reason) return { ...runBody(body, b, inputs, c, options, null), from: 0, incremental: false };
+    const inc = newRun('record', b, 0);
+    const result = runBody(body, b, inputs, c, options, inc);
+    if (inc.blocked) reason = inc.blocked;
+    else memory = inc.next;
+    return { ...result, from: 0, incremental: false };
+  };
+
+  return {
+    get fullRunReason() {
+      return reason;
+    },
+    update(b: Bar[], c: ChartContext = previousChart): ScriptRunUpdate {
+      const last = previous;
+      const m = memory;
+      const resumable =
+        !reason && m !== null && last !== null && last.n >= 1 && b.length >= last.n && sameChart(previousChart, c) &&
+        sameBars(last, b, last.n - 1);
+      previousChart = c;
+      let out: ScriptRunUpdate;
+      if (!resumable) {
+        out = full(b, c);
+      } else {
+        const from = last!.n - 1;
+        const inc = newRun('resume', b, from);
+        let result: ScriptRunResult | null = null;
+        try {
+          result = runBody(body, b, inputs, c, options, inc);
+        } catch (err) {
+          // the memory is changed in place by a resumed run: an error leaves it unusable
+          memory = null;
+          previous = null;
+          if (!(err instanceof incremental.ResumeAborted)) throw err;
+          reason = err.reason;
+        }
+        if (result && verifyLeft > 0) {
+          verifyLeft--;
+          const check = runBody(body, b, inputs, c, options, null);
+          if (!sameResult(result, check)) {
+            reason = 'a resumed update differs from a full run (state kept outside persist()?)';
+            result = check;
+          }
+        }
+        if (result && !reason) {
+          memory = inc.next;
+          out = { ...result, from, incremental: true };
+        } else {
+          out = result && reason ? { ...result, from: 0, incremental: false } : full(b, c);
+          memory = null;
+        }
+      }
+      previous = out.incremental && last ? copyBars(b, last, last.n - 1) : copyBars(b);
+      return out;
+    },
+  };
+}
+
 // ── varip ────────────────────────────────────────────────────────────────────
 
 /** How `varip` boxes read and write in the running code. */
@@ -570,6 +792,7 @@ export interface VaripVariable<T> {
  */
 export function varip<T>(initial: T): VaripVariable<T> {
   collector();
+  incremental.nonIncremental('varip');
   const slot = varipRun.slot++;
   const state = varipRun;
   const rec = state.recorder;
@@ -592,6 +815,80 @@ export function varip<T>(initial: T): VaripVariable<T> {
     },
     set value(v: T) {
       store()[slot] = v;
+    },
+  };
+}
+
+// ── persist ──────────────────────────────────────────────────────────────────
+
+/** A `persist` variable: `.value` reads and writes it. */
+export interface PersistVariable<T> {
+  value: T;
+}
+
+/**
+ * PineScript `var` kept by the runtime (#196): a variable that keeps its value from one bar to the next. Declare it in
+ * the script body (outside the callbacks), in the same order on each run, and read and write it in one eachBar()
+ * callback. In a plain run it is a plain variable. In an incremental run (createScriptRun), the runtime keeps its value
+ * at the end of the last confirmed bar and puts it back before the forming bar is calculated again: use it instead of
+ * a `let` variable outside the callback, which a resumed run cannot put back.
+ *
+ * The run is calculated in full (not resumed) when the variable is read or written outside an eachBar() callback, by
+ * two eachBar() blocks, or holds something else than plain data (numbers, strings, booleans, arrays, plain objects,
+ * Map, Set).
+ *
+ * ```typescript
+ * const dir = persist(0);                     // var dir = 0
+ * const trend = eachBar((c) => {
+ *   if (c.close > c.get(close, 1)) dir.value = 1;
+ *   else if (c.close < c.get(close, 1)) dir.value = -1;
+ *   return dir.value;
+ * });
+ * ```
+ */
+export function persist<T>(initial: T): PersistVariable<T> {
+  collector();
+  if (currentBar >= 0) {
+    throw new Error('persist() is declared in the script body, outside the eachBar() callback (once per run).');
+  }
+  let current = initial;
+  const run = incremental.active;
+  if (!run) {
+    return {
+      get value() {
+        return current;
+      },
+      set value(v: T) {
+        current = v;
+      },
+    };
+  }
+  const slot = run.boxSlot++;
+  run.boxes[slot] = {
+    get: () => current,
+    set: (v) => {
+      current = v as T;
+    },
+  };
+  if (run.mode === 'resume') run.next.boxOwner[slot] = run.prev?.boxOwner[slot];
+  const touch = (): void => {
+    if (incremental.active !== run) return;
+    if (run.block < 0) {
+      incremental.nonIncremental('persist() used outside eachBar()');
+      return;
+    }
+    const owner = run.next.boxOwner[slot];
+    if (owner === undefined) run.next.boxOwner[slot] = run.block;
+    else if (owner !== run.block) incremental.nonIncremental('persist() used by two eachBar() blocks');
+  };
+  return {
+    get value() {
+      touch();
+      return current;
+    },
+    set value(v: T) {
+      touch();
+      current = v;
     },
   };
 }
@@ -844,7 +1141,11 @@ export const hlcc4 = new Series(ctxBars, (b) => (b.high + b.low + 2 * b.close) /
 export const bar_index = new Series(ctxBars, (_b, i) => i);
 bar_index.fullHistory = true;
 /** PineScript `last_bar_index`: the index of the last bar, on every bar. In a bar loop, `c.n - 1`. */
-export const last_bar_index = new Series(ctxBars, (_b, _i, data) => data.length - 1);
+export const last_bar_index = new Series(ctxBars, (_b, _i, data) => {
+  // the same value on every bar, changed by a new bar: not kept by an incremental run (#196)
+  incremental.nonIncremental('last_bar_index');
+  return data.length - 1;
+});
 last_bar_index.fullHistory = true;
 // built-in price variables keep the whole history (no 5000-bar limit)
 for (const s of [hl2, hlc3, ohlc4, hlcc4]) s.fullHistory = true;
@@ -966,12 +1267,122 @@ function outsideBarLoops<T extends Record<string, unknown>>(members: T): T {
   return out as T;
 }
 
+/**
+ * A ta.* call of the script that has a {@link taStep} machine (#196). Outside an incremental run, the array function
+ * (`full`). In an incremental run, the machine steps every bar of a recorded run, and only the bars from the forming bar
+ * of the previous run in a resumed one (the machine holds the state of the last confirmed bar): the same doubles
+ * (tests/ta/step.test.ts).
+ */
+function stepped<R>(
+  kind: string,
+  make: () => BarStep<never[], unknown>,
+  sources: Series[],
+  args: (values: number[][], i: number) => unknown[],
+  outs: number,
+  full: () => R
+): R {
+  const run = incremental.active;
+  if (!run) return full();
+  const slot = run.taSlot++;
+  const b = sources[0] ? (sources[0].bars as Bar[]) : bars();
+  const n = b.length;
+  const values = sources.map((s) => s.toArray());
+  let mem: incremental.TaMemory;
+  let from = 0;
+  const prev = run.mode === 'resume' ? run.prev?.ta[slot] : undefined;
+  if (run.mode === 'resume') {
+    if (!prev || prev.kind !== kind) incremental.nonIncremental(`a new ta.${kind}() call`);
+    from = run.from;
+    // the arrays of the previous run are the run's own: their first values are kept in place
+    mem = { kind, machine: prev!.machine, outs: prev!.outs };
+  } else {
+    mem = { kind, machine: make() as BarStep<unknown[], unknown>, outs: Array.from({ length: outs }, () => []) };
+  }
+  for (const o of mem.outs) o.length = n;
+  for (let i = from; i < n; i++) {
+    const r = mem.machine.step(...args(values, i));
+    if (outs === 1) mem.outs[0]![i] = typeof r === 'boolean' ? (r ? 1 : 0) : (r as number);
+    else for (let k = 0; k < outs; k++) mem.outs[k]![i] = (r as number[])[k]!;
+    // the forming bar is not committed: the next update steps it again from the confirmed bars
+    if (i < n - 1) mem.machine.commit();
+  }
+  run.next.ta[slot] = mem;
+  const series = mem.outs.map((o) => Series.fromArray(b, o));
+  return (outs === 1 ? series[0] : series) as R;
+}
+
+const at = (v: number[][], k: number, i: number): number => v[k]![i]!;
+
+/** The ta.* calls computed bar by bar in an incremental run (a length given as a Series uses the array function). */
+const steppedTa = {
+  sma: (source: Series, length: number | Series): Series =>
+    typeof length === 'number'
+      ? stepped('sma', taStep.sma, [source], (v, i) => [at(v, 0, i), length], 1, () => taSeries.sma(source, length))
+      : taSeries.sma(source, length),
+  ema: (source: Series, length: number): Series =>
+    stepped('ema', () => taStep.ema(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.ema(source, length)),
+  rma: (source: Series, length: number): Series =>
+    stepped('rma', () => taStep.rma(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.rma(source, length)),
+  wma: (source: Series, length: number | Series): Series =>
+    typeof length === 'number'
+      ? stepped('wma', taStep.wma, [source], (v, i) => [at(v, 0, i), length], 1, () => taSeries.wma(source, length))
+      : taSeries.wma(source, length),
+  rsi: (source: Series, length: number | Series): Series =>
+    typeof length === 'number'
+      ? stepped('rsi', () => taStep.rsi(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.rsi(source, length))
+      : taSeries.rsi(source, length),
+  change: (source: Series, length: number = 1): Series =>
+    stepped('change', () => taStep.change(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.change(source, length)),
+  mom: (source: Series, length: number): Series =>
+    stepped('mom', () => taStep.mom(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.mom(source, length)),
+  roc: (source: Series, length: number): Series =>
+    stepped('roc', () => taStep.roc(length), [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.roc(source, length)),
+  cum: (source: Series): Series =>
+    stepped('cum', taStep.cum, [source], (v, i) => [at(v, 0, i)], 1, () => taSeries.cum(source)),
+  stdev: (source: Series, length: number | Series, biased: boolean = true): Series =>
+    typeof length === 'number'
+      ? stepped('stdev', taStep.stdev, [source], (v, i) => [at(v, 0, i), length, biased], 1, () => taSeries.stdev(source, length, biased))
+      : taSeries.stdev(source, length, biased),
+  variance: (source: Series, length: number | Series, biased: boolean = true): Series =>
+    typeof length === 'number'
+      ? stepped('variance', taStep.variance, [source], (v, i) => [at(v, 0, i), length, biased], 1, () =>
+          taSeries.variance(source, length, biased))
+      : taSeries.variance(source, length, biased),
+  crossover: (a: Series, b: Series | number): Series =>
+    stepped('crossover', taStep.crossover, typeof b === 'number' ? [a] : [a, b],
+      (v, i) => [at(v, 0, i), typeof b === 'number' ? b : at(v, 1, i)], 1, () => taSeries.crossover(a, b)),
+  crossunder: (a: Series, b: Series | number): Series =>
+    stepped('crossunder', taStep.crossunder, typeof b === 'number' ? [a] : [a, b],
+      (v, i) => [at(v, 0, i), typeof b === 'number' ? b : at(v, 1, i)], 1, () => taSeries.crossunder(a, b)),
+  cross: (a: Series, b: Series | number): Series =>
+    stepped('cross', taStep.cross, typeof b === 'number' ? [a] : [a, b],
+      (v, i) => [at(v, 0, i), typeof b === 'number' ? b : at(v, 1, i)], 1, () => taSeries.cross(a, b)),
+  barssince: (condition: Series): Series =>
+    stepped('barssince', taStep.barssince, [condition], (v, i) => [at(v, 0, i) === 1], 1, () => taSeries.barssince(condition)),
+  valuewhen: (condition: Series, source: Series, occurrence: number): Series =>
+    stepped('valuewhen', () => taStep.valuewhen(occurrence), [condition, source], (v, i) => [at(v, 0, i) === 1, at(v, 1, i)], 1,
+      () => taSeries.valuewhen(condition, source, occurrence)),
+  macd: (source: Series, fastLength: number, slowLength: number, signalLength: number): [Series, Series, Series] =>
+    stepped('macd', () => taStep.macd(fastLength, slowLength, signalLength), [source], (v, i) => [at(v, 0, i)], 3, () =>
+      taSeries.macd(source, fastLength, slowLength, signalLength)),
+  bb: (source: Series, length: number, mult: number): [Series, Series, Series] =>
+    stepped('bb', () => taStep.bb(length, mult), [source], (v, i) => [at(v, 0, i)], 3, () => taSeries.bb(source, length, mult)),
+  stoch: (source: Series, highSource: Series, lowSource: Series, length: number): Series =>
+    stepped('stoch', () => taStep.stoch(length), [source, highSource, lowSource], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1,
+      () => taSeries.stoch(source, highSource, lowSource, length)),
+};
+
 /** ta.* with the chart-implicit (bars-first) functions bound to the context,
  *  so scripts call them like PineScript: `ta.tr(true)`, `ta.atr(14)`. */
 export const ta = strictNamespace('ta', outsideBarLoops({
   ...taSeries,
-  tr: (handleNa: boolean = false): Series => taSeries.tr(bars(), handleNa),
-  atr: (length: number): Series => taSeries.atr(bars(), length),
+  ...steppedTa,
+  tr: (handleNa: boolean = false): Series =>
+    stepped('tr', () => taStep.tr(handleNa), [high, low, close], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1, () =>
+      taSeries.tr(bars(), handleNa)),
+  atr: (length: number): Series =>
+    stepped('atr', () => taStep.atr(length), [high, low, close], (v, i) => [at(v, 0, i), at(v, 1, i), at(v, 2, i)], 1, () =>
+      taSeries.atr(bars(), length)),
   sar: (start?: number, inc?: number, max?: number): Series => taSeries.sar(bars(), start, inc, max),
   wpr: (length?: number): Series => taSeries.wpr(bars(), length),
   supertrend: (factor: number, atrLength: number): [Series, Series] =>
@@ -990,11 +1401,21 @@ export const ta = strictNamespace('ta', outsideBarLoops({
   ): [Series, Series, Series, Series, Series] =>
     taSeries.ichimoku(bars(), conversionPeriods, basePeriods, laggingSpan2Periods, displacement),
   /** `ta.highest(source, length)` or `ta.highest(length)` (source = high). */
-  highest: (sourceOrLength: Series | number, length?: number | Series): Series =>
-    typeof sourceOrLength === 'number' ? taSeries.highest(high, sourceOrLength) : taSeries.highest(sourceOrLength, length!),
+  highest: (sourceOrLength: Series | number, length?: number | Series): Series => {
+    const source = typeof sourceOrLength === 'number' ? high : sourceOrLength;
+    const len = typeof sourceOrLength === 'number' ? sourceOrLength : length!;
+    return typeof len === 'number'
+      ? stepped('highest', taStep.highest, [source], (v, i) => [at(v, 0, i), len], 1, () => taSeries.highest(source, len))
+      : taSeries.highest(source, len);
+  },
   /** `ta.lowest(source, length)` or `ta.lowest(length)` (source = low). */
-  lowest: (sourceOrLength: Series | number, length?: number | Series): Series =>
-    typeof sourceOrLength === 'number' ? taSeries.lowest(low, sourceOrLength) : taSeries.lowest(sourceOrLength, length!),
+  lowest: (sourceOrLength: Series | number, length?: number | Series): Series => {
+    const source = typeof sourceOrLength === 'number' ? low : sourceOrLength;
+    const len = typeof sourceOrLength === 'number' ? sourceOrLength : length!;
+    return typeof len === 'number'
+      ? stepped('lowest', taStep.lowest, [source], (v, i) => [at(v, 0, i), len], 1, () => taSeries.lowest(source, len))
+      : taSeries.lowest(source, len);
+  },
   /** `ta.highestbars(source, length)` or `ta.highestbars(length)` (source = high); offsets are 0 or negative. */
   highestbars: (sourceOrLength: Series | number, length?: number | Series): Series =>
     typeof sourceOrLength === 'number'
@@ -1017,7 +1438,9 @@ export const ta = strictNamespace('ta', outsideBarLoops({
     (source: Series, anchor: Series | undefined, stdev_mult: number): [Series, Series, Series];
   },
   /** `ta.vwma(source, length)` with the chart volume, as PineScript; a third argument gives another volume. */
-  vwma: (source: Series, length: number, vol?: Series): Series => taSeries.vwma(source, length, vol ?? volume),
+  vwma: (source: Series, length: number, vol?: Series): Series =>
+    stepped('vwma', () => taStep.vwma(length), [source, vol ?? volume], (v, i) => [at(v, 0, i), at(v, 1, i)], 1, () =>
+      taSeries.vwma(source, length, vol ?? volume)),
   /** `ta.mfi(source, length)` with the chart volume (PineScript takes 2 arguments). */
   mfi: (source: Series, length: number): Series => taSeries.mfi(source, length, volume),
   /** `ta.pivothigh(source, leftbars, rightbars)` or `ta.pivothigh(leftbars, rightbars)` (source = high).
@@ -1213,16 +1636,38 @@ function plotImpl(series: Series, title: string = DEFAULT_OUTPUT_TITLES.plot, op
   c.outputs.push({ kind: 'plot', id, title });
   const values = series.toArray();
   const b = bars();
-  const data: TimeValue[] = [];
+  let data: TimeValue[] = [];
   // offset (PineScript plot(offset = k)): the value and colour of bar i are drawn on bar i + k; bars past the
   // chart's first or last bar are dropped
   const off = Math.trunc(options.offset ?? 0);
-  for (let j = Math.max(0, off); j < b.length && j - off < b.length; j++) {
+  let j0 = Math.max(0, off);
+  // An incremental run (#196) keeps the points of the bars whose values did not change; pos[j]: points before bar j
+  const run = incremental.active;
+  const slot = run ? run.plotSlot++ : -1;
+  let pos: number[] = [];
+  const prev = run?.mode === 'resume' ? run.prev?.plots[slot] : undefined;
+  const sig = `${off}|${perBar ? 'colors' : ''}`;
+  if (prev && prev.sig === sig) {
+    const from = Math.max(j0, run!.from + Math.min(0, off));
+    if (from < prev.pos.length) {
+      // the points are given to the host: a copy of the kept ones (the positions are the run's own)
+      data = prev.data.slice(0, prev.pos[from]);
+      pos = prev.pos;
+      pos.length = from;
+      j0 = from;
+    }
+  }
+  for (let j = 0; j < j0; j++) pos[j] ??= 0;
+  let j = j0;
+  for (; j < b.length && j - off < b.length; j++) {
+    pos[j] = data.length;
     const i = j - off;
     const value = values[i];
     if (value === undefined || !Number.isFinite(value)) continue; // PineScript plots +/-Infinity as na
     data.push(perBar ? { time: b[j]!.time, value, color: perBar[i] } : { time: b[j]!.time, value });
   }
+  for (; j <= b.length; j++) pos[j] = data.length;
+  if (run) run.next.plots[slot] = { data, pos, sig };
   c.plots[id] = data;
   return { id, kind: 'plot' };
 }
@@ -1869,21 +2314,83 @@ interface HistoryBuffer {
   barMax: number;
 }
 
+/** The outer variables an eachBar() callback changes, by callback source (the same callback on every run). */
+const outerWritesCache = new Map<string, string[]>();
+function outerWritesOf(fn: (...args: never[]) => unknown): string[] {
+  const src = fn.toString();
+  let found = outerWritesCache.get(src);
+  if (!found) {
+    found = outerWrites(src);
+    if (outerWritesCache.size > 500) outerWritesCache.clear();
+    outerWritesCache.set(src, found);
+  }
+  return found;
+}
+
 export function eachBar(fn: (c: BarContext) => number | boolean | void): Series {
   collector(); // same lifecycle guard (and error message) as the declaration calls
   const b = bars();
   // An intrabar run ends on its bar: the chart's last bar stays the main run's.
   const lastIndex = intrabarRun ? intrabarRun.lastBarIndex : b.length - 1;
-  const out: number[] = new Array(b.length).fill(NaN);
+  let out: number[] = new Array(b.length).fill(NaN);
   const cache = new Map<Series, number[]>();
-  const buffers = new Map<Series, HistoryBuffer>();
+  // history buffers by source: the slot of a Series made by the script (matched across incremental runs), or the Series
+  const buffers = new Map<unknown, HistoryBuffer>();
+  const bufferKey = (src: Series): unknown => incremental.slotOf(src) ?? src;
   let pendingError: { bar: number; barsBack: number } | null = null;
   let idx = 0;
+
+  // An incremental run (#196): the block is matched by its order with the previous run; a resumed block starts on the
+  // forming bar of the previous run, from its state at the end of the last confirmed bar.
+  const run = incremental.active;
+  const slot = run ? (run.block < 0 ? run.blockSlot++ : -1) : -1;
+  if (run && slot < 0) incremental.nonIncremental('eachBar() inside eachBar()');
+  if (run?.mode === 'record') {
+    // a variable outside the callback that it changes is not put back by a resumed run: use persist()
+    const written = outerWritesOf(fn);
+    if (written.length) incremental.nonIncremental(`eachBar() callback changes ${written.join(', ')} outside it (use persist())`);
+  }
+  let start = 0;
+  let checkpoint: incremental.BlockCheckpoint | null = null;
+  if (run?.mode === 'resume') {
+    const prev = run.prev?.blocks[slot];
+    if (!prev) incremental.nonIncremental('a new eachBar() block');
+    start = run.from;
+    // the block's own array of the previous run: its first values are kept in place
+    out = prev!.out;
+    out.length = b.length;
+    for (let i = start; i < b.length; i++) out[i] = NaN;
+    checkpoint = prev!.checkpoint;
+    for (const [key, state] of checkpoint.buffers) buffers.set(key, { ...state });
+    pendingError = checkpoint.pendingError ? { ...checkpoint.pendingError } : null;
+    for (const [box, value] of checkpoint.boxes) {
+      const ref = run.boxes[box];
+      if (!ref) incremental.nonIncremental('a persist() box of the previous run is missing');
+      ref!.set(incremental.copyValue(value));
+    }
+  }
+  /** State at the end of the bar just run: the boxes this block owns, the history buffers */
+  const takeCheckpoint = (): incremental.BlockCheckpoint => {
+    const boxes = new Map<number, unknown>();
+    run!.boxes.forEach((ref, box) => {
+      if (run!.next.boxOwner[box] === slot) boxes.set(box, incremental.copyValue(ref.get()));
+    });
+    const kept = new Map<unknown, HistoryBuffer>();
+    for (const [key, state] of buffers) kept.set(key, { ...state });
+    return { boxes, buffers: kept, pendingError: pendingError ? { ...pendingError } : null };
+  };
+  // the last confirmed bar is before the first bar run (a new run of one bar): its state is the initial one
+  if (run && b.length - 2 < start && !checkpoint) checkpoint = takeCheckpoint();
+
   const ctx: BarContext = {
     get i() {
       return idx;
     },
-    n: lastIndex + 1,
+    get n() {
+      // the bar count changes with each new bar: a value read from it is not kept by an incremental run
+      if (run) incremental.nonIncremental('BarContext.n');
+      return lastIndex + 1;
+    },
     get time() {
       return b[idx]!.time as number;
     },
@@ -1907,8 +2414,8 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
       if (!src.fullHistory && offset > 0) {
         const k = Math.floor(offset);
         if (k > MAX_BARS_BACK) throw new Error(historyError(idx, k));
-        let buffer = buffers.get(src);
-        if (!buffer) buffers.set(src, (buffer = { size: HISTORY_START, previous: 0, barMax: 0 }));
+        let buffer = buffers.get(bufferKey(src));
+        if (!buffer) buffers.set(bufferKey(src), (buffer = { size: HISTORY_START, previous: 0, barMax: 0 }));
         if (k > buffer.barMax) buffer.barMax = k;
       }
       let vals = cache.get(src);
@@ -1924,8 +2431,10 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
       return j >= 0 ? out[j]! : NaN;
     },
   };
+  const outerBlock = run ? run.block : -1;
+  if (run) run.block = slot;
   try {
-    for (idx = 0; idx < b.length; idx++) {
+    for (idx = start; idx < b.length; idx++) {
       if (pendingError && pendingError.bar === idx) throw new Error(historyError(idx, pendingError.barsBack));
       currentBar = idx;
       setDrawingBar(idx, idx === lastIndex, lastIndex);
@@ -1942,11 +2451,15 @@ export function eachBar(fn: (c: BarContext) => number | boolean | void): Series 
         buffer.previous = k;
         buffer.barMax = 0;
       }
+      // the last confirmed bar (the forming bar is the last one): its state is where the next update starts
+      if (run && idx === b.length - 2) checkpoint = takeCheckpoint();
     }
   } finally {
     currentBar = -1;
     setDrawingBar(null);
+    if (run) run.block = outerBlock;
   }
+  if (run) run.next.blocks[slot] = { out, checkpoint: checkpoint! };
   return Series.fromArray(ctxBars, out);
 }
 
@@ -2017,6 +2530,7 @@ function riskRule(rule: StrategyRiskRule): void {
 /** PineScript `strategy()` declaration: script metadata and strategy properties. */
 function declareStrategy(title: string, options: StrategyOptions = {}): void {
   const c = collector();
+  incremental.nonIncremental('strategy');
   declare(c, 'strategy');
   c.title = title;
   c.shortTitle = options.shorttitle;
@@ -2689,7 +3203,10 @@ function timeCloseFunction(tf?: string, session?: string, timezone?: string): Se
 let runNow = NaN;
 
 /** PineScript `timenow`: the current time in ms, the same on every bar of a run (`ChartContext.now`). */
-export const timenow = new Series(ctxBars, () => runNow);
+export const timenow = new Series(ctxBars, () => {
+  incremental.nonIncremental('timenow');
+  return runNow;
+});
 
 export const time = callableSeries(new Series(ctxBars, (b) => barTime(b)), timeFunction);
 
@@ -2786,6 +3303,8 @@ export const barstate = {
   get isnew(): Series { return namedFlag('isnew', (i, n) => !lastRealtime(i, n) || chartCtx.lastBarNew !== false); },
   get islastconfirmedhistory(): Series {
     return namedFlag('islastconfirmedhistory', (i, n) => {
+      // moves to the next bar with each new bar: not kept by an incremental run (#196)
+      incremental.nonIncremental('barstate.islastconfirmedhistory');
       const lastConfirmed = chartCtx.lastBarConfirmed === true && chartCtx.realtime !== true;
       const count = chartBarCount(n);
       return i === (lastConfirmed ? count - 1 : count - 2);
@@ -2868,6 +3387,8 @@ function security<T extends SecurityValue>(
   ignore_invalid_symbol: boolean = false
 ): T extends unknown[] ? Series[] : Series {
   collector();
+  // other bars merged on the chart bars: not resumed by an incremental run (#196)
+  incremental.nonIncremental('request.security');
   const heikin = symbol.startsWith(HEIKIN_ASHI);
   const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
   const chart = chartTimeframe();
@@ -3046,6 +3567,7 @@ function security_lower_tf<T extends SecurityValue>(
   ignore_invalid_symbol: boolean = false
 ): T extends unknown[] ? number[][][] : number[][] {
   collector();
+  incremental.nonIncremental('request.security_lower_tf');
   const heikin = symbol.startsWith(HEIKIN_ASHI);
   const base = heikin ? symbol.slice(HEIKIN_ASHI.length) : symbol;
   const chart = chartTimeframe();

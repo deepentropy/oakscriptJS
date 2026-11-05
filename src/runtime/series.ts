@@ -185,6 +185,25 @@ export function historyError(bar: number, barsBack: number): string {
   );
 }
 
+/**
+ * Hooks of an incremental script run (#196, set by the script runtime during a run only): a Series created by the
+ * script gets a slot, and toArray() reuses the values of the previous run up to the first bar that changed.
+ * @internal
+ */
+export interface SeriesRunHooks {
+  created(series: Series): void;
+  /** The values of the previous run (indexes below `from` are kept; the array is reused), or null to compute every bar */
+  prefix(series: Series, bars: readonly Bar[]): { values: number[]; from: number } | null;
+  computed(series: Series, values: number[]): void;
+}
+
+let runHooks: SeriesRunHooks | null = null;
+
+/** @internal */
+export function setSeriesRunHooks(hooks: SeriesRunHooks | null): void {
+  runHooks = hooks;
+}
+
 export class Series {
   private extractor: SeriesExtractor;
   private dataSource: BarData;
@@ -207,6 +226,7 @@ export class Series {
     // Support both Bar[] and BarData for backward compatibility
     this.dataSource = data instanceof BarData ? data : new BarData(data);
     this.extractor = extractor;
+    runHooks?.created(this);
   }
 
   /**
@@ -568,8 +588,20 @@ export class Series {
 
     // Recompute and update cache
     const bars = this.dataSource.bars;
-    this.cached = bars.map((bar, i) => this.extractor(bar, i, bars));
+    const prefix = runHooks?.prefix(this, bars) ?? null;
+    if (prefix) {
+      // the run's own array of the previous run: its first values are kept, the newest computed in place
+      const n = bars.length;
+      const values = prefix.values;
+      const from = Math.min(prefix.from, n);
+      values.length = n;
+      for (let i = from; i < n; i++) values[i] = this.extractor(bars[i]!, i, bars);
+      this.cached = values;
+    } else {
+      this.cached = bars.map((bar, i) => this.extractor(bar, i, bars));
+    }
     this.cachedVersion = this.dataSource.version;
+    runHooks?.computed(this, this.cached);
     return this.cached;
   }
 

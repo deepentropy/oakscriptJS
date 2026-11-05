@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same bar, `commit()` keeps its last step. 26 functions (`sum`, `sma`, `variance`, `stdev`, `ema`, `rma`, `wma`,
   `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`, `cross`, `tr`, `atr`,
   `obv`, `highest`, `lowest`, `macd`, `bb`, `vwma`, `stoch`), each giving the doubles of `taCore` (#196).
+- Script API: `createScriptRun(body, inputs, chart, options)` (host side) calculates the newest bars only on a live
+  update: `run.update(bars)` runs the body again from the forming bar of the previous update when the bars before it
+  did not change, with the Series, `ta.*` calls (through `taStep`), `eachBar()` blocks, `persist()` boxes and plots of
+  the previous update, and gives the result of a full run on the same bars. Full runs for drawings,
+  `request.security`, strategies, `varip`, `timenow`, `last_bar_index`, `c.n`, and for a callback that changes a
+  variable outside it (`fullRunReason`); the first resumed updates are also checked against a full run. 13 plots on
+  10,000 bars: 7.4 ms -> 0.4 ms per update (#196).
+- Script API: `persist(initial)`, PineScript `var` kept by the runtime (`.value`), put back by incremental runs (#196).
 
 ### Changed
 
