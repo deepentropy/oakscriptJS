@@ -697,6 +697,41 @@ const longCond = eachBar((c) => {
 });
 ```
 
+### ta.* one bar at a time (taStep)
+
+`taStep` gives one state machine per `ta.*` call, for code that calculates bar by bar and receives live updates of
+the forming bar (#196). `step(...)` gives the result of the current bar from the kept state of the earlier bars and can
+be called again on the same bar (each tick of the forming bar starts again from the same state); `commit()` ends the
+bar and keeps its last step. A bar without a step is not in the history of the call, as a `ta.*` call in an `if`
+block. Driven once per bar over an array, each machine gives the doubles of the `taCore` function, bit for bit.
+
+```typescript
+import { taStep } from 'oakscriptjs';
+
+const rsi = taStep.rsi(14);
+const bands = taStep.bb(20, 2);
+// history: one step and one commit per bar
+for (const bar of history) {
+  rsi.step(bar.close);
+  bands.step(bar.close);
+  rsi.commit();
+  bands.commit();
+}
+// forming bar: a step per tick, a commit when the bar closes
+onTick((price) => {
+  const value = rsi.step(price);
+  const [basis, upper, lower] = bands.step(price);
+});
+onBarClose(() => {
+  rsi.commit();
+  bands.commit();
+});
+```
+
+Available: `sum`, `sma`, `variance`, `stdev`, `wma`, `highest`, `lowest` (step with `(value, length)`, a series
+length allowed), `ema`, `rma`, `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`,
+`cross`, `tr`, `atr`, `obv`, `macd`, `bb`, `vwma`, `stoch`.
+
 ### Strategies (strategy declaration and strategy.* API)
 
 OakScriptJS does not fill orders. `strategy()` declares the strategy and its properties, and the

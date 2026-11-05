@@ -39,6 +39,9 @@ import * as callsite from './callsite/index.js';
 
 export { taCore, math, array, map, str, color, time, timeframe, matrix, line, box, label, linefill, chartPoint, polyline, table, text, compare, callsite };
 
+// ta.* one bar at a time (step / commit), for incremental calculations (#196)
+export { taStep, type BarStep } from './ta/step.js';
+
 // Renderable drawings (IndicatorResult labels, lines, boxes, linefills, polylines, tables) and future bar times
 export { drawingOutputs, type DrawingOutputs } from './drawing/output.js';
 export { barInterval, barTime } from './drawing/bar-time.js';

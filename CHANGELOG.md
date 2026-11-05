@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Script API: `na(x)` and `nz(x, replacement)` take a Series as in PineScript (`na` gives a Series of 1 / 0, 1 where
   x is NaN or ±Infinity; the replacement is a number, default 0, or a Series), and `color.from_gradient` with a
   Series argument or per-bar colours gives one colour per bar, for `plot` / `fill` / `bgcolor` / `barcolor` (#187).
+- `taStep`: `ta.*` one bar at a time, for live updates of the forming bar. One machine per call
+  (`taStep.ema(14)`): `step(...)` gives the current bar from the state of the earlier bars and can be called again on
+  the same bar, `commit()` keeps its last step. 26 functions (`sum`, `sma`, `variance`, `stdev`, `ema`, `rma`, `wma`,
+  `change`, `mom`, `roc`, `rsi`, `cum`, `barssince`, `valuewhen`, `crossover`, `crossunder`, `cross`, `tr`, `atr`,
+  `obv`, `highest`, `lowest`, `macd`, `bb`, `vwma`, `stoch`), each giving the doubles of `taCore` (#196).
 
 ### Changed
 
