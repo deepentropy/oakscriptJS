@@ -190,10 +190,22 @@ export function cross(): (a: number, b: number) => boolean {
   };
 }
 
+/** Windows up to this length are scanned; longer ones are read from the tree of {@link KeptCalls}. */
+const SCANNED_WINDOW = 32;
+
 /** The values a ta.highest / ta.lowest / ta.pivothigh call site keeps: the non-na values of its calls, one per bar. */
 class KeptCalls {
   readonly values: number[] = [];
   readonly bars: number[] = [];
+  /**
+   * Segment tree of the best position of each range of kept values (node 1 is the root, leaf `leaves + k` is value
+   * `k`, -1 for no value), built on the first long window: a call site whose length grows with the bars (the bars
+   * since a session start) would otherwise scan the whole history on every call.
+   */
+  private tree: Int32Array | null = null;
+  private leaves = 0;
+
+  constructor(private readonly isLowest: boolean) {}
 
   /**
    * Keeps a non-na value (+/-Infinity is skipped like na, #183); a later call on the same bar (a loop) replaces the
@@ -207,17 +219,62 @@ class KeptCalls {
       this.values.push(value);
       this.bars.push(barIndex);
     }
+    if (this.tree) this.update(this.values.length - 1);
   }
 
   /** Position of the best of the last `count` kept values (the newest one on ties), -1 when there is none. */
-  best(count: number, isLowest: boolean): number {
+  best(count: number): number {
     const last = this.values.length - 1;
     if (last < 0 || !(count >= 1)) return -1;
+    if (count > SCANNED_WINDOW) return this.bestOf(Math.max(0, Math.floor(last - count) + 1), last);
     let best = last;
     for (let k = last - 1; k >= 0 && k > last - count; k--) {
-      if (isLowest ? this.values[k]! < this.values[best]! : this.values[k]! > this.values[best]!) best = k;
+      if (this.isLowest ? this.values[k]! < this.values[best]! : this.values[k]! > this.values[best]!) best = k;
     }
     return best;
+  }
+
+  /** The better of two positions (-1: none): the lower (higher) value, the newest one on equal values. */
+  private better(a: number, b: number): number {
+    if (a < 0) return b;
+    if (b < 0) return a;
+    const va = this.values[a]!;
+    const vb = this.values[b]!;
+    if (this.isLowest ? va < vb : va > vb) return a;
+    if (this.isLowest ? vb < va : vb > va) return b;
+    return a > b ? a : b;
+  }
+
+  /** Best position of the kept values `first` to `last`, from the tree. */
+  private bestOf(first: number, last: number): number {
+    if (!this.tree) this.build();
+    const tree = this.tree!;
+    let best = -1;
+    for (let l = first + this.leaves, r = last + this.leaves + 1; l < r; l >>= 1, r >>= 1) {
+      if (l & 1) best = this.better(best, tree[l++]!);
+      if (r & 1) best = this.better(best, tree[--r]!);
+    }
+    return best;
+  }
+
+  /** (Re)builds the tree, with room for as many values again. */
+  private build(): void {
+    const n = this.values.length;
+    let leaves = 1;
+    while (leaves < 2 * n) leaves *= 2;
+    const tree = new Int32Array(2 * leaves).fill(-1);
+    for (let k = 0; k < n; k++) tree[leaves + k] = k;
+    for (let i = leaves - 1; i >= 1; i--) tree[i] = this.better(tree[2 * i]!, tree[2 * i + 1]!);
+    this.tree = tree;
+    this.leaves = leaves;
+  }
+
+  /** Value `k` was added or replaced. */
+  private update(k: number): void {
+    if (k >= this.leaves) return this.build();
+    const tree = this.tree!;
+    tree[this.leaves + k] = k;
+    for (let i = (this.leaves + k) >> 1; i >= 1; i >>= 1) tree[i] = this.better(tree[2 * i]!, tree[2 * i + 1]!);
   }
 }
 
@@ -226,14 +283,14 @@ function extremeByBarSite(
   isLowest: boolean,
   offsets: boolean
 ): (barIndex: number, value: number, length: number) => number {
-  const kept = new KeptCalls();
+  const kept = new KeptCalls(isLowest);
   const name = (isLowest ? 'lowest' : 'highest') + (offsets ? 'bars' : '');
   return (barIndex, value, length) => {
     checkWindowLength(name, length, barIndex);
     kept.add(barIndex, value);
     const len = Math.trunc(length);
     if (barIndex < len - 1) return NaN;
-    const best = kept.best(len, isLowest);
+    const best = kept.best(len);
     if (best < 0) return NaN;
     return offsets ? -(barIndex - kept.bars[best]!) : kept.values[best]!;
   };
@@ -333,13 +390,13 @@ export function highestbars(): (barIndex: number, value: number, length: number)
 
 /** One `ta.pivothigh` / `ta.pivotlow` call site; rules in {@link pivothigh}. */
 function pivotSite(isLowest: boolean): (barIndex: number, value: number, leftbars: number, rightbars: number) => number {
-  const kept = new KeptCalls();
+  const kept = new KeptCalls(isLowest);
   return (barIndex, value, leftbars, rightbars) => {
     kept.add(barIndex, value);
     const left = Math.trunc(leftbars);
     const right = Math.trunc(rightbars);
     if (!(barIndex >= left + right)) return NaN;
-    const best = kept.best(left + right + 1, isLowest);
+    const best = kept.best(left + right + 1);
     return best >= 0 && kept.bars[best] === barIndex - right ? kept.values[best]! : NaN;
   };
 }
@@ -418,11 +475,12 @@ function loopSumSite(
 ): (barIndex: number, value: number, length: number) => [number, number] {
   const running = new RunningSum();
   const runningSq = new RunningSum();
+  const fn = name === 'sum' ? 'math.sum' : `ta.${name}`;
   let lastBar = NaN;
   let pending = false;
   return (barIndex, value, length) => {
     const len = Math.floor(length);
-    checkSumLength(name === 'sum' ? 'math.sum' : `ta.${name}`, len, barIndex);
+    checkSumLength(fn, len, barIndex);
     if (!(len >= 1)) throw new Error(`callsite.${name}: length must be at least 1 (got ${length})`);
     if (barIndex !== lastBar) {
       if (pending) {

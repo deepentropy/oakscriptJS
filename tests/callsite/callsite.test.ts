@@ -326,3 +326,41 @@ describe('callsite.sum / sma (ta.* call in a loop, #139)', () => {
     expect(out).toEqual(taCore.stdev(x, 3));
   });
 });
+
+describe('callsite.highest / lowest: long windows (#197)', () => {
+  // the rule of the call sites, scanned: the best of the last `length` kept values, the newest one on ties
+  const scan = (kept: number[], length: number, lowest: boolean): number => {
+    let best = kept.length - 1;
+    for (let k = best - 1; k >= 0 && k > kept.length - 1 - length; k--) {
+      if (lowest ? kept[k]! < kept[best]! : kept[k]! > kept[best]!) best = k;
+    }
+    return best;
+  };
+
+  it('a length that grows with the bars, loops and na values: the same results as a scan', () => {
+    const hi = callsite.highestByBar();
+    const loBars = callsite.lowestbars();
+    const kept: number[] = [];
+    const keptBars: number[] = [];
+    let start = 0;
+    for (let b = 0; b < 600; b++) {
+      if (b % 97 === 0) start = b;
+      for (let call = 0; call < 1 + (b % 3); call++) {
+        const v = (b * 7 + call * 3) % 11 === 0 ? NaN : ((b * 31 + call * 17) % 23) - (b % 5 === 0 ? 0 : 0.5);
+        const length = b % 4 === 0 ? b - start + 1 : 40 + (b % 60);
+        if (Number.isFinite(v)) {
+          if (keptBars[keptBars.length - 1] === b) kept[kept.length - 1] = v;
+          else {
+            kept.push(v);
+            keptBars.push(b);
+          }
+        }
+        const h = hi(b, v, length);
+        const l = loBars(b, v, length);
+        if (b < length - 1 || kept.length === 0) continue;
+        expect(h).toBe(kept[scan(kept, length, false)]);
+        expect(l).toBe(-(b - keptBars[scan(kept, length, true)]!));
+      }
+    }
+  });
+});

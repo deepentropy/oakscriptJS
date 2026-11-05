@@ -74,9 +74,18 @@ export class RunningSum {
   private stepLength = 0;
   private stepX = NaN;
   private stepPartials: number[] = [];
+  /**
+   * {@link resized} partials of the kept state by length, until the next {@link commit}: the calls of a loop (several
+   * steps on one bar) move the same kept sum to the same lengths. Kept from the second step on, so that one step per
+   * bar costs nothing more.
+   */
+  private readonly resizedByLength = new Map<number, readonly number[]>();
+  private resizedSinceCommit = 0;
 
-  /** The partials of the last `len` values (kept state, nothing added). */
+  /** The partials of the last `len` values (kept state, nothing added); a new array. */
   private resized(len: number): number[] {
+    const cached = this.resizedByLength.get(len);
+    if (cached) return cached.slice();
     const values = this.values;
     const n = values.length;
     const p = this.partials.slice();
@@ -84,6 +93,7 @@ export class RunningSum {
     const want = Math.min(len, n);
     if (want < kept) for (let k = n - kept; k < n - want; k++) addExact(p, -values[k]!);
     else for (let k = n - kept - 1; k >= n - want; k--) addExact(p, values[k]!);
+    if (this.resizedSinceCommit++ > 0) this.resizedByLength.set(len, p.slice());
     return p;
   }
 
@@ -123,6 +133,8 @@ export class RunningSum {
     if (!Number.isNaN(this.stepX)) this.values.push(this.stepX);
     this.keptLength = this.stepLength;
     this.partials = this.stepPartials;
+    this.resizedSinceCommit = 0;
+    if (this.resizedByLength.size > 0) this.resizedByLength.clear();
   }
 }
 
