@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 05/11/2026
+
+### Added
+
+- `callsite.crossoverByBar()` / `crossunderByBar()`: `ta.crossover` / `ta.crossunder` called several times on one bar (a `for` loop over zones), called with `(bar_index, a, b)`: every call compares with the last call of the previous bar, as PineScript. `callsite.crossover()` compares with the previous call, also on the same bar (#194).
+- `request.security_lower_tf` / `securityLowerTf` give out the last 100,000 lower-timeframe bars at most, as PineScript: older chart bars get an empty array. `MAX_INTRABARS`; `securityLowerTf(..., { maxIntrabars })` changes it (#192).
+
+### Fixed
+
+- `hlcc4` is `(high + low + 2 * close) / 4`, as PineScript; summing close twice differed in the last bits (`getSource`, `getSourceSeries`, the script `hlcc4`) (#189).
+- `color.from_gradient` reads a `'transparent'` end colour (the library's na colour) as na: alpha 0 and the other colour's RGB (#191).
+- `table.merge_cells` keeps one merge per cell range: merging the same cells on every bar no longer grows the table without limit (#190).
+
 ## [0.14.1] - 04/11/2026
 
 ### Documentation
