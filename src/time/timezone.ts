@@ -36,13 +36,18 @@ type Zone =
   | {
       readonly kind: 'iana';
       readonly format: Intl.DateTimeFormat;
-      /** Offset of each UTC hour (`floor(time / 1 h)`); null for an hour with an offset change inside */
+      /** Offset at the start of each UTC day (`floor(time / 1 day)`) */
+      readonly dayStarts: Map<number, number>;
+      /** Offset of each UTC hour (`floor(time / 1 h)`) of a day with an offset change; null for an hour with the
+       *  change inside */
       readonly hours: Map<number, number | null>;
     };
 
 const MS_PER_HOUR = 3_600_000;
 /** Cached hours per zone before the cache restarts (about 11 years of hours) */
 const MAX_CACHED_HOURS = 100_000;
+/** Cached days per zone before the cache restarts (about 270 years) */
+const MAX_CACHED_DAYS = 100_000;
 
 const zones = new Map<string, Zone>();
 
@@ -80,19 +85,36 @@ function resolveZone(timezone: string): Zone {
     } catch {
       throw invalid();
     }
-    zone = { kind: 'iana', format, hours: new Map() };
+    zone = { kind: 'iana', format, dayStarts: new Map(), hours: new Map() };
   }
   zones.set(timezone, zone);
   return zone;
 }
 
+/** Offset of the zone at the start of UTC day `day`, cached. */
+function dayStartOffset(zone: Zone & { kind: 'iana' }, day: number): number {
+  let offset = zone.dayStarts.get(day);
+  if (offset === undefined) {
+    offset = formattedOffset(zone.format, day * MS_PER_DAY);
+    if (zone.dayStarts.size >= MAX_CACHED_DAYS) zone.dayStarts.clear();
+    zone.dayStarts.set(day, offset);
+  }
+  return offset;
+}
+
 /**
  * Offset of the zone from UTC at instant `time`, in milliseconds (local = UTC + offset).
- * An offset change happens at most once in a UTC hour, so when the first and the last second of the hour have the
- * same offset, the whole hour has it: it is computed once and cached.
+ *
+ * Two offset changes of a zone are always more than a day apart (the closest ones of the time zone database are 167
+ * hours apart), so when a UTC day starts with the offset of the next day, the whole day has it: daily bars cost one
+ * lookup per day. In a day with a change, an hour whose first and last second have the same offset has it (an offset
+ * change happens at most once in an hour): it is computed once and cached.
  */
 function offsetAt(zone: Zone, time: number): number {
   if (zone.kind === 'fixed') return zone.offsetMs;
+  const day = Math.floor(time / MS_PER_DAY);
+  const start = dayStartOffset(zone, day);
+  if (start === dayStartOffset(zone, day + 1)) return start;
   const hour = Math.floor(time / MS_PER_HOUR);
   let offset = zone.hours.get(hour);
   if (offset === undefined) {

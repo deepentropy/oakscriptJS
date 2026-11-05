@@ -1,4 +1,5 @@
 import { time } from '../../src';
+import { zoneOffset } from '../../src/time/timezone';
 
 describe('time.timestamp', () => {
   // Expected values: PineScript results
@@ -106,5 +107,29 @@ describe('timestamp: forms measured on PineScript (PyneCore gap audit)', () => {
 describe('timestamp: an na field counts as 0 (PineScript)', () => {
   it('day na of January 2020 is 2019-12-31', () => {
     expect(time.timestamp('UTC', 2020, 1, NaN, 0, 0)).toBe(1577750400000);
+  });
+});
+
+describe('time zone offsets around the clock changes (#197)', () => {
+  // the offset of the host's time zone data at each instant
+  const intlOffset = (format: Intl.DateTimeFormat, time: number): number => {
+    const parts = format.formatToParts(time);
+    const f = Object.fromEntries(parts.map((p) => [p.type, Number(p.value)]));
+    return Date.UTC(f.year!, f.month! - 1, f.day!, f.hour!, f.minute!, f.second!) - time;
+  };
+
+  it('every 15 minutes of the days around the 2024 changes, and daily over 1970-2030', () => {
+    const zones = ['America/New_York', 'Australia/Lord_Howe', 'Europe/London', 'Asia/Gaza', 'America/St_Johns'];
+    for (const zone of zones) {
+      const format = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+      });
+      const times: number[] = [];
+      for (let t = Date.UTC(2024, 2, 1); t < Date.UTC(2024, 3, 15); t += 15 * 60_000) times.push(t);
+      for (let t = Date.UTC(2024, 8, 25); t < Date.UTC(2024, 10, 10); t += 15 * 60_000) times.push(t);
+      for (let t = Date.UTC(1970, 0, 1, 13); t < Date.UTC(2030, 0, 1); t += 86_400_000) times.push(t);
+      expect(times.filter((t) => zoneOffset(t, zone) !== intlOffset(format, t))).toEqual([]);
+    }
   });
 });
