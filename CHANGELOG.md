@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Script API: `na(x)` and `nz(x, replacement)` take a Series as in PineScript (`na` gives a Series of 1 / 0, 1 where
+  x is NaN or ±Infinity; the replacement is a number, default 0, or a Series), and `color.from_gradient` with a
+  Series argument or per-bar colours gives one colour per bar, for `plot` / `fill` / `bgcolor` / `barcolor` (#187).
+
+### Fixed
+
+- Docs: `math.random` uses its seed (`docs/inventory.md` said it did not); the doc comment of the Series `ta.bb`
+  gives the order `[middle, upper, lower]` it returns (#187).
+
 ## [0.15.3] - 05/11/2026
 
 ### Changed

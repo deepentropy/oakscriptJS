@@ -104,18 +104,18 @@ export function macd(
  * @param source - Source series
  * @param length - Period length
  * @param mult - Standard deviation multiplier
- * @returns Tuple of [upper, basis, lower] Series
+ * @returns Tuple of [middle, upper, lower] Series, as PineScript `[middle, upper, lower] = ta.bb(...)`
  */
 export function bb(source: Series, length: number, mult: number): [Series, Series, Series] {
   const bars = source.bars as Bar[];
   const sourceValues = source.toArray();
-  const [upperVals, basisVals, lowerVals] = taCore.bb(sourceValues, length, mult);
+  const [basisVals, upperVals, lowerVals] = taCore.bb(sourceValues, length, mult);
 
-  const upperSeries = Series.fromArray(bars, upperVals);
   const basisSeries = Series.fromArray(bars, basisVals);
+  const upperSeries = Series.fromArray(bars, upperVals);
   const lowerSeries = Series.fromArray(bars, lowerVals);
 
-  return [upperSeries, basisSeries, lowerSeries];
+  return [basisSeries, upperSeries, lowerSeries];
 }
 
     /**

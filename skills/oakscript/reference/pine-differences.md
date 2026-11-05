@@ -16,7 +16,7 @@ from the vectorized execution.
 | `a > b`, `a == b`, `a and b`, `not a` on series | `a.gt(b)`, `a.eq(b)`, `a.and(b)`, `a.not()` |
 | `cond ? x : y` on series | `cond.iff(x, y)` |
 | `x[1]` | `x.offset(1)`; in a bar loop `c.get(x, 1)` |
-| `na`, `na(x)`, `nz(x)` | `NaN`, `na(v)` / `nz(v)` on numbers; `x.iff(x, 0)` for `nz` on a Series |
+| `na`, `na(x)`, `nz(x)` | `NaN`, `na(x)` / `nz(x)` (a Series: `na` gives 1 / 0; or numbers in a bar loop) |
 | `var float s = na` + `s := ...` | `let s = NaN;` before `eachBar((c) => { s = ...; })` |
 | `if close > open` (per bar) | in a bar loop: `if (c.close > c.open)` |
 | `for i = 0 to n - 1` | `for (let i = 0; i < n; i++)` in a bar loop |
@@ -67,7 +67,6 @@ The Pine constants exist with their Pine names: `shape.*`, `location.*`, `size.*
 
 ## API differences
 
-- `color.from_gradient` takes numbers: build per-bar gradients in a bar loop.
 - `plot()` has no `show_last`, `trackprice` or `join` option. `offset` shifts the plot as in Pine (values past the
   first or last bar are not drawn).
 - `fill()` accepts `show_last` / `fillgaps` / `display` and ignores them.

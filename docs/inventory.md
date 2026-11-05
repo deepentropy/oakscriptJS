@@ -134,7 +134,8 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 
 `ta.obv`, `ta.pvt`, `ta.accdist`, `ta.nvi`, `ta.pvi`, `ta.iii`, `ta.wad`, `ta.wvad`: context-bound Series in
 the script API (`ta.obv`), functions of the bars in `ta` (`ta.obv(bars)`) and of the columns in `taCore`
-(`taCore.obv(close, volume)`). `ta.tr` is a function (`ta.tr(handle_na)`). `fixnan()` is a top-level function.
+(`taCore.obv(close, volume)`). `ta.tr` is a function (`ta.tr(handle_na)`). `fixnan()` is a top-level function. In the script API `na(x)` and
+`nz(x, replacement)` take a Series too (`na` gives a Series of 1 / 0; the replacement is a number or a Series).
 
 ### Not Implemented (0 official functions)
 
@@ -160,7 +161,7 @@ All 59 official ta functions are implemented. `ichimoku()` and `zigzag()` are cu
 12. `max()` - Maximum of arguments
 13. `min()` - Minimum of arguments
 14. `pow()` - Power (x^y)
-15. `random()` - Random number (NOTE: seed parameter not implemented)
+15. `random()` - Random number (with a seed: the PineScript sequence)
 16. `round()` - Round to nearest integer or precision
 17. `round_to_mintick()` - Round to nearest tick size
 18. `sign()` - Sign of number (-1, 0, 1)
@@ -388,7 +389,7 @@ None.
 ### Implemented (7 official + 1 custom = 8 functions)
 
 1. `b()` - Extract blue component
-2. `from_gradient()` - Create color from gradient between two colors
+2. `from_gradient()` - Create color from gradient between two colors (script API: Series arguments give one colour per bar)
 3. `from_hex()` - Create color from hex string (custom addition, not in official API)
 4. `g()` - Extract green component
 5. `new()` - Create new color with transparency (aliased as `new_color`)
@@ -734,7 +735,7 @@ These functions are implemented in OakScriptJS but do not exist in the official 
 
 2. **Series Class**: The `Series` class provides lazy evaluation and method chaining. JavaScript has no operator overloading, so `(close - open) / (high - low)` is written `close.sub(open).div(high.sub(low))`; inside `eachBar()` the values are plain numbers and native operators work.
 
-3. **Deterministic Random**: `math.random()` accepts a seed parameter but doesn't implement deterministic randomness yet.
+3. **Deterministic Random**: `math.random(min, max, seed)` gives the PineScript sequence of the seed, one number per call; two call sites with the same seed use `callsite.random(seed)`.
 
 4. **Type-Specific Arrays**: `new_bool()`, `new_int()`, `new_float()`, `new_string()`, and drawing object arrays are type-specific wrappers around `new_array()`.
 

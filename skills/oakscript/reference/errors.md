@@ -79,7 +79,6 @@ The run stops at the first error; the message names the call. The ones you will 
 | a plot that starts late | the warm-up of long lengths, or of a higher timeframe (20 daily bars on an hourly chart is 480 bars) | expected; shorter lengths or more bars |
 | values that look like the future (backtests too good) | `barmerge.lookahead_on` on a series that is not offset | lookahead off, or `.offset(1)` inside the expression |
 | a strategy without trades | conditions read as `c.get(cond)` on NaN-only Series, orders placed outside the conditions you expect, `pyramiding: 0` blocking a second entry in the same direction | plot the conditions (`plotshape`) and check them first |
-| `na(series)` / `nz(series)` has no effect | they take numbers | in a loop on `c.get(x)`, or `x.iff(x, 0)` |
 | an input never changes the output | the input value is not used, or its title changed (new id) | use the returned value; keep titles stable |
 
 ## Checking the output

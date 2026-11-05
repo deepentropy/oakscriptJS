@@ -411,6 +411,12 @@ barcolor(color.when(close.gt(close.offset(1)), color.green, color.red));
 
 `color.when(cond, colorTrue, colorFalse?)` builds the per-bar array; omit
 `colorFalse` to leave those bars uncolored (PineScript `na`).
+`color.from_gradient(value, bottom, top, bottomColor, topColor)` with a Series argument (or a per-bar colour array)
+gives the gradient colour of each bar: `plot(r, 'RSI', { color: color.from_gradient(r, 30, 70, color.red, color.green) })`.
+
+`na(x)` and `nz(x, replacement)` take a Series as in PineScript: `na(x)` is a Series of 1 / 0 (1 where x is NaN or
+±Infinity), `nz(x, open)` replaces those values with the replacement of the same bar (a number, default 0, or a
+Series). On numbers (in `eachBar`) they return a boolean and a number.
 
 The run result carries the data: `result.markers` (`MarkerData[]`),
 `result.bgColors` (`BgColorData[]`) and `result.barColors` (`BarColorData[]`).

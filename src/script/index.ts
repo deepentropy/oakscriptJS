@@ -79,7 +79,7 @@ import * as pineConstants from './constants.js';
 import { drawingNamespace, isPlainObject, namedArguments, unknownArgument } from './drawing-args.js';
 import * as colorCore from '../color/index.js';
 import { inputColorDefault } from '../color/parse.js';
-import { fixnan as fixnanValues, isNA, nz } from '../utils/index.js';
+import { fixnan as fixnanValues, isNA, nz as nzValue } from '../utils/index.js';
 import { externalSource } from '../utils/source-resolver.js';
 import * as lineCore from '../line/index.js';
 import * as labelCore from '../label/index.js';
@@ -1052,6 +1052,30 @@ export function fixnan(source: Series | Array<string | undefined>): Series | Arr
   return withPalette(fixnanValues(source), colorPalettes.get(source));
 }
 
+/** PineScript `na(x)`. On a Series: a Series of 1 / 0, 1 where the value is na (NaN or +/-Infinity, #187). On a
+ *  single value (a number of a bar loop, a colour, a drawing): true when it is na. */
+export function na(x: Series): Series;
+export function na(x: unknown): boolean;
+export function na(x: unknown): Series | boolean {
+  if (x instanceof Series) return Series.fromArray(ctxBars, x.toArray().map((v) => (isNA(v) ? 1 : 0)));
+  return isNA(x);
+}
+
+/** PineScript `nz(source, replacement)`; replacement defaults to 0. On a Series: each na value (NaN or +/-Infinity)
+ *  becomes the replacement of the same bar, a number or a Series (#187). On single values: the value or the
+ *  replacement. */
+export function nz(source: Series, replacement?: number | Series): Series;
+export function nz<T>(source: T, replacement?: T): T;
+export function nz(source: unknown, replacement: unknown = 0): unknown {
+  if (source instanceof Series) {
+    const values = source.toArray();
+    const rep = replacement instanceof Series ? replacement.toArray() : undefined;
+    const r = rep ? 0 : Number(replacement);
+    return Series.fromArray(ctxBars, values.map((v, i) => (isNA(v) ? (rep ? rep[i]! : r) : v)));
+  }
+  return nzValue(source, replacement);
+}
+
 // ── Color helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -1082,10 +1106,50 @@ function colorWhen(cond: Series, colorTrue: string, colorFalse?: string): Array<
   return withPalette(colors, palette);
 }
 
+type GradientColor = string | null | undefined;
+
+/** PineScript `color.from_gradient(value, bottom_value, top_value, bottom_color, top_color)`. With numbers and
+ *  colours: one colour. When an argument is a Series (or a colour is a per-bar array, as from `color.when`): the
+ *  colour of each bar, the rule of the number form applied to the values of that bar (#187), for
+ *  plot()/fill()/bgcolor()/barcolor(). */
+function fromGradient(
+  value: number,
+  bottom_value: number,
+  top_value: number,
+  bottom_color: GradientColor,
+  top_color: GradientColor
+): string;
+function fromGradient(
+  value: number | Series,
+  bottom_value: number | Series,
+  top_value: number | Series,
+  bottom_color: GradientColor | readonly GradientColor[],
+  top_color: GradientColor | readonly GradientColor[]
+): string | string[];
+function fromGradient(
+  value: number | Series,
+  bottom_value: number | Series,
+  top_value: number | Series,
+  bottom_color: GradientColor | readonly GradientColor[],
+  top_color: GradientColor | readonly GradientColor[]
+): string | string[] {
+  const args = [value, bottom_value, top_value];
+  if (!args.some((a) => a instanceof Series) && !Array.isArray(bottom_color) && !Array.isArray(top_color)) {
+    return colorCore.from_gradient(value as number, bottom_value as number, top_value as number, bottom_color as string, top_color as string);
+  }
+  const [v, lo, hi] = args.map((a) => (a instanceof Series ? a.toArray() : undefined));
+  const at = (arr: number[] | undefined, num: number | Series, i: number) => (arr ? arr[i]! : (num as number));
+  const colorAt = (c: GradientColor | readonly GradientColor[], i: number) => (Array.isArray(c) ? c[i] : (c as GradientColor));
+  return Array.from({ length: ctxBars.length }, (_, i) =>
+    colorCore.from_gradient(at(v, value, i), at(lo, bottom_value, i), at(hi, top_value, i), colorAt(bottom_color, i) as string, colorAt(top_color, i) as string)
+  );
+}
+
 /** color.* plus `when` — per-bar conditional colors for plot()/fill()/bgcolor()/barcolor(). */
 export const color = strictNamespace('color', {
   ...colorCore,
   new: colorCore.new_color,
+  from_gradient: fromGradient,
   when: colorWhen,
 });
 
@@ -3338,7 +3402,7 @@ export const alert = Object.assign(alertImpl, {
 
 // ── Convenience re-exports ───────────────────────────────────────────────────
 
-export { Series, BarData, isNA as na, nz };
+export { Series, BarData };
 export { STRATEGY_DEFAULTS } from '../strategy/index.js';
 export type {
   StrategyCloseAllOptions,

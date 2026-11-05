@@ -77,7 +77,7 @@ plotshape(ta.crossover(close, sma), "Cross", { style: shape.triangleup, location
    throws with the closest names. In a bar loop a Series argument of a drawing is its value on the current bar
    (`label.new(bar_index, high, "A")`).
 6. **na is NaN.** There is no `na` constant: use `NaN` (`undefined` for a colour). `na(x)` and `nz(x, y)` take
-   numbers (use them in a bar loop); on a Series use `x.iff(x, 0)` for `nz(x)`, `fixnan(x)`, or a bar loop.
+   a Series (`na(x)` is a Series of 1 / 0, `nz(x, open)` a Series) or numbers in a bar loop; `fixnan(x)` too.
    Plots skip NaN bars. JS comparisons with NaN are false; for the Pine rules (1e-10 tolerance) use
    `compare.gt(a, b)`, `compare.eq(a, b)`...
 7. **Per-bar colours** are arrays with one colour per bar: `color.when(cond, colorTrue, colorFalse?)`

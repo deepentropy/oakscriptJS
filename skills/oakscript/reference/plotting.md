@@ -39,18 +39,16 @@ fill(upper, lower, color.new(color.purple, 90), "Band");
   `color.white`, `color.black`, `color.yellow`, `color.aqua`, `color.lime`, `color.maroon`, `color.navy`,
   `color.olive`, `color.silver`, `color.fuchsia`; any CSS colour string (`"#2962FF"`, `"rgba(41,98,255,0.5)"`).
 - `color.new(c, transp)` (0 opaque, 100 invisible), `color.rgb(r, g, b, transp?)`,
-  `color.from_gradient(value, bottom, top, bottomColor, topColor)` on numbers, `color.r/g/b/t(c)`.
+  `color.from_gradient(value, bottom, top, bottomColor, topColor)` (a Series argument gives a per-bar array),
+  `color.r/g/b/t(c)`.
 - **Per-bar colours** are arrays with one colour per bar (`undefined` = na, not drawn):
-  `color.when(cond, colorTrue, colorFalse?)` for two colours; a bar loop for more, or for a gradient.
+  `color.when(cond, colorTrue, colorFalse?)` for two colours, `color.from_gradient` on a Series for a gradient, a
+  bar loop for anything else.
 
 ```js
 indicator("RSI gradient", { overlay: false });
 const r = ta.rsi(close, 14);
-const colors = [];
-eachBar((c) => {
-  colors.push(color.from_gradient(c.get(r), 30, 70, color.red, color.green)); // numbers, one bar at a time
-});
-plot(r, "RSI", { color: colors, linewidth: 2 });
+plot(r, "RSI", { color: color.from_gradient(r, 30, 70, color.red, color.green), linewidth: 2 }); // one colour per bar
 ```
 
 ## hline and fill
