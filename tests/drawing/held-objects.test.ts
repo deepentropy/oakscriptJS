@@ -3,6 +3,7 @@
  * The counts are the PineScript results of the same scripts.
  */
 import { box, holdDrawing, label, line, linefill, releaseDrawing, resetDrawings, setDrawingBar, varDrawing } from '../../src';
+import { restoreDrawingState, saveDrawingState } from '../../src/drawing/registry';
 import { box as scriptBox, eachBar, executeScript, indicator, varDrawing as scriptVar } from '../../src/script';
 import type { Bar, Box, Line, Linefill } from '../../src/types';
 
@@ -109,5 +110,24 @@ describe('linefill limit: max_lines_count, held fills and fills released less th
     expect(linefill.all()).toContain(made[15]);
     expect(linefill.all()).not.toContain(made[14]);
     expect(linefill.all().length).toBeLessThanOrEqual(15);
+  });
+});
+
+describe('objects held around a nested run (#197)', () => {
+  afterAll(() => resetDrawings());
+
+  it('a nested run that holds and releases an object of the outer run leaves it held there', () => {
+    resetDrawings({ line: 5 });
+    setDrawingBar(0);
+    const kept = holdDrawing(line.new(0, 1, 1, 1));
+    setDrawingBar(1);
+    const outer = saveDrawingState();
+    resetDrawings({ line: 5 });
+    setDrawingBar(0);
+    holdDrawing(kept);
+    releaseDrawing(kept);
+    restoreDrawingState(outer);
+    for (let i = 0; i < 20; i++) line.new(i, 1, i + 1, 1);
+    expect(line.all()).toContain(kept);
   });
 });

@@ -85,16 +85,73 @@ let limits: Required<DrawingLimits> = {
   box: DEFAULT_MAX_COUNT,
   polyline: DEFAULT_MAX_COUNT,
 };
-const deleted = new WeakSet<object>();
-/** Objects held by a `var` variable, with the number of variables that hold them. */
-let held = new WeakMap<object, number>();
-/** Bar on which the last `var` variable released an object (linefill rule). */
-let releasedAt = new WeakMap<object, number>();
+/**
+ * Base of the classes that add a private field to an existing object (their constructor returns the object they are
+ * given). Such a field replaces a WeakMap entry: a study that creates hundreds of thousands of objects spends most of
+ * its drawing time adding WeakMap keys. The field is invisible (not a key, not copied by a spread) and stays for the
+ * life of the object, as the entry did.
+ */
+export class Stamped {
+  constructor(obj: object) {
+    return obj;
+  }
+}
+
+/** The deleted objects. */
+class Deleted extends Stamped {
+  #deleted = true;
+  static mark(obj: object): void {
+    if (!Deleted.has(obj)) new Deleted(obj);
+  }
+  static has(obj: object): boolean {
+    return #deleted in obj;
+  }
+}
+
+/** The `var` records of a run: a reset starts new ones, a nested run saves and puts back those of its run. */
+interface Holds {
+  /** The records of the objects whose private record belongs to another run */
+  readonly others: WeakMap<object, HoldRecord>;
+}
+
+/** What the `var` variables of a run did with an object. */
+interface HoldRecord {
+  readonly run: Holds;
+  /** Number of `var` variables that hold the object (0: not held) */
+  count: number;
+  /** Bar on which a `var` variable got the object: on that bar the maximum count deletes it only when no other object
+   *  can go; from the next bar on, never. Undefined outside a bar loop */
+  heldAt: number | undefined;
+  /** Bar on which the last `var` variable released the object (linefill rule) */
+  releasedAt: number | undefined;
+}
+let holds: Holds = { others: new WeakMap() };
+
+/**
+ * The record of the first run that holds an object, on the object itself (a study holding a new object on every bar
+ * would otherwise add a WeakMap key per bar); the records of other runs go to their {@link Holds.others}.
+ */
+class Held extends Stamped {
+  #record: HoldRecord;
+  private constructor(obj: object, record: HoldRecord) {
+    super(obj);
+    this.#record = record;
+  }
+  /** The record of `obj` in the current run, if any. */
+  static get(obj: object): HoldRecord | undefined {
+    const own = #record in obj ? (obj as Held).#record : undefined;
+    return own?.run === holds ? own : holds.others.get(obj);
+  }
+  /** A new record of `obj` in the current run (it has none). */
+  static create(obj: object): HoldRecord {
+    const record: HoldRecord = { run: holds, count: 0, heldAt: undefined, releasedAt: undefined };
+    if (#record in obj) holds.others.set(obj, record);
+    else new Held(obj, record);
+    return record;
+  }
+}
 /** Bars during which a released linefill is still skipped by the maximum count. */
 const LINEFILL_RELEASE_BARS = 5000;
-/** Bar on which a `var` variable got an object: on that bar the maximum count deletes it only when no other object can
- *  go; from the next bar on, never. */
-let heldAt = new WeakMap<object, number>();
 /** Kinds with a maximum count of their own. */
 type CountedKind = 'line' | 'label' | 'box' | 'polyline';
 const COUNTED_KINDS: readonly CountedKind[] = ['line', 'label', 'box', 'polyline'];
@@ -109,26 +166,26 @@ const PENDING_RESET: Record<CountedKind, number> = { line: 5, label: 5, box: 5, 
  * variable): the maximum count never deletes it, and it still counts. Returns the object.
  */
 export function holdDrawing<T extends object>(obj: T): T {
-  if (!held.has(obj)) {
-    if (currentBar === null) heldAt.delete(obj);
-    else heldAt.set(obj, currentBar);
-  }
-  held.set(obj, (held.get(obj) ?? 0) + 1);
+  const record = Held.get(obj) ?? Held.create(obj);
+  if (record.count === 0) record.heldAt = currentBar ?? undefined;
+  record.count++;
   return obj;
 }
 
 /** The `var` variable no longer refers to the object (it got another object or `na`). */
 export function releaseDrawing(obj: object | null | undefined): void {
   if (!obj) return;
-  const count = held.get(obj) ?? 0;
-  if (count > 1) held.set(obj, count - 1);
-  else if (held.delete(obj) && currentBar !== null) releasedAt.set(obj, currentBar);
+  const record = Held.get(obj);
+  if (!record || record.count === 0) return;
+  record.count--;
+  if (record.count === 0 && currentBar !== null) record.releasedAt = currentBar;
 }
 
 /** Held by a `var` variable since a bar before the current one (or outside a bar loop). */
 function heldBefore(obj: object): boolean {
-  if (!held.has(obj)) return false;
-  const bar = heldAt.get(obj);
+  const record = Held.get(obj);
+  if (!record || record.count === 0) return false;
+  const bar = record.heldAt;
   return bar === undefined || currentBar === null || bar < currentBar;
 }
 
@@ -139,13 +196,17 @@ function heldBefore(obj: object): boolean {
  */
 function heldOnThisBar(obj: object): boolean {
   if (currentBar === null) return false;
-  return held.has(obj) ? heldAt.get(obj) === currentBar : releasedAt.get(obj) === currentBar;
+  const record = Held.get(obj);
+  if (!record) return false;
+  return record.count > 0 ? record.heldAt === currentBar : record.releasedAt === currentBar;
 }
 
 /** Linefill rule: held, or released less than 5,000 bars ago. */
 function fillProtected(obj: object): boolean {
-  if (held.has(obj)) return true;
-  const bar = releasedAt.get(obj);
+  const record = Held.get(obj);
+  if (!record) return false;
+  if (record.count > 0) return true;
+  const bar = record.releasedAt;
   return bar !== undefined && currentBar !== null && currentBar - bar < LINEFILL_RELEASE_BARS;
 }
 
@@ -271,11 +332,38 @@ const COORDINATES: { [K in DrawingKind]: Array<keyof DrawingTypes[K]> } = {
   table: [],
 };
 
+/** The live linefills of each line, in creation order: deleting a line or making a fill does not scan all the fills. */
+let fillsOfLine = new Map<Line, Linefill[]>();
+
+function trackFill(fill: Linefill): void {
+  for (const l of fill.line1 === fill.line2 ? [fill.line1] : [fill.line1, fill.line2]) {
+    const fills = fillsOfLine.get(l);
+    if (fills) fills.push(fill);
+    else fillsOfLine.set(l, [fill]);
+  }
+}
+
+function untrackFill(fill: Linefill): void {
+  for (const l of fill.line1 === fill.line2 ? [fill.line1] : [fill.line1, fill.line2]) {
+    const fills = fillsOfLine.get(l);
+    if (!fills) continue;
+    const k = fills.indexOf(fill);
+    if (k !== -1) fills.splice(k, 1);
+    if (fills.length === 0) fillsOfLine.delete(l);
+  }
+}
+
+/** The live linefills that use `line`, in creation order (do not modify). */
+export function liveFillsOf(line: Line): readonly Linefill[] {
+  return fillsOfLine.get(line) ?? [];
+}
+
 function markDeleted<K extends DrawingKind>(kind: K, obj: DrawingTypes[K], explicit: boolean): void {
-  deleted.add(obj);
+  Deleted.mark(obj);
   for (const field of COORDINATES[kind]) (obj as unknown as Record<string, unknown>)[field as string] = NaN;
   if (kind === 'line' && explicit) {
-    for (const fill of live.linefill.filter((f) => f.line1 === obj || f.line2 === obj)) remove('linefill', fill);
+    const fills = fillsOfLine.get(obj as Line);
+    if (fills) for (const fill of [...fills]) remove('linefill', fill);
   }
 }
 
@@ -298,26 +386,36 @@ function cutOldest<K extends DrawingKind>(
   if (kind === 'table') return []; // tables have no maximum count
   const max = limits[kind === 'linefill' ? 'line' : (kind as keyof DrawingLimits)] + allowance(kind);
   if (list.length <= max + SLACK) return [];
-  const gone = new Set<object>();
   let excess = list.length - max;
   const candidate = (old: DrawingTypes[K]): boolean =>
     old !== obj && (!only || only(old)) && !(kind === 'linefill' ? fillProtected(old) : heldBefore(old));
-  // the oldest first; the objects a `var` variable got (or released) on this bar only when the others are not enough
+  // positions of the objects to delete. The oldest first; the objects a `var` variable got (or released) on this bar
+  // only when the others are not enough (the two passes pick different objects)
+  const gone: number[] = [];
   for (const weak of kind === 'linefill' ? [false] : [false, true]) {
-    for (const old of list) {
-      if (excess <= 0) break;
-      if (!gone.has(old) && candidate(old) && (kind === 'linefill' || heldOnThisBar(old) === weak)) {
+    const before = gone.length;
+    for (let k = 0; k < list.length && excess > 0; k++) {
+      const old = list[k]!;
+      if (candidate(old) && (kind === 'linefill' || heldOnThisBar(old) === weak)) {
         excess--;
-        gone.add(old);
+        gone.push(k);
       }
     }
+    if (before > 0 && gone.length > before) gone.sort((a, b) => a - b);
   }
-  const kept = list.filter((old) => !gone.has(old));
-  const cut = list.filter((old) => gone.has(old));
+  const cut = gone.map((k) => list[k]!);
+  // the others keep their order; usually the cut is the oldest run of objects, removed at once
+  if (gone.length > 0 && gone[gone.length - 1]! - gone[0]! === gone.length - 1) list.splice(gone[0]!, gone.length);
+  else if (gone.length > 0) {
+    let to = gone[0]!;
+    for (let from = to, g = 0; from < list.length; from++) {
+      if (from === gone[g]) g++;
+      else list[to++] = list[from]!;
+    }
+    list.length = to;
+  }
   // linefills: still above the maximum + 5, the oldest go, the held ones too
-  if (kind === 'linefill' && kept.length > max + SLACK) cut.push(...kept.splice(0, kept.length - max));
-  list.length = 0;
-  list.push(...kept);
+  if (kind === 'linefill' && list.length > max + SLACK) cut.push(...list.splice(0, list.length - max));
   return cut;
 }
 
@@ -336,9 +434,13 @@ export function register<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): 
   if (lastBar && isCounted(kind)) return registerLast(lastBar, kind, obj);
   if (isCounted(kind) && pending[kind] >= PENDING_RESET[kind]) pending[kind] = 0;
   list.push(obj);
+  if (kind === 'linefill') trackFill(obj as Linefill);
   const cut = cutOldest(kind, list, obj);
   if (kind === 'polyline') pending.polyline += cut.length;
-  for (const old of cut) markDeleted(kind, old, false);
+  for (const old of cut) {
+    if (kind === 'linefill') untrackFill(old as Linefill);
+    markDeleted(kind, old, false);
+  }
   return obj;
 }
 
@@ -373,18 +475,20 @@ function registerLast<K extends DrawingKind>(bar: LastBar, kind: K, obj: Drawing
 /** Deletes an object (no effect when it is already deleted). */
 export function remove<K extends DrawingKind>(kind: K, obj: DrawingTypes[K]): void {
   const list = live[kind];
-  const index = list.indexOf(obj);
+  // from the end: an object is in the list once, and scripts mostly delete their newest objects
+  const index = list.lastIndexOf(obj);
   if (index !== -1) {
     list.splice(index, 1);
+    if (kind === 'linefill') untrackFill(obj as Linefill);
     if (isCounted(kind)) pending[kind]++;
     if (kind === 'polyline' && lastBar?.old.has(obj)) lastBar.oldPolylinesGone++;
   }
-  if (!deleted.has(obj)) markDeleted(kind, obj, true);
+  if (!Deleted.has(obj)) markDeleted(kind, obj, true);
 }
 
 /** True when the object was deleted (by `delete` or by the maximum count). */
 export function isDeleted(obj: unknown): boolean {
-  return typeof obj === 'object' && obj !== null && deleted.has(obj);
+  return typeof obj === 'object' && obj !== null && Deleted.has(obj);
 }
 
 /** The live objects of a kind, in creation order (a new array). */
@@ -395,10 +499,9 @@ export function all<K extends DrawingKind>(kind: K): Array<DrawingTypes[K]> {
 /** Forgets all objects (without deleting them) and sets the maximum counts (default 50). */
 export function resetDrawings(newLimits: DrawingLimits = {}): void {
   for (const kind of Object.keys(live) as DrawingKind[]) live[kind].length = 0;
+  fillsOfLine = new Map();
   created.clear();
-  held = new WeakMap();
-  releasedAt = new WeakMap();
-  heldAt = new WeakMap();
+  holds = { others: new WeakMap() };
   pending = { line: 0, label: 0, box: 0, polyline: 0 };
   currentBar = null;
   lastBarIndex = null;
@@ -420,9 +523,7 @@ export function setDrawingLimits(newLimits: DrawingLimits): void {
 export interface DrawingState {
   live: { [K in DrawingKind]: Array<DrawingTypes[K]> };
   created: DrawingKind[];
-  held: WeakMap<object, number>;
-  releasedAt: WeakMap<object, number>;
-  heldAt: WeakMap<object, number>;
+  holds: Holds;
   pending: Record<CountedKind, number>;
   currentBar: number | null;
   lastBarIndex: number | null;
@@ -442,9 +543,7 @@ export function saveDrawingState(): DrawingState {
       table: [...live.table],
     },
     created: [...created],
-    held,
-    releasedAt,
-    heldAt,
+    holds,
     pending: { ...pending },
     currentBar,
     lastBarIndex,
@@ -460,11 +559,11 @@ export function restoreDrawingState(s: DrawingState): void {
     list.length = 0;
     list.push(...(s.live[kind] as object[]));
   }
+  fillsOfLine = new Map();
+  for (const fill of live.linefill) trackFill(fill);
   created.clear();
   for (const kind of s.created) created.add(kind);
-  held = s.held;
-  releasedAt = s.releasedAt;
-  heldAt = s.heldAt;
+  holds = s.holds;
   pending = { ...s.pending };
   currentBar = s.currentBar;
   lastBarIndex = s.lastBarIndex;

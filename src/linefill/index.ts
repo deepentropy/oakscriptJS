@@ -10,7 +10,7 @@
  * @version 6
  */
 
-import { all as allDrawings, isDeleted, register, remove } from '../drawing/registry.js';
+import { Stamped, all as allDrawings, isDeleted, liveFillsOf, register, remove } from '../drawing/registry.js';
 import type { Linefill, Line, color } from '../types/index.js';
 
 /**
@@ -46,13 +46,13 @@ export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linef
   // PineScript: an na line gives an na linefill
   if (line1 === null || line1 === undefined || line2 === null || line2 === undefined) return null as unknown as Linefill;
   let found: Linefill | undefined;
-  for (const fill of allDrawings('linefill')) {
+  for (const fill of liveFillsOf(line1)) {
     const has = (l: Line): boolean => fill.line1 === l || fill.line2 === l;
-    if (has(line1) && has(line2) && (!found || (touched.get(fill) ?? 0) > (touched.get(found) ?? 0))) found = fill;
+    if (has(line2) && (!found || Touched.get(fill) > Touched.get(found))) found = fill;
   }
   if (found) {
     found.color = fillColor;
-    touched.set(found, ++touchCount);
+    Touched.set(found, ++touchCount);
     return found;
   }
   const fill = register('linefill', {
@@ -60,12 +60,21 @@ export function new_linefill(line1: Line, line2: Line, fillColor?: color): Linef
     line2,
     color: fillColor
   });
-  touched.set(fill, ++touchCount);
+  Touched.set(fill, ++touchCount);
   return fill;
 }
 
-/** Order in which the linefills were created or returned by `linefill.new` (the last one wins a lookup). */
-const touched = new WeakMap<Linefill, number>();
+/** Order in which the linefills were created or returned by `linefill.new` (the last one wins a lookup); 0 before. */
+class Touched extends Stamped {
+  #touch = 0;
+  static get(fill: Linefill): number {
+    return #touch in fill ? fill.#touch : 0;
+  }
+  static set(fill: Linefill, order: number): void {
+    if (!(#touch in fill)) new Touched(fill);
+    (fill as unknown as Touched).#touch = order;
+  }
+}
 let touchCount = 0;
 
 /**
