@@ -629,6 +629,9 @@ sees every bar, so such calls need a call site from the `callsite` namespace:
 `callsite.crossover()`, `crossunder()`, `cross()`, `barssince()`, `lowestByBar()`, `highestByBar()`,
 `lowestbars()`, `highestbars()`, `pivothigh()`, `pivotlow()`, `lowest()`, `highest()`, `linreg()`, `sum()`, `sma()`,
 `stdev()` in a bar loop.
+`callsite.crossoverByBar()` / `crossunderByBar()` (`site(bar_index, close, level)`) are `ta.crossover` /
+`ta.crossunder` called several times on one bar (a `for` loop over zones): every call compares with the last call of
+the previous bar, as PineScript; `callsite.crossover()` compares with the previous call, also on the same bar.
 `callsite.linreg()` takes the bar index: PineScript's `ta.linreg` keeps its window by bar, so in an `if` block the
 bars before the first call count as 0 (`site(bar_index, close, 10, 0)` on the bars where the block runs).
 `callsite.lowestByBar()` / `highestByBar()` / `lowestbars()` / `highestbars()` (`site(bar_index, low, 6)`) and

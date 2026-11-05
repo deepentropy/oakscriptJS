@@ -9,6 +9,8 @@
  * - {@link whenCalled}: vectorized, when the bars of the calls are known in advance.
  * - {@link crossover} / {@link crossunder} / {@link cross} / {@link barssince}: one stateful call site for bar
  *   loops, called only on the bars where the Pine call runs.
+ * - {@link crossoverByBar} / {@link crossunderByBar}: `ta.crossover` / `ta.crossunder` called several times on one
+ *   bar (a `for` loop over zones): every call compares with the last call of the previous bar.
  * - {@link lowestByBar} / {@link highestByBar} / {@link lowestbars} / {@link highestbars} / {@link pivothigh} /
  *   {@link pivotlow}: `ta.lowest` / `ta.highest` / `ta.lowestbars` / `ta.highestbars` / `ta.pivothigh` /
  *   `ta.pivotlow` in a conditional block or a loop, also with a length that changes on each call. They keep the
@@ -104,6 +106,59 @@ export function crossover(): (a: number, b: number) => boolean {
  */
 export function crossunder(): (a: number, b: number) => boolean {
   return twoSeriesSite((a, b, pa, pb) => a < b && pa >= pb);
+}
+
+/**
+ * A call site called several times on one bar (a `for` loop): every call of a bar compares with the arguments of the
+ * last call of an earlier bar where both were not na, as PineScript does for a ta.crossover in a loop.
+ */
+function twoSeriesByBarSite(test: (a: number, b: number, prevA: number, prevB: number) => boolean) {
+  let bar = NaN;
+  let prevA = NaN;
+  let prevB = NaN;
+  let lastA = NaN;
+  let lastB = NaN;
+  return (barIndex: number, a: number, b: number): boolean => {
+    if (barIndex !== bar) {
+      // a new bar: the last call of the earlier bar becomes the previous value
+      if (!Number.isNaN(lastA)) {
+        prevA = lastA;
+        prevB = lastB;
+      }
+      lastA = NaN;
+      lastB = NaN;
+      bar = barIndex;
+    }
+    const result = test(a, b, prevA, prevB);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      lastA = a;
+      lastB = b;
+    }
+    return result;
+  };
+}
+
+/**
+ * One `ta.crossover(a, b)` call site in a loop, called several times on one bar: each call compares with the last
+ * call of the previous bar (where both arguments were not na); false before such a call.
+ *
+ * ```typescript
+ * // Pine:  for z in zones
+ * //            if ta.crossover(close, z.mid)
+ * const reclaim = callsite.crossoverByBar();
+ * eachBar((c) => { for (const z of zones) if (reclaim(c.i, c.close, z.mid)) { ... } });
+ * ```
+ */
+export function crossoverByBar(): (barIndex: number, a: number, b: number) => boolean {
+  return twoSeriesByBarSite((a, b, pa, pb) => a > b && pa <= pb);
+}
+
+/**
+ * One `ta.crossunder(a, b)` call site in a loop, called several times on one bar: each call compares with the last
+ * call of the previous bar (where both arguments were not na); false before such a call.
+ */
+export function crossunderByBar(): (barIndex: number, a: number, b: number) => boolean {
+  return twoSeriesByBarSite((a, b, pa, pb) => a < b && pa >= pb);
 }
 
 /**

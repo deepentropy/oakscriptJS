@@ -55,7 +55,9 @@ The Pine constants exist with their Pine names: `shape.*`, `location.*`, `size.*
   a history of the bars where it ran. Computing it before the loop sees every bar, which can differ. For exact
   ports use `callsite` (`import { callsite } from "oakscriptjs";`): `callsite.crossover()`, `barssince()`,
   `highest()`, `lowest()`, `sma()`, `sum()`, `stdev()`, `linreg()`, `pivothigh()`... called with plain values in the
-  loop, or `callsite.whenCalled(calledSeries, fn, ...sources)`.
+  loop, or `callsite.whenCalled(calledSeries, fn, ...sources)`. A `ta.crossover` / `ta.crossunder` inside a `for`
+  loop (several calls per bar) is `callsite.crossoverByBar()` / `crossunderByBar()`, called with `(bar_index, a, b)`:
+  every call compares with the last call of the previous bar.
 - **Recalculation**: no rollback per tick in indicators; the host runs the script again on new data. Strategies
   can run inside the bar (`calc_on_order_fills`, bar magnifier ticks); `varip(initial)` keeps its value through
   those runs.

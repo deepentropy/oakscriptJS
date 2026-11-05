@@ -21,6 +21,31 @@ describe('callsite.whenCalled', () => {
   });
 });
 
+describe('callsite.crossoverByBar / crossunderByBar (#194)', () => {
+  it('every call of a bar compares with the last call of the previous bar', () => {
+    // Delta-zones case (BTCUSD 1D bar 888): close 561.86 then 584.22, zone midlines 56.356 and 575.61 checked in a loop
+    const over = callsite.crossoverByBar();
+    expect([over(887, 561.86, 56.356), over(887, 561.86, 575.61)]).toEqual([false, false]);
+    // every call of bar 888 compares with the last call of bar 887 (561.86 vs 575.61): the reclaim of 575.61 is seen
+    expect([over(888, 584.22, 56.356), over(888, 584.22, 575.61)]).toEqual([true, true]);
+    // the per-call site misses it: the call before was 584.22 vs 56.356
+    const perCall = callsite.crossover();
+    perCall(561.86, 56.356); perCall(561.86, 575.61); perCall(584.22, 56.356);
+    expect(perCall(584.22, 575.61)).toBe(false);
+  });
+
+  it('false before an earlier bar; na calls are skipped; a bar without calls keeps the earlier one', () => {
+    const under = callsite.crossunderByBar();
+    expect([under(0, 2, 1), under(0, 0, 1)]).toEqual([false, false]);
+    expect(under(1, NaN, 1)).toBe(false);
+    // bar 0 ended with (0, 1); bar 1 had only an na call; bar 3 compares with bar 0
+    expect([under(3, 0, 1), under(3, 3, 5)]).toEqual([false, false]);
+    expect(under(4, 2, 3)).toBe(false);
+    expect(under(5, 4, 3)).toBe(false);
+    expect(under(6, 1, 3)).toBe(true);
+  });
+});
+
 describe('callsite.crossover / crossunder / cross', () => {
   it('false on the first call; then compares with the previous call, not the previous bar', () => {
     const over = callsite.crossover();
