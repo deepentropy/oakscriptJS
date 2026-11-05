@@ -85,6 +85,7 @@ export {
   securityOther,
   securityOtherValues,
   securityLowerTf,
+  MAX_INTRABARS,
   type OtherSymbolChart,
   type OtherSymbolOptions,
   type SymbolCalendar,

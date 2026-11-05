@@ -583,7 +583,8 @@ try {
 lookahead on the last one that opened by its open. `request.security_lower_tf(symbol, timeframe, expression)` returns
 one array per chart bar: the values on the lower bars that close inside the chart bar (after its open, at or before
 its close). Ports use `securityLowerTf(chartBars, lowerBars, timeframe, chart, { other })`, which gives the
-`[from, to)` range of lower bars of each chart bar.
+`[from, to)` range of lower bars of each chart bar. As PineScript, only the last 100,000 lower bars are given out
+(`MAX_INTRABARS`; `{ maxIntrabars }` changes it): older chart bars get an empty array.
 
 ### The session of a chart context without a script
 

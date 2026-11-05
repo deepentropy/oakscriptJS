@@ -238,13 +238,16 @@ export function securityOther(
  * `otherBars` (a lower timeframe, the chart symbol or another one) that it contains: the bars whose close time is
  * after the open of the chart bar and at or before its close (a 13:00 hourly bar of a 24x7 symbol is in a 13:30 stock
  * day, which closes at 20:00). An empty range for a chart bar without such bars.
+ *
+ * As PineScript, at most the last {@link MAX_INTRABARS} (100,000) lower-timeframe bars are given out
+ * (`options.maxIntrabars` changes it): the older chart bars get an empty range (#192).
  */
 export function securityLowerTf(
   chartBars: ReadonlyArray<{ time: number }>,
   otherBars: ReadonlyArray<{ time: number }>,
   tf: string,
   chart: OtherSymbolChart,
-  options: Pick<OtherSymbolOptions, 'other'> = {}
+  options: Pick<OtherSymbolOptions, 'other'> & { maxIntrabars?: number } = {}
 ): Array<[number, number]> {
   const unit = chart.timeUnit === 'ms' ? 1 : 1000;
   const ct = chartBars.map((b) => b.time * unit);
@@ -253,8 +256,17 @@ export function securityLowerTf(
   const oc = closeTimes(ot, otherTf, otherZone);
   const from = latestAtOrBefore(oc, ct);
   const to = latestAtOrBefore(oc, closeTimes(ct, chartTf, chartZone));
-  return ct.map((_, i) => [from[i]! + 1, Math.max(from[i]! + 1, to[i]! + 1)]);
+  const ranges = ct.map((_, i): [number, number] => [from[i]! + 1, Math.max(from[i]! + 1, to[i]! + 1)]);
+  // the last `max` intrabars of the chart bars: the ones before are not given
+  const max = options.maxIntrabars ?? MAX_INTRABARS;
+  const end = ranges.reduce((m, [, t]) => Math.max(m, t), 0);
+  const first = end - max;
+  if (first <= 0) return ranges;
+  return ranges.map(([f, t]) => (t <= first ? [f, f] : [Math.max(f, first), t]));
 }
+
+/** Lower-timeframe bars `request.security_lower_tf` gives out at most, as PineScript (the last ones). */
+export const MAX_INTRABARS = 100_000;
 
 /**
  * {@link securityOther} with the values of an expression: `values` has one value per bar of the other symbol; the

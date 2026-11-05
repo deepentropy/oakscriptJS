@@ -2,7 +2,7 @@
  * request.security of another symbol (#179). Expected values are the PineScript results of the same calls on
  * NASDAQ:AAPL 1D and BITSTAMP:BTCUSD 1D (02/09/2026 to 11/09/2026, with the Labor Day holiday of 07/09/2026).
  */
-import { securityOther } from '../../src';
+import { MAX_INTRABARS, securityLowerTf, securityOther } from '../../src';
 import { MissingSymbolDataError, barmerge, close, executeScript, request, syminfo, time } from '../../src/script';
 import type { Bar } from '../../src/types';
 
@@ -139,6 +139,23 @@ describe('lower timeframes (#181)', () => {
     expect(own[1]).toHaveLength(24);
     expect([own[1]![0], own[1]![23]]).toEqual([ms(day), ms(day + 23 * 3600)]);
     expect(aapl[1]).toEqual(Array.from({ length: 7 }, (_, i) => ms(day + 13.5 * 3600 + i * 3600)));
+  });
+
+  it('security_lower_tf gives out the last 100,000 intrabars at most (#192)', () => {
+    // 60 chart hours of 1-minute bars (3,600), capped at 1,000: the chart bars before the last 1,000 minutes get none
+    const hours = Array.from({ length: 60 }, (_, i) => ({ time: 1788220800 + i * 3600 }));
+    const minutes = Array.from({ length: 3600 }, (_, i) => ({ time: 1788220800 + i * 60 }));
+    const chart = { timeframe: '60', timezone: 'Etc/UTC', session: '24x7' };
+    const all = securityLowerTf(hours, minutes, '1', chart);
+    expect(all.every(([f, t]) => t - f === 60)).toBe(true);
+    expect(MAX_INTRABARS).toBe(100_000);
+    const capped = securityLowerTf(hours, minutes, '1', chart, { maxIntrabars: 1000 });
+    const sizes = capped.map(([f, t]) => t - f);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(1000);
+    // 1,000 = 16 full hours and 40 minutes of the hour before: older hours are empty
+    expect(sizes.slice(-17)).toEqual([40, ...new Array(16).fill(60)]);
+    expect(sizes.slice(0, 43).every((n) => n === 0)).toBe(true);
+    expect(capped[59]).toEqual(all[59]);
   });
 
   it('a higher timeframe in security_lower_tf throws', () => {
