@@ -25,7 +25,11 @@ function addExact(p: number[], x: number): void {
   let i = 0;
   for (let j = 0; j < p.length; j++) {
     let y = p[j]!;
-    if (Math.abs(x) < Math.abs(y)) [x, y] = [y, x];
+    if (Math.abs(x) < Math.abs(y)) {
+      const t = x;
+      x = y;
+      y = t;
+    }
     const hi = x + y;
     const lo = y - (hi - x);
     if (lo !== 0) p[i++] = lo;
@@ -161,8 +165,79 @@ function sumWindows(source: ArrayLike<number | null | undefined>, lengthAt: (i: 
  */
 export function runningSum(source: ArrayLike<number | null | undefined>, length: number): number[] {
   const len = Math.floor(length);
-  if (!(len >= 1)) return new Array<number>(source.length).fill(NaN);
-  return sumWindows(source, () => len);
+  const n = source.length;
+  const out = new Array<number>(n);
+  if (!(len >= 1)) return out.fill(NaN);
+  // A constant length: the partials of the window are changed in place, with the steps of RunningSum in the same
+  // order (the value that leaves, then the one that enters), so the sums are the same doubles without a copy per bar.
+  const values: number[] = [];
+  const p = new FixedPartials();
+  let last = NaN;
+  for (let i = 0; i < n; i++) {
+    const v = source[i];
+    if (!isNa(v)) {
+      const count = values.length;
+      if (count >= len) p.add(-values[count - len]!);
+      p.add(v as number);
+      values.push(v as number);
+      last = count + 1 >= len ? p.round() : NaN;
+    }
+    out[i] = last;
+  }
+  return out;
+}
+
+/** The partials of {@link addExact} / {@link roundExact} in a typed array with a count (same operations). */
+class FixedPartials {
+  private p = new Float64Array(64);
+  private n = 0;
+
+  add(x: number): void {
+    const p = this.p;
+    const n = this.n;
+    let i = 0;
+    for (let j = 0; j < n; j++) {
+      let y = p[j]!;
+      if (Math.abs(x) < Math.abs(y)) {
+        const t = x;
+        x = y;
+        y = t;
+      }
+      const hi = x + y;
+      const lo = y - (hi - x);
+      if (lo !== 0) p[i++] = lo;
+      x = hi;
+    }
+    if (i === p.length) {
+      const grown = new Float64Array(p.length * 2);
+      grown.set(p);
+      this.p = grown;
+    }
+    this.p[i] = x;
+    this.n = i + 1;
+  }
+
+  round(): number {
+    const p = this.p;
+    let n = this.n;
+    if (n === 0) return 0;
+    let hi = p[--n]!;
+    while (n > 0) {
+      const x = hi;
+      const y = p[--n]!;
+      hi = x + y;
+      const lo = y - (hi - x);
+      if (lo !== 0) {
+        if (n > 0 && ((lo < 0 && p[n - 1]! < 0) || (lo > 0 && p[n - 1]! > 0))) {
+          const y2 = lo * 2;
+          const x2 = hi + y2;
+          if (y2 === x2 - hi) hi = x2;
+        }
+        break;
+      }
+    }
+    return hi;
+  }
 }
 
 /** The values of a series length, floored, checked to be at least 1 on every bar. */

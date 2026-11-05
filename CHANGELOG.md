@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   x is NaN or ±Infinity; the replacement is a number, default 0, or a Series), and `color.from_gradient` with a
   Series argument or per-bar colours gives one colour per bar, for `plot` / `fill` / `bgcolor` / `barcolor` (#187).
 
+### Changed
+
+- Faster runtime with the same outputs: window sums of a constant length (`math.sum`, `ta.sma`, `ta.stdev`, `ta.variance`, `ta.mfi`...) keep their exact partials in place instead of a copy per bar, parsed colours and `color.new` texts are kept by colour and transparency, and formatted numbers (`str.tostring`, `str.format`) are kept by pattern and value (a live update formats the same history again). On 10,000 bars: `ta.sma` 0.88 ms -> 0.22 ms, `ta.stdev` 2.04 ms -> 0.70 ms, `color.new` 36x faster; the 1,813 studies of lightweight-charts-indicators 25.4 s -> 20.1 s in total on a repeated run (ICT Killzones Toolkit 611 ms -> 68 ms), outputs identical on 3,722 study results (daily and 5-minute bars) (#200).
+
 ### Fixed
 
 - Docs: `math.random` uses its seed (`docs/inventory.md` said it did not); the doc comment of the Series `ta.bb`

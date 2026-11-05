@@ -4,12 +4,37 @@
 
 import type { color, int, float } from '../types/index.js';
 
+export interface ParsedColor {
+  readonly r: int;
+  readonly g: int;
+  readonly b: int;
+  readonly a: float;
+}
+
+const BLACK: ParsedColor = { r: 0, g: 0, b: 0, a: 1 };
+
+/** Parsed colours by text: a script reads the same few colours on every bar, and again on each run. */
+const parsed = new Map<string, ParsedColor>();
+const PARSED_KEPT = 4096;
+
 /**
  * Parses a colour string to its channels (0-255) and alpha (0-1).
  * Hex: #RRGGBB, #RRGGBBAA (PineScript literals), #RGB, #RGBA; rgb() / rgba(). Anything else is opaque black.
+ * The result is shared between calls: do not change it.
  */
-export function parseColor(clr: color): { r: int; g: int; b: int; a: float } {
-  if (typeof clr === 'string') {
+export function parseColor(clr: color): ParsedColor {
+  if (typeof clr !== 'string') return BLACK;
+  let p = parsed.get(clr);
+  if (p === undefined) {
+    p = parseText(clr);
+    if (parsed.size >= PARSED_KEPT) parsed.clear();
+    parsed.set(clr, p);
+  }
+  return p;
+}
+
+function parseText(clr: string): ParsedColor {
+  {
     const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(clr.trim());
     if (hex) {
       let digits = hex[1]!;
@@ -27,7 +52,7 @@ export function parseColor(clr: color): { r: int; g: int; b: int; a: float } {
       };
     }
   }
-  return { r: 0, g: 0, b: 0, a: 1 };
+  return BLACK;
 }
 
 /** Alpha byte (0-255) of an alpha (0-1), as PineScript stores it. */

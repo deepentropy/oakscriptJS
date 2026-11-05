@@ -102,3 +102,15 @@ describe('color.from_gradient at the ends (#146)', () => {
     expect([15, 20].map((v) => color.r(color.from_gradient(v, 5, 15, top, bottom)))).toEqual([37, 37]);
   });
 });
+
+describe('colours kept between calls', () => {
+  it('color.new gives the same text on each call for a base colour and a transparency, read back the same', () => {
+    const bases = ['#DD1A1A', 'rgb(1, 2, 3)', 'rgba(10, 20, 30, 0.5)', '#abc', color.red];
+    const transps = [0, -0, 25.5, 90, 100, NaN, 140];
+    const first = bases.map((b) => transps.map((t) => color.new(b, t)));
+    for (let k = 0; k < 3; k++) expect(bases.map((b) => transps.map((t) => color.new(b, t)))).toEqual(first);
+    expect(color.new('#DD1A1A', 90)).toBe('rgba(221, 26, 26, 0.09999999999999998)');
+    expect([color.r('#abc'), color.g('#abc'), color.b('#abc'), color.t('#abc')]).toEqual([170, 187, 204, 0]);
+    expect(color.t('rgba(10, 20, 30, 0.5)')).toBe(50);
+  });
+});

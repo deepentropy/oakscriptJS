@@ -183,6 +183,24 @@ describe('series length (#140)', () => {
     expect(taCore.variance(x, lengthAt(() => 3, x.length), false)).toEqual(taCore.variance(x, 3, false));
   });
 
+  it('the constant-length path (sums changed in place) gives the doubles of the step-by-step path, na and ±inf included', () => {
+    let seed = 11;
+    const rnd = () => {
+      seed = (seed * 16807) % 2147483647;
+      const k = seed % 23;
+      if (k === 3) return NaN;
+      if (k === 5) return seed % 2 ? Infinity : -Infinity;
+      if (k === 7) return -0;
+      return (seed / 2147483647 - 0.5) * 10 ** ((seed % 11) - 5);
+    };
+    const x = Array.from({ length: 4000 }, rnd);
+    for (const len of [1, 2, 3, 14, 200]) {
+      const fixed = math.sum(x, len);
+      const stepped = math.sum(x, lengthAt(() => len, x.length));
+      for (let i = 0; i < x.length; i++) expect(Object.is(fixed[i], stepped[i])).toBe(true);
+    }
+  });
+
   it('rejects a length below 1 or a length series shorter than the source', () => {
     expect(() => math.sum([1, 2, 3], [2, 0, 2])).toThrow(
       "Error on bar 1: Invalid value of the 'length' argument (0.0) in the 'sum' function. It must be > 0."

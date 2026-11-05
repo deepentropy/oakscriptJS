@@ -194,8 +194,37 @@ function layout(d: Digits, p: Pattern): string {
   return group(int, p.grouping) + (frac ? '.' + frac : '');
 }
 
+/**
+ * Texts already formatted, by rounding mode, pattern and value: a script formats the same values on each run (the
+ * whole history again on every update of the last bar). -0 is not kept (a Map does not tell it from 0).
+ */
+const formatted = new Map<Rounding, Map<string, Map<number, string>>>();
+let formattedCount = 0;
+const FORMATTED_KEPT = 100_000;
+
 /** Formats a number with a DecimalFormat pattern. */
 export function formatNumber(value: number, pattern: string, mode: Rounding): string {
+  if (Number.isNaN(value) || Object.is(value, -0)) return format(value, pattern, mode);
+  let byPattern = formatted.get(mode);
+  if (byPattern === undefined) formatted.set(mode, (byPattern = new Map()));
+  let byValue = byPattern.get(pattern);
+  if (byValue === undefined) byPattern.set(pattern, (byValue = new Map()));
+  let text = byValue.get(value);
+  if (text === undefined) {
+    text = format(value, pattern, mode);
+    if (formattedCount >= FORMATTED_KEPT) {
+      formatted.clear();
+      formattedCount = 0;
+      formatted.set(mode, (byPattern = new Map()));
+      byPattern.set(pattern, (byValue = new Map()));
+    }
+    byValue.set(value, text);
+    formattedCount++;
+  }
+  return text;
+}
+
+function format(value: number, pattern: string, mode: Rounding): string {
   if (Number.isNaN(value)) return 'NaN';
   const p = parsePattern(pattern);
   if (!Number.isFinite(value)) return affixes(p, value < 0, '∞');

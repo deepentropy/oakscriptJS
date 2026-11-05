@@ -160,3 +160,16 @@ describe('str.format_time with a time zone', () => {
     expect(str.format_time(t, pattern, tz)).toBe(expected);
   });
 });
+
+describe('formatted texts kept between calls', () => {
+  it('the same value gives the same text on each call, per pattern and rounding; -0 is not taken for 0', () => {
+    const values = [1.005, 2.5, -0.0004, 0, -0, 12.34500000005, 1791662400001 / 900000, 0.125];
+    const first = values.map((v) => [str.tostring(v), str.tostring(v, '#.##'), str.tostring(v, '#.#%'), str.format('{0,number,#.#}', v)]);
+    for (let k = 0; k < 3; k++) {
+      expect(values.map((v) => [str.tostring(v), str.tostring(v, '#.##'), str.tostring(v, '#.#%'), str.format('{0,number,#.#}', v)])).toEqual(first);
+    }
+    expect(str.tostring(-0.0004, '#.#%')).toBe('-0%');
+    expect(str.tostring(0, '#.#%')).toBe('0%');
+    expect(str.tostring(-0, '#.#%')).toBe('0%');
+  });
+});

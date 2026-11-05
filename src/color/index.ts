@@ -122,10 +122,29 @@ export function from_hex(hex: string, transp?: simple_float): string {
  */
 export function new_color(baseColor: color | null | undefined, transp: simple_float): string {
   if (baseColor === null || baseColor === undefined) return rgb(0, 0, 0, transp); // na colour: black
-  // Parse the color and apply transparency
-  const rgba = parseColor(baseColor);
-  return rgb(rgba.r, rgba.g, rgba.b, transp);
+  if (typeof baseColor !== 'string') {
+    const rgba = parseColor(baseColor);
+    return rgb(rgba.r, rgba.g, rgba.b, transp);
+  }
+  // The same colour with the same transparency on every bar and every run: the text is made once.
+  let byTransp = newColors.get(baseColor);
+  if (byTransp === undefined) {
+    if (newColors.size >= NEW_COLORS_KEPT) newColors.clear();
+    newColors.set(baseColor, (byTransp = new Map()));
+  }
+  let text = byTransp.get(transp);
+  if (text === undefined) {
+    const rgba = parseColor(baseColor);
+    text = rgb(rgba.r, rgba.g, rgba.b, transp);
+    if (byTransp.size >= NEW_COLORS_KEPT) byTransp.clear();
+    byTransp.set(transp, text);
+  }
+  return text;
 }
+
+/** color.new results by base colour, then transparency. */
+const newColors = new Map<string, Map<number, string>>();
+const NEW_COLORS_KEPT = 1024;
 
 /**
  * Extracts the red component from a color.
