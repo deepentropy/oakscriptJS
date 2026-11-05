@@ -18,7 +18,7 @@
  *   dates (early closes, days off); holidays ("session_holidays") are dates without session
  */
 
-import { zonedFields, zonedToUnix } from '../time/timezone.js';
+import { civilFromDays, zoneOffset, zonedToUnix } from '../time/timezone.js';
 import { parsePineSession } from '../time/session.js';
 
 /** Session information of a symbol (hours, corrections, holidays). */
@@ -54,13 +54,40 @@ interface Version {
 
 export const toDateNum = (y: number, m: number, d: number): DateNum => y * 10000 + m * 100 + d;
 const utcOf = (date: DateNum): number => Date.UTC(Math.floor(date / 10000), Math.floor(date / 100) % 100 - 1, date % 100);
-const fromUtc = (ms: number): DateNum => {
-  const d = new Date(ms);
-  return toDateNum(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
-};
-export const addDays = (date: DateNum, n: number): DateNum => fromUtc(utcOf(date) + n * 86_400_000);
-/** 1 = Sunday ... 7 = Saturday */
-export const weekdayOf = (date: DateNum): number => new Date(utcOf(date)).getUTCDay() + 1;
+
+const MS_PER_DAY = 86_400_000;
+/** Days of a valid `Date` on each side of 01/01/1970 (8.64e15 ms) */
+const MAX_DAY = 100_000_000;
+
+/**
+ * Days since 01/01/1970 of a date, as `utcOf(date) / 1 day` but without a `Date`: the calendar functions step
+ * through days on every bar. Years before 100 and months outside 1-12 keep the `Date.UTC` reading (years 0-99 are
+ * 1900-1999 there). NaN outside the `Date` range.
+ */
+function dayOf(date: DateNum): number {
+  let y = Math.floor(date / 10000);
+  const m = Math.floor(date / 100) % 100;
+  if (!(y >= 100 && m >= 1 && m <= 12)) return utcOf(date) / MS_PER_DAY;
+  // proleptic Gregorian day count, years starting in March (the leap day last)
+  if (m <= 2) y--;
+  const era = Math.floor(y / 400);
+  const yearOfEra = y - era * 400;
+  const dayOfYear = Math.floor((153 * (m > 2 ? m - 3 : m + 9) + 2) / 5) + (date % 100) - 1;
+  const day = era * 146_097 + yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100) + dayOfYear - 719_468;
+  return Math.abs(day) <= MAX_DAY ? day : NaN;
+}
+
+/** Date of a day since 01/01/1970 (the inverse of `dayOf`); NaN outside the `Date` range. */
+function dateOf(day: number): DateNum {
+  if (!(Math.abs(day) <= MAX_DAY)) return NaN;
+  const { year, month, day: d } = civilFromDays(day);
+  return toDateNum(year, month, d);
+}
+
+/** The date `n` (whole) days after `date`. */
+export const addDays = (date: DateNum, n: number): DateNum => dateOf(dayOf(date) + n);
+/** 1 = Sunday ... 7 = Saturday (01/01/1970 is a Thursday) */
+export const weekdayOf = (date: DateNum): number => ((((dayOf(date) + 4) % 7) + 7) % 7) + 1;
 /** 00:00 UTC of the date, in ms (PineScript `time_tradingday`). */
 export const dateUtcMs = utcOf;
 
@@ -132,13 +159,25 @@ function parseVersion(text: string, from: DateNum, spec: string, rule: 'symbol' 
   return { from, periods, days };
 }
 
+/** Trading day and period of a time (see `TradingCalendar.locate`). */
+interface Located {
+  date: DateNum;
+  index: number;
+  inside: boolean;
+}
+
 /** Session periods of every trading day of a symbol, as UNIX times (ms). */
 export class TradingCalendar {
   private readonly versions: Version[];
   private readonly corrections = new Map<DateNum, Period[] | null>();
   private readonly holidays: Set<DateNum>;
   private readonly cache = new Map<DateNum, Array<[number, number]>>();
+  /** The date and periods of each day since 01/01/1970 that `search` looked at */
+  private readonly days = new Map<number, { date: DateNum; periods: Array<[number, number]> }>();
   private readonly pine: boolean;
+  /** The last time located and its result: the functions of one bar locate the same time several times */
+  private lastTime = NaN;
+  private lastAt: Located | null = null;
 
   /**
    * @param timezone - Time zone of the session hours (the exchange time zone)
@@ -180,7 +219,7 @@ export class TradingCalendar {
     if (correction !== undefined) {
       periods = correction ?? [];
     } else if (!this.holidays.has(date)) {
-      const version = [...this.versions].reverse().find((v) => v.from <= date)!;
+      const version = this.versionOf(date);
       if (version.byDay) periods = version.byDay[weekdayOf(date)]!;
       else if (version.days[weekdayOf(date)]) periods = version.periods;
     }
@@ -204,6 +243,13 @@ export class TradingCalendar {
     return out;
   }
 
+  /** The session version in force on `date` (the last one that starts on or before it). */
+  private versionOf(date: DateNum): Version {
+    let k = this.versions.length - 1;
+    while (k >= 0 && !(this.versions[k]!.from <= date)) k--;
+    return this.versions[k]!;
+  }
+
   isTradingDay(date: DateNum): boolean {
     return this.periods(date).length > 0;
   }
@@ -215,7 +261,7 @@ export class TradingCalendar {
   afterEarlyClose(time: number): boolean {
     const at = this.locate(time);
     if (!at || at.inside || !this.corrections.get(at.date)) return false;
-    const version = [...this.versions].reverse().find((v) => v.from <= at.date)!;
+    const version = this.versionOf(at.date);
     const usual = version.byDay ? version.byDay[weekdayOf(at.date)]! : version.days[weekdayOf(at.date)] ? version.periods : [];
     const y = Math.floor(at.date / 10000);
     const m = Math.floor(at.date / 100) % 100;
@@ -231,24 +277,41 @@ export class TradingCalendar {
    * Trading day and period of a time: the period that contains it, else the last period that started
    * before it. Null when no trading day is found near the time.
    */
-  locate(time: number): { date: DateNum; index: number; inside: boolean } | null {
-    const f = zonedFields(time, this.timezone);
-    const local = toDateNum(f.year, f.month, f.day);
+  locate(time: number): Located | null {
+    if (time !== this.lastTime) {
+      this.lastAt = this.search(time);
+      this.lastTime = time;
+    }
+    const at = this.lastAt;
+    return at && { date: at.date, index: at.index, inside: at.inside };
+  }
+
+  private search(time: number): Located | null {
+    // the local date of the time, as `Date` reads the wall clock (whole ms, NaN outside its range)
+    const wall = time + zoneOffset(time, this.timezone);
+    const local = dayOf(dateOf(Math.abs(wall) <= MAX_DAY * MS_PER_DAY ? Math.floor(Math.trunc(wall) / MS_PER_DAY) : NaN));
     for (let k = 0; k <= 5; k++) {
-      const date = addDays(local, k);
-      const index = this.periods(date).findIndex(([s, e]) => s <= time && time < e);
+      const { date, periods } = this.dayAt(local + k);
+      const index = periods.findIndex(([s, e]) => s <= time && time < e);
       if (index !== -1) return { date, index, inside: true };
     }
     for (let k = 5; k >= -7; k--) {
-      const date = addDays(local, k);
-      const periods = this.periods(date);
-      let index = -1;
-      periods.forEach(([s], i) => {
-        if (s <= time) index = i;
-      });
+      const { date, periods } = this.dayAt(local + k);
+      let index = periods.length - 1;
+      while (index >= 0 && !(periods[index]![0] <= time)) index--;
       if (index !== -1) return { date, index, inside: false };
     }
     return null;
+  }
+
+  private dayAt(day: number): { date: DateNum; periods: Array<[number, number]> } {
+    let at = this.days.get(day);
+    if (!at) {
+      const date = dateOf(day);
+      at = { date, periods: this.periods(date) };
+      this.days.set(day, at);
+    }
+    return at;
   }
 
   /** First trading day in [from, to] (dates), or null. */

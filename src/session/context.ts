@@ -68,6 +68,26 @@ export interface SessionPeriods {
   close: (time: number) => number;
 }
 
+/** Calendars of the `session` / `timezone` arguments before the cache restarts */
+const MAX_ARGUMENT_CALENDARS = 64;
+const argumentCalendars = new Map<string, TradingCalendar>();
+
+/**
+ * Calendar of a session string read in a time zone, without corrections and holidays: it depends on these only, so
+ * the calls with other timeframes or other chart contexts share it and its periods (a script often reads
+ * `time(timeframe.period, s)` and `time("D", s)` on every bar).
+ */
+function argumentCalendar(timezone: string, session: string, rule: 'symbol' | 'pine', dayPlacement: boolean): TradingCalendar {
+  const key = `${rule}|${dayPlacement}|${timezone}|${session}`;
+  let calendar = argumentCalendars.get(key);
+  if (!calendar) {
+    calendar = new TradingCalendar(timezone, { session }, rule, dayPlacement);
+    if (argumentCalendars.size >= MAX_ARGUMENT_CALENDARS) argumentCalendars.clear();
+    argumentCalendars.set(key, calendar);
+  }
+  return calendar;
+}
+
 /**
  * Calendar for the `session` / `timezone` arguments of `time(tf, session, timezone)`. Without both: the loaded
  * session. As in PineScript, an explicit time zone reads the symbol session hours in that zone without corrections
@@ -87,11 +107,13 @@ function calendarFor(
   if (session !== undefined && parsePineSession(session) === null) {
     const name = session.trim();
     const symbol = name === 'regular' && chart.regularSession ? chart.regularSession : chart.session!;
-    return { bars: new SessionBars(new TradingCalendar(tz, { session: toSpec(symbol).session }, 'symbol'), bars.chart.period), test: true };
+    return { bars: new SessionBars(argumentCalendar(tz, toSpec(symbol).session, 'symbol', false), bars.chart.period), test: true };
   }
-  const spec = session ? { session } : { session: toSpec(chart.session!).session };
   return {
-    bars: new SessionBars(new TradingCalendar(tz, spec, session ? 'pine' : 'symbol', dayPlacement), bars.chart.period),
+    bars: new SessionBars(
+      argumentCalendar(tz, session || toSpec(chart.session!).session, session ? 'pine' : 'symbol', dayPlacement),
+      bars.chart.period
+    ),
     test: true,
     // a PineScript session string: the rules of time.inSession (runs ending at 0000, days around a clock change)
     inside: session ? (time) => sessionRun(time, session, tz, in_seconds(bars.chart.period) * 1000) !== null : undefined,
@@ -138,15 +160,20 @@ export function sessionPeriods(
   return { open, close };
 }
 
-const periodCache = new WeakMap<object, Map<string, SessionPeriods>>();
+/** Periods per chart, timeframe, session and time zone (no session / time zone is ""): maps of the given strings, no
+ *  key to build on every bar */
+const periodCache = new WeakMap<object, Map<string, Map<string, Map<string, SessionPeriods>>>>();
 
 function periodsOfChart(chart: SessionContext, timeframe: string, session?: string, timezone?: string): { s: ChartSessions; p: SessionPeriods } {
   const s = chartSessions(chart);
-  let byKey = periodCache.get(chart);
-  if (!byKey) periodCache.set(chart, (byKey = new Map()));
-  const key = `${timeframe}|${session ?? ''}|${timezone ?? ''}`;
-  let p = byKey.get(key);
-  if (!p) byKey.set(key, (p = sessionPeriods(s.bars, chart, timeframe, session, timezone)));
+  let byTimeframe = periodCache.get(chart);
+  if (!byTimeframe) periodCache.set(chart, (byTimeframe = new Map()));
+  let bySession = byTimeframe.get(timeframe);
+  if (!bySession) byTimeframe.set(timeframe, (bySession = new Map()));
+  let byZone = bySession.get(session ?? '');
+  if (!byZone) bySession.set(session ?? '', (byZone = new Map()));
+  let p = byZone.get(timezone ?? '');
+  if (!p) byZone.set(timezone ?? '', (p = sessionPeriods(s.bars, chart, timeframe, session, timezone)));
   return { s, p };
 }
 

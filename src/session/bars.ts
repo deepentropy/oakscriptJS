@@ -51,6 +51,8 @@ export class SessionBars {
   readonly chart: TimeframeInfo;
 
   private readonly yearDays = new Map<number, DateNum[]>();
+  /** Parsed timeframes: `timeOf` / `closeOf` run on every bar */
+  private readonly timeframes = new Map<string, TimeframeInfo>();
 
   constructor(
     readonly calendar: TradingCalendar,
@@ -102,6 +104,12 @@ export class SessionBars {
     return [monthStart(year * 10000 + firstMonth * 100 + 1), monthEnd(year * 10000 + lastMonth * 100 + 1)];
   }
 
+  private timeframe(timeframe: string): TimeframeInfo {
+    let tf = this.timeframes.get(timeframe);
+    if (!tf) this.timeframes.set(timeframe, (tf = info(timeframe)));
+    return tf;
+  }
+
   private dayStart(date: DateNum): number {
     return this.calendar.periods(date)[0]![0];
   }
@@ -117,7 +125,7 @@ export class SessionBars {
    * NaN on it (measured; `time("W")` keeps its value).
    */
   timeOf(time: number, timeframe: string): number {
-    const tf = info(timeframe);
+    const tf = this.timeframe(timeframe);
     const at = this.calendar.locate(time);
     if (!at) return NaN;
     if (tf.isintraday) {
@@ -137,7 +145,7 @@ export class SessionBars {
 
   /** PineScript `time_close(tf)` for a bar that opens at `time`. */
   closeOf(time: number, timeframe: string): number {
-    const tf = info(timeframe);
+    const tf = this.timeframe(timeframe);
     const at = this.calendar.locate(time);
     if (!at) return NaN;
     if (tf.isintraday) {
@@ -178,7 +186,7 @@ export class SessionBars {
    * bar completes a higher-timeframe period (request.security).
    */
   periodEnd(time: number, timeframe: string): number {
-    const tf = info(timeframe);
+    const tf = this.timeframe(timeframe);
     const at = this.calendar.locate(time);
     if (!at) return NaN;
     if (tf.isintraday) {
