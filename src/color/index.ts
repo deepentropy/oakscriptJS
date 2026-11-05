@@ -358,9 +358,10 @@ export function from_gradient(
       : value >= top_value
         ? 1
         : (value - bottom_value) / (top_value - bottom_value);
-  // alpha as a byte (0-255), as PineScript stores it; an na colour (null / undefined) is fully transparent
+  // alpha as a byte (0-255), as PineScript stores it; an na colour (null / undefined, or 'transparent', the
+  // library's form of na) is fully transparent
   const rgba = (c: color) => {
-    if (c === null || c === undefined) return { r: 0, g: 0, b: 0, a: 0 };
+    if (c === null || c === undefined || (typeof c === 'string' && c.trim().toLowerCase() === 'transparent')) return { r: 0, g: 0, b: 0, a: 0 };
     const p = parseColor(c);
     return { r: p.r, g: p.g, b: p.b, a: alphaByte(p.a) };
   };

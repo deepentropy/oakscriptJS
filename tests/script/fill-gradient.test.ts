@@ -77,6 +77,11 @@ describe('color.from_gradient (PineScript rules)', () => {
     expect(parts(color.from_gradient(50, 0, 100, null as unknown as string, green))).toEqual([0, 255, 0, 50]);
   });
 
+  it("'transparent' (the library's na colour) mixes like na (#191)", () => {
+    expect(color.from_gradient(50, 0, 100, 'transparent', green)).toBe(color.from_gradient(50, 0, 100, null as unknown as string, green));
+    expect(color.from_gradient(25, 0, 100, red, 'transparent')).toBe(color.from_gradient(25, 0, 100, red, null as unknown as string));
+  });
+
   it('an inverted range (bottom_value > top_value) gives bottom_color wherever the value is (#121)', () => {
     // PineScript: #00E676 and #787B86 alpha 0x4D (the bottom colours)
     expect(color.from_gradient(3.0683396268358347, 0.04239173455150783, 0.0, '#00E676', color.new(color.gray, 70))).toBe(
