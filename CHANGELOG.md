@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 05/11/2026
+
+### Changed
+
+- Faster runtime with the same outputs (#197): drawing registry deletes, holds and `max_*_count` cuts without rebuilding the lists, linefills indexed by line, `highest` / `lowest` call sites over long windows from a segment tree, loop window sums resized once per length, `ta.pivothigh` / `ta.pivotlow` with constant lengths through a sliding window, time zone offsets looked up once per UTC day, `str.format` patterns parsed once and integer digits without BigInt. On 10,000 daily bars: market sessions volume profile 4.8 s -> 1.0 s, sessions on chart 2.2 s -> 0.4 s, FX market sessions 0.65 s -> 0.05 s.
+
 ## [0.15.1] - 05/11/2026
 
 ### Fixed
