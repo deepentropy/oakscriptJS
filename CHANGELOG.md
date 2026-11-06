@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 06/11/2026
+
+### Added
+
+- `saveDrawingCheckpoint()` / `restoreDrawingCheckpoint(cp)` (and `DrawingCheckpoint`) are public: a study with its own bar loop keeps the drawings at the end of the last confirmed bar and puts them back before it calculates the forming bar again, so a live update recalculates the newest bar only with the same drawings as a full run. The checkpoint also keeps `varDrawing()` variables and the last-bar state (#203).
+
 ### Added
 
 - Drawing checkpoint for a port with its own bar loop: `saveDrawingCheckpoint()` at the end of the last confirmed bar,
