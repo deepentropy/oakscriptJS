@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Drawing checkpoint for a port with its own bar loop: `saveDrawingCheckpoint()` at the end of the last confirmed bar,
+  `restoreDrawingCheckpoint(checkpoint)` before the forming bar is calculated again. A live update then gives the
+  drawings of a full run (objects of the forming bar undone, the others the same objects in the same order, maximum
+  counts, `var` holds including `varDrawing()` variables, linefills and last-bar rules as in a full run); the
+  checkpoint holds the study's whole registry, so studies sharing the registry on one chart each put back their own
+  (#203).
+
 ## [0.15.4] - 05/11/2026
 
 ### Added

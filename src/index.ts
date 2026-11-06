@@ -46,7 +46,8 @@ export { taStep, type BarStep } from './ta/step.js';
 export { drawingOutputs, type DrawingOutputs } from './drawing/output.js';
 export { barInterval, barTime } from './drawing/bar-time.js';
 
-// Drawing registry limits (PineScript indicator(max_lines_count / max_labels_count / max_boxes_count / max_polylines_count))
+// Drawing registry limits (PineScript indicator(max_lines_count / max_labels_count / max_boxes_count / max_polylines_count)),
+// and the drawing checkpoint of a port with its own bar loop (live updates of the forming bar, #203)
 export {
   resetDrawings,
   setDrawingLimits,
@@ -55,6 +56,9 @@ export {
   releaseDrawing,
   varDrawing,
   createdDrawingKinds,
+  saveDrawingCheckpoint,
+  restoreDrawingCheckpoint,
+  type DrawingCheckpoint,
   type DrawingKind,
   type DrawingLimits,
   type DrawingVariable,

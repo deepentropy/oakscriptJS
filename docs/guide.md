@@ -504,6 +504,18 @@ for (let i = 0; i < bars.length; i++) {
 setDrawingBar(null);
 ```
 
+A live update of such a port calculates the forming bar again from the drawings at
+the end of the last confirmed bar: `saveDrawingCheckpoint()` there, and
+`restoreDrawingCheckpoint(checkpoint)` before the forming bar (on each new price)
+or the new bars are calculated. The drawings are then those of a full run on the
+same bars: what the forming bar created, changed or deleted is undone, the objects
+of the bars before are the same objects in the same order, and the maximum counts,
+`var` holds (`varDrawing()` variables too), linefills and last-bar rules go on as
+in a full run. The checkpoint holds the whole registry of the study, so other
+studies may use the registry between two updates: put it back where a full run
+calls `resetDrawings()`. The port keeps its own variables (the objects it refers
+to, its arrays of objects) with the checkpoint (#203).
+
 ### Per-bar stateful execution (eachBar)
 
 The Series API is vectorized. For logic PineScript writes with persistent state

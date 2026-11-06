@@ -48,6 +48,9 @@
  * The script API (`executeScript`) resets the registry at the start of every run and applies the
  * `max_*_count` values of `indicator()`. Outside a script run the registry is global to the module.
  *
+ * A port with its own bar loop resumes a live update with {@link saveDrawingCheckpoint} (at the end of the last
+ * confirmed bar) and {@link restoreDrawingCheckpoint} (before the forming bar is calculated again).
+ *
  * @module drawing/registry
  */
 
@@ -216,6 +219,8 @@ interface Holds {
   /** Records made in the run. None: no object has one, nothing to look up for each object the maximum count may
    *  delete */
   records: number;
+  /** The {@link varDrawing} variables made in the run: a checkpoint puts their objects back with the records */
+  readonly variables: Array<{ current: object | undefined }>;
 }
 
 /** What the `var` variables of a run did with an object. */
@@ -229,7 +234,7 @@ interface HoldRecord {
   /** Bar on which the last `var` variable released the object (linefill rule) */
   releasedAt: number | undefined;
 }
-let holds: Holds = { others: new WeakMap(), records: 0 };
+let holds: Holds = { others: new WeakMap(), records: 0, variables: [] };
 
 /**
  * The record of the first run that holds an object, on the object itself (a study holding a new object on every bar
@@ -335,15 +340,17 @@ export interface DrawingVariable<T extends object> {
  * ```
  */
 export function varDrawing<T extends object>(initial?: T): DrawingVariable<T> {
-  let current: T | undefined = initial ? holdDrawing(initial) : undefined;
+  const slot: { current: T | undefined } = { current: initial ? holdDrawing(initial) : undefined };
+  // kept by the run: a drawing checkpoint puts the variable back without holding or releasing again
+  holds.variables.push(slot);
   return {
     get value() {
-      return current;
+      return slot.current;
     },
     set value(next: T | undefined) {
-      if (next === current) return;
-      releaseDrawing(current);
-      current = next ? holdDrawing(next) : undefined;
+      if (next === slot.current) return;
+      releaseDrawing(slot.current);
+      slot.current = next ? holdDrawing(next) : undefined;
     },
   };
 }
@@ -619,7 +626,7 @@ export function resetDrawings(newLimits: DrawingLimits = {}): void {
   for (const kind of Object.keys(live) as DrawingKind[]) live[kind].replace([]);
   fillsOfLine = new Map();
   created.clear();
-  holds = { others: new WeakMap(), records: 0 };
+  holds = { others: new WeakMap(), records: 0, variables: [] };
   pending = { line: 0, label: 0, box: 0, polyline: 0 };
   currentBar = null;
   lastBarIndex = null;
@@ -671,14 +678,16 @@ export function saveDrawingState(): DrawingState {
 }
 
 /**
- * The registry and the state of its objects at the end of a bar, for an incremental run (#196): the live objects, the
- * fields of each one (arrays, maps and plain objects copied; other drawing objects kept as references), their `var`
- * records, and the counters. {@link restoreDrawingCheckpoint} puts it back on the same objects.
+ * The registry and the state of its objects at the end of a bar (see {@link saveDrawingCheckpoint}): the live objects,
+ * the fields of each one (arrays, maps and plain objects copied; other drawing objects kept as references), their `var`
+ * records, the objects of the {@link varDrawing} variables, and the counters. Its fields are internal.
  */
 export interface DrawingCheckpoint {
   state: DrawingState;
   fields: Map<object, Record<string, unknown>>;
   records: Map<object, { count: number; heldAt: number | undefined; releasedAt: number | undefined } | null>;
+  /** The object of each variable of the run, in the order they were made */
+  variables: Array<object | undefined>;
 }
 
 /** A copy of a field value of a drawing object: plain data copied, drawing objects (and other instances) shared. */
@@ -700,9 +709,37 @@ function copyFields(obj: object): Record<string, unknown> {
   return out;
 }
 
-/** @internal */
+/**
+ * The drawings at the end of a bar, for a live update of a study with its own bar loop: save it at the end of the last
+ * confirmed bar, and put it back with {@link restoreDrawingCheckpoint} before the forming bar is calculated again. The
+ * drawings then are those of a full run on the same bars: the objects created, changed or deleted on the forming bar
+ * are undone, the objects keep their identity and creation order, and the maximum counts, the `var` holds (also of
+ * {@link varDrawing} variables), the linefills and the rules of the last bar ({@link setDrawingBar}) go on as in a full
+ * run. The incremental script runs use it too (#196, #203).
+ *
+ * The checkpoint holds the whole registry of the study: other studies on the same chart may reset and use the registry
+ * between two updates, putting it back makes it the study's again (call it where a full run calls
+ * {@link resetDrawings}). The study keeps its own variables (the objects it refers to, its arrays of objects) with the
+ * checkpoint and puts them back as plain values.
+ *
+ * @example
+ * ```typescript
+ * // full run: resetDrawings({ line: 500 }) ... for each bar i: setDrawingBar(i, i === n - 1); draw(i);
+ * //           and after the bar n - 2: checkpoint = saveDrawingCheckpoint()
+ * // live update of the forming bar n - 1 (or new bars after it):
+ * restoreDrawingCheckpoint(checkpoint);
+ * for (let i = n - 1; i < bars.length; i++) {
+ *   setDrawingBar(i, i === bars.length - 1);
+ *   draw(i);
+ *   if (i === bars.length - 2) checkpoint = saveDrawingCheckpoint();
+ * }
+ * setDrawingBar(null);
+ * ```
+ */
 export function saveDrawingCheckpoint(): DrawingCheckpoint {
   const state = saveDrawingState();
+  // the state of the last bar changes during the bar: a checkpoint taken on it keeps a copy
+  if (state.lastBar) state.lastBar = copyLastBar(state.lastBar);
   const fields = new Map<object, Record<string, unknown>>();
   const records: DrawingCheckpoint['records'] = new Map();
   for (const kind of Object.keys(state.live) as DrawingKind[]) {
@@ -712,13 +749,21 @@ export function saveDrawingCheckpoint(): DrawingCheckpoint {
       records.set(obj, r ? { count: r.count, heldAt: r.heldAt, releasedAt: r.releasedAt } : null);
     }
   }
-  return { state, fields, records };
+  return { state, fields, records, variables: holds.variables.map((v) => v.current) };
 }
 
-/** @internal Puts back a {@link saveDrawingCheckpoint}; it can be put back again later. */
+function copyLastBar(bar: LastBar): LastBar {
+  return { ...bar, old: new Set(bar.old), allowance: { ...bar.allowance } };
+}
+
+/**
+ * Puts back a {@link saveDrawingCheckpoint}: the registry becomes the one of the checkpoint, the objects alive then get
+ * their fields and `var` records back, the variables their objects. It can be put back again later (on each update of
+ * the forming bar).
+ */
 export function restoreDrawingCheckpoint(cp: DrawingCheckpoint): void {
   restoreDrawingState(cp.state);
-  pending = { ...cp.state.pending };
+  if (cp.state.lastBar) lastBar = copyLastBar(cp.state.lastBar);
   for (const [obj, saved] of cp.fields) {
     for (const key of Object.keys(obj)) if (!(key in saved)) delete (obj as Record<string, unknown>)[key];
     Object.assign(obj, copyFields(saved));
@@ -737,6 +782,11 @@ export function restoreDrawingCheckpoint(cp: DrawingCheckpoint): void {
       r.releasedAt = undefined;
     }
   }
+  // the variables made after the checkpoint belong to the calculation being undone
+  holds.variables.length = cp.variables.length;
+  cp.variables.forEach((obj, k) => {
+    holds.variables[k]!.current = obj;
+  });
 }
 
 /** Puts back the registry saved by {@link saveDrawingState} after the nested run. */
