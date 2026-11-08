@@ -662,6 +662,14 @@ its close). Ports use `securityLowerTf(chartBars, lowerBars, timeframe, chart, {
 `[from, to)` range of lower bars of each chart bar. As PineScript, only the last 100,000 lower bars are given out
 (`MAX_INTRABARS`; `{ maxIntrabars }` changes it): older chart bars get an empty array.
 
+#### Seed data
+
+`request.seed(source, symbol, expression, ignore_invalid_symbol?)` (#205) is `request.security(<ticker>, "",
+expression)` on a seed data series: the ticker is `ChartContext.seedSymbol(source, symbol)`, by default
+`"<SOURCE>:<SYMBOL>"` upper-cased (`request.seed("seed_crypto_santiment", "BTC_DEV_ACTIVITY", () => close)` reads
+`SEED_CRYPTO_SANTIMENT:BTC_DEV_ACTIVITY`), and its bars come from `ChartContext.bars` on the chart timeframe.
+`calc_bars_count` throws, as in `request.security`.
+
 ### The session of a chart context without a script
 
 Code that has its own bar loop can read the same session values from a chart context (timeframe, time zone,

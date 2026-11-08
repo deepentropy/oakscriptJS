@@ -71,9 +71,9 @@ The Pine constants exist with their Pine names: `shape.*`, `location.*`, `size.*
   first or last bar are not drawn).
 - `fill()` accepts `show_last` / `fillgaps` / `display` and ignores them.
 - `input.enum` does not exist (no `enum` declarations): use `input.string(..., { options })`.
-- `request.*`: only `request.security` and `request.security_lower_tf`. No `request.financial`,
-  `request.dividends`, `request.earnings`, `request.splits`, `request.economic`, `request.seed`,
-  `request.currency_rate`, `request.footprint`. `ticker.*`: only `ticker.heikinashi` and `ticker.standard`.
+- `request.*`: only `request.security`, `request.security_lower_tf` and `request.seed` (the host maps the seed
+  series to a symbol). No `request.financial`, `request.dividends`, `request.earnings`, `request.splits`,
+  `request.economic`, `request.currency_rate`, `request.footprint`. `ticker.*`: only `ticker.heikinashi` and `ticker.standard`.
 - `math.random(min, max, seed)`: with a seed, Pine's sequence, but one generator per seed value (Pine has one
   per call site): two calls with the same seed need `callsite.random(seed)`.
 - `math.log`, `math.exp`, `math.pow`, `math.sin`, `math.cos`, `math.tan`, `math.log10` can differ from Pine in

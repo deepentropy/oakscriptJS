@@ -55,7 +55,7 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 |-----------|-------------------|--------|
 | **strategy** | 47 | Order execution engine: the script API has `strategy()` and the `strategy.*` API, forwarded to an engine the host supplies |
 | **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
-| **request** | 10 | External data fetching — `request.security` (chart symbol on higher timeframes, Heikin Ashi, and other symbols with bars given by the host) is in the script API |
+| **request** | 10 | External data fetching — `request.security` (chart symbol on higher timeframes, Heikin Ashi, and other symbols with bars given by the host), `request.security_lower_tf` and `request.seed` (a seed data series, as the symbol `ChartContext.seedSymbol(source, symbol)`, #205) are in the script API |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
 | **syminfo** | 2 | Platform symbol metadata |

@@ -77,6 +77,16 @@ const upVolume = eachBar((c) => vols[c.i].reduce((sum, v) => sum + v, 0));
 plot(upVolume, "Up volume", { style: plot.style_columns, color: color.teal });
 ```
 
+### Seed data
+
+`request.seed(source, symbol, expression)` reads a seed data series on the chart timeframe: it is
+`request.security` of the symbol the host gives that series (by default `"<SOURCE>:<SYMBOL>"` upper-cased).
+
+```js
+indicator("Seed value", { overlay: false });
+plot(request.seed("seed_crypto_santiment", "BTC_DEV_ACTIVITY", () => close), "Dev activity");
+```
+
 ## Timeframe values
 
 - `timeframe.period` (`"60"`, `"1D"`...), `timeframe.multiplier`, `timeframe.isintraday`, `timeframe.isdaily`,

@@ -2944,6 +2944,11 @@ export interface ChartContext {
    * `request.security` merges on (#179), and the other fields its `syminfo.*` inside the expression.
    */
   symbolInfo?: (symbol: string) => SymbolInfo | undefined;
+  /**
+   * Ticker of a seed data series for `request.seed(source, symbol, ...)` (#205), whose bars then come from
+   * {@link bars} like any other symbol. Default: `"<SOURCE>:<SYMBOL>"` upper-cased.
+   */
+  seedSymbol?: (source: string, symbol: string) => string;
 }
 
 /** Calendar and properties of a symbol, as in {@link ChartContext}. */
@@ -3666,10 +3671,26 @@ function security_lower_tf<T extends SecurityValue>(
   return (Array.isArray(result) ? mapped : mapped[0]) as T extends unknown[] ? number[][][] : number[][];
 }
 
-/** PineScript `request.*`: `security` (issue #101, other symbols #179, lower timeframes #181) and `security_lower_tf`. */
+/**
+ * PineScript `request.seed(source, symbol, expression, ignore_invalid_symbol)` (#205): `expression` on a seed data
+ * series, on the chart timeframe. The series is the symbol `ChartContext.seedSymbol(source, symbol)` (default
+ * `"<SOURCE>:<SYMBOL>"` upper-cased), read as `request.security(<that symbol>, "", expression)`.
+ */
+function seed<T extends SecurityValue>(
+  source: string,
+  symbol: string,
+  expression: () => T,
+  ignore_invalid_symbol: boolean = false
+): T extends unknown[] ? Series[] : Series {
+  const ticker = chartCtx.seedSymbol?.(source, symbol) ?? `${source.toUpperCase()}:${symbol.toUpperCase()}`;
+  return security(ticker, '', expression, barmerge.gaps_off, barmerge.lookahead_off, ignore_invalid_symbol);
+}
+
+/** PineScript `request.*`: `security` (issue #101, other symbols #179, lower timeframes #181), `security_lower_tf` and `seed` (#205). */
 /** PineScript parameters of `request.security` / `request.security_lower_tf`, in their positional order. */
 const SECURITY_PARAMETERS = ['symbol', 'timeframe', 'expression', 'gaps', 'lookahead', 'ignore_invalid_symbol', 'currency', 'calc_bars_count'] as const;
 const SECURITY_LOWER_TF_PARAMETERS = ['symbol', 'timeframe', 'expression', 'ignore_invalid_symbol', 'currency', 'ignore_invalid_timeframe', 'calc_bars_count'] as const;
+const SEED_PARAMETERS = ['source', 'symbol', 'expression', 'ignore_invalid_symbol', 'calc_bars_count'] as const;
 
 /** Named arguments of `request.security` (PineScript names). */
 export interface SecurityArgs<T extends SecurityValue = SecurityValue> {
@@ -3727,7 +3748,28 @@ function securityLowerTfCall<T extends SecurityValue>(
   return security_lower_tf(a[0] as string, a[1] as string, a[2] as () => T, a[3] as boolean | undefined);
 }
 
-export const request = strictNamespace('request', { security: securityCall, security_lower_tf: securityLowerTfCall });
+/** Named arguments of `request.seed` (PineScript names). */
+export interface SeedArgs<T extends SecurityValue = SecurityValue> {
+  source?: string;
+  symbol?: string;
+  expression?: () => T;
+  ignore_invalid_symbol?: boolean;
+  calc_bars_count?: number;
+}
+
+/** `request.seed` with PineScript's named arguments. */
+function seedCall<T extends SecurityValue>(
+  ...args:
+    | [source: string, symbol: string, expression: () => T, ignore_invalid_symbol?: boolean]
+    | [source: string, symbol: string, expression: () => T, args: SeedArgs<T>]
+    | [args: SeedArgs<T> & { source: string; symbol: string; expression: () => T }]
+): T extends unknown[] ? Series[] : Series {
+  const a = namedArguments('request.seed', SEED_PARAMETERS, args);
+  unsupportedSecurityArgs('request.seed', undefined, a[4]);
+  return seed(a[0] as string, a[1] as string, a[2] as () => T, a[3] as boolean | undefined);
+}
+
+export const request = strictNamespace('request', { security: securityCall, security_lower_tf: securityLowerTfCall, seed: seedCall });
 
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that

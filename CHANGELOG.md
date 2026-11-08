@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 08/11/2026
+
+### Added
+
+- `request.seed(source, symbol, expression, ignore_invalid_symbol?)`, positional or named arguments: the expression
+  on a seed data series, on the chart timeframe. It is `request.security` of the symbol
+  `ChartContext.seedSymbol(source, symbol)` gives that series (new, optional), by default `"<SOURCE>:<SYMBOL>"`
+  upper-cased; the bars come from `ChartContext.bars` (#205).
+
 ## [0.16.0] - 06/11/2026
 
 ### Added
