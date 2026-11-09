@@ -139,8 +139,9 @@ const hooks: SeriesRunHooks = {
     return values && values.length >= run.from ? { values, from: run.from } : null;
   },
   computed(series, values) {
+    // also a Series of the body first read in an eachBar() callback (its values do not depend on the bar running, #206)
     const run = active;
-    if (!run || run.block >= 0) return;
+    if (!run) return;
     const slot = slotOf(series);
     if (slot !== undefined) run.next.series[slot] = values;
     else run.next.kept.set(series, values);
@@ -231,6 +232,39 @@ export function copyValue(value: unknown): unknown {
   }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) out[k] = copyValue(v);
+  return out;
+}
+
+/** {@link plainCopy} of a value that is not plain data. */
+export const NOT_COPIED: unique symbol = Symbol('not copied');
+
+/** A deep copy of plain data (numbers, strings, booleans, arrays, plain objects, Map, Set), else {@link NOT_COPIED}. */
+export function plainCopy(value: unknown): unknown {
+  if (typeof value === 'function') return NOT_COPIED;
+  if (value === null || typeof value !== 'object') return value;
+  const all = (items: unknown[]): unknown[] | typeof NOT_COPIED => {
+    const out = items.map(plainCopy);
+    return out.includes(NOT_COPIED) ? NOT_COPIED : out;
+  };
+  if (Array.isArray(value)) return all(value);
+  if (value instanceof Map) {
+    const entries = all([...value].flat());
+    if (entries === NOT_COPIED) return NOT_COPIED;
+    const m = new Map();
+    for (let k = 0; k < entries.length; k += 2) m.set(entries[k], entries[k + 1]);
+    return m;
+  }
+  if (value instanceof Set) {
+    const items = all([...value]);
+    return items === NOT_COPIED ? NOT_COPIED : new Set(items);
+  }
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return NOT_COPIED;
+  const keys = Object.keys(value);
+  const values = all(keys.map((k) => (value as Record<string, unknown>)[k]));
+  if (values === NOT_COPIED) return NOT_COPIED;
+  const out: Record<string, unknown> = {};
+  keys.forEach((k, j) => (out[k] = values[j]));
   return out;
 }
 

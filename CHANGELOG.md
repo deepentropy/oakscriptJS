@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `executeIntrabar` resumes a history bar's tick from the state the previous intrabar run of the backtest kept (as
+  `createScriptRun` does) instead of calculating all the bars before it: about one bar per tick, the same order calls,
+  `strategy.*` reads, trades and `varip` values as the full replay. It returns an `IntrabarUpdate` (`from`,
+  `incremental`, `fullRunReason`); `StrategyRecorder.intrabarFullRunReason`, options `resume` (false: full replays) and
+  `verify`. Scripts with state outside `persist()` boxes keep the full replay. 2,400 daily bars with 4 ticks per bar:
+  4.7 s -> 0.15 s (#206).
+- Incremental runs keep the Series of the script body first read in an `eachBar()` callback (`c.get(ta output)`): a
+  resumed update no longer calculates them on the whole history (#206).
+
+### Fixed
+
+- `last_bar_index` in an intrabar run is the chart's last bar (was the intrabar run's bar), as its documentation says
+  (#206).
+- `math.random` makes an incremental run a full one: a resumed update drew other numbers than a full run (#206).
+
 ## [0.17.0] - 08/11/2026
 
 ### Added

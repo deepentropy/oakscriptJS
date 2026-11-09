@@ -396,6 +396,13 @@ export class StrategyRecorder {
   readonly varipStarts: unknown[][] = [];
   /** Current `varip` values: kept through the intrabar runs (no rollback). */
   readonly varip: unknown[] = [];
+  /**
+   * Why the intrabar runs of this recorder calculate all the bars before their bar (a feature that is not resumed,
+   * or a verification difference); null while they are resumed (see {@link executeIntrabar}).
+   */
+  get intrabarFullRunReason(): string | null {
+    return intrabarChains.get(this)?.reason ?? null;
+  }
 }
 
 /** Module state of a run, saved around a nested run (an intrabar run inside the bar loop of the main run). */
@@ -474,6 +481,8 @@ function runBody(
 ): ScriptRunResult {
   // A run inside another one (an intrabar run of a strategy) puts the outer run back when it ends.
   const outer = ctx ? saveRunState() : null;
+  // A main run with a recorder starts a new backtest: its intrabar runs start again (#206).
+  if (options.recorder) intrabarChains.delete(options.recorder);
   // A plain run inside an incremental one is not part of it.
   const outerInc = inc ? incremental.beginRun(inc) : incremental.suspendRun();
   ctxBars.setAll(barsInput);
@@ -549,18 +558,101 @@ export interface IntrabarOptions {
   engine: StrategyEngine;
   /** The recorder of the main run. */
   recorder: StrategyRecorder;
+  /**
+   * Resume the run from the state at the start of the bar (default true, #206); false calculates all the bars before
+   * it, as before.
+   */
+  resume?: boolean;
+  /**
+   * Resumed runs also calculated in full and compared, the first ones of a backtest (default 2): a difference makes the
+   * next intrabar runs full ones (a script that keeps state outside persist() boxes).
+   */
+  verify?: number;
+}
+
+/** What {@link executeIntrabar} calculated. */
+export interface IntrabarUpdate {
+  /** First bar calculated: 0 for a full run, else the bar of the previous intrabar run (#206) */
+  from: number;
+  /** The run was resumed from the state of the bar before `from` */
+  incremental: boolean;
+  /** Why the intrabar runs of the backtest are full runs (null: resumed) */
+  fullRunReason: string | null;
+}
+
+/** The intrabar runs of a backtest (one recorder): each one resumes from the state the previous one kept (#206). */
+interface IntrabarChain {
+  body: () => void;
+  inputs: Record<string, unknown>;
+  chart: ChartContext;
+  engine: StrategyEngine;
+  lastBarIndex: number;
+  /** State kept by the last run (null: the next run is a full one that records it) */
+  memory: incremental.RunMemory | null;
+  /** Bars of the last run */
+  n: number;
+  reason: string | null;
+  verifyLeft: number;
+}
+const intrabarChains = new WeakMap<StrategyRecorder, IntrabarChain>();
+
+/**
+ * The live engine of an intrabar run with its calls logged (`log`, to compare two runs) and its order calls, when
+ * `writes` is given, kept there instead of made (a resumed run gives them to the engine once it has ended: a run
+ * stopped in the middle makes none).
+ */
+function intrabarEngine(engine: StrategyEngine, log: unknown[] | null, writes: Array<() => void> | null): StrategyEngine {
+  const read = <T>(name: string, args: unknown[], value: T): T => {
+    log?.push([name, ...args, value]);
+    return value;
+  };
+  const write = (name: string, args: unknown[], call: () => void): void => {
+    log?.push([name, ...args]);
+    if (writes) writes.push(call);
+    else call();
+  };
+  return {
+    ...forward(engine),
+    entry: (id, direction, options) => write('entry', [id, direction, options], () => engine.entry(id, direction, options)),
+    order: (id, direction, options) => write('order', [id, direction, options], () => engine.order(id, direction, options)),
+    exit: (id, options) => write('exit', [id, options], () => engine.exit(id, options)),
+    close: (id, options) => write('close', [id, options], () => engine.close(id, options)),
+    close_all: (options) => write('close_all', [options], () => engine.close_all(options)),
+    cancel: (id) => write('cancel', [id], () => engine.cancel(id)),
+    cancel_all: () => write('cancel_all', [], () => engine.cancel_all()),
+    get: (name) => read('get', [name], engine.get(name)),
+    openTrade: (index) => read('openTrade', [index], engine.openTrade(index)),
+    closedTrade: (index) => read('closedTrade', [index], engine.closedTrade(index)),
+    defaultEntryQty: engine.defaultEntryQty
+      ? (price) => read('defaultEntryQty', [price], engine.defaultEntryQty!(price))
+      : undefined,
+  };
+}
+
+/** Puts the `varip` values back to a copy taken before a run. */
+function setVarip(recorder: StrategyRecorder, values: unknown[]): void {
+  recorder.varip.length = 0;
+  recorder.varip.push(...values);
 }
 
 /**
  * Runs a strategy once more on a bar, inside the bar (PineScript `calc_on_order_fills` and calculations on the
  * ticks of history bars): `bars` holds the bars up to that bar, the last one as it stands at the tick (its close is
- * the tick price, its high and low the extremes reached so far). The script's values are calculated again on these
- * bars, so its variables come back to their state at the start of the bar (PineScript rollback), except `varip`
- * ones. In strategy.eachBar(), the bars before replay the engine's answers that the main run recorded (their
- * order calls are dropped), and the bar itself calls `options.engine` without processBar / processClose (the host
- * is filling its orders). That bar is a confirmed history bar (`barstate.isconfirmed`); `barstate.islast`, `last_bar_index` and
- * `BarContext.n` keep the chart's last bar. Strategy risk rules are not declared again, and the outputs (plots,
- * drawings) are dropped. Re-entrant: the host calls it inside the bar loop of the main run.
+ * the tick price, its high and low the extremes reached so far). The script's variables come back to their state at
+ * the start of the bar (PineScript rollback), except `varip` ones. In strategy.eachBar(), the bars before replay the
+ * engine's answers that the main run recorded (their order calls are dropped), and the bar itself calls
+ * `options.engine` without processBar / processClose (the host is filling its orders). That bar is a confirmed
+ * history bar (`barstate.isconfirmed`); `barstate.islast`, `last_bar_index` and `BarContext.n` keep the chart's last
+ * bar. Strategy risk rules are not declared again, and the outputs (plots, drawings) are dropped. Re-entrant: the host
+ * calls it inside the bar loop of the main run.
+ *
+ * Resumed runs (#206): the intrabar runs of a backtest (same recorder, script, inputs, chart and engine) keep the state
+ * of the script as createScriptRun does, so a run calculates its bar only (and the bars since the previous intrabar
+ * run), not all the bars before it; the order calls and `strategy.*` reads are the same as in a full run. The bars
+ * before `options.bar` must be the main run's (the same on every call). A script that keeps state outside `persist()`
+ * boxes (a `let` variable outside the callbacks that a callback changes), or uses a feature that is not resumed, gets
+ * full runs (`fullRunReason`); the first resumed runs are also calculated in full and compared (`verify`). A resumed
+ * run gives its order calls to the engine once it has ended.
  */
 export function executeIntrabar(
   body: () => void,
@@ -568,25 +660,130 @@ export function executeIntrabar(
   inputs: Record<string, unknown>,
   chart: ChartContext,
   options: IntrabarOptions
-): void {
-  const run: IntrabarRun = {
-    bar: options.bar,
-    lastBarIndex: options.lastBarIndex,
-    engine: options.engine,
-    recorder: options.recorder,
+): IntrabarUpdate {
+  const recorder = options.recorder;
+  // History bars are confirmed, also on their ticks (the reference app: a barstate.isconfirmed entry fills on them).
+  const runChart: ChartContext = { ...chart, lastBarConfirmed: true, realtime: false };
+  const execute = (engine: StrategyEngine, inc: incremental.ActiveRun | null): void => {
+    const run: IntrabarRun = { bar: options.bar, lastBarIndex: options.lastBarIndex, engine, recorder };
+    runBody(
+      () => {
+        intrabarRun = run;
+        varipRun = { slot: 0, recorder, mode: 'live', scratch: null };
+        body();
+      },
+      bars,
+      inputs,
+      runChart,
+      { strategyEngine: () => engine },
+      inc
+    );
   };
-  executeScript(
-    () => {
-      intrabarRun = run;
-      varipRun = { slot: 0, recorder: options.recorder, mode: 'live', scratch: null };
-      body();
-    },
-    bars,
-    inputs,
-    // History bars are confirmed, also on their ticks (the reference app: a barstate.isconfirmed entry fills on them).
-    { ...chart, lastBarConfirmed: true, realtime: false },
-    { strategyEngine: () => options.engine }
-  );
+  const fullRun = (reason: string | null): IntrabarUpdate => {
+    execute(options.engine, null);
+    return { from: 0, incremental: false, fullRunReason: reason };
+  };
+  if (options.resume === false) return fullRun('resume: false');
+  const n = bars.length;
+  if (options.bar !== n - 1) return fullRun('the bar is not the last of the bars');
+
+  let chain = intrabarChains.get(recorder);
+  if (
+    !chain || chain.body !== body || chain.engine !== options.engine || chain.lastBarIndex !== options.lastBarIndex ||
+    !sameResult(chain.inputs, inputs) || !sameChart(chain.chart, runChart)
+  ) {
+    chain = {
+      body,
+      inputs,
+      chart: runChart,
+      engine: options.engine,
+      lastBarIndex: options.lastBarIndex,
+      memory: null,
+      n: 0,
+      reason: null,
+      verifyLeft: options.verify ?? 2,
+    };
+    intrabarChains.set(recorder, chain);
+  }
+  if (chain.reason) return fullRun(chain.reason);
+
+  const memory = chain.memory;
+  // A resumed run changes the memory in place: it is usable again only when the run has ended.
+  chain.memory = null;
+  if (!memory || n < chain.n) {
+    const inc = newActiveRun('record', bars, 0, null);
+    execute(options.engine, inc);
+    if (inc.blocked) chain.reason = inc.blocked;
+    else {
+      chain.memory = inc.next;
+      chain.n = n;
+    }
+    return { from: 0, incremental: false, fullRunReason: chain.reason };
+  }
+
+  const from = chain.n - 1;
+  const start = incremental.plainCopy(recorder.varip);
+  if (start === incremental.NOT_COPIED) {
+    chain.reason = 'a varip value that is not plain data';
+    return fullRun(chain.reason);
+  }
+  const verifying = chain.verifyLeft > 0;
+  const log: unknown[] | null = verifying ? [] : null;
+  const writes: Array<() => void> = [];
+  const inc = newActiveRun('resume', bars, from, memory);
+  try {
+    execute(intrabarEngine(options.engine, log, writes), inc);
+  } catch (err) {
+    // The run is calculated in full instead: the varip values back to the start, the kept order calls dropped. An
+    // error of the script is the full run's (it throws it again).
+    setVarip(recorder, start as unknown[]);
+    if (err instanceof incremental.ResumeAborted) chain.reason = err.reason;
+    return fullRun(chain.reason);
+  }
+  if (verifying) {
+    chain.verifyLeft--;
+    const resumedVarip = incremental.plainCopy(recorder.varip);
+    setVarip(recorder, start as unknown[]);
+    const fullLog: unknown[] = [];
+    execute(intrabarEngine(options.engine, fullLog, null), null);
+    if (resumedVarip === incremental.NOT_COPIED || !sameResult(log, fullLog) || !sameResult(resumedVarip, recorder.varip)) {
+      chain.reason = 'a resumed intrabar run differs from a full run (state kept outside persist()?)';
+      return { from: 0, incremental: false, fullRunReason: chain.reason };
+    }
+  } else {
+    for (const call of writes) call();
+  }
+  chain.memory = inc.next;
+  chain.n = n;
+  return { from, incremental: true, fullRunReason: null };
+}
+
+/** The state of an incremental run: a recorded one (full), or one resumed at bar `from` from `prev`. */
+function newActiveRun(
+  mode: 'record' | 'resume',
+  b: Bar[],
+  from: number,
+  prev: incremental.RunMemory | null
+): incremental.ActiveRun {
+  const next = incremental.emptyMemory(b.length);
+  // the block that draws stays the one of the previous run (the forming bar may not draw)
+  if (mode === 'resume' && prev) next.drawingBlock = prev.drawingBlock;
+  return {
+    mode,
+    from,
+    bars: b,
+    prev: mode === 'resume' ? prev : null,
+    next,
+    seriesSlot: 0,
+    taSlot: 0,
+    blockSlot: 0,
+    plotSlot: 0,
+    boxSlot: 0,
+    drawSlot: 0,
+    block: -1,
+    boxes: [],
+    blocked: null,
+  };
 }
 
 // ── Incremental runs (#196) ──────────────────────────────────────────────────
@@ -716,27 +913,8 @@ export function createScriptRun(
   let reason: string | null = null;
   let verifyLeft = options.verify ?? 2;
 
-  const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun => {
-    const next = incremental.emptyMemory(b.length);
-    // the block that draws stays the one of the previous run (the forming bar may not draw)
-    if (mode === 'resume' && memory) next.drawingBlock = memory.drawingBlock;
-    return {
-    mode,
-    from,
-    bars: b,
-    prev: mode === 'resume' ? memory : null,
-    next,
-    seriesSlot: 0,
-    taSlot: 0,
-    blockSlot: 0,
-    plotSlot: 0,
-    boxSlot: 0,
-    drawSlot: 0,
-    block: -1,
-    boxes: [],
-    blocked: null,
-    };
-  };
+  const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun =>
+    newActiveRun(mode, b, from, memory);
 
   const full = (b: Bar[], c: ChartContext): ScriptRunUpdate => {
     memory = null;
@@ -823,7 +1001,8 @@ export interface VaripVariable<T> {
  */
 export function varip<T>(initial: T): VaripVariable<T> {
   collector();
-  incremental.nonIncremental('varip');
+  // the intrabar runs of a backtest resume with varip values read in strategy.eachBar() (#206)
+  if (!intrabarRun) incremental.nonIncremental('varip');
   const slot = varipRun.slot++;
   const state = varipRun;
   const rec = state.recorder;
@@ -839,7 +1018,11 @@ export function varip<T>(initial: T): VaripVariable<T> {
     };
   }
   if (rec.varip.length <= slot) rec.varip[slot] = initial;
-  const store = (): unknown[] => (state.mode === 'replay' && state.scratch ? state.scratch : rec.varip);
+  const store = (): unknown[] => {
+    // elsewhere, a resumed run would keep values of the bars before calculated with older varip values
+    if (incremental.active && !ctx?.strategy?.inLoop) incremental.nonIncremental('varip used outside strategy.eachBar()');
+    return state.mode === 'replay' && state.scratch ? state.scratch : rec.varip;
+  };
   return {
     get value() {
       return store()[slot] as T;
@@ -1173,9 +1356,10 @@ export const bar_index = new Series(ctxBars, (_b, i) => i);
 bar_index.fullHistory = true;
 /** PineScript `last_bar_index`: the index of the last bar, on every bar. In a bar loop, `c.n - 1`. */
 export const last_bar_index = new Series(ctxBars, (_b, _i, data) => {
-  // the same value on every bar, changed by a new bar: not kept by an incremental run (#196)
-  incremental.nonIncremental('last_bar_index');
-  return data.length - 1;
+  // the same value on every bar, changed by a new bar: not kept by an incremental run (#196), but the same in the
+  // intrabar runs of a backtest (the chart's last bar, #206)
+  if (!intrabarRun) incremental.nonIncremental('last_bar_index');
+  return chartBarCount(data.length) - 1;
 });
 last_bar_index.fullHistory = true;
 // built-in price variables keep the whole history (no 5000-bar limit)
@@ -2400,7 +2584,7 @@ function runBlock(
   const b = bars();
   // An intrabar run ends on its bar: the chart's last bar stays the main run's.
   const lastIndex = intrabarRun ? intrabarRun.lastBarIndex : b.length - 1;
-  let out: number[] = new Array(b.length).fill(NaN);
+  let out: number[] = [];
   const cache = new Map<Series, number[]>();
   // history buffers by source: the slot of a Series made by the script (matched across incremental runs), or the Series
   const buffers = new Map<unknown, HistoryBuffer>();
@@ -2420,7 +2604,8 @@ function runBlock(
   }
   let start = 0;
   let checkpoint: incremental.BlockCheckpoint | null = null;
-  if (run?.mode === 'resume') {
+  if (run?.mode !== 'resume') out = new Array(b.length).fill(NaN);
+  else {
     const prev = run.prev?.blocks[slot];
     if (!prev) incremental.nonIncremental('a new eachBar() block');
     start = run.from;
@@ -2464,8 +2649,9 @@ function runBlock(
       return idx;
     },
     get n() {
-      // the bar count changes with each new bar: a value read from it is not kept by an incremental run
-      if (run) incremental.nonIncremental('BarContext.n');
+      // the bar count changes with each new bar: a value read from it is not kept by an incremental run (the chart's
+      // last bar of the intrabar runs of a backtest does not change)
+      if (run && !intrabarRun) incremental.nonIncremental('BarContext.n');
       return lastIndex + 1;
     },
     get time() {
@@ -2652,7 +2838,7 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
     const varipState = varipRun;
     const replayLog: { answers: readonly unknown[]; next: number } = { answers: [], next: 0 };
     const replayed = replayEngine(replayLog);
-    return eachBar((c) => {
+    return runBlock((c) => {
       const replay = c.i < intrabar.bar;
       if (replay) {
         replayLog.answers = intrabar.recorder.answers[c.i] ?? [];
@@ -2671,7 +2857,7 @@ function strategyEachBar(fn: (c: BarContext) => number | boolean | void): Series
         varipState.mode = 'live';
         varipState.scratch = null;
       }
-    });
+    }, undefined, fn);
   }
   const recorder = scriptOptions.recorder;
   // an incremental run keeps the engine state at the last confirmed bar: the engine has to save and restore it
@@ -3391,8 +3577,9 @@ export const barstate = {
   get isnew(): Series { return namedFlag('isnew', (i, n) => !lastRealtime(i, n) || chartCtx.lastBarNew !== false); },
   get islastconfirmedhistory(): Series {
     return namedFlag('islastconfirmedhistory', (i, n) => {
-      // moves to the next bar with each new bar: not kept by an incremental run (#196)
-      incremental.nonIncremental('barstate.islastconfirmedhistory');
+      // moves to the next bar with each new bar: not kept by an incremental run (#196), but the same in the intrabar
+      // runs of a backtest (#206)
+      if (!intrabarRun) incremental.nonIncremental('barstate.islastconfirmedhistory');
       const lastConfirmed = chartCtx.lastBarConfirmed === true && chartCtx.realtime !== true;
       const count = chartBarCount(n);
       return i === (lastConfirmed ? count - 1 : count - 2);
@@ -4078,6 +4265,11 @@ void _saveRandom;
 void _restoreRandom;
 export const math = strictNamespace('math', {
   ...mathScript,
+  // the generators start again on each run: a resumed run would draw other numbers (#206)
+  random: ((min?: number, max?: number, seed?: number) => {
+    incremental.nonIncremental('math.random');
+    return mathCore.random(min, max, seed);
+  }) as typeof mathCore.random,
   round_to_mintick: ((number: number | Series, mintick?: number) => {
     const tick = mintick ?? syminfo.mintick;
     return number instanceof Series ? mathCore.round_to_mintick(number, tick) : mathCore.round_to_mintick(number, tick);

@@ -12,8 +12,21 @@ import {
   StrategyRecorder,
   ta,
   varip,
+  persist,
+  eachBar,
+  math,
+  last_bar_index,
+  type IntrabarUpdate,
   type StrategyEngine,
+  type StrategySetup,
 } from '../../src/script';
+import { TestEngine } from '../../src/check/harness';
+import type {
+  StrategyDirection,
+  StrategyEntryOptions,
+  StrategyExitOptions,
+  StrategyVariable,
+} from '../../src/strategy';
 import type { Bar } from '../../src/types';
 
 const BARS: Bar[] = [10, 11, 12, 11, 13, 14].map((c, i) => ({
@@ -119,5 +132,230 @@ describe('executeIntrabar', () => {
     executeIntrabar(body, BARS.slice(0, 3), {}, {}, { bar: 2, lastBarIndex: 5, engine: main, recorder });
     expect(rules).toBe(1);
     expect(confirmed).toEqual([1, 1, 1]);
+  });
+});
+
+// ── Resumed intrabar runs (#206) ─────────────────────────────────────────────
+
+function makeBars(n: number, seed: number): Bar[] {
+  let s = seed;
+  const r = () => {
+    s = (s * 16807) % 2147483647;
+    return s / 2147483647;
+  };
+  let p = 100;
+  return Array.from({ length: n }, (_, i) => {
+    const o = p;
+    p = Math.max(1, p * (1 + (r() - 0.5) * 0.06));
+    const c = i % 37 === 5 ? o : p;
+    return {
+      time: 1700000000 + i * 86400,
+      open: o,
+      high: Math.max(o, c) * (1 + r() * 0.01),
+      low: Math.min(o, c) * (1 - r() * 0.01),
+      close: c,
+      volume: 1000 + Math.floor(r() * 500),
+    };
+  });
+}
+
+/** The ticks of a history bar: the open, a middle price, then the bar itself. */
+function barTicks(bar: Bar): Bar[] {
+  const mid = (bar.open + bar.close) / 2;
+  return [
+    { ...bar, high: bar.open, low: bar.open, close: bar.open },
+    { ...bar, high: Math.max(bar.open, mid), low: Math.min(bar.open, mid), close: mid },
+    bar,
+  ];
+}
+
+const LONG = makeBars(150, 11);
+
+interface Backtest {
+  /** The order calls the engine received, with the bar and the tick they came from */
+  log: string[];
+  closed: unknown[];
+  varip: unknown[];
+  updates: IntrabarUpdate[];
+  reason: string | null;
+}
+
+/**
+ * A backtest with intrabar runs on the ticks of every bar but every 5th one (`resume` passed to executeIntrabar):
+ * the host engine calls executeIntrabar from processBar, as a broker does.
+ */
+function backtest(body: () => void, resume: boolean): Backtest {
+  const log: string[] = [];
+  const updates: IntrabarUpdate[] = [];
+  const recorder = new StrategyRecorder();
+  let where = 'main';
+  class Host extends TestEngine {
+    override processBar(bar: number): void {
+      super.processBar(bar);
+      if (bar % 5 === 3) return;
+      barTicks(LONG[bar]!).forEach((tick, t) => {
+        where = `${bar}.${t}`;
+        const bars = [...LONG.slice(0, bar), tick];
+        updates.push(executeIntrabar(body, bars, {}, {}, { bar, lastBarIndex: LONG.length - 1, engine: this, recorder, resume }));
+        where = 'main';
+      });
+    }
+    override entry(id: string, direction: StrategyDirection, options: StrategyEntryOptions): void {
+      log.push(`${where} entry ${id} ${direction} ${JSON.stringify(options)}`);
+      super.entry(id, direction, options);
+    }
+    override exit(id: string, options: StrategyExitOptions): void {
+      log.push(`${where} exit ${id} ${JSON.stringify(options)}`);
+      super.exit(id, options);
+    }
+    override cancel(id: string): void {
+      log.push(`${where} cancel ${id}`);
+      super.cancel(id);
+    }
+  }
+  let engine: TestEngine | null = null;
+  executeScript(body, LONG, {}, {}, { strategyEngine: (setup: StrategySetup) => (engine = new Host(setup)), recorder });
+  return { log, closed: engine!.closed, varip: [...recorder.varip], updates, reason: recorder.intrabarFullRunReason };
+}
+
+/** A strategy whose state is in persist() boxes, ta.* calls and a varip counter; it writes what it reads in cancel ids. */
+const stats = { callbacks: 0 };
+const tally = (): void => void stats.callbacks++;
+const resumable = (): void => {
+  strategy('R');
+  const fast = ta.ema(close, 5);
+  const slow = ta.sma(close, 12);
+  const rsi = ta.rsi(close, 7);
+  const islast = barstate.islast;
+  const ups = persist(0);
+  const trend = eachBar((c) => {
+    if (c.close > c.get(close, 1)) ups.value += 1;
+    return ups.value;
+  });
+  const recent = persist<number[]>([]);
+  const ticks = varip(0);
+  strategy.eachBar((c) => {
+    tally();
+    ticks.value += 1;
+    recent.value.push(c.close);
+    if (recent.value.length > 4) recent.value.shift();
+    const size = strategy.position_size;
+    strategy.cancel(
+      `${c.i}|${c.get(fast)}|${c.get(slow)}|${c.get(rsi)}|${c.get(trend)}|${recent.value.join(',')}|${ticks.value}|` +
+        `${size}|${c.n}|${c.get(last_bar_index)}|${c.get(islast)}`
+    );
+    if (c.get(fast) > c.get(slow) && size <= 0) strategy.entry('L', strategy.long);
+    if (c.get(fast) < c.get(slow) && size >= 0) strategy.entry('S', strategy.short);
+    if (size !== 0) strategy.exit('X', { from_entry: size > 0 ? 'L' : 'S', profit: 50, loss: 40 });
+  });
+};
+
+describe('executeIntrabar resumed from the state at the start of the bar (#206)', () => {
+  it('gives the same order calls, trades and varip values as the full replay, one bar per tick', () => {
+    stats.callbacks = 0;
+    const full = backtest(resumable, false);
+    const fullCallbacks = stats.callbacks;
+    stats.callbacks = 0;
+    const resumed = backtest(resumable, true);
+    expect(resumed.reason).toBeNull();
+    expect(resumed.log).toEqual(full.log);
+    expect(resumed.log.length).toBeGreaterThan(400);
+    expect(resumed.closed).toEqual(full.closed);
+    expect(resumed.closed.length).toBeGreaterThan(3);
+    expect(resumed.varip).toEqual(full.varip);
+    // c.n, last_bar_index and barstate.islast keep the chart's last bar in an intrabar run
+    expect(full.log.filter((l) => l.startsWith('7.1 cancel 7|') && l.endsWith('|150|149|0'))).toHaveLength(1);
+    // the first run records, the next ones resume from the previous intrabar run's bar
+    expect(resumed.updates[0]).toMatchObject({ from: 0, incremental: false });
+    expect(resumed.updates.slice(1).every((u) => u.incremental)).toBe(true);
+    expect(resumed.updates[1]).toMatchObject({ from: 0, incremental: true });
+    expect(resumed.updates[4]).toMatchObject({ from: 1, incremental: true });
+    // the main run, about two bars per tick, and the 2 verified runs in full
+    expect(stats.callbacks).toBeLessThan(150 + resumed.updates.length * 2 + 10);
+    expect(fullCallbacks).toBeGreaterThan(stats.callbacks * 10);
+  });
+
+  it('keeps the full replay for a script with state outside the runtime, and names the reason', () => {
+    const body = (): void => {
+      strategy('P');
+      let count = 0;
+      strategy.eachBar((c) => {
+        count += 1;
+        strategy.cancel(`${c.i}|${count}`);
+      });
+    };
+    const full = backtest(body, false);
+    const resumed = backtest(body, true);
+    expect(resumed.reason).toMatch(/count/);
+    expect(resumed.updates.every((u) => !u.incremental)).toBe(true);
+    expect(resumed.log).toEqual(full.log);
+  });
+
+  it('a run stopped in the middle makes no order call: the full run makes them once', () => {
+    const body = (): void => {
+      strategy('M');
+      const n = persist(0);
+      strategy.eachBar((c) => {
+        n.value += 1;
+        strategy.cancel(`${c.i}|${n.value}`);
+        // a feature that is not resumed, met on a later bar only
+        if (c.i === 60) strategy.cancel(`random ${math.random(0, 1, 7)}`);
+      });
+    };
+    const full = backtest(body, false);
+    const resumed = backtest(body, true);
+    expect(resumed.reason).toBe('math.random');
+    expect(resumed.log).toEqual(full.log);
+    const at = resumed.updates.findIndex((u, k) => k > 0 && !u.incremental);
+    expect(at).toBeGreaterThan(100);
+    expect(resumed.updates.slice(1, at).every((u) => u.incremental)).toBe(true);
+  });
+
+  it('finds an engine whose reads change with the order calls of the bar (verified runs), then runs in full', () => {
+    // opentrades counts the entry calls at once: a resumed run, which gives its calls at its end, reads other values
+    const eager = (): void => {
+      strategy('E');
+      const n = persist(0);
+      strategy.eachBar((c) => {
+        n.value += 1;
+        strategy.entry('L', strategy.long);
+        strategy.cancel(`${c.i}|${n.value}|${strategy.opentrades}`);
+      });
+    };
+    const run = (resume: boolean): { log: string[]; reason: string | null } => {
+      const recorder = new StrategyRecorder();
+      const log: string[] = [];
+      class Eager extends TestEngine {
+        calls = 0;
+        override entry(id: string, direction: StrategyDirection, options: StrategyEntryOptions): void {
+          this.calls++;
+          super.entry(id, direction, options);
+        }
+        override get(variable: StrategyVariable): number | string | undefined {
+          return variable === 'opentrades' ? this.calls : super.get(variable);
+        }
+        override cancel(id: string): void {
+          log.push(id);
+        }
+        override processBar(bar: number): void {
+          super.processBar(bar);
+          if (bar < 2) return;
+          const tick = barTicks(LONG[bar]!)[0]!;
+          executeIntrabar(eager, [...LONG.slice(0, bar), tick], {}, {}, {
+            bar,
+            lastBarIndex: 29,
+            engine: this,
+            recorder,
+            resume,
+          });
+        }
+      }
+      executeScript(eager, LONG.slice(0, 30), {}, {}, { strategyEngine: (setup) => new Eager(setup), recorder });
+      return { log, reason: recorder.intrabarFullRunReason };
+    };
+    const full = run(false);
+    const resumed = run(true);
+    expect(resumed.reason).toMatch(/differs from a full run/);
+    expect(resumed.log).toEqual(full.log);
   });
 });

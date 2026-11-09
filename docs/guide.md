@@ -607,6 +607,29 @@ The `ta.*` calls with a `taStep` machine step only the newest bars; the others (
 On 10,000 daily bars, a script with 13 plots (`sma`, `ema`, `rsi`, `macd`, `bb`, `atr`, `stoch`, an `eachBar` with
 `persist`): a full run 7.4 ms, a resumed update 0.4 ms.
 
+`math.random` is not resumed either (its generators start again on each run).
+
+### Intrabar runs of a strategy (executeIntrabar)
+
+A strategy calculated on the ticks of history bars or after order fills runs again inside a bar:
+`executeIntrabar(body, bars, inputs, chart, { bar, lastBarIndex, engine, recorder })`, called by the host's order engine
+from `processBar` of the main run (`bars`: the main run's bars up to `bar`, the last one as it stands at the tick). The
+script's variables come back to their state at the start of the bar, `varip` ones are kept.
+
+The intrabar runs of a backtest (same `recorder`, script, inputs, chart and engine) are resumed as in
+`createScriptRun` (#206): each one calculates its bar, and the bars since the previous intrabar run, from the state the
+previous one kept, instead of all the bars before it. The order calls and `strategy.*` reads are those of the full
+replay; a resumed run gives its order calls to the engine once it has ended. The same scripts are calculated in full
+(state outside `persist()` boxes, `request.security`, `timenow`, `math.random`...), and also a `varip` read outside
+`strategy.eachBar()`; `c.n`, `last_bar_index` and `barstate.islastconfirmedhistory` are resumed (the chart's last bar
+does not change during a backtest). The first resumed runs are also calculated in full and compared (`verify`, default
+2; the order calls, the reads and the `varip` values): a difference makes the next runs full ones. The result
+(`IntrabarUpdate`: `from`, `incremental`, `fullRunReason`) and `recorder.intrabarFullRunReason` give the reason;
+`resume: false` calculates every run in full.
+
+On 2,400 daily bars with 4 ticks per bar, a strategy with `highest`, `lowest`, `atr`, `ema`, `sma` and a `persist`
+stop: 4.7 s with full replays, 0.15 s resumed (11,500 bars: 1.6 s).
+
 ### Higher timeframes (request.security)
 
 `request.security(symbol, timeframe, expression, gaps?, lookahead?)` runs `expression` on higher-timeframe bars
