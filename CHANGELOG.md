@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 09/11/2026
+
 ### Changed
 
 - `executeIntrabar` resumes a history bar's tick from the state the previous intrabar run of the backtest kept (as
