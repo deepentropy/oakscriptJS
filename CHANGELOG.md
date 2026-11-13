@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 13/11/2026
+
+### Added
+
+- `log.info()`, `log.warning()` and `log.error()`: messages for the host's logs panel, made on the bar of an `eachBar()`
+  callback or on every bar at the top level, a `str.format()` pattern with arguments (a Series argument read on the
+  bar). The messages of a run are in `result.logs` (bar, time, level, message), by bar, the newest
+  `MAX_LOG_ENTRIES` (10,000); a resumed update keeps those of the bars it does not calculate again.
+  `setLogLineResolver()` lets the host give each message the line of the script that made it (#207).
+
 ## [0.17.1] - 09/11/2026
 
 ### Changed

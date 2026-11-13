@@ -195,3 +195,19 @@ eachBar((c) => {
   if (c.get(up) === 1) alert("Close " + str.tostring(c.close, "#.##") + " crossed above the SMA", alert.freq_once_per_bar_close);
 });
 ```
+
+## Logs
+
+- `log.info(message, ...args)`, `log.warning(...)`, `log.error(...)`: a message in the host's logs panel. Inside a bar
+  loop it is made on that bar; at the top level, on every bar. With arguments, `message` is a `str.format()` pattern
+  and a Series argument gives its value on the bar. The messages of a run are in `result.logs` (bar, time, level,
+  message, and the script line when the host resolves it with `setLogLineResolver`), by bar, the newest 10,000.
+
+```js
+indicator("Logs");
+const ma = ta.sma(close, 20);
+eachBar((c) => {
+  if (c.i === c.n - 1) log.info("Last close {0}, SMA {1}", c.close, c.get(ma));
+  if (c.volume === 0) log.warning("No volume on bar {0}", c.i);
+});
+```

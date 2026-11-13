@@ -650,6 +650,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | `plotbar()` | Implemented | OHLC bars; static or per-bar color, display, force_overlay; `candleConfig` + `result.plotBars` |
 | `alertcondition()` | Implemented | collected for the host alert engine |
 | `alert()` | Implemented | calls per bar (message, `alert.freq_*`) collected for the host alert engine |
+| `log.info()` / `log.warning()` / `log.error()` | Implemented | messages per bar (level, text, script line) in `result.logs` for the host's logs panel |
 | constants | Implemented | `shape.*`, `location.*`, `size.*`, `xloc.*`, `yloc.*`, `extend.*`, `display.*`, `format.*`, `font.family_*`, `scale.*`, `order.*`, `currency.*`, `adjustment.*`, `label.style_*`, `line.style_*`, `dayofweek.*` (the strings / numbers the functions take) |
 | `bar_index`, `last_bar_index` | Implemented | Series (in a bar loop: `c.i`, `c.n - 1`) |
 | drawing arguments | Implemented | named arguments (an object after the positional ones, Pine names) for `label.new`, `line.new`, `box.new`, `table.new`, `table.cell`, `polyline.new`, `linefill.new`; a Series argument in a bar loop is its value on the current bar |

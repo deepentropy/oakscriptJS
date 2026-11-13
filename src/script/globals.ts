@@ -99,6 +99,9 @@ declare global {
   const text: typeof S.text;
   const chart: typeof S.chart;
   const alert: typeof S.alert;
+  const log: typeof S.log;
+  const MAX_LOG_ENTRIES: typeof S.MAX_LOG_ENTRIES;
+  const setLogLineResolver: typeof S.setLogLineResolver;
   const Series: typeof S.Series;
   const BarData: typeof S.BarData;
   const na: typeof S.na;

@@ -195,7 +195,7 @@ export interface ScriptRunResult {
    * last bar. `outputValues`: per plotshape() / plotchar() / plotarrow() id, the value of its series on each bar where
    * it is not na (a condition gives 1 or 0), at the bar it was computed on (the offset not applied).
    */
-  result: IndicatorResult & { alerts?: AlertState[]; alertCalls?: AlertCall[]; outputValues?: Record<string, TimeValue[]> };
+  result: IndicatorResult & { alerts?: AlertState[]; alertCalls?: AlertCall[]; outputValues?: Record<string, TimeValue[]>; logs?: LogEntry[] };
   /** The script called alert() during the run (PineScript `hasAlertFunction` is known at compile time: a host that
    *  needs it before any bar runs reads the source). */
   hasAlertFunction: boolean;
@@ -274,6 +274,8 @@ interface Collector {
   alertConfig: AlertConditionConfig[];
   alerts: AlertState[];
   alertCalls: AlertCall[];
+  /** log.*() messages of the run. */
+  logs: LogEntry[];
   hasAlertFunction: boolean;
   strategy?: StrategyRun;
 }
@@ -332,6 +334,7 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     alertConfig: [],
     alerts: [],
     alertCalls: [],
+    logs: [],
     hasAlertFunction: false,
   };
 }
@@ -538,6 +541,8 @@ function runBody(
         ...(intrabarRun ? {} : drawingOutputs(ctxBars.bars, chartCtx.timeUnit)),
         alerts: c.alerts.length ? c.alerts : undefined,
         alertCalls: c.alertCalls.length ? c.alertCalls : undefined,
+        // By bar, in call order on each bar (the top-level calls make theirs on every bar at once).
+        logs: c.logs.length ? [...c.logs].sort((x, y) => x.bar - y.bar).slice(-MAX_LOG_ENTRIES) : undefined,
       },
       hasAlertFunction: c.hasAlertFunction,
     };
@@ -912,6 +917,8 @@ export function createScriptRun(
   let previousChart: ChartContext = chart;
   let reason: string | null = null;
   let verifyLeft = options.verify ?? 2;
+  /** The log messages of the last update: a resumed update keeps those of the bars it does not calculate again. */
+  let lastLogs: LogEntry[] | undefined;
 
   const newRun = (mode: 'record' | 'resume', b: Bar[], from: number): incremental.ActiveRun =>
     newActiveRun(mode, b, from, memory);
@@ -946,6 +953,7 @@ export function createScriptRun(
         let result: ScriptRunResult | null = null;
         try {
           result = runBody(body, b, inputs, c, options, inc);
+          result.result.logs = resumedLogs(lastLogs, result.result.logs, from);
         } catch (err) {
           // the memory is changed in place by a resumed run: an error leaves it unusable
           memory = null;
@@ -970,6 +978,7 @@ export function createScriptRun(
         }
       }
       previous = out.incremental && last ? copyBars(b, last, last.n - 1) : copyBars(b);
+      lastLogs = out.result.logs;
       return out;
     },
   };
@@ -4233,6 +4242,84 @@ export const alert = Object.assign(alertImpl, {
   freq_once_per_bar: 'once_per_bar',
   freq_once_per_bar_close: 'once_per_bar_close',
 } as const);
+
+// ── Logs (log.info / log.warning / log.error) ────────────────────────────────
+
+/** The level of a log message. */
+export type LogLevel = 'info' | 'warning' | 'error';
+
+/** One log.*() message: the bar it was made on (index, and time as given in the input bars), its level and text, and
+ *  the line of the script that made it when the host resolves it ({@link setLogLineResolver}). */
+export interface LogEntry {
+  bar: number;
+  time: number;
+  level: LogLevel;
+  message: string;
+  line?: number;
+}
+
+/** The most messages a run keeps: the newest ones. */
+export const MAX_LOG_ENTRIES = 10_000;
+
+let logLineResolver: ((stack: string) => number | undefined) | null = null;
+
+/**
+ * How the host finds the line of the script that called log.*(): `resolver` gets the stack of the call (an Error's
+ * `stack`) and gives the line in the script's own source. Null (the default): messages have no line.
+ */
+export function setLogLineResolver(resolver: ((stack: string) => number | undefined) | null): void {
+  logLineResolver = resolver;
+}
+
+function logImpl(level: LogLevel, message: string | ReadonlyArray<string | undefined>, args: unknown[]): void {
+  const c = collector();
+  const b = ctxBars.bars;
+  const line = logLineResolver ? logLineResolver(new Error().stack ?? '') : undefined;
+  const add = (i: number): void => {
+    const text = typeof message === 'string' ? message : message[i];
+    if (text === undefined || text === null) return;
+    // A Series argument gives its value on the bar.
+    const values = args.map((a) => (a instanceof Series ? a.get(i) : a));
+    const entry: LogEntry = {
+      bar: i,
+      time: b[i]!.time as number,
+      level,
+      message: args.length ? formatMessage(String(text), values, exchangeTimezone) : String(text),
+    };
+    if (line !== undefined) entry.line = line;
+    c.logs.push(entry);
+  };
+  if (currentBar >= 0) add(currentBar);
+  else for (let i = 0; i < b.length; i++) add(i);
+  if (c.logs.length > MAX_LOG_ENTRIES * 2) c.logs.splice(0, c.logs.length - MAX_LOG_ENTRIES);
+}
+
+/**
+ * PineScript `log.info()`, `log.warning()` and `log.error()`: a message for the host's logs panel, made on the current
+ * bar inside eachBar() / strategy.eachBar(), on every bar at the top level of the script (which PineScript runs on
+ * every bar; `message` is then a text or one text per bar, a bar whose text is na makes no message). With arguments,
+ * `message` is a str.format() pattern (`log.info('close {0}', close)`), a Series argument giving its value on the bar.
+ * The messages of a run are in `result.logs`, by bar ({@link MAX_LOG_ENTRIES} newest kept).
+ */
+export const log = strictNamespace('log', {
+  info(message: string | ReadonlyArray<string | undefined>, ...args: unknown[]): void {
+    logImpl('info', message, args);
+  },
+  warning(message: string | ReadonlyArray<string | undefined>, ...args: unknown[]): void {
+    logImpl('warning', message, args);
+  },
+  error(message: string | ReadonlyArray<string | undefined>, ...args: unknown[]): void {
+    logImpl('error', message, args);
+  },
+});
+
+/** The messages of a resumed run calculated from bar `from`: those of the run before on the bars before `from`, then the
+ *  new ones on the bars from `from` (the top-level log calls of a resumed run make them again on every bar). */
+function resumedLogs(before: LogEntry[] | undefined, now: LogEntry[] | undefined, from: number): LogEntry[] | undefined {
+  const kept = (before ?? []).filter((e) => e.bar < from);
+  const logs = kept.concat((now ?? []).filter((e) => e.bar >= from));
+  return logs.length ? logs.slice(-MAX_LOG_ENTRIES) : undefined;
+}
 
 // ── Convenience re-exports ───────────────────────────────────────────────────
 
