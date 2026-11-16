@@ -29,6 +29,12 @@ export interface SessionSpec {
   corrections?: string;
   /** Exchange holidays as "YYYYMMDD" (symbol info "session_holidays"), comma-separated or as an array */
   holidays?: string | string[];
+  /**
+   * Minutes after midnight (in the time zone) where the intraday bars of every size start their grid, for a source
+   * whose bars ignore the session opens (a broker terminal: 5-minute bars at 01:00, 01:05... when trading opens at
+   * 01:01). Unset: intraday periods start at each session period start.
+   */
+  barOrigin?: number | null;
 }
 
 /** Date as YYYYMMDD. */
@@ -178,6 +184,8 @@ export class TradingCalendar {
   /** The last time located and its result: the functions of one bar locate the same time several times */
   private lastTime = NaN;
   private lastAt: Located | null = null;
+  /** Minutes after midnight of the intraday bar grid (`SessionSpec.barOrigin`), null when bars start at the periods */
+  readonly barOrigin: number | null;
 
   /**
    * @param timezone - Time zone of the session hours (the exchange time zone)
@@ -193,6 +201,7 @@ export class TradingCalendar {
     dayPlacement = false
   ) {
     this.pine = rule === 'pine' && dayPlacement;
+    this.barOrigin = spec.barOrigin ?? null;
     const [first = '', ...changes] = spec.session.split('#');
     this.versions = [parseVersion(first, 0, spec.session, rule)];
     for (const change of changes) {
@@ -248,6 +257,19 @@ export class TradingCalendar {
     let k = this.versions.length - 1;
     while (k >= 0 && !(this.versions[k]!.from <= date)) k--;
     return this.versions[k]!;
+  }
+
+  /** Start of the `ms` bar of the clock grid (`barOrigin`) that holds `time`; each local day restarts the grid. */
+  gridStart(time: number, ms: number): number {
+    const origin = this.barOrigin ?? 0;
+    const local = Math.floor((time + zoneOffset(time, this.timezone)) / MS_PER_DAY);
+    const anchorOf = (day: number): number => {
+      const { year, month, day: d } = civilFromDays(day);
+      return zonedToUnix(this.timezone, year, month, d, Math.floor(origin / 60), origin % 60);
+    };
+    let anchor = anchorOf(local);
+    if (anchor > time) anchor = anchorOf(local - 1);
+    return anchor + Math.floor((time - anchor) / ms) * ms;
   }
 
   isTradingDay(date: DateNum): boolean {

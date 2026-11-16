@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 16/11/2026
+
+### Added
+
+- `SessionSpec.barOrigin`: minutes after midnight where intraday bars start their clock grid, for a source whose bars
+  ignore the session opens (a broker terminal's 5-minute bars at 01:00 when trading opens at 01:01). `time(tf)`,
+  `time_close(tf)`, `timeframe.change(tf)` and the `request.security` periods then follow that grid and are not cut at
+  the session end; a bar that opens before a session period but holds its open belongs to it (#209).
+
 ## [0.18.0] - 13/11/2026
 
 ### Added

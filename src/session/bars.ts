@@ -126,14 +126,15 @@ export class SessionBars {
    */
   timeOf(time: number, timeframe: string): number {
     const tf = this.timeframe(timeframe);
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     if (!at) return NaN;
     if (tf.isintraday) {
       if (this.chart.isdwm) return time;
       // a bar after an early close has no intraday period either (#173)
       if (this.stray(time)) return NaN;
-      const [start] = this.calendar.periods(at.date)[at.index]!;
       const ms = in_seconds(tf.period) * 1000;
+      if (this.calendar.barOrigin !== null) return this.calendar.gridStart(time, ms);
+      const [start] = this.calendar.periods(at.date)[at.index]!;
       return start + Math.floor((time - start) / ms) * ms;
     }
     const { unit, n } = unitOf(tf);
@@ -146,14 +147,14 @@ export class SessionBars {
   /** PineScript `time_close(tf)` for a bar that opens at `time`. */
   closeOf(time: number, timeframe: string): number {
     const tf = this.timeframe(timeframe);
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     if (!at) return NaN;
     if (tf.isintraday) {
       const [, end] = this.calendar.periods(at.date)[at.index]!;
       // on D / W / M charts: the end of the session period that contains the bar open
       if (this.chart.isdwm) return end;
       if (this.stray(time)) return NaN;
-      return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
+      return this.intradayClose(time, timeframe, end);
     }
     const { unit, n } = unitOf(tf);
     if (unit === 'D' && n === 1 && this.stray(time)) return NaN;
@@ -170,7 +171,7 @@ export class SessionBars {
 
   /** Trading day of a bar: on D / W / M charts the last trading day of the chart period. */
   tradingDay(time: number): DateNum | null {
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     if (!at || this.stray(time)) return null;
     if (this.chart.isdwm) {
       const { unit, n } = unitOf(this.chart);
@@ -187,11 +188,11 @@ export class SessionBars {
    */
   periodEnd(time: number, timeframe: string): number {
     const tf = this.timeframe(timeframe);
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     if (!at) return NaN;
     if (tf.isintraday) {
       const [, end] = this.calendar.periods(at.date)[at.index]!;
-      return Math.min(this.timeOf(time, timeframe) + in_seconds(tf.period) * 1000, end);
+      return this.intradayClose(time, timeframe, end);
     }
     const { unit, n } = unitOf(tf);
     const [from, to] = this.periodRange(at.date, unit, n);
@@ -211,22 +212,44 @@ export class SessionBars {
    * trading day of the next chart period. NaN when none is found within 400 days.
    */
   nextBarTime(time: number): number {
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     if (!at) return NaN;
     if (!this.chart.isdwm) {
       const periods = this.calendar.periods(at.date);
       const [start, end] = periods[at.index]!;
       const ms = in_seconds(this.chart.period) * 1000;
-      const next = start + (Math.floor((time - start) / ms) + 1) * ms;
+      const grid = this.calendar.barOrigin !== null;
+      // on the clock grid, the next session opens in the bar of the grid that holds it
+      const open = (t: number): number => (grid ? this.calendar.gridStart(t, ms) : t);
+      const next = grid ? this.calendar.gridStart(time, ms) + ms : start + (Math.floor((time - start) / ms) + 1) * ms;
       if (at.inside && next < end) return next;
-      if (at.index + 1 < periods.length) return periods[at.index + 1]![0];
+      if (at.index + 1 < periods.length) return open(periods[at.index + 1]![0]);
       const day = this.calendar.firstTradingDay(addDays(at.date, 1), addDays(at.date, 400));
-      return day === null ? NaN : this.dayStart(day);
+      return day === null ? NaN : open(this.dayStart(day));
     }
     const { unit, n } = unitOf(this.chart);
     const [, to] = this.periodRange(at.date, unit, n);
     const day = this.calendar.firstTradingDay(addDays(to, 1), addDays(to, 400));
     return day === null ? NaN : this.dayStart(day);
+  }
+
+  /**
+   * Trading day and period of a chart bar that opens at `time` (see TradingCalendar.locate). On the clock grid
+   * (`barOrigin`), an intraday bar that opens before a session period but holds its open belongs to that period
+   * (a 01:00 five-minute bar when trading opens at 01:01).
+   */
+  locateBar(time: number): ReturnType<TradingCalendar['locate']> {
+    const at = this.calendar.locate(time);
+    if (this.calendar.barOrigin === null || this.chart.isdwm || at?.inside) return at;
+    const ahead = this.calendar.locate(time + in_seconds(this.chart.period) * 1000 - 1);
+    return ahead?.inside && this.calendar.periods(ahead.date)[ahead.index]![0] > time ? ahead : at;
+  }
+
+  /** Close of the intraday `timeframe` period that holds `time`: cut at the session period `end`, except on the
+   *  clock grid, whose bars run their whole length. */
+  private intradayClose(time: number, timeframe: string, end: number): number {
+    const close = this.timeOf(time, timeframe) + in_seconds(this.timeframe(timeframe).period) * 1000;
+    return this.calendar.barOrigin !== null ? close : Math.min(close, end);
   }
 
   /** An intraday bar that opens after an early close of its day (see TradingCalendar.afterEarlyClose). */
@@ -236,12 +259,12 @@ export class SessionBars {
 
   /** True when the bar at `time` is inside the session. */
   inside(time: number): boolean {
-    return this.calendar.locate(time)?.inside ?? false;
+    return this.locateBar(time)?.inside ?? false;
   }
 
   /** Session start and end of the trading day of `time`, or null. */
   dayBounds(time: number): { date: DateNum; start: number; end: number } | null {
-    const at = this.calendar.locate(time);
+    const at = this.locateBar(time);
     return at ? { date: at.date, start: this.dayStart(at.date), end: this.dayEnd(at.date) } : null;
   }
 }
@@ -302,7 +325,7 @@ export function sessionFlags(times: number[], bars: SessionBars, regular: Sessio
       for (const k of ['isfirstbar', 'islastbar', 'ismarket', 'isfirstbar_regular', 'islastbar_regular'] as const) out[k][i] = true;
       continue;
     }
-    const at = bars.calendar.locate(t);
+    const at = bars.locateBar(t);
     if (!at) {
       previousPeriod = previousRegular = '';
       continue;
@@ -317,7 +340,9 @@ export function sessionFlags(times: number[], bars: SessionBars, regular: Sessio
     const stray = bars.stray(t);
     out.islastbar[i] = !stray && close >= end;
     const regularPeriods = regular.calendar.periods(at.date);
-    const r = regularPeriods.findIndex(([s, e]) => s <= t && t < e);
+    // a bar of the clock grid that holds the open (see locateBar) is read at the open
+    const open = Math.max(t, start);
+    const r = regularPeriods.findIndex(([s, e]) => s <= open && open < e);
     const market = r !== -1;
     out.ismarket[i] = market || regular.stray(t);
     if (!market && regularPeriods.length) {

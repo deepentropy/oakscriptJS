@@ -115,3 +115,39 @@ describe('trading days counted without Date objects (#198)', () => {
     expect(times.map(again)).toEqual(times.map((t) => [t, t + 3_600_000, t, t].map((x) => new TradingCalendar(NY, { session: '1700-1600' }).locate(x))));
   });
 });
+
+describe('bars on a clock grid that ignores the session open (barOrigin, #209)', () => {
+  // gold at a broker: trading from 18:01 to 16:58 New York, bars on the server clock whose day starts at 17:00 New York
+  const gold = { session: '1801-1658:23456', barOrigin: 17 * 60 };
+  const five: ChartContext = { timeframe: '5', timezone: NY, session: gold };
+  // Monday 09/11/2026 18:00 New York (holds the 18:01 open of Tuesday's trading day), then 18:05 and 21:05
+  const bars = ['2026-11-09T23:00Z', '2026-11-09T23:05Z', '2026-11-10T02:05Z'].map(bar);
+
+  it('time(tf) starts on the grid, the bar before the open included', () => {
+    const [t5, t60, t240] = run(bars, five, () => [time('5').toArray(), time('60').toArray(), time('240').toArray()]);
+    expect(t5).toEqual(bars.map((b) => b.time * 1000));
+    expect(t60).toEqual(['2026-11-09T23:00Z', '2026-11-09T23:00Z', '2026-11-10T02:00Z'].map(Date.parse));
+    expect(t240).toEqual(['2026-11-09T22:00Z', '2026-11-09T22:00Z', '2026-11-10T02:00Z'].map(Date.parse));
+  });
+
+  it('the bar that holds the open is the first bar of its trading day, in the market', () => {
+    const [first, market, day] = run(bars, five, () => [session.isfirstbar.toArray(), session.ismarket.toArray(), time_tradingday.toArray()]);
+    expect(first.map(Boolean)).toEqual([true, false, false]);
+    expect(market.map(Boolean)).toEqual([true, true, true]);
+    expect(day).toEqual([Date.UTC(2026, 10, 10), Date.UTC(2026, 10, 10), Date.UTC(2026, 10, 10)]);
+  });
+
+  it('an intraday period runs its whole length past the session end', () => {
+    const last = [bar('2026-11-10T21:00Z')]; // 16:00 New York, the session ends at 16:58
+    expect(run(last, five, () => time_close('60').toArray())).toEqual([Date.parse('2026-11-10T22:00Z')]);
+  });
+
+  it('without barOrigin, periods start at the session open', () => {
+    const open: ChartContext = { timeframe: '5', timezone: NY, session: '1801-1658:23456' };
+    expect(run(bars.slice(1), open, () => time('60').toArray())).toEqual(['2026-11-09T23:01Z', '2026-11-10T02:01Z'].map(Date.parse));
+  });
+
+  it('periodTime gives the same grid to a port with its own bar loop', () => {
+    expect(periodTime(bars[1]!.time, '60', five)).toBe(Date.parse('2026-11-09T23:00Z'));
+  });
+});

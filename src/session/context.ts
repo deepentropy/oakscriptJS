@@ -235,7 +235,7 @@ export function resampleSession(bars: Bar[], timeframe: string, chart: SessionCo
   const calendar = tf.isdwm ? s.regular : s.bars;
   const starts = times.map((t) => calendar.timeOf(t, tf.period));
   const dayPeriods = times.map((t, i) => {
-    const at = s.bars.calendar.locate(t);
+    const at = s.bars.locateBar(t);
     const periods = at ? calendar.calendar.periods(at.date) : [];
     return periods.length ? calendar.timeOf(periods[0]![0], tf.period) : starts[i]!;
   });

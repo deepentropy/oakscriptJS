@@ -3700,7 +3700,7 @@ function security<T extends SecurityValue>(
     const calendar = timeframeCore.info(tf).isdwm ? regular : loaded;
     const starts = times.map((t) => calendar.timeOf(t, tf));
     const dayPeriods = times.map((t, i) => {
-      const at = loaded.calendar.locate(t);
+      const at = loaded.locateBar(t);
       const periods = at ? calendar.calendar.periods(at.date) : [];
       return periods.length ? calendar.timeOf(periods[0]![0], tf) : starts[i]!;
     });
