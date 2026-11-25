@@ -32,7 +32,7 @@ function generateId(): string {
  * @param points - Array of chart.point objects to connect
  * @param curved - If true, use curved line segments (default: false)
  * @param closed - If true, connect first point to last point (default: false)
- * @param xloc - X-coordinate mode: 'bar_index' or 'bar_time' (default: 'bar_index')
+ * @param xloc - X-coordinate mode: 'bar_index', 'bar_time' or 'pane' (the index of a point is its percent of the pane's width); default: 'bar_index'
  * @param line_color - Color of line segments (default: '#2196F3' - blue)
  * @param fill_color - Fill color for closed polylines (default: null)
  * @param line_style - Line style (default: 'solid')
@@ -73,7 +73,7 @@ export function new_polyline(
   points: ChartPoint[],
   curved: boolean = false,
   closed: boolean = false,
-  xloc: 'bar_index' | 'bar_time' = 'bar_index',
+  xloc: 'bar_index' | 'bar_time' | 'pane' = 'bar_index',
   line_color: color = '#2196F3',
   fill_color: color | null = null,
   line_style: 'solid' | 'dotted' | 'dashed' = 'solid',

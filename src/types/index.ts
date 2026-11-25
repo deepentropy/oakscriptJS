@@ -70,16 +70,16 @@ export interface PineMatrix<T> {
  * for detecting trend line breakouts, calculating support/resistance levels, etc.
  */
 export interface Line {
-  /** First point's x coordinate (bar index or UNIX timestamp) */
+  /** First point's x coordinate (bar index, UNIX timestamp, or percent of the pane's width with xloc 'pane') */
   x1: number;
   /** First point's y coordinate (price level) */
   y1: number;
-  /** Second point's x coordinate (bar index or UNIX timestamp) */
+  /** Second point's x coordinate (bar index, UNIX timestamp, or percent of the pane's width with xloc 'pane') */
   x2: number;
   /** Second point's y coordinate (price level) */
   y2: number;
   /** X-axis coordinate system */
-  xloc: 'bar_index' | 'bar_time';
+  xloc: 'bar_index' | 'bar_time' | 'pane';
   /** Extension mode */
   extend: 'none' | 'left' | 'right' | 'both';
   /** Line color (stored but not used for calculations) */
@@ -99,16 +99,16 @@ export interface Line {
  * range breakout analysis, and consolidation zone identification.
  */
 export interface Box {
-  /** Left border x coordinate (bar index or UNIX timestamp) */
+  /** Left border x coordinate (bar index, UNIX timestamp, or percent of the pane's width with xloc 'pane') */
   left: number;
   /** Top border y coordinate (price level) */
   top: number;
-  /** Right border x coordinate (bar index or UNIX timestamp) */
+  /** Right border x coordinate (bar index, UNIX timestamp, or percent of the pane's width with xloc 'pane') */
   right: number;
   /** Bottom border y coordinate (price level) */
   bottom: number;
   /** X-axis coordinate system */
-  xloc: 'bar_index' | 'bar_time';
+  xloc: 'bar_index' | 'bar_time' | 'pane';
   /** Horizontal extension mode */
   extend: 'none' | 'left' | 'right' | 'both';
   /** Border color (stored but not used for calculations) */
@@ -145,12 +145,12 @@ export interface Box {
  * Labels have limited computational value. Primarily used for marking points and displaying text.
  */
 export interface Label {
-  /** X coordinate (bar index or UNIX timestamp) */
+  /** X coordinate (bar index, UNIX timestamp, or percent of the pane's width with xloc 'pane') */
   x: number;
   /** Y coordinate (price level when yloc = 'price') */
   y: number;
   /** X-axis coordinate system */
-  xloc: 'bar_index' | 'bar_time';
+  xloc: 'bar_index' | 'bar_time' | 'pane';
   /** Y-axis positioning mode */
   yloc: 'price' | 'abovebar' | 'belowbar';
   /** Label text content */
@@ -357,13 +357,15 @@ export type na = null;
 
 /**
  * X-axis location constants
- * Used to specify whether x-coordinates are bar indices or timestamps
+ * Used to specify whether x-coordinates are bar indices, timestamps or places on the pane
  */
 export const xloc = {
   /** X-coordinates are bar indices */
   bar_index: 'bar_index' as const,
   /** X-coordinates are UNIX timestamps in milliseconds */
   bar_time: 'bar_time' as const,
+  /** X-coordinates are percents of the pane's width: 0 left edge, 100 right edge (not a PineScript value) */
+  pane: 'pane' as const,
 };
 
 /**
@@ -411,8 +413,8 @@ export interface Polyline {
   readonly curved: boolean;
   /** If true, connect the first point to the last point */
   readonly closed: boolean;
-  /** X-coordinate mode: 'bar_index' or 'bar_time' */
-  readonly xloc: 'bar_index' | 'bar_time';
+  /** X-coordinate mode: 'bar_index', 'bar_time' or 'pane' */
+  readonly xloc: 'bar_index' | 'bar_time' | 'pane';
   /** Color of line segments */
   readonly line_color: color;
   /** Fill color for closed polylines (null for no fill) */

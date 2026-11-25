@@ -438,8 +438,9 @@ export interface LabelData {
   time: number;
   /** 'bar_time': the x coordinates are times given by the script (xloc.bar_time). A time after the last bar is
    *  drawn on the future bar that holds it, on the chart's calendar (trading sessions). Omitted: bar indexes (a
-   *  future bar index k bars after the last bar has the time lastTime + k * interval). */
-  xloc?: 'bar_time';
+   *  future bar index k bars after the last bar has the time lastTime + k * interval). 'pane': the times are percents
+   *  of the pane's width (0 left edge, 100 right edge): drawn there whatever bars are in view. */
+  xloc?: 'bar_time' | 'pane';
   /** Price; not used with yloc 'abovebar' / 'belowbar' */
   price: number;
   text: string;
@@ -476,8 +477,9 @@ export interface LineDrawingData {
   price2: number;
   /** 'bar_time': the x coordinates are times given by the script (xloc.bar_time). A time after the last bar is
    *  drawn on the future bar that holds it, on the chart's calendar (trading sessions). Omitted: bar indexes (a
-   *  future bar index k bars after the last bar has the time lastTime + k * interval). */
-  xloc?: 'bar_time';
+   *  future bar index k bars after the last bar has the time lastTime + k * interval). 'pane': the times are percents
+   *  of the pane's width (0 left edge, 100 right edge): drawn there whatever bars are in view. */
+  xloc?: 'bar_time' | 'pane';
   /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   color?: string;
   /** Omitted: 1. A width of 0 is kept (PineScript `width = 0`) */
@@ -499,8 +501,9 @@ export interface BoxData {
   price2: number;
   /** 'bar_time': the x coordinates are times given by the script (xloc.bar_time). A time after the last bar is
    *  drawn on the future bar that holds it, on the chart's calendar (trading sessions). Omitted: bar indexes (a
-   *  future bar index k bars after the last bar has the time lastTime + k * interval). */
-  xloc?: 'bar_time';
+   *  future bar index k bars after the last bar has the time lastTime + k * interval). 'pane': the times are percents
+   *  of the pane's width (0 left edge, 100 right edge): drawn there whatever bars are in view. */
+  xloc?: 'bar_time' | 'pane';
   /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
   bgColor?: string;
   /** Omitted: #2962FF (color.blue; #2196F3 in a v4 script) */
@@ -544,8 +547,9 @@ export interface PolylineData {
   points: Array<{ time: number; price: number }>;
   /** 'bar_time': the x coordinates are times given by the script (xloc.bar_time). A time after the last bar is
    *  drawn on the future bar that holds it, on the chart's calendar (trading sessions). Omitted: bar indexes (a
-   *  future bar index k bars after the last bar has the time lastTime + k * interval). */
-  xloc?: 'bar_time';
+   *  future bar index k bars after the last bar has the time lastTime + k * interval). 'pane': the times are percents
+   *  of the pane's width (0 left edge, 100 right edge): drawn there whatever bars are in view. */
+  xloc?: 'bar_time' | 'pane';
   /** Curved segments between the points */
   curved?: boolean;
   /** The last point is connected to the first */

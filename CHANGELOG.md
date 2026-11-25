@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `chart.left_visible_bar_time`, `chart.right_visible_bar_time` (ms), from `ChartContext.leftVisibleBarTime` /
+  `rightVisibleBarTime` (default: the first and the last bar). `ScriptRunResult.usesVisibleRange`: the script read them,
+  so the host calculates it again when the visible range changes (#210).
+- `chart.is_standard`, `is_heikinashi`, `is_renko`, `is_kagi`, `is_linebreak`, `is_pnf`, `is_range`, from
+  `ChartContext.chartType` (default: standard) (#210).
+- `xloc.pane` (not a Pine value): the x coordinates of a line, box, label or polyline are percents of the pane's width
+  (0 left edge, 100 right edge), so the drawing stays in place while the user scrolls and zooms. In the result, the
+  times of the drawing hold the percents and `xloc` is `'pane'` (#210).
+
+### Fixed
+
+- `createScriptRun`: a change of the visible range is a full run only when the script reads it (#210).
+
 ## [0.19.0] - 16/11/2026
 
 ### Added

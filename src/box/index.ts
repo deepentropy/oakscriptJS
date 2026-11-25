@@ -15,7 +15,7 @@
 import { all as allDrawings, checkBarIndex, isDeleted, register, remove } from '../drawing/registry.js';
 import type { ChartPoint, Box, color } from '../types/index.js';
 
-type BoxXloc = 'bar_index' | 'bar_time';
+type BoxXloc = 'bar_index' | 'bar_time' | 'pane';
 type BoxExtend = 'none' | 'left' | 'right' | 'both';
 
 /**
@@ -361,7 +361,7 @@ export function set_rightbottom(id: Box, right: number, bottom: number): Box {
  * @param id - Box object to modify
  * @param left - New left border coordinate
  * @param right - New right border coordinate
- * @param xloc - New coordinate system ('bar_index' or 'bar_time')
+ * @param xloc - New coordinate system ('bar_index', 'bar_time' or 'pane')
  * @returns Modified box object
  *
  * @remarks
@@ -374,7 +374,7 @@ export function set_rightbottom(id: Box, right: number, bottom: number): Box {
  * box.set_xloc(box, 1609459200000, 1609545600000, 'bar_time');
  * ```
  */
-export function set_xloc(id: Box, left: number, right: number, xloc: 'bar_index' | 'bar_time'): Box {
+export function set_xloc(id: Box, left: number, right: number, xloc: 'bar_index' | 'bar_time' | 'pane'): Box {
   if (isDeleted(id)) return id;
   id.left = left;
   id.right = right;
@@ -639,7 +639,7 @@ export function delete_box(id: Box): void {
 }
 
 /** x coordinate of a chart point for an object's xloc (`na` when the point has no such coordinate). */
-function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
+function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time' | 'pane'): number {
   const x = xloc === 'bar_time' ? point.time : point.index;
   return x ?? NaN;
 }

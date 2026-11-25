@@ -13,7 +13,7 @@
 import { all as allDrawings, checkBarIndex, isDeleted, register, remove } from '../drawing/registry.js';
 import type { ChartPoint, Line, color } from '../types/index.js';
 
-type LineXloc = 'bar_index' | 'bar_time';
+type LineXloc = 'bar_index' | 'bar_time' | 'pane';
 type LineExtend = 'none' | 'left' | 'right' | 'both';
 type LineStyle = 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
 
@@ -97,7 +97,7 @@ export function new_line(...args: unknown[]): Line {
  * As in PineScript (#174):
  * - the line is read as extended on both sides whatever its `extend`: a point before x1 or after x2 has a price
  * - the price is `y1 + (y2 - y1) * (x - x1) / (x2 - x1)`, in that order (bit for bit)
- * - a line placed with `xloc.bar_time` throws "'line.get_price' must be used with lines created using
+ * - a line placed with `xloc.bar_time` (or `xloc.pane`) throws "'line.get_price' must be used with lines created using
  *   'xloc=xloc.bar_index'." (runtime error RE10119)
  *
  * @example
@@ -111,7 +111,7 @@ export function new_line(...args: unknown[]): Line {
  */
 export function get_price(id: Line, x: number): number {
   const { x1, y1, x2, y2, xloc } = id;
-  if (xloc === 'bar_time') {
+  if (xloc !== 'bar_index') {
     throw new Error("'line.get_price' must be used with lines created using 'xloc=xloc.bar_index'.");
   }
   if (x2 === x1) return NaN;
@@ -332,7 +332,7 @@ export function set_xy2(id: Line, x: number, y: number): Line {
  * @param id - Line object to modify
  * @param x1 - New first point x coordinate
  * @param x2 - New second point x coordinate
- * @param xloc - New coordinate system ('bar_index' or 'bar_time')
+ * @param xloc - New coordinate system ('bar_index', 'bar_time' or 'pane')
  * @returns Modified line object
  *
  * @remarks
@@ -345,7 +345,7 @@ export function set_xy2(id: Line, x: number, y: number): Line {
  * line.set_xloc(line, 1609459200000, 1609545600000, 'bar_time');
  * ```
  */
-export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | 'bar_time'): Line {
+export function set_xloc(id: Line, x1: number, x2: number, xloc: 'bar_index' | 'bar_time' | 'pane'): Line {
   if (isDeleted(id)) return id;
   id.x1 = x1;
   id.x2 = x2;
@@ -450,7 +450,7 @@ export function delete_line(id: Line): void {
 }
 
 /** x coordinate of a chart point for an object's xloc (`na` when the point has no such coordinate). */
-function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
+function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time' | 'pane'): number {
   const x = xloc === 'bar_time' ? point.time : point.index;
   return x ?? NaN;
 }

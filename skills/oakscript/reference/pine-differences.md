@@ -30,6 +30,8 @@ from the vectorized execution.
 | `label.new(bar_index, high, "A", style=label.style_label_down)` (in an `if`) | in a bar loop: `label.new(bar_index, high, "A", { style: label.style_label_down })` (or `c.i`, `c.high`) |
 | `line.new(x1, y1, x2, y2, extend=extend.right)` | `line.new(x1, y1, x2, y2, { extend: extend.right })` |
 | `xloc.bar_time`, `yloc.abovebar`, `line.style_dashed`, `format.volume`, `display.none`, `dayofweek.monday` | the same |
+| `chart.left_visible_bar_time`, `chart.right_visible_bar_time`, `chart.is_standard`, `chart.is_heikinashi`... | the same |
+| (no Pine equivalent) drawing pinned to the pane | `xloc.pane`: x in percents of the pane's width, see [plotting.md](plotting.md) |
 | `request.security(sym, "D", ta.ema(close, 20))` | `request.security(sym, "D", () => ta.ema(close, 20))` |
 | `request.security(sym, "W", high[1], lookahead = barmerge.lookahead_on)` | `request.security(sym, "W", () => high.offset(1), { lookahead: barmerge.lookahead_on })` |
 | `strategy.entry("L", strategy.long, when = cond)` | `strategy.eachBar((c) => { if (c.get(cond) === 1) strategy.entry("L", strategy.long); })` |

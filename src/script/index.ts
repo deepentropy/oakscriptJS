@@ -199,6 +199,9 @@ export interface ScriptRunResult {
   /** The script called alert() during the run (PineScript `hasAlertFunction` is known at compile time: a host that
    *  needs it before any bar runs reads the source). */
   hasAlertFunction: boolean;
+  /** The script read `chart.left_visible_bar_time` or `chart.right_visible_bar_time`: it has to be calculated again when
+   *  the visible range of the chart changes. */
+  usesVisibleRange: boolean;
 }
 
 export interface AlertConditionConfig {
@@ -277,6 +280,7 @@ interface Collector {
   /** log.*() messages of the run. */
   logs: LogEntry[];
   hasAlertFunction: boolean;
+  usesVisibleRange: boolean;
   strategy?: StrategyRun;
 }
 
@@ -336,6 +340,7 @@ function freshCollector(inputValues: Record<string, unknown>): Collector {
     alertCalls: [],
     logs: [],
     hasAlertFunction: false,
+    usesVisibleRange: false,
   };
 }
 
@@ -545,6 +550,7 @@ function runBody(
         logs: c.logs.length ? [...c.logs].sort((x, y) => x.bar - y.bar).slice(-MAX_LOG_ENTRIES) : undefined,
       },
       hasAlertFunction: c.hasAlertFunction,
+      usesVisibleRange: c.usesVisibleRange,
     };
   } finally {
     ctx = null;
@@ -823,10 +829,13 @@ export interface ScriptRun {
 /** Chart context fields that only change the last bar (barstate of the forming bar). */
 const LAST_BAR_FIELDS = new Set(['lastBarConfirmed', 'lastBarNew', 'realtime', 'now']);
 
-function sameChart(a: ChartContext, b: ChartContext): boolean {
+/** The visible range of the chart: part of the chart only for a script that reads it. */
+const VISIBLE_RANGE_FIELDS = new Set(['leftVisibleBarTime', 'rightVisibleBarTime']);
+
+function sameChart(a: ChartContext, b: ChartContext, visibleRange = true): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   for (const k of keys) {
-    if (LAST_BAR_FIELDS.has(k)) continue;
+    if (LAST_BAR_FIELDS.has(k) || (!visibleRange && VISIBLE_RANGE_FIELDS.has(k))) continue;
     if (!Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
   }
   return true;
@@ -917,6 +926,8 @@ export function createScriptRun(
   let previousChart: ChartContext = chart;
   let reason: string | null = null;
   let verifyLeft = options.verify ?? 2;
+  /** A bar calculated so far read the visible range. */
+  let rangeRead = false;
   /** The log messages of the last update: a resumed update keeps those of the bars it does not calculate again. */
   let lastLogs: LogEntry[] | undefined;
 
@@ -941,7 +952,7 @@ export function createScriptRun(
       const last = previous;
       const m = memory;
       const resumable =
-        !reason && m !== null && last !== null && last.n >= 1 && b.length >= last.n && sameChart(previousChart, c) &&
+        !reason && m !== null && last !== null && last.n >= 1 && b.length >= last.n && sameChart(previousChart, c, rangeRead) &&
         sameBars(last, b, last.n - 1);
       previousChart = c;
       let out: ScriptRunUpdate;
@@ -954,6 +965,7 @@ export function createScriptRun(
         try {
           result = runBody(body, b, inputs, c, options, inc);
           result.result.logs = resumedLogs(lastLogs, result.result.logs, from);
+          result.usesVisibleRange ||= rangeRead;
         } catch (err) {
           // the memory is changed in place by a resumed run: an error leaves it unusable
           memory = null;
@@ -964,6 +976,7 @@ export function createScriptRun(
         if (result && verifyLeft > 0) {
           verifyLeft--;
           const check = runBody(body, b, inputs, c, options, null);
+          check.usesVisibleRange = result.usesVisibleRange;
           if (!sameResult(result, check)) {
             reason = 'a resumed update differs from a full run (state kept outside persist()?)';
             result = check;
@@ -979,6 +992,7 @@ export function createScriptRun(
       }
       previous = out.incremental && last ? copyBars(b, last, last.n - 1) : copyBars(b);
       lastLogs = out.result.logs;
+      rangeRead = out.usesVisibleRange;
       return out;
     },
   };
@@ -3058,6 +3072,9 @@ export const strategy = Object.defineProperties(
   variableGetters
 ) as StrategyApi;
 
+/** Types of chart PineScript tells apart (`chart.is_*`); every other type is 'standard'. */
+export type ChartType = 'standard' | 'heikinashi' | 'renko' | 'kagi' | 'linebreak' | 'pnf' | 'range';
+
 // ── Chart context (issue #100) ───────────────────────────────────────────────
 
 /**
@@ -3116,6 +3133,15 @@ export interface ChartContext {
   foregroundColor?: string;
   /** Chart background colour (PineScript `chart.bg_color`), e.g. "#0F0F0F" on a dark chart */
   backgroundColor?: string;
+  /**
+   * Times (ms) of the first and the last bar in view (PineScript `chart.left_visible_bar_time` and
+   * `chart.right_visible_bar_time`); default: the first and the last bar. A script that reads them
+   * ({@link ScriptRunResult.usesVisibleRange}) has to be calculated again when they change.
+   */
+  leftVisibleBarTime?: number;
+  rightVisibleBarTime?: number;
+  /** Type of the chart (PineScript `chart.is_standard`, `chart.is_heikinashi`...); default 'standard' */
+  chartType?: ChartType;
   /** Current time in ms (PineScript `timenow`); default: the clock of the computer at the start of the run */
   now?: number;
   /**
@@ -3278,6 +3304,19 @@ function chartText(
     throw new Error(`${name} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
   }
   return value;
+}
+
+/** A visible range value: the chart context's, else the time of bar `index` (NaN without bars). */
+function visibleBarTime(value: number | undefined, index: number): number {
+  collector().usesVisibleRange = true;
+  if (value !== undefined) return value;
+  const bar = ctxBars.bars[index];
+  return bar ? barTime(bar) : NaN;
+}
+
+function chartTypeIs(type: ChartType): boolean {
+  collector();
+  return (chartCtx.chartType ?? 'standard') === type;
 }
 
 /** `[minmove, pricescale]` of the chart symbol: from the chart context, else from its mintick. */
@@ -3988,7 +4027,7 @@ export interface LabelNewArgs {
   y?: Numeric;
   point?: ChartPoint;
   text?: string;
-  xloc?: 'bar_index' | 'bar_time';
+  xloc?: 'bar_index' | 'bar_time' | 'pane';
   yloc?: 'price' | 'abovebar' | 'belowbar';
   color?: Colour;
   style?: NonNullable<Label['style']>;
@@ -4009,7 +4048,7 @@ export interface LineNewArgs {
   y2?: Numeric;
   first_point?: ChartPoint;
   second_point?: ChartPoint;
-  xloc?: 'bar_index' | 'bar_time';
+  xloc?: 'bar_index' | 'bar_time' | 'pane';
   extend?: 'none' | 'left' | 'right' | 'both';
   color?: Colour;
   style?: 'solid' | 'dotted' | 'dashed' | 'arrow_left' | 'arrow_right' | 'arrow_both';
@@ -4029,7 +4068,7 @@ export interface BoxNewArgs {
   border_width?: Numeric;
   border_style?: 'solid' | 'dotted' | 'dashed';
   extend?: 'none' | 'left' | 'right' | 'both';
-  xloc?: 'bar_index' | 'bar_time';
+  xloc?: 'bar_index' | 'bar_time' | 'pane';
   bgcolor?: Colour;
   text?: string;
   text_size?: string | number;
@@ -4078,7 +4117,7 @@ export interface PolylineNewArgs {
   points?: ChartPoint[];
   curved?: boolean;
   closed?: boolean;
-  xloc?: 'bar_index' | 'bar_time';
+  xloc?: 'bar_index' | 'bar_time' | 'pane';
   line_color?: Colour;
   fill_color?: Colour | null;
   line_style?: 'solid' | 'dotted' | 'dashed';
@@ -4173,6 +4212,38 @@ export const chart = {
   /** Chart background colour (PineScript `chart.bg_color`), from the chart context. */
   get bg_color(): string {
     return chartText('backgroundColor', 'chart.bg_color');
+  },
+  /** Time (ms) of the first bar in view (PineScript `chart.left_visible_bar_time`), from the chart context; without it,
+   *  of the first bar. */
+  get left_visible_bar_time(): number {
+    return visibleBarTime(chartCtx.leftVisibleBarTime, 0);
+  },
+  /** Time (ms) of the last bar in view (PineScript `chart.right_visible_bar_time`), from the chart context; without it,
+   *  of the last bar. */
+  get right_visible_bar_time(): number {
+    return visibleBarTime(chartCtx.rightVisibleBarTime, ctxBars.bars.length - 1);
+  },
+  /** The chart is not one of the types below (PineScript `chart.is_standard`). */
+  get is_standard(): boolean {
+    return chartTypeIs('standard');
+  },
+  get is_heikinashi(): boolean {
+    return chartTypeIs('heikinashi');
+  },
+  get is_renko(): boolean {
+    return chartTypeIs('renko');
+  },
+  get is_kagi(): boolean {
+    return chartTypeIs('kagi');
+  },
+  get is_linebreak(): boolean {
+    return chartTypeIs('linebreak');
+  },
+  get is_pnf(): boolean {
+    return chartTypeIs('pnf');
+  },
+  get is_range(): boolean {
+    return chartTypeIs('range');
   },
   point: {
     ...chartPointCore,

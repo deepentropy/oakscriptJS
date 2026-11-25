@@ -42,10 +42,15 @@ export const size = {
   huge: 'huge',
 } as const;
 
-/** PineScript `xloc.*`: the x coordinate of drawings (bar index or UNIX time in ms). */
+/**
+ * PineScript `xloc.*`: the x coordinate of drawings (bar index or UNIX time in ms). `xloc.pane` is not a Pine value: the x
+ * coordinates are percents of the pane's width (0 left edge, 100 right edge), so the drawing stays in place while the
+ * user scrolls and zooms.
+ */
 export const xloc = {
   bar_index: 'bar_index',
   bar_time: 'bar_time',
+  pane: 'pane',
 } as const;
 
 /** PineScript `yloc.*`: the y position of labels. */

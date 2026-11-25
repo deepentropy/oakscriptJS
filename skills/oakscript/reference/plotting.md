@@ -138,7 +138,7 @@ closest names. In the loop, a Series argument is its value on the current bar: `
 
 | Call | Arguments |
 |---|---|
-| `label.new` | `x, y, text, xloc (xloc.bar_index / xloc.bar_time), yloc (yloc.price / yloc.abovebar / yloc.belowbar), color, style, textcolor, size, textalign, tooltip, text_font_family, force_overlay, text_formatting` |
+| `label.new` | `x, y, text, xloc (xloc.bar_index / xloc.bar_time / xloc.pane), yloc (yloc.price / yloc.abovebar / yloc.belowbar), color, style, textcolor, size, textalign, tooltip, text_font_family, force_overlay, text_formatting` |
 | `line.new` | `x1, y1, x2, y2, xloc, extend (extend.none / left / right / both), color, style (line.style_solid / dashed / dotted / arrow_left / arrow_right / arrow_both), width, force_overlay` |
 | `box.new` | `left, top, right, bottom, border_color, border_width, border_style, extend, xloc, bgcolor, text, text_size, text_color, text_halign, text_valign, text_wrap, text_font_family, force_overlay, text_formatting` |
 | `table.new` | `position, columns, rows, bgcolor, frame_color, frame_width, border_color, border_width` |
@@ -150,6 +150,29 @@ Label styles: `label.style_label_down`, `label.style_label_up`, `label.style_lab
 `label.style_label_center`, `label.style_none`, and `label.style_<shape>`. `x` is a bar index (`c.i`, or `c.i + 10`
 for a future bar) or, with `xloc.bar_time`, a UNIX time in ms. The constants are the strings (`"label_down"`), which
 also work.
+
+`xloc.pane` (not in Pine): the x coordinates are percents of the pane's width, 0 the left edge and 100 the right one
+(the `index` of a point). The drawing keeps its place and width while the user scrolls and zooms, its prices stay on
+the price scale, and it does not change the scale of the price pane. A profile pinned to the right edge:
+
+```js
+indicator("Levels", { overlay: true });
+const levels = [{ price: 100, a: 40, b: 25 }, { price: 105, a: 10, b: 60 }];
+eachBar((c) => {
+  if (c.i !== c.n - 1) return;
+  for (const l of levels) {
+    // the widest bar takes 30 % of the pane
+    const a = (l.a / 60) * 30;
+    const b = (l.b / 60) * 30;
+    box.new(100 - a, l.price + 1, 100, l.price - 1, { xloc: xloc.pane, bgcolor: "#22AB9480", border_width: 0 });
+    box.new(100 - a - b, l.price + 1, 100 - a, l.price - 1, { xloc: xloc.pane, bgcolor: "#F2364580", border_width: 0 });
+  }
+  line.new(0, c.close, 100, c.close, { xloc: xloc.pane, style: line.style_dashed });
+});
+```
+
+`chart.left_visible_bar_time` and `chart.right_visible_bar_time` are the times (ms) of the first and last bar in view:
+a script that reads them is calculated again when the user scrolls or zooms.
 Positions of tables: `position.top_right`, `position.bottom_left`...
 
 ```js

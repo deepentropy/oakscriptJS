@@ -13,7 +13,7 @@
 import { all as allDrawings, checkBarIndex, isDeleted, register, remove } from '../drawing/registry.js';
 import type { ChartPoint, Label, color } from '../types/index.js';
 
-type LabelXloc = 'bar_index' | 'bar_time';
+type LabelXloc = 'bar_index' | 'bar_time' | 'pane';
 type LabelYloc = 'price' | 'abovebar' | 'belowbar';
 type LabelStyle = NonNullable<Label['style']>;
 
@@ -252,7 +252,7 @@ export function set_xy(id: Label, x: number, y: number): Label {
  * label.set_xloc(label, 1609459200000, 'bar_time'); // Change to timestamp
  * ```
  */
-export function set_xloc(id: Label, x: number, xloc: 'bar_index' | 'bar_time'): Label {
+export function set_xloc(id: Label, x: number, xloc: 'bar_index' | 'bar_time' | 'pane'): Label {
   if (isDeleted(id)) return id;
   id.x = x;
   id.xloc = xloc;
@@ -456,7 +456,7 @@ export function delete_label(id: Label): void {
 }
 
 /** x coordinate of a chart point for an object's xloc (`na` when the point has no such coordinate). */
-function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time'): number {
+function pointX(point: ChartPoint, xloc: 'bar_index' | 'bar_time' | 'pane'): number {
   const x = xloc === 'bar_time' ? point.time : point.index;
   return x ?? NaN;
 }

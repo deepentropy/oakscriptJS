@@ -19,7 +19,7 @@ describe('constant values', () => {
     expect(Object.keys(shape)).toHaveLength(12);
     expect(location).toEqual({ abovebar: 'abovebar', belowbar: 'belowbar', top: 'top', bottom: 'bottom', absolute: 'absolute' });
     expect(Object.values(size)).toEqual(['auto', 'tiny', 'small', 'normal', 'large', 'huge']);
-    expect(xloc).toEqual({ bar_index: 'bar_index', bar_time: 'bar_time' });
+    expect(xloc).toEqual({ bar_index: 'bar_index', bar_time: 'bar_time', pane: 'pane' });
     expect(yloc).toEqual({ price: 'price', abovebar: 'abovebar', belowbar: 'belowbar' });
     expect(extend).toEqual({ none: 'none', left: 'left', right: 'right', both: 'both' });
     expect(display).toMatchObject({ none: 'none', all: 'all', data_window: 'data_window', status_line: 'status_line', pane: 'pane' });

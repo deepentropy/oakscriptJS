@@ -5,7 +5,8 @@
  * Conversion rules:
  * - x coordinates become bar times: a `bar_index` x is the time of that bar, or of a future bar after the last bar
  *   (see {@link barTime}); a `bar_time` x (UNIX ms, as PineScript) is converted to the unit of the bar times and the
- *   object keeps `xloc: 'bar_time'` (a renderer places a time after the last bar on the chart's own calendar)
+ *   object keeps `xloc: 'bar_time'` (a renderer places a time after the last bar on the chart's own calendar); a `pane`
+ *   x (percent of the pane's width) is kept in the time fields, with `xloc: 'pane'`
  * - an object with an `na` coordinate (or a bar index before the first bar) is not drawn, as in PineScript
  * - a property the script did not set is omitted (the renderer uses the PineScript default); a colour set to `na`
  *   is 'transparent'
@@ -52,8 +53,10 @@ function compact<T extends object>(obj: T): T {
 
 const overlay = (flag: boolean | undefined): true | undefined => (flag ? true : undefined);
 
-/** xloc of the result: kept only for times given by the script ('bar_time'). */
-const xlocOut = (xloc: string | undefined): 'bar_time' | undefined => (xloc === 'bar_time' ? 'bar_time' : undefined);
+type Xloc = 'bar_index' | 'bar_time' | 'pane';
+
+/** xloc of the result: omitted for bar indexes. */
+const xlocOut = (xloc: Xloc): 'bar_time' | 'pane' | undefined => (xloc === 'bar_time' || xloc === 'pane' ? xloc : undefined);
 
 /**
  * Converts the live drawing objects of the registry. `bars` are the chart bars (their `time` in `timeUnit`, 's' by
@@ -62,8 +65,8 @@ const xlocOut = (xloc: string | undefined): 'bar_time' | undefined => (xloc === 
 export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 's' | 'ms' = 's'): DrawingOutputs {
   const interval = barInterval(bars);
   const msUnit = timeUnit === 'ms' ? 1 : 1000;
-  const xTime = (x: number, xloc: 'bar_index' | 'bar_time'): number =>
-    xloc === 'bar_time' ? x / msUnit : barTime(bars, x, interval);
+  const xTime = (x: number, xloc: Xloc): number =>
+    xloc === 'pane' ? x : xloc === 'bar_time' ? x / msUnit : barTime(bars, x, interval);
   const ok = (...values: number[]): boolean => values.every(Number.isFinite);
 
   const lineData = (l: Line): LineDrawingData | undefined => {
@@ -86,8 +89,9 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
 
   const labelData = (l: Label): LabelData | undefined => {
     const time = xTime(l.x, l.xloc);
-    // abovebar / belowbar labels are placed at the bar, not at y
-    if (!ok(time) || (l.yloc === 'price' && !ok(l.y))) return undefined;
+    // abovebar / belowbar labels are placed at the bar, not at y; a label placed on the pane has no bar: at y
+    const yloc = l.xloc === 'pane' ? 'price' : l.yloc;
+    if (!ok(time) || (yloc === 'price' && !ok(l.y))) return undefined;
     return compact({
       time,
       price: l.y,
@@ -97,7 +101,7 @@ export function drawingOutputs(bars: ReadonlyArray<{ time: number }>, timeUnit: 
       textColor: colorOut(l.textcolor),
       style: l.style,
       size: l.size as LabelData['size'],
-      yloc: l.yloc,
+      yloc,
       textAlign: l.textalign,
       tooltip: l.tooltip,
       fontFamily: l.text_font_family,
