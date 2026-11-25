@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 25/11/2026
+
 ### Added
 
 - `chart.left_visible_bar_time`, `chart.right_visible_bar_time` (ms), from `ChartContext.leftVisibleBarTime` /
