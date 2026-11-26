@@ -71,9 +71,9 @@ export interface InputConfig {
   /**
    * Type of input. `timeframe` and `session` values are strings ("60", "1D", "0930-1600:23456";
    * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds. A `text_area`
-   * value is a string that can hold several lines.
+   * value is a string that can hold several lines. An `enum` value is the field name of one of its `options`.
    */
-  type: 'int' | 'float' | 'bool' | 'string' | 'text_area' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol';
+  type: 'int' | 'float' | 'bool' | 'string' | 'text_area' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol' | 'enum';
   /** Default value */
   defval: unknown;
   /** Display title */
@@ -84,8 +84,13 @@ export interface InputConfig {
   max?: number;
   /** Step size (for numeric inputs) */
   step?: number;
-  /** Options for dropdown selection (for string, timeframe and session inputs) */
-  options?: string[];
+  /**
+   * Options for dropdown selection: strings (string, timeframe, session and symbol inputs), numbers (int and float
+   * inputs) or the field names of an enum input
+   */
+  options?: (string | number)[];
+  /** Titles of the options of an enum input, by field name */
+  optionsTitles?: Record<string, string>;
   /** Settings group header (PineScript `group`) */
   group?: string;
   /** Inputs with the same `inline` id are shown on one line (PineScript `inline`) */

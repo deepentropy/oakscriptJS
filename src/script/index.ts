@@ -1207,6 +1207,55 @@ export interface NumericInputOptions extends InputOptions {
   minval?: number;
   maxval?: number;
   step?: number;
+  /** The values to choose from (the host shows a drop-down list). */
+  options?: number[];
+}
+
+/** A field of an enum made with `defineEnum()`: its name and title. `String(field)` is the title, as PineScript
+ *  `str.tostring()` of an enum field. */
+export interface EnumField {
+  readonly name: string;
+  readonly title: string;
+  toString(): string;
+}
+
+export interface EnumInputOptions extends InputOptions {
+  /** The fields to choose from (default: every field of the enum). */
+  options?: EnumField[];
+}
+
+/** A class, not a plain object: a field passed where the options can be is not read as named arguments. */
+class EnumFieldValue implements EnumField {
+  constructor(readonly name: string, readonly title: string) {
+    Object.freeze(this);
+  }
+  toString(): string {
+    return this.title;
+  }
+}
+
+/** The fields of each enum, by field: `input.enum()` lists them from its default. */
+const enumFieldsOf = new WeakMap<EnumField, readonly EnumField[]>();
+
+/**
+ * PineScript `enum`: a set of named fields, each with a title (the name when the title is empty).
+ * `const MaType = defineEnum({ sma: "Simple", ema: "Exponential" })`; `MaType.sma.title` is "Simple" and
+ * `input.enum(MaType.sma, "Average")` returns `MaType.sma` or `MaType.ema`. Fields compare with `===`.
+ */
+export function defineEnum<K extends string>(fields: Record<K, string>): { readonly [P in K]: EnumField } {
+  if (!isPlainObject(fields) || Object.keys(fields).length === 0) {
+    throw new TypeError('defineEnum(): the fields are an object of names and titles, e.g. { sma: "Simple", ema: "Exponential" }.');
+  }
+  const list: EnumField[] = [];
+  const out: Record<string, EnumField> = {};
+  for (const [name, title] of Object.entries(fields)) {
+    if (title !== undefined && typeof title !== 'string') throw new TypeError(`defineEnum(): the title of "${name}" is a string.`);
+    const field = new EnumFieldValue(name, title || name);
+    list.push(field);
+    out[name] = field;
+  }
+  for (const field of list) enumFieldsOf.set(field, list);
+  return Object.freeze(out) as { readonly [P in K]: EnumField };
 }
 
 export interface StringInputOptions extends InputOptions {
@@ -1238,7 +1287,7 @@ function registerInput<T>(config: Omit<InputConfig, 'id'>, fallbackId: string): 
 
 function registerNumeric(type: 'int' | 'float', defval: number, title?: string, opts: NumericInputOptions = {}): number {
   const v = registerInput<unknown>(
-    { type, defval, title, min: opts.minval, max: opts.maxval, step: opts.step, ...common(opts) },
+    { type, defval, title, min: opts.minval, max: opts.maxval, step: opts.step, ...(opts.options ? { options: opts.options } : {}), ...common(opts) },
     `input_${type}`
   );
   return typeof v === 'number' ? v : defval;
@@ -1250,8 +1299,9 @@ type InputArgs<O, D> = O & { title?: string; defval?: D };
 const COMMON_INPUT_KEYS = ['tooltip', 'inline', 'group', 'confirm', 'display', 'active'] as const;
 /** The PineScript arguments of each input kind (named arguments are checked against them). */
 const INPUT_KEYS: Record<string, readonly string[]> = {
-  int: ['defval', 'title', 'minval', 'maxval', 'step', ...COMMON_INPUT_KEYS],
-  float: ['defval', 'title', 'minval', 'maxval', 'step', ...COMMON_INPUT_KEYS],
+  int: ['defval', 'title', 'minval', 'maxval', 'step', 'options', ...COMMON_INPUT_KEYS],
+  float: ['defval', 'title', 'minval', 'maxval', 'step', 'options', ...COMMON_INPUT_KEYS],
+  enum: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
   price: ['defval', 'title', ...COMMON_INPUT_KEYS],
   bool: ['defval', 'title', ...COMMON_INPUT_KEYS],
   string: ['defval', 'title', 'options', ...COMMON_INPUT_KEYS],
@@ -1362,6 +1412,32 @@ export const input = strictNamespace('input', {
   price(defval: number | InputArgs<InputOptions, number>, title?: string | InputArgs<InputOptions, number>, opts?: InputOptions): number {
     const a = inputArgs<number, InputOptions>('price', defval, title, opts);
     return registerNumeric('float', a.defval, a.title, a.opts);
+  },
+  /**
+   * A field of an enum made with `defineEnum()`: `input.enum(MaType.sma, "Average")`. The host lists the fields by
+   * title (`options`: only these fields) and stores the field name; the call returns the field.
+   */
+  enum<F extends EnumField>(defval: F | InputArgs<EnumInputOptions, F>, title?: string | InputArgs<EnumInputOptions, F>, opts?: EnumInputOptions): F {
+    const a = inputArgs<F, EnumInputOptions>('enum', defval, title, opts);
+    const fields = a.defval === undefined ? undefined : enumFieldsOf.get(a.defval);
+    if (!fields) throw new TypeError('input.enum(): the default is a field of an enum made with defineEnum(), e.g. input.enum(MaType.sma, "Average").');
+    const choices = a.opts.options ?? fields;
+    for (const f of choices) {
+      if (!fields.includes(f)) throw new TypeError('input.enum(): the options are fields of the enum of the default.');
+    }
+    if (!choices.includes(a.defval)) throw new TypeError('input.enum(): the default is one of the options.');
+    const name = registerInput<unknown>(
+      {
+        type: 'enum',
+        defval: a.defval.name,
+        title: a.title,
+        options: choices.map((f) => f.name),
+        optionsTitles: Object.fromEntries(choices.map((f) => [f.name, f.title])),
+        ...common(a.opts),
+      },
+      'input_enum'
+    );
+    return (choices.find((f) => f.name === name) ?? a.defval) as F;
   },
   /** Date and time as a UNIX time in milliseconds, e.g. `input.time(timestamp('2024-01-01'), 'Start')`. */
   time(defval: number | InputArgs<InputOptions, number>, title?: string | InputArgs<InputOptions, number>, opts?: InputOptions): number {

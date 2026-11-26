@@ -15,7 +15,7 @@ type Field =
 
 const num = (doc: string): Field => ({ kind: 'number', doc });
 
-export const INPUT_TYPES = ['int', 'float', 'bool', 'string', 'text_area', 'source', 'color', 'timeframe', 'session', 'time', 'symbol'] as const;
+export const INPUT_TYPES = ['int', 'float', 'bool', 'string', 'text_area', 'source', 'color', 'timeframe', 'session', 'time', 'symbol', 'enum'] as const;
 export const OUTPUT_KINDS = ['plot', 'shape', 'char', 'arrow', 'candle', 'bar', 'hline', 'bgcolor', 'barcolor', 'alertcondition'] as const;
 
 /** The keys of a spec checked by checkScript. */

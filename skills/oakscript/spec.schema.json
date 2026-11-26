@@ -40,7 +40,8 @@
               "timeframe",
               "session",
               "time",
-              "symbol"
+              "symbol",
+              "enum"
             ],
             "description": "input type"
           },

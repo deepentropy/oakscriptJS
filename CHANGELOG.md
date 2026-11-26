@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `options` on `input.int` and `input.float`: a list of numbers the host shows as a choice list (#212).
+- Enums (#212): `defineEnum({ sma: "Simple", ema: "Exponential" })` is Pine's `enum` (fields compare with `===`,
+  `String(field)` and `str.tostring(field)` give the title). `input.enum(MaType.sma, "Average", { options })` declares
+  an `InputConfig` of type `'enum'` with the field names as `options` and their titles as `optionsTitles`, stores the
+  field name and returns the field.
+
 ## [0.21.0] - 26/11/2026
 
 ### Added

@@ -41,8 +41,8 @@ Every kind takes an options object after the title. `...common` stands for the o
 
 | Call | Returns |
 |---|---|
-| `input.int(defval, title, { minval, maxval, step, ...common })` | integer (rounded) |
-| `input.float(defval, title, { minval, maxval, step, ...common })` | number |
+| `input.int(defval, title, { minval, maxval, step, options: [...], ...common })` | integer (rounded; a choice list with `options`) |
+| `input.float(defval, title, { minval, maxval, step, options: [...], ...common })` | number (a choice list with `options`) |
 | `input.price(defval, title, { ...common })` | number (a price level) |
 | `input.bool(defval, title, { ...common })` | boolean |
 | `input.string(defval, title, { options: [...], ...common })` | string (a choice list with `options`) |
@@ -53,6 +53,7 @@ Every kind takes an options object after the title. `...common` stands for the o
 | `input.session("0930-1600", title, { options, ...common })` | session string |
 | `input.symbol("NASDAQ:AAPL", title, { options, ...common })` | ticker id for `request.security` |
 | `input.time(timestamp("2024-01-01"), title, { ...common })` | UNIX time in ms |
+| `input.enum(MaType.sma, title, { options: [...], ...common })` | a field of an enum made with `defineEnum()` (a choice list of its titles; `options`: some of its fields) |
 
 The common options, as in Pine:
 
@@ -77,6 +78,15 @@ const maColor = input.color(color.blue, "Colour", { group: "Average" });
 const mode = input.string("Close", "Price", { options: ["Close", "HL2"], tooltip: "Price of the average" });
 const src = mode === "HL2" ? hl2 : close; // inputs are plain values: JS operators work on them
 plot(ta.sma(src, maLength), "MA", { color: maColor, display: showMa ? "all" : "none" });
+```
+
+Pine's `enum` is `defineEnum({ field: "Title", ... })` (an empty title is the field name). Fields compare with
+`===`, `String(field)` and `str.tostring(field)` give the title, `field.name` the name:
+
+```js
+const MaType = defineEnum({ sma: "Simple", ema: "Exponential" });
+const maType = input.enum(MaType.sma, "Average");
+const ma = maType === MaType.ema ? ta.ema(close, 20) : ta.sma(close, 20);
 ```
 
 **Input ids.** The host sets inputs by id: the title in snake case (`"Fast length"` is `fast_length`, a repeated

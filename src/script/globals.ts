@@ -50,6 +50,7 @@ declare global {
   const holdDrawing: typeof S.holdDrawing;
   const releaseDrawing: typeof S.releaseDrawing;
   const varDrawing: typeof S.varDrawing;
+  const defineEnum: typeof S.defineEnum;
   const StrategyRecorder: typeof S.StrategyRecorder;
   const input: typeof S.input;
   const open: typeof S.open;
