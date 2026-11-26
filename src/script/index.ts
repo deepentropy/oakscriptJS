@@ -138,6 +138,7 @@ import { TradingCalendar, type SessionSpec } from '../session/calendar.js';
 import { SessionBars, sessionFlags, strayPeriods, type SessionFlags } from '../session/bars.js';
 import { afterCompletion, heikinAshi, mapToChart, periodsOf, resample } from '../security/resample.js';
 import { securityLowerTf, securityOther, type OtherSymbolChart } from '../security/other.js';
+import { eventsOnBars } from '../security/events.js';
 import { position } from '../types/index.js';
 import type { Box, ChartPoint, Label, Line, Linefill, Polyline, Table } from '../types/index.js';
 import {
@@ -505,7 +506,14 @@ function runBody(
   mathCore.resetRandom();
   missingSymbols = [];
   try {
-    body();
+    try {
+      body();
+    } catch (err) {
+      // An expression of request.security runs on no bar and without the symbol's properties while its bars are not
+      // given (syminfo.sector there throws): the run waits for the data, not on the error.
+      if (missingSymbols.length && !(err instanceof MissingSymbolDataError)) throw new MissingSymbolDataError(missingSymbols);
+      throw err;
+    }
     if (missingSymbols.length) throw new MissingSymbolDataError(missingSymbols);
     // the outputs read the drawings: not a drawing of the script
     if (inc) incremental.bodyDone();
@@ -1736,12 +1744,13 @@ export function fixnan(source: Series | Array<string | undefined>): Series | Arr
 }
 
 /** PineScript `na(x)`. On a Series: a Series of 1 / 0, 1 where the value is na (NaN or +/-Infinity, #187). On a
- *  single value (a number of a bar loop, a colour, a drawing): true when it is na. */
+ *  single value (a number of a bar loop, a colour, a drawing): true when it is na. An empty text is na, as in
+ *  PineScript (`na("")`, `na(syminfo.basecurrency)` of a stock). */
 export function na(x: Series): Series;
 export function na(x: unknown): boolean;
 export function na(x: unknown): Series | boolean {
   if (x instanceof Series) return Series.fromArray(ctxBars, x.toArray().map((v) => (isNA(v) ? 1 : 0)));
-  return isNA(x);
+  return x === '' || isNA(x);
 }
 
 /** PineScript `nz(source, replacement)`; replacement defaults to 0. On a Series: each na value (NaN or +/-Infinity)
@@ -3122,13 +3131,54 @@ export interface ChartContext {
   currency?: string;
   /**
    * Base currency of the symbol (PineScript `syminfo.basecurrency`): "BTC" for BITSTAMP:BTCUSD, BINANCE:BTCUSDT.P and
-   * CME:BTC1!, "EUR" for FX:EURUSD, "" for a stock, an index or CME_MINI:ES1! (#180)
+   * CME:BTC1!, "EUR" for FX:EURUSD, "" for a stock, an index or CME_MINI:ES1! (#180).
+   *
+   * The symbol fields below, like this one: a value; null when the symbol has none (PineScript gives na: "" for a
+   * text, which `na()` takes as na, NaN for a number); left out when the host does not know it (reading it throws).
    */
-  basecurrency?: string;
-  /** Root of the symbol (PineScript `syminfo.root`): "BTC" for CME:BTC1!, "ES" for CME_MINI:ES1!, "AAPL" for NASDAQ:AAPL (#180) */
-  root?: string;
+  basecurrency?: string | null;
+  /**
+   * Root of the symbol (PineScript `syminfo.root`): "BTC" for CME:BTC1!, "ES" for CME_MINI:ES1!, "AAPL" for
+   * NASDAQ:AAPL (#180). Default: the ticker, without the "1!" of a continuous future or the month code and year of a
+   * contract ("ESZ2026" of a `symbolType` "futures").
+   */
+  root?: string | null;
   /** Description of the symbol (PineScript `syminfo.description`): "Apple Inc." for NASDAQ:AAPL, "Bitcoin / U.S. dollar" for BITSTAMP:BTCUSD (#184) */
-  description?: string;
+  description?: string | null;
+  /** Prefix of the ticker id (PineScript `syminfo.prefix`), default: the part of `tickerid` before ":" */
+  prefix?: string | null;
+  /** Ticker without its prefix (PineScript `syminfo.ticker`), default: the part of `tickerid` after ":" */
+  ticker?: string;
+  /** The chart's own symbol (PineScript `syminfo.main_tickerid`, the same inside `request.security`); default `tickerid` */
+  mainTickerid?: string;
+  /** Two-letter code of the country the symbol trades in (PineScript `syminfo.country`): "US", "IN" */
+  country?: string | null;
+  /** Contract a continuous future stands for (PineScript `syminfo.current_contract`): "ESZ2026" for CME_MINI:ES1! */
+  currentContract?: string | null;
+  /** Last trading day of a future's contract, in ms (PineScript `syminfo.expiration_date`) */
+  expirationDate?: number | null;
+  /** PineScript `syminfo.sector` and `syminfo.industry` of a company */
+  sector?: string | null;
+  industry?: string | null;
+  /** PineScript `syminfo.isin`: "US0378331005" for NASDAQ:AAPL */
+  isin?: string | null;
+  /** Unit of the volume (PineScript `syminfo.volumetype`): "base" (crypto: in the base currency), "quote", "tick", "n/a" */
+  volumetype?: string | null;
+  /** PineScript `syminfo.employees`, `syminfo.shareholders`, `syminfo.shares_outstanding_total` / `_float` */
+  employees?: number | null;
+  shareholders?: number | null;
+  sharesOutstandingTotal?: number | null;
+  sharesOutstandingFloat?: number | null;
+  /** Analysts' ratings (PineScript `syminfo.recommendations_*`; `date` in ms) */
+  recommendations?: SymbolRecommendations | null;
+  /** Analysts' price targets (PineScript `syminfo.target_price_*`; `date` in ms) */
+  targetPrice?: SymbolTargetPrice | null;
+  /**
+   * Dividends, splits and earnings of a symbol (PineScript `request.dividends`, `request.splits`, `request.earnings`,
+   * `dividends.future_*`, `earnings.future_*`). Return undefined when they are not loaded: the run then ends with a
+   * {@link MissingSymbolDataError} whose request has `events: true`. Return {} for a symbol without any.
+   */
+  events?: (symbol: string) => SymbolEvents | undefined;
   /** Chart foreground colour (PineScript `chart.fg_color`), e.g. "#DBDBDB" on a dark chart */
   foregroundColor?: string;
   /** Chart background colour (PineScript `chart.bg_color`), e.g. "#0F0F0F" on a dark chart */
@@ -3188,12 +3238,108 @@ export type SymbolInfo = Pick<
   | 'basecurrency'
   | 'root'
   | 'description'
+  | 'prefix'
+  | 'ticker'
+  | 'country'
+  | 'currentContract'
+  | 'expirationDate'
+  | 'sector'
+  | 'industry'
+  | 'isin'
+  | 'volumetype'
+  | 'employees'
+  | 'shareholders'
+  | 'sharesOutstandingTotal'
+  | 'sharesOutstandingFloat'
+  | 'recommendations'
+  | 'targetPrice'
 >;
 
-/** A request of `request.security` for another symbol whose bars the host has not given. */
+/** The symbol fields a {@link SymbolInfo} gives to `syminfo.*` inside `request.security`. */
+const SYMBOL_INFO_KEYS = [
+  'timezone', 'session', 'regularSession', 'mintick', 'minmove', 'pricescale', 'pointvalue', 'mincontract', 'symbolType',
+  'currency', 'basecurrency', 'root', 'description', 'prefix', 'ticker', 'country', 'currentContract', 'expirationDate',
+  'sector', 'industry', 'isin', 'volumetype', 'employees', 'shareholders', 'sharesOutstandingTotal',
+  'sharesOutstandingFloat', 'recommendations', 'targetPrice',
+] as const satisfies readonly (keyof SymbolInfo)[];
+
+/** Analysts' ratings of a symbol: counts of each rating, and the date of the count (ms). */
+export interface SymbolRecommendations {
+  buy: number;
+  buy_strong: number;
+  hold: number;
+  sell: number;
+  sell_strong: number;
+  total: number;
+  date: number;
+}
+
+/** Analysts' price targets of a symbol, their number and the date of the figures (ms). */
+export interface SymbolTargetPrice {
+  average: number;
+  high: number;
+  low: number;
+  median: number;
+  estimates: number;
+  date: number;
+}
+
+/**
+ * A dividend: `time` the ex-date (ms; 00:00 UTC of the day, as PineScript's dividends are stamped), the amount per
+ * share as declared (not adjusted for later splits), net and gross of withholding tax (gross defaults to net).
+ */
+export interface DividendEvent {
+  time: number;
+  net: number;
+  gross?: number;
+  /** Payment date (ms) */
+  payDate?: number | null;
+}
+
+/** A split from `denominator` shares to `numerator` (4 and 1 for a 4-for-1 split); `time` its date (ms, 00:00 UTC). */
+export interface SplitEvent {
+  time: number;
+  numerator: number;
+  denominator: number;
+}
+
+/**
+ * An earnings release: `time` when it was published (ms; a release after the close is after the session's close). The
+ * values per share are adjusted for later splits, as PineScript gives them. A value the host does not have is left
+ * out; a script that asks for it then stops with an error.
+ */
+export interface EarningsEvent {
+  time: number;
+  /** Reported earnings per share (`earnings.actual`), the analysts' estimate (`earnings.estimate`), standardized
+   *  earnings per share (`earnings.standardized`) */
+  actual?: number | null;
+  estimate?: number | null;
+  standardized?: number | null;
+  /** Estimated revenue (`earnings.future_revenue`) and the end of the fiscal period (ms) */
+  revenueEstimate?: number | null;
+  periodEnd?: number | null;
+}
+
+/** Events of a symbol, oldest first. */
+export interface SymbolEvents {
+  dividends?: DividendEvent[];
+  splits?: SplitEvent[];
+  earnings?: EarningsEvent[];
+  /**
+   * The lists hold the announced events still to come (`dividends.future_*`, `earnings.future_*` read them): without
+   * it the future values are not known and reading them throws.
+   */
+  future?: { dividends?: boolean; earnings?: boolean };
+}
+
+/**
+ * A request of `request.security` for another symbol whose bars the host has not given, or (`events`) of
+ * `request.dividends` / `request.splits` / `request.earnings` for a symbol whose events it has not given.
+ */
 export interface SymbolDataRequest {
   symbol: string;
   timeframe: string;
+  events?: boolean;
 }
 
 /**
@@ -3202,9 +3348,13 @@ export interface SymbolDataRequest {
  */
 export class MissingSymbolDataError extends Error {
   constructor(readonly requests: SymbolDataRequest[]) {
+    const bars = requests.filter((r) => !r.events);
+    const events = requests.filter((r) => r.events);
     super(
-      `request.security needs the bars of ${requests.map((r) => `${r.symbol} (${r.timeframe})`).join(', ')}: ` +
-        'pass them with ChartContext.bars.'
+      [
+        bars.length ? `request.security needs the bars of ${bars.map((r) => `${r.symbol} (${r.timeframe})`).join(', ')}: pass them with ChartContext.bars.` : '',
+        events.length ? `The script needs the events of ${events.map((r) => r.symbol).join(', ')}: pass them with ChartContext.events.` : '',
+      ].filter(Boolean).join(' ')
     );
     this.name = 'MissingSymbolDataError';
   }
@@ -3293,9 +3443,23 @@ function symbolProperty(key: 'mintick' | 'pointvalue' | 'mincontract'): number {
   return value;
 }
 
-/** A text value of the chart or the symbol that the host passes in the chart context. */
+/** A text value of the chart or the symbol that the host passes in the chart context; null (none) is "". */
 function chartText(
-  key: 'symbolType' | 'currency' | 'basecurrency' | 'root' | 'description' | 'foregroundColor' | 'backgroundColor',
+  key:
+    | 'symbolType'
+    | 'currency'
+    | 'basecurrency'
+    | 'root'
+    | 'description'
+    | 'foregroundColor'
+    | 'backgroundColor'
+    | 'prefix'
+    | 'country'
+    | 'currentContract'
+    | 'sector'
+    | 'industry'
+    | 'isin'
+    | 'volumetype',
   name: string
 ): string {
   collector();
@@ -3303,7 +3467,61 @@ function chartText(
   if (value === undefined) {
     throw new Error(`${name} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
   }
-  return value;
+  // PineScript's na text is "" (`na("")` is true)
+  return value ?? '';
+}
+
+/** A number of the symbol that the host passes in the chart context; null (none) is na. */
+function symbolNumber(
+  key: 'expirationDate' | 'employees' | 'shareholders' | 'sharesOutstandingTotal' | 'sharesOutstandingFloat',
+  name: string
+): number {
+  collector();
+  const value = chartCtx[key];
+  if (value === undefined) {
+    throw new Error(`${name} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
+  }
+  return value ?? NaN;
+}
+
+/** A value of the analysts' figures of the symbol (`recommendations`, `targetPrice`); null (none) is na. */
+function analystNumber<K extends 'recommendations' | 'targetPrice'>(
+  key: K,
+  field: keyof NonNullable<ChartContext[K]>,
+  name: string
+): number {
+  collector();
+  const group = chartCtx[key];
+  if (group === undefined) {
+    throw new Error(`${name} is not known: pass it as executeScript(body, bars, inputs, { ${key} }).`);
+  }
+  return group === null ? NaN : ((group as unknown as Record<string, number>)[field as string] ?? NaN);
+}
+
+/** The ticker id of the chart (or of the symbol of `request.security`); throws when not known. */
+function chartTickerid(): string {
+  collector();
+  if (!chartCtx.tickerid) {
+    throw new Error('The chart symbol is not known: pass it as executeScript(body, bars, inputs, { tickerid }).');
+  }
+  return chartCtx.tickerid;
+}
+
+/** A ticker id cut at its prefix: ["NASDAQ", "AAPL"], ["", "AAPL"] without one. */
+function splitTickerid(tickerid: string): [string, string] {
+  const at = tickerid.indexOf(':');
+  return at < 0 ? ['', tickerid] : [tickerid.slice(0, at), tickerid.slice(at + 1)];
+}
+
+/** Month codes of futures contracts (F = January ... Z = December). */
+const CONTRACT_SUFFIX = /^(.+?)[FGHJKMNQUVXZ](\d{4}|\d{2})$/;
+
+/** Root of a ticker: without the "1!" of a continuous future, or the month code and year of a future's contract. */
+function tickerRoot(ticker: string, symbolType: string | undefined): string {
+  const continuous = /^(.+?)\d+!$/.exec(ticker);
+  if (continuous) return continuous[1]!;
+  const contract = symbolType === 'futures' ? CONTRACT_SUFFIX.exec(ticker) : null;
+  return contract ? contract[1]! : ticker;
 }
 
 /** A visible range value: the chart context's, else the time of bar `index` (NaN without bars). */
@@ -3329,9 +3547,8 @@ function symbolScale(): [number, number] {
 }
 
 /**
- * PineScript `syminfo.timezone`, `syminfo.tickerid`, `syminfo.session` (session type), `syminfo.mintick`,
- * `syminfo.minmove`, `syminfo.pricescale`, `syminfo.pointvalue`, `syminfo.mincontract`, `syminfo.type`,
- * `syminfo.currency`, `syminfo.basecurrency`, `syminfo.root` and `syminfo.description`, from the chart context.
+ * PineScript `syminfo.*`, from the chart context (inside `request.security`, the requested symbol's). A field the
+ * symbol has none of is na ("" for a text); a field the host did not give throws.
  */
 export const syminfo = {
   get mintick(): number {
@@ -3353,11 +3570,19 @@ export const syminfo = {
     return exchangeTimezone();
   },
   get tickerid(): string {
-    collector();
-    if (!chartCtx.tickerid) {
-      throw new Error('The chart symbol is not known: pass it as executeScript(body, bars, inputs, { tickerid }).');
-    }
-    return chartCtx.tickerid;
+    return chartTickerid();
+  },
+  get main_tickerid(): string {
+    const id = chartTickerid();
+    return chartCtx.mainTickerid ?? id;
+  },
+  get ticker(): string {
+    const id = chartTickerid();
+    return chartCtx.ticker ?? splitTickerid(id)[1];
+  },
+  get prefix(): string {
+    const id = chartTickerid();
+    return chartCtx.prefix === undefined ? splitTickerid(id)[0] : (chartCtx.prefix ?? '');
   },
   get session(): string {
     collector();
@@ -3373,10 +3598,83 @@ export const syminfo = {
     return chartText('basecurrency', 'syminfo.basecurrency');
   },
   get root(): string {
-    return chartText('root', 'syminfo.root');
+    if (chartCtx.root !== undefined) return chartText('root', 'syminfo.root');
+    return tickerRoot(syminfo.ticker, chartCtx.symbolType);
   },
   get description(): string {
     return chartText('description', 'syminfo.description');
+  },
+  get country(): string {
+    return chartText('country', 'syminfo.country');
+  },
+  get current_contract(): string {
+    return chartText('currentContract', 'syminfo.current_contract');
+  },
+  get expiration_date(): number {
+    return symbolNumber('expirationDate', 'syminfo.expiration_date');
+  },
+  get sector(): string {
+    return chartText('sector', 'syminfo.sector');
+  },
+  get industry(): string {
+    return chartText('industry', 'syminfo.industry');
+  },
+  get isin(): string {
+    return chartText('isin', 'syminfo.isin');
+  },
+  get volumetype(): string {
+    return chartText('volumetype', 'syminfo.volumetype');
+  },
+  get employees(): number {
+    return symbolNumber('employees', 'syminfo.employees');
+  },
+  get shareholders(): number {
+    return symbolNumber('shareholders', 'syminfo.shareholders');
+  },
+  get shares_outstanding_total(): number {
+    return symbolNumber('sharesOutstandingTotal', 'syminfo.shares_outstanding_total');
+  },
+  get shares_outstanding_float(): number {
+    return symbolNumber('sharesOutstandingFloat', 'syminfo.shares_outstanding_float');
+  },
+  get recommendations_buy(): number {
+    return analystNumber('recommendations', 'buy', 'syminfo.recommendations_buy');
+  },
+  get recommendations_buy_strong(): number {
+    return analystNumber('recommendations', 'buy_strong', 'syminfo.recommendations_buy_strong');
+  },
+  get recommendations_hold(): number {
+    return analystNumber('recommendations', 'hold', 'syminfo.recommendations_hold');
+  },
+  get recommendations_sell(): number {
+    return analystNumber('recommendations', 'sell', 'syminfo.recommendations_sell');
+  },
+  get recommendations_sell_strong(): number {
+    return analystNumber('recommendations', 'sell_strong', 'syminfo.recommendations_sell_strong');
+  },
+  get recommendations_total(): number {
+    return analystNumber('recommendations', 'total', 'syminfo.recommendations_total');
+  },
+  get recommendations_date(): number {
+    return analystNumber('recommendations', 'date', 'syminfo.recommendations_date');
+  },
+  get target_price_average(): number {
+    return analystNumber('targetPrice', 'average', 'syminfo.target_price_average');
+  },
+  get target_price_high(): number {
+    return analystNumber('targetPrice', 'high', 'syminfo.target_price_high');
+  },
+  get target_price_low(): number {
+    return analystNumber('targetPrice', 'low', 'syminfo.target_price_low');
+  },
+  get target_price_median(): number {
+    return analystNumber('targetPrice', 'median', 'syminfo.target_price_median');
+  },
+  get target_price_estimates(): number {
+    return analystNumber('targetPrice', 'estimates', 'syminfo.target_price_estimates');
+  },
+  get target_price_date(): number {
+    return analystNumber('targetPrice', 'date', 'syminfo.target_price_date');
   },
 };
 
@@ -3809,25 +4107,11 @@ function runExternal<T extends SecurityValue>(
   let result: T;
   let values: number[][];
   ctxBars.setAll(bars);
-  // the expression sees that symbol: its ticker, timeframe, calendar and properties
-  chartCtx = {
-    ...chartCtx,
-    tickerid: symbol,
-    timeframe: tf,
-    timezone: info.timezone,
-    session: info.session,
-    regularSession: info.regularSession,
-    mintick: info.mintick,
-    minmove: info.minmove,
-    pricescale: info.pricescale,
-    pointvalue: info.pointvalue,
-    mincontract: info.mincontract,
-    symbolType: info.symbolType,
-    currency: info.currency,
-    basecurrency: info.basecurrency,
-    root: info.root,
-    description: info.description,
-  };
+  // the expression sees that symbol: its ticker, timeframe, calendar and properties (the chart's own symbol stays the
+  // main one)
+  const seen: ChartContext = { ...chartCtx, tickerid: symbol, timeframe: tf, mainTickerid: chartCtx.mainTickerid ?? chartCtx.tickerid };
+  for (const key of SYMBOL_INFO_KEYS) (seen as Record<string, unknown>)[key] = info[key];
+  chartCtx = seen;
   try {
     result = expression();
     const parts = Array.isArray(result) ? result : [result];
@@ -4004,7 +4288,182 @@ function seedCall<T extends SecurityValue>(
   return seed(a[0] as string, a[1] as string, a[2] as () => T, a[3] as boolean | undefined);
 }
 
-export const request = strictNamespace('request', { security: securityCall, security_lower_tf: securityLowerTfCall, seed: seedCall });
+// ── request.dividends / request.splits / request.earnings (#211) ─────────────
+
+/** The events of `ticker` ("" or the chart's: the chart symbol); {} while the host has not given them (the run ends with
+ *  a MissingSymbolDataError). */
+function symbolEvents(ticker: string): SymbolEvents {
+  collector();
+  const symbol = ticker === '' ? chartTickerid() : ticker;
+  const events = chartCtx.events?.(symbol);
+  if (events === undefined) {
+    if (!missingSymbols.some((r) => r.events && r.symbol === symbol)) missingSymbols.push({ symbol, timeframe: '', events: true });
+    return {};
+  }
+  return events;
+}
+
+/** One value of each event; throws when no event has it (the host does not have it), na where one has none. */
+function eventField<E extends object>(list: E[], field: keyof E, name: string, ticker: string): number[] {
+  if (list.length && list.every((e) => e[field] === undefined)) {
+    throw new Error(`${name}: the ${String(field)} values of ${ticker || 'the chart symbol'} are not known.`);
+  }
+  return list.map((e) => {
+    const v = e[field] as unknown;
+    return typeof v === 'number' ? v : NaN;
+  });
+}
+
+/** A Series of event values on the chart bars, placed by PineScript's rules (see `security/events`). */
+function eventSeries(times: number[], values: number[], gaps: string | undefined, lookahead: string | undefined): Series {
+  incremental.nonIncremental('request.dividends / splits / earnings');
+  const opens = ctxBars.bars.map(barTime);
+  const tf = chartTimeframe().period;
+  const span = timeframeCore.info(tf).isticks ? 0 : timeframeCore.in_seconds(tf) * 1000;
+  const { bars } = sessionBars();
+  // a bar without a session period closes where the next one opens
+  const closes = opens.map((t, i) => {
+    const c = bars.closeOf(t, tf);
+    return Number.isFinite(c) ? c : (opens[i + 1] ?? t + span);
+  });
+  const order = times.map((_, i) => i).sort((a, b) => times[a]! - times[b]!);
+  const events = order.map((i) => ({ time: times[i]!, value: values[i]! }));
+  return Series.fromArray(
+    ctxBars,
+    eventsOnBars(opens, closes, tf, events, { gaps: gaps === barmerge.gaps_on, lookahead: lookahead === barmerge.lookahead_on })
+  );
+}
+
+/** PineScript `dividends.*`: the fields of `request.dividends` and the next announced dividend of the chart symbol. */
+export const dividends = {
+  net: 'net',
+  gross: 'gross',
+  /** Amount of the next dividend (net), na when none is announced */
+  get future_amount(): number {
+    return nextDividend()?.net ?? NaN;
+  },
+  /** Ex-date of the next dividend (ms) */
+  get future_ex_date(): number {
+    return nextDividend()?.time ?? NaN;
+  },
+  /** Payment date of the next dividend (ms) */
+  get future_pay_date(): number {
+    return nextDividend()?.payDate ?? NaN;
+  },
+} as const;
+
+/** PineScript `splits.*`: the fields of `request.splits`. */
+export const splits = { numerator: 'numerator', denominator: 'denominator' } as const;
+
+/** PineScript `earnings.*`: the fields of `request.earnings` and the next earnings release of the chart symbol. */
+export const earnings = {
+  actual: 'actual',
+  estimate: 'estimate',
+  standardized: 'standardized',
+  /** Estimated earnings per share of the next release */
+  get future_eps(): number {
+    return nextEarnings()?.estimate ?? NaN;
+  },
+  /** Estimated revenue of the next release */
+  get future_revenue(): number {
+    return nextEarnings()?.revenueEstimate ?? NaN;
+  },
+  /** Time of the next release (ms) */
+  get future_time(): number {
+    return nextEarnings()?.time ?? NaN;
+  },
+  /** End of the fiscal period of the next release (ms) */
+  get future_period_end_time(): number {
+    return nextEarnings()?.periodEnd ?? NaN;
+  },
+} as const;
+
+/** The first event after the current time of the run in the chart symbol's list, when the host gives the announced ones. */
+function nextEvent<K extends 'dividends' | 'earnings'>(kind: K): NonNullable<SymbolEvents[K]>[number] | undefined {
+  const events = symbolEvents('');
+  if (!Object.keys(events).length) return undefined;
+  if (!events.future?.[kind]) throw new Error(`${kind}.future_*: the announced ${kind} of ${chartTickerid()} are not known.`);
+  return (events[kind] as Array<{ time: number }> | undefined)?.find((e) => e.time > runNow) as NonNullable<SymbolEvents[K]>[number] | undefined;
+}
+const nextDividend = (): DividendEvent | undefined => nextEvent('dividends');
+const nextEarnings = (): EarningsEvent | undefined => nextEvent('earnings');
+
+const DIVIDENDS_PARAMETERS = ['ticker', 'field', 'gaps', 'lookahead', 'ignore_invalid_symbol', 'currency'] as const;
+const SPLITS_PARAMETERS = ['ticker', 'field', 'gaps', 'lookahead', 'ignore_invalid_symbol'] as const;
+
+/** Named arguments of `request.dividends` / `request.earnings` (`request.splits` has no `currency`). */
+export interface EventRequestArgs {
+  ticker?: string;
+  field?: string;
+  gaps?: string;
+  lookahead?: string;
+  ignore_invalid_symbol?: boolean;
+  currency?: string;
+}
+
+type EventRequestCall =
+  | [ticker: string, field?: string, gaps?: string, lookahead?: string, ignore_invalid_symbol?: boolean, currency?: string]
+  | [ticker: string, field: string, args: EventRequestArgs]
+  | [ticker: string, args: EventRequestArgs]
+  | [args: EventRequestArgs & { ticker: string }];
+
+/**
+ * PineScript `request.dividends(ticker, field, gaps, lookahead, ignore_invalid_symbol, currency)`: the dividend per
+ * share (`dividends.net`, default, or `dividends.gross`) as declared, from the bar after its ex-date's day (see
+ * `security/events`). na before the first dividend. The events come from `ChartContext.events`.
+ */
+function dividendsCall(...args: EventRequestCall): Series {
+  const a = namedArguments('request.dividends', DIVIDENDS_PARAMETERS, args);
+  unsupportedSecurityArgs('request.dividends', a[5], undefined);
+  const ticker = (a[0] as string | undefined) ?? '';
+  const field = (a[1] as string | undefined) ?? dividends.net;
+  if (field !== dividends.net && field !== dividends.gross) throw new Error(`request.dividends(): unknown field "${field}": dividends.net or dividends.gross.`);
+  const list = symbolEvents(ticker).dividends ?? [];
+  const values = field === dividends.gross ? list.map((d) => d.gross ?? d.net) : eventField(list, 'net', 'request.dividends', ticker);
+  return eventSeries(list.map((d) => d.time), values, a[2] as string | undefined, a[3] as string | undefined);
+}
+
+/**
+ * PineScript `request.splits(ticker, field, gaps, lookahead, ignore_invalid_symbol)`: the numerator
+ * (`splits.numerator`) or the denominator (`splits.denominator`) of the last split, from the bar after its day.
+ */
+function splitsCall(...args: EventRequestCall): Series {
+  const a = namedArguments('request.splits', SPLITS_PARAMETERS, args);
+  const ticker = (a[0] as string | undefined) ?? '';
+  const field = a[1] as string | undefined;
+  if (field !== splits.numerator && field !== splits.denominator) {
+    throw new Error('request.splits(): the field is splits.numerator or splits.denominator.');
+  }
+  const list = symbolEvents(ticker).splits ?? [];
+  return eventSeries(list.map((s) => s.time), eventField(list, field, 'request.splits', ticker), a[2] as string | undefined, a[3] as string | undefined);
+}
+
+/**
+ * PineScript `request.earnings(ticker, field, gaps, lookahead, ignore_invalid_symbol, currency)`: earnings per share of
+ * the last release (`earnings.actual`, default, `earnings.estimate` or `earnings.standardized`), from the bar after the
+ * period of the chart timeframe it was published in (the next day on a daily chart).
+ */
+function earningsCall(...args: EventRequestCall): Series {
+  const a = namedArguments('request.earnings', DIVIDENDS_PARAMETERS, args);
+  unsupportedSecurityArgs('request.earnings', a[5], undefined);
+  const ticker = (a[0] as string | undefined) ?? '';
+  const field = (a[1] as string | undefined) ?? earnings.actual;
+  if (field !== earnings.actual && field !== earnings.estimate && field !== earnings.standardized) {
+    throw new Error(`request.earnings(): unknown field "${field}": earnings.actual, earnings.estimate or earnings.standardized.`);
+  }
+  // announced releases still to come have no values yet
+  const list = (symbolEvents(ticker).earnings ?? []).filter((e) => e.time <= runNow);
+  return eventSeries(list.map((e) => e.time), eventField(list, field, 'request.earnings', ticker), a[2] as string | undefined, a[3] as string | undefined);
+}
+
+export const request = strictNamespace('request', {
+  security: securityCall,
+  security_lower_tf: securityLowerTfCall,
+  seed: seedCall,
+  dividends: dividendsCall,
+  splits: splitsCall,
+  earnings: earningsCall,
+});
 
 // ── Drawing objects ──────────────────────────────────────────────────────────
 // The drawing namespaces come from this bundle so that they share the registry that

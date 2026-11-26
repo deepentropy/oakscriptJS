@@ -693,6 +693,40 @@ expression)` on a seed data series: the ticker is `ChartContext.seedSymbol(sourc
 `SEED_CRYPTO_SANTIMENT:BTC_DEV_ACTIVITY`), and its bars come from `ChartContext.bars` on the chart timeframe.
 `calc_bars_count` throws, as in `request.security`.
 
+#### Dividends, splits and earnings
+
+`request.dividends(ticker, field?, gaps?, lookahead?)` (`dividends.net`, default, or `dividends.gross`),
+`request.splits(ticker, field, gaps?, lookahead?)` (`splits.numerator` or `splits.denominator`) and
+`request.earnings(ticker, field?, gaps?, lookahead?)` (`earnings.actual`, default, `earnings.estimate` or
+`earnings.standardized`) read the events the host gives with `ChartContext.events(symbol)` (#211): `{ dividends,
+splits, earnings }`, each a list of `{ time, ... }` (ms). `undefined` means not loaded yet (the run ends with a
+`MissingSymbolDataError` whose request has `events: true`), `{}` a symbol without events.
+
+They are placed as measured on PineScript: an event belongs to the period of the chart timeframe that contains its
+time, in UTC (its UTC day on a daily chart, its UTC week from Monday on a weekly one). Lookahead off shows it from the
+first chart bar that closes at or after the end of that period: a dividend whose ex-date is a Monday shows on
+Tuesday's daily bar and on Monday's first hourly bar; earnings published after Thursday's close on Friday's bars.
+Lookahead on shows it from the first chart bar that closes after the period's start (Monday's daily bar). Gaps off keeps
+the last value; gaps on shows it on that bar only. Dividends are given as declared (not adjusted for later splits),
+earnings per share adjusted for later splits, as PineScript gives them. A field no event has (an estimate the host
+does not have) throws. Deliberate difference: PineScript gave na with gaps on for the dividends of every symbol
+measured after 2013, and split-adjusted dividends with lookahead on; here both follow the rules above.
+
+`dividends.future_amount`, `dividends.future_ex_date`, `dividends.future_pay_date`, `earnings.future_eps`,
+`earnings.future_revenue`, `earnings.future_time` and `earnings.future_period_end_time` read the first event after the
+current time of the run, when the host says that its lists hold the announced ones (`future: { dividends: true,
+earnings: true }`); otherwise they throw.
+
+### Symbol information (syminfo)
+
+Every `syminfo.*` field of PineScript v6 reads the chart context (inside `request.security`, the requested symbol's
+`SymbolInfo`). A field the host gives as `null` is na, as PineScript gives it for a symbol without one (`""` for a
+text, which `na()` takes as na: `syminfo.basecurrency` of a stock); a field the host does not give throws.
+`syminfo.ticker`, `syminfo.prefix` and `syminfo.main_tickerid` default to the parts of the ticker id (the chart's
+own symbol for `main_tickerid`, also inside `request.security`), `syminfo.root` to the ticker without the `1!` of a
+continuous future or the month code and year of a contract (`ESZ2026` with `symbolType: 'futures'` gives `ES`).
+`syminfo.recommendations_*` and `syminfo.target_price_*` come from `recommendations` and `targetPrice`.
+
 ### The session of a chart context without a script
 
 Code that has its own bar loop can read the same session values from a chart context (timeframe, time zone,

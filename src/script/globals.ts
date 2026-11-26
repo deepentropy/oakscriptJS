@@ -87,6 +87,9 @@ declare global {
   const barstate: typeof S.barstate;
   const session: typeof S.session;
   const barmerge: typeof S.barmerge;
+  const dividends: typeof S.dividends;
+  const splits: typeof S.splits;
+  const earnings: typeof S.earnings;
   const ticker: typeof S.ticker;
   const request: typeof S.request;
   const line: typeof S.line;

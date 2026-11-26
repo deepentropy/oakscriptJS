@@ -21,6 +21,7 @@ import {
   type StrategyRiskRule,
   type StrategySetup,
   type StrategyTrade,
+  type SymbolEvents,
   type StrategyVariable,
 } from '../script/index.js';
 import type { Bar } from '../types/index.js';
@@ -170,7 +171,33 @@ export function testChart(bars: Bar[], options: TestChartOptions = {}): ChartCon
       }));
     },
     symbolInfo: () => ({ timezone, session, mintick: 0.01, currency: 'USD' }),
+    // the other symbol fields: none (na), so that a script reading them runs
+    symbolType: 'stock',
+    description: 'Synthetic test symbol',
+    ...NO_SYMBOL_FIELDS,
+    events: () => testEvents(bars),
   };
+}
+
+const NO_SYMBOL_FIELDS = {
+  basecurrency: null, country: null, currentContract: null, expirationDate: null, sector: null, industry: null,
+  isin: null, volumetype: null, employees: null, shareholders: null, sharesOutstandingTotal: null,
+  sharesOutstandingFloat: null, recommendations: null, targetPrice: null,
+} satisfies Partial<ChartContext>;
+
+/** Events of the test symbol: a dividend and an earnings release every 90 days of its bars, a 2-for-1 split half-way. */
+function testEvents(bars: Bar[]): SymbolEvents {
+  if (!bars.length) return {};
+  const first = bars[0]!.time * 1000;
+  const last = bars[bars.length - 1]!.time * 1000;
+  const QUARTER = 90 * 86_400_000;
+  const dividends: SymbolEvents['dividends'] = [];
+  const earnings: SymbolEvents['earnings'] = [];
+  for (let t = first, k = 1; t <= last; t += QUARTER, k++) {
+    dividends.push({ time: t, net: 0.2 + 0.01 * k });
+    earnings.push({ time: t + 30 * 86_400_000, actual: 1 + 0.1 * k, estimate: 1 + 0.09 * k, standardized: 1 + 0.1 * k });
+  }
+  return { dividends, earnings, splits: [{ time: Math.round((first + last) / 2), numerator: 2, denominator: 1 }] };
 }
 
 /**

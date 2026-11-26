@@ -87,6 +87,33 @@ indicator("Seed value", { overlay: false });
 plot(request.seed("seed_crypto_santiment", "BTC_DEV_ACTIVITY", () => close), "Dev activity");
 ```
 
+### Dividends, splits and earnings
+
+`request.dividends(ticker, field?, gaps?, lookahead?)`, `request.splits(ticker, field, gaps?, lookahead?)` and
+`request.earnings(ticker, field?, gaps?, lookahead?)` return a Series of the last event's value: the dividend per
+share as declared (`dividends.net`, `dividends.gross`), the split ratio (`splits.numerator`, `splits.denominator`),
+the earnings per share (`earnings.actual`, `earnings.estimate`, `earnings.standardized`). With the default lookahead
+off, an event shows from the bar after its day on a daily chart (from its day's first bar on an intraday chart).
+A field the app has no data for (an analysts' estimate) stops the script with an error.
+
+```js
+indicator("Dividend yield", { overlay: false });
+const dividend = request.dividends(syminfo.tickerid);
+const split = request.splits(syminfo.tickerid, splits.numerator, barmerge.gaps_on);
+plot(dividend.mul(4).div(close).mul(100), "Yield %", { color: color.teal });
+plotshape(split.gt(0), "Split", { location: location.bottom, color: color.orange });
+```
+
+`dividends.future_amount`, `dividends.future_ex_date`, `earnings.future_time`... give the next announced event (na
+when none is announced).
+
+## Symbol information
+
+`syminfo.*`: `tickerid`, `ticker`, `prefix`, `main_tickerid`, `root`, `description`, `type`, `currency`,
+`basecurrency`, `country`, `sector`, `industry`, `isin`, `employees`, `current_contract`, `expiration_date`,
+`mintick`, `pointvalue`, `timezone`, `session`, the share and analyst figures. A field the symbol does not have is
+na (`""` for a text: test it with `na(syminfo.sector)`); a field the app does not know stops the script with an error.
+
 ## Timeframe values
 
 - `timeframe.period` (`"60"`, `"1D"`...), `timeframe.multiplier`, `timeframe.isintraday`, `timeframe.isdaily`,

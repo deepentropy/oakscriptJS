@@ -55,10 +55,10 @@ These namespaces exist in the official PineScript v6 reference but are outside t
 |-----------|-------------------|--------|
 | **strategy** | 47 | Order execution engine: the script API has `strategy()` and the `strategy.*` API, forwarded to an engine the host supplies |
 | **input** | 13 | UI/platform interaction — 9 provided by the script API (`input.int/float/bool/string/color/source/timeframe/session/time`) |
-| **request** | 10 | External data fetching — `request.security` (chart symbol on higher timeframes, Heikin Ashi, and other symbols with bars given by the host), `request.security_lower_tf` and `request.seed` (a seed data series, as the symbol `ChartContext.seedSymbol(source, symbol)`, #205) are in the script API |
+| **request** | 10 | External data fetching — `request.security` (chart symbol on higher timeframes, Heikin Ashi, and other symbols with bars given by the host), `request.security_lower_tf`, `request.seed` (a seed data series, as the symbol `ChartContext.seedSymbol(source, symbol)`, #205), `request.dividends`, `request.splits` and `request.earnings` (events given by the host, #211) are in the script API |
 | **ticker** | 9 | Symbol/ticker construction |
 | **log** | 3 | Runtime logging |
-| **syminfo** | 2 | Platform symbol metadata |
+| **syminfo** | 2 | Platform symbol metadata: the 40 `syminfo.*` variables read the chart context in the script API (#211) |
 | **Standalone** | ~34 | Mixed: `na`, `nz`, time helpers, type constructors, etc. The script API provides `indicator`, `plot`, `hline`, `fill`, `plotshape`, `plotchar`, `plotarrow`, `plotcandle`, `plotbar`, `bgcolor`, `barcolor`, `alertcondition`, `alert` |
 | **TOTAL** | **~118** | -- |
 
@@ -374,7 +374,7 @@ or an IANA name (`"America/New_York"`). The PineScript default (exchange time zo
 reference does not define the rule.
 
 9. `time(timeframe, session, timezone)`, `time_close(...)`, `timeframe.change(tf)`, `time_tradingday`, `session.*`,
-   `timeframe.*` variables, `syminfo.timezone/session/mintick/minmove/pricescale/pointvalue/mincontract` - script API, with the chart
+   `timeframe.*` variables, every `syminfo.*` variable (#211) - script API, with the chart
    context of `executeScript` (chart timeframe, exchange time zone, session in the symbol session format, symbol
    properties)
 

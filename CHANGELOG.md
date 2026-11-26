@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 26/11/2026
+
+### Added
+
+- Every `syminfo.*` field of PineScript v6 (#211): `ticker`, `prefix`, `main_tickerid` (the chart symbol, also inside
+  `request.security`) and `root` default to the parts of the ticker id; `country`, `sector`, `industry`, `isin`,
+  `volumetype`, `current_contract`, `expiration_date`, `employees`, `shareholders`, `shares_outstanding_total` /
+  `_float`, `recommendations_*` and `target_price_*` come from the chart context (`SymbolInfo` for another symbol). A
+  field given as `null` is na, as PineScript gives it for a symbol without one (`""` for a text); a field not given
+  throws.
+- `request.dividends`, `request.splits` and `request.earnings` from `ChartContext.events(symbol)`, placed on the chart
+  bars by the rules measured on PineScript (the bar after the event's UTC day on a daily chart, lookahead on its day);
+  `dividends.*`, `splits.*`, `earnings.*` constants, `dividends.future_*` and `earnings.future_*` (#211).
+- `oakscript check` runs scripts that read them (the test chart has events and no-value symbol fields).
+
+### Changed
+
+- `na("")` is true, as in PineScript.
+- `syminfo.root` without `ChartContext.root` is the ticker (a future's root) instead of an error.
+- An error thrown while a run waits for another symbol's bars ends the run with the `MissingSymbolDataError` (the
+  expression of `request.security` runs without the symbol's properties until its bars are given).
+
 ## [0.20.0] - 25/11/2026
 
 ### Added

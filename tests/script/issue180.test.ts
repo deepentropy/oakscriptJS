@@ -45,6 +45,6 @@ describe('input.symbol and syminfo of other symbols', () => {
     let out: string[] = [];
     executeScript(() => { out = [syminfo.basecurrency, syminfo.root]; }, [], {}, { basecurrency: 'BTC', root: 'BTC' });
     expect(out).toEqual(['BTC', 'BTC']);
-    expect(() => executeScript(() => { void syminfo.root; }, [], {}, {})).toThrow('syminfo.root is not known');
+    expect(() => executeScript(() => { void syminfo.root; }, [], {}, {})).toThrow('The chart symbol is not known');
   });
 });
