@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 26/11/2026
+
 ### Added
 
 - `options` on `input.int` and `input.float`: a list of numbers the host shows as a choice list (#212).
