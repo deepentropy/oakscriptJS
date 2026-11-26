@@ -53,7 +53,7 @@ export class SimpleInputAdapter implements InputAdapter {
     let validatedValue = value;
 
     // Validate numeric inputs
-    if ((config.type === 'int' || config.type === 'float') && typeof value === 'number') {
+    if ((config.type === 'int' || config.type === 'float' || config.type === 'price') && typeof value === 'number') {
       // Apply min constraint
       if (config.min !== undefined && value < config.min) {
         validatedValue = config.min;

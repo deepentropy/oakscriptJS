@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `input.price` declares `InputConfig.type` `'price'` instead of `'float'` (#213), so a host can tell a price level from
+  another number: with `confirm`, it can ask for it on the chart (one point with an `input.time` of the same `inline`).
+  The value is still a number and an input without title keeps its id.
+
 ## [0.22.0] - 26/11/2026
 
 ### Added

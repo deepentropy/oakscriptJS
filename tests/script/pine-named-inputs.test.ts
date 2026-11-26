@@ -35,7 +35,7 @@ describe('input named arguments', () => {
       ['colour', 'color', '#FF0000'],
       ['source', 'source', 'close'],
       ['tf', 'timeframe', 'D'],
-      ['level', 'float', 100],
+      ['level', 'price', 100],
     ]);
     expect(c[2]!.options).toEqual(['SMA', 'EMA']);
     expect(c[3]!.group).toBe('Style');

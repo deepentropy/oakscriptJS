@@ -290,7 +290,8 @@ function alternative(input: InputConfig): unknown {
       const d = Number(input.defval);
       return [d + 1, d - 1, d * 2, d + 10].find((v) => Number.isFinite(v) && v !== d && inRange(v));
     }
-    case 'float': {
+    case 'float':
+    case 'price': {
       const d = Number(input.defval);
       return [d * 1.5, d + 1, d / 2, d - 1].find((v) => Number.isFinite(v) && v !== d && inRange(v));
     }

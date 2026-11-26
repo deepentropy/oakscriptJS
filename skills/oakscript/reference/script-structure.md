@@ -43,7 +43,7 @@ Every kind takes an options object after the title. `...common` stands for the o
 |---|---|
 | `input.int(defval, title, { minval, maxval, step, options: [...], ...common })` | integer (rounded; a choice list with `options`) |
 | `input.float(defval, title, { minval, maxval, step, options: [...], ...common })` | number (a choice list with `options`) |
-| `input.price(defval, title, { ...common })` | number (a price level) |
+| `input.price(defval, title, { ...common })` | number (a price level; with `confirm`, the host can ask for it on the chart, and `inline` shared with an `input.time` makes one point) |
 | `input.bool(defval, title, { ...common })` | boolean |
 | `input.string(defval, title, { options: [...], ...common })` | string (a choice list with `options`) |
 | `input.text_area(defval, title, { ...common })` | multi-line string |

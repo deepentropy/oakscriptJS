@@ -41,7 +41,8 @@
               "session",
               "time",
               "symbol",
-              "enum"
+              "enum",
+              "price"
             ],
             "description": "input type"
           },

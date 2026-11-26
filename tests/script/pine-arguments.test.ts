@@ -111,12 +111,17 @@ describe('script API alignments', () => {
     ).toThrow(/the default must be a built-in source/);
   });
 
-  it('input.price is a float input', () => {
+  it('input.price is a price input (a number; untitled, the id of a float input) (#213)', () => {
     const out = run(() => {
       indicator('P');
       plot(close.sub(input.price(100.5, 'Level')), 'D');
     }, { level: 101 });
-    expect(out.inputConfig[0]).toMatchObject({ id: 'level', type: 'float', defval: 100.5 });
+    expect(out.inputConfig[0]).toMatchObject({ id: 'level', type: 'price', defval: 100.5 });
+    const untitled = run(() => {
+      indicator('P');
+      plot(close.sub(input.price(1)), 'D');
+    });
+    expect(untitled.inputConfig[0]).toMatchObject({ id: 'input_float', type: 'price' });
     expect(out.result.plots.plot0![0]!.value).toBeCloseTo(BARS[0]!.close - 101, 12);
   });
 

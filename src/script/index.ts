@@ -1285,10 +1285,11 @@ function registerInput<T>(config: Omit<InputConfig, 'id'>, fallbackId: string): 
   return (value === undefined ? config.defval : value) as T;
 }
 
-function registerNumeric(type: 'int' | 'float', defval: number, title?: string, opts: NumericInputOptions = {}): number {
+/** `idKind`: the kind in the id of an input without title (a price input keeps the ids of the float input it was). */
+function registerNumeric(type: 'int' | 'float' | 'price', defval: number, title?: string, opts: NumericInputOptions = {}, idKind: string = type): number {
   const v = registerInput<unknown>(
     { type, defval, title, min: opts.minval, max: opts.maxval, step: opts.step, ...(opts.options ? { options: opts.options } : {}), ...common(opts) },
-    `input_${type}`
+    `input_${idKind}`
   );
   return typeof v === 'number' ? v : defval;
 }
@@ -1408,10 +1409,13 @@ export const input = strictNamespace('input', {
     const a = inputArgs<string, StringInputOptions>('symbol', defval, title, opts);
     return registerInput<string>({ type: 'symbol', defval: a.defval, title: a.title, options: a.opts.options, ...common(a.opts) }, 'input_symbol');
   },
-  /** PineScript `input.price`: a price level, a float input (the host shows it as a number). */
+  /**
+   * PineScript `input.price`: a price level, `InputConfig.type` `'price'` (a number field; with `confirm`, a host can
+   * ask for it on the chart; an `inline` id shared with an `input.time` makes one point of both).
+   */
   price(defval: number | InputArgs<InputOptions, number>, title?: string | InputArgs<InputOptions, number>, opts?: InputOptions): number {
     const a = inputArgs<number, InputOptions>('price', defval, title, opts);
-    return registerNumeric('float', a.defval, a.title, a.opts);
+    return registerNumeric('price', a.defval, a.title, a.opts, 'float');
   },
   /**
    * A field of an enum made with `defineEnum()`: `input.enum(MaType.sma, "Average")`. The host lists the fields by

@@ -634,7 +634,7 @@ The script entry provides the PineScript-style authoring surface. These are not
 | Function | Status | Notes |
 |----------|--------|-------|
 | `indicator()` | Implemented | title, shorttitle, overlay (default false, as Pine), precision, format, scale, max_*_count |
-| `input.int/float/bool/string/color/source/price` | Implemented | declares AND returns the current value; `input.source` returns a Series (default `close` or `"close"`); `input.price` is a float input |
+| `input.int/float/bool/string/color/source/price` | Implemented | declares AND returns the current value; `input.source` returns a Series (default `close` or `"close"`); `input.price` declares `InputConfig.type` `'price'` (a number) |
 | `input.timeframe/session/time` | Implemented | timeframe and session strings, time in UNIX ms; the default is returned as written (`""` is the chart timeframe) |
 | `input.text_area` | Implemented | multi-line string (`InputConfig.type` `'text_area'`, display `none` by default) |
 | `enum`, `input.enum` | Implemented | `defineEnum({ name: title })` makes the enum (fields compare with `===`, `String()` is the title); `input.enum` declares `InputConfig.type` `'enum'` with the field names as `options` and their `optionsTitles`, stores the name and returns the field |

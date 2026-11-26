@@ -71,9 +71,10 @@ export interface InputConfig {
   /**
    * Type of input. `timeframe` and `session` values are strings ("60", "1D", "0930-1600:23456";
    * an empty timeframe means the chart timeframe), `time` values are UNIX times in milliseconds. A `text_area`
-   * value is a string that can hold several lines. An `enum` value is the field name of one of its `options`.
+   * value is a string that can hold several lines. An `enum` value is the field name of one of its `options`. A `price`
+   * value is a number, a price level (a host can let the user pick it on the chart).
    */
-  type: 'int' | 'float' | 'bool' | 'string' | 'text_area' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol' | 'enum';
+  type: 'int' | 'float' | 'bool' | 'string' | 'text_area' | 'source' | 'color' | 'timeframe' | 'session' | 'time' | 'symbol' | 'enum' | 'price';
   /** Default value */
   defval: unknown;
   /** Display title */
