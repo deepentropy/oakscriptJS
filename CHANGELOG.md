@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 26/11/2026
+
 ### Changed
 
 - `input.price` declares `InputConfig.type` `'price'` instead of `'float'` (#213), so a host can tell a price level from
