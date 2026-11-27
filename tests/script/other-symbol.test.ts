@@ -158,6 +158,34 @@ describe('lower timeframes (#181)', () => {
     expect(capped[59]).toEqual(all[59]);
   });
 
+  it('tick timeframes: tick bars by their open time, at or after the chart bar open and before its close (#214)', () => {
+    // 1-minute chart, 24x7; ticks at 0 s, 30 s, 59.999 s, then exactly at the next minute and 2 ticks of one millisecond
+    const t0 = 1788220800;
+    const minutes = [t0, t0 + 60, t0 + 120].map((time) => ({ time }));
+    const ticks = [t0, t0 + 30, t0 + 59.999, t0 + 60, t0 + 61.5, t0 + 61.500001].map((time) => ({ time }));
+    const chart = { timeframe: '1', timezone: 'Etc/UTC', session: '24x7' };
+    expect(securityLowerTf(minutes, ticks, '1T', chart)).toEqual([[0, 3], [3, 6], [6, 6]]);
+    // lookahead off: the last tick before the close; on: the last one opened at or before the open
+    expect(securityOther(minutes, ticks, '1T', chart)).toEqual([2, 5, 5]);
+    expect(securityOther(minutes, ticks, '10T', chart, { lookahead: true })).toEqual([0, 3, 5]);
+    // a tick chart: each bar closes when the next opens; the minute bar of the last tick is the open one
+    expect(securityOther(ticks, minutes.slice(0, 2), '1', { timeframe: '1T', timezone: 'Etc/UTC', session: '24x7' })).toEqual([-1, -1, -1, 0, 0, 1]);
+  });
+
+  it('request.security_lower_tf and request.security read tick bars (#214)', () => {
+    const t0 = 1788220800;
+    const ticks = [t0 + 1, t0 + 2, t0 + 61].map(bar);
+    const tctx = { tickerid: 'BITSTAMP:BTCUSD', timeframe: '1', ...BTC, bars: (_: string, tf: string) => (tf === '1T' ? ticks : undefined), symbolInfo: () => BTC };
+    let lower: number[][] = [];
+    let last: number[] = [];
+    executeScript(() => {
+      lower = request.security_lower_tf('', '1T', () => time);
+      last = request.security('', '1T', () => time).toArray();
+    }, [t0, t0 + 60].map(bar), {}, tctx);
+    expect(lower).toEqual([[ms(t0 + 1), ms(t0 + 2)], [ms(t0 + 61)]]);
+    expect(last).toEqual([ms(t0 + 2), ms(t0 + 61)]);
+  });
+
   it('a higher timeframe in security_lower_tf throws', () => {
     expect(() => executeScript(() => { request.security_lower_tf('', 'W', () => time); }, chartBars, {}, ctx)).toThrow('higher than the chart timeframe');
   });

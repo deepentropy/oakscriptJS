@@ -21,6 +21,12 @@
  *   lookahead on (the open bar of a higher timeframe), with lookahead off as well; a lower timeframe keeps the rules
  *   above (the last lower bar so far with lookahead off, the first one of the chart bar with lookahead on)
  *
+ * Tick timeframes ("1T", "10T"…, #214): a tick bar has no duration, so it is placed by its open time. A chart bar
+ * holds the tick bars that open at or after its open and before its close; lookahead off shows the last tick bar
+ * that opened before the close of the chart bar, lookahead on the last one that opened at or before its open. On a
+ * chart of ticks, a bar closes when the next one opens (the last one is still open): it shows the bars that closed
+ * before then.
+ *
  * Close times, trading days and time zones come from the exchange calendars of the chart and of the other symbol
  * (time zone and session, read by the session functions). Without them:
  * - a symbol that trades every day (bars on Saturdays or Sundays; W bars at Monday 00:00 UTC; M bars on the first day
@@ -133,6 +139,7 @@ function closeTimes(times: number[], tf: string, zone: Zone | null): number[] {
   const calendar = calendarOf(zone, tf);
   const info = timeframe.info(tf);
   const len = timeframe.in_seconds(tf) * 1000;
+  if (info.isticks) return times.map((_, i) => (i + 1 < times.length ? times[i + 1]! : Infinity));
   return times.map((t, i) => {
     if (calendar) {
       const c = periodClose(t, tf, calendar);
@@ -167,6 +174,16 @@ function latestAtOrBefore(keys: number[], at: number[]): number[] {
   });
 }
 
+/** For each element of `at` (non-decreasing), the index of the first element of `keys` (non-decreasing) >= it;
+ *  `keys.length`: none. */
+function firstAtOrAfter(keys: number[], at: number[]): number[] {
+  let j = 0;
+  return at.map((x) => {
+    while (j < keys.length && keys[j]! < x) j++;
+    return j;
+  });
+}
+
 const zoneOf = (c: SymbolCalendar | undefined): Zone | null =>
   c?.timezone && c.session ? { timezone: c.timezone, session: c.session } : null;
 
@@ -180,7 +197,6 @@ function setup(
 ): { chartTf: string; otherTf: string; chartZone: Zone | null; otherZone: Zone | null } {
   const chartTf = timeframe.info(chart.timeframe).period;
   const otherTf = tf.trim() === '' ? chartTf : timeframe.info(tf).period;
-  if (timeframe.info(otherTf).isticks) throw new RangeError(`request.security: tick timeframe "${tf}" is not supported.`);
   const chartZone = zoneOf(chart) ?? (tradesEveryDay(ct, chartTf) ? UTC_24X7 : null);
   const otherZone =
     zoneOf(options.other) ??
@@ -193,8 +209,7 @@ function setup(
  * for na (#179). `otherBars` are the bars of the other symbol on `tf` ("" for the chart timeframe, or a higher
  * or a lower one), with times in the unit of the chart bars. Rules in the module notes; the same rules hold for a
  * lower timeframe (#181): lookahead off shows the last lower bar that closes by the close of the chart bar, lookahead
- * on the last one that opened by its open. It also serves the chart symbol on a lower timeframe.
- * @throws RangeError for a tick timeframe
+ * on the last one that opened by its open. It also serves the chart symbol on a lower timeframe, and ticks (#214).
  */
 export function securityOther(
   chartBars: ReadonlyArray<{ time: number }>,
@@ -226,7 +241,17 @@ export function securityOther(
       on = latestAtOrBefore(ot, ct);
     }
   }
-  const index = options.lookahead ? on : latestAtOrBefore(closeTimes(ot, otherTf, otherZone), closeTimes(ct, chartTf, chartZone));
+  const chartClose = closeTimes(ct, chartTf, chartZone);
+  // ticks: the last tick bar that opened before the chart bar's close; on a tick chart, the bars that closed before
+  // the next tick bar opened
+  const before = (keys: number[]) => firstAtOrAfter(keys, chartClose).map((j) => j - 1);
+  const index = options.lookahead
+    ? on
+    : timeframe.info(otherTf).isticks
+      ? before(ot)
+      : timeframe.info(chartTf).isticks
+        ? before(closeTimes(ot, otherTf, otherZone))
+        : latestAtOrBefore(closeTimes(ot, otherTf, otherZone), chartClose);
   // realtime updates of the open last bar: lookahead off shows the bar of lookahead on
   if (realtime) index[n - 1] = on[n - 1]!;
   if (!options.gaps) return index;
@@ -237,7 +262,7 @@ export function securityOther(
  * PineScript `request.security_lower_tf` (#181): for each chart bar, the range `[from, to)` of the bars of
  * `otherBars` (a lower timeframe, the chart symbol or another one) that it contains: the bars whose close time is
  * after the open of the chart bar and at or before its close (a 13:00 hourly bar of a 24x7 symbol is in a 13:30 stock
- * day, which closes at 20:00). An empty range for a chart bar without such bars.
+ * day, which closes at 20:00); tick bars by their open time (#214). An empty range for a chart bar without such bars.
  *
  * As PineScript, at most the last {@link MAX_INTRABARS} (100,000) lower-timeframe bars are given out
  * (`options.maxIntrabars` changes it): the older chart bars get an empty range (#192).
@@ -253,10 +278,19 @@ export function securityLowerTf(
   const ct = chartBars.map((b) => b.time * unit);
   const ot = otherBars.map((b) => b.time * unit);
   const { chartTf, otherTf, chartZone, otherZone } = setup(ct, ot, tf, chart, options);
-  const oc = closeTimes(ot, otherTf, otherZone);
-  const from = latestAtOrBefore(oc, ct);
-  const to = latestAtOrBefore(oc, closeTimes(ct, chartTf, chartZone));
-  const ranges = ct.map((_, i): [number, number] => [from[i]! + 1, Math.max(from[i]! + 1, to[i]! + 1)]);
+  const chartClose = closeTimes(ct, chartTf, chartZone);
+  let ranges: Array<[number, number]>;
+  if (timeframe.info(otherTf).isticks) {
+    // tick bars by their open time: at or after the chart bar's open, before its close (#214)
+    const from = firstAtOrAfter(ot, ct);
+    const to = firstAtOrAfter(ot, chartClose);
+    ranges = ct.map((_, i): [number, number] => [from[i]!, Math.max(from[i]!, to[i]!)]);
+  } else {
+    const oc = closeTimes(ot, otherTf, otherZone);
+    const from = latestAtOrBefore(oc, ct);
+    const to = latestAtOrBefore(oc, chartClose);
+    ranges = ct.map((_, i): [number, number] => [from[i]! + 1, Math.max(from[i]! + 1, to[i]! + 1)]);
+  }
   // the last `max` intrabars of the chart bars: the ones before are not given
   const max = options.maxIntrabars ?? MAX_INTRABARS;
   const end = ranges.reduce((m, [, t]) => Math.max(m, t), 0);

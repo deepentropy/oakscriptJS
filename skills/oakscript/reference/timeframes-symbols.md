@@ -77,6 +77,10 @@ const upVolume = eachBar((c) => vols[c.i].reduce((sum, v) => sum + v, 0));
 plot(upVolume, "Up volume", { style: plot.style_columns, color: color.teal });
 ```
 
+Tick timeframes (`"1T"`, `"10T"`…) work in both, when the host has ticks for the symbol: each tick bar goes to the
+chart bar it opened in (at or after its open, before its close), and lookahead off shows the last tick bar opened
+before the chart bar's close.
+
 ### Seed data
 
 `request.seed(source, symbol, expression)` reads a seed data series on the chart timeframe: it is

@@ -4097,8 +4097,9 @@ function security<T extends SecurityValue>(
   if (base !== '' && base !== chartCtx.tickerid) {
     return externalSecurity(base, heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol, false);
   }
-  if (timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
-    // a lower timeframe of the chart symbol: its bars come from ChartContext.bars (#181)
+  const ticks = timeframeCore.info(tf).isticks && tf !== chart.period;
+  if (ticks || timeframeCore.in_seconds(tf) < timeframeCore.in_seconds(chart.period)) {
+    // a lower timeframe of the chart symbol, or its ticks: its bars come from ChartContext.bars (#181, #214)
     return externalSecurity(chartCtx.tickerid ?? '', heikin, tf, expression, gaps, lookahead, ignore_invalid_symbol, true);
   }
 
