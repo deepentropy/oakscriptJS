@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 27/11/2026
+
+### Added
+
+- `request.security` and `request.security_lower_tf` read tick timeframes (`"1T"`, `"10T"`…, #214), which threw before.
+  A tick bar has no duration: it goes to the chart bar it opened in (at or after its open, before its close); lookahead
+  off shows the last tick bar opened before the chart bar's close, lookahead on the last one opened at or before its
+  open. On a chart of ticks, a bar closes when the next one opens.
+
 ## [0.23.0] - 26/11/2026
 
 ### Changed
